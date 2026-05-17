@@ -194,7 +194,7 @@ func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
 
 // paintCellToUV converts a paint.Cell to a *uv.Cell for writing to the screen.
 func paintCellToUV(c paint.Cell) *uv.Cell {
-	content := string(c.Rune)
+	content := c.Content
 	if content == "" || content == "\x00" {
 		content = " "
 	}

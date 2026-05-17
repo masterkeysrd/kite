@@ -18,6 +18,7 @@ import (
 // testObject is a lightweight render.Object for focus tests. It records
 // MarkDirty calls and exposes full focusable/disabled/display control.
 type testObject struct {
+	event.Target
 	parent    *testObject
 	children  []*testObject
 	focusable bool
@@ -89,6 +90,8 @@ func (o *testObject) PreviousSibling() render.Object {
 	return nil
 }
 
+func (o *testObject) EventTarget() event.EventTarget { return o }
+
 func (o *testObject) Children() iter.Seq[render.Object] {
 	return func(yield func(render.Object) bool) {
 		for _, c := range o.children {
@@ -116,9 +119,6 @@ func (o *testObject) IsDirtyLayout() bool                 { return false }
 func (o *testObject) IsDirtyPaint() bool                  { return false }
 func (o *testObject) IsDirtyScroll() bool                 { return false }
 func (o *testObject) IsDirtyStructure() bool              { return false }
-func (o *testObject) LayoutFlags() render.LayoutFlag      { return 0 }
-func (o *testObject) SetLayoutFlag(_ render.LayoutFlag)   {}
-func (o *testObject) ClearLayoutFlag(_ render.LayoutFlag) {}
 func (o *testObject) Focusable() bool                     { return o.focusable }
 func (o *testObject) SetFocusable(v bool)                 { o.focusable = v }
 func (o *testObject) Disabled() bool                      { return o.disabled }
@@ -141,14 +141,8 @@ var _ render.Object = (*testObject)(nil)
 // root is the default scope root. captured accumulates dispatched focus
 // event types in order.
 func makeManager(root *testObject) (*focus.Manager, *[]event.EventType) {
-	reg := make(map[render.Object]*event.EventTarget)
-	resolver := func(obj render.Object) *event.EventTarget { return reg[obj] }
-	dispatcher := event.NewDispatcher(resolver)
-	m := focus.NewManager(root, dispatcher, resolver)
-
-	// Register a listener on root that records event types.
-	et := &event.EventTarget{}
-	reg[root] = et
+	dispatcher := event.NewDispatcher()
+	m := focus.NewManager(root, dispatcher)
 
 	var captured []event.EventType
 	for _, typ := range []event.EventType{
@@ -156,10 +150,10 @@ func makeManager(root *testObject) (*focus.Manager, *[]event.EventType) {
 		event.EventFocusIn, event.EventFocusOut,
 	} {
 		t := typ
-		et.AddEventListener(t, func(e event.Event) {
+		root.AddEventListener(t, func(e event.Event) {
 			captured = append(captured, e.Type())
 		})
-		et.AddEventListener(t, func(e event.Event) {
+		root.AddEventListener(t, func(e event.Event) {
 			captured = append(captured, e.Type())
 		}, event.Capture())
 	}
@@ -182,19 +176,13 @@ func TestManager_SetFocus_EmitsFocusevent(t *testing.T) {
 	link(root, a)
 	link(root, b)
 
-	// Build a dispatcher that records event dispatched on root (captures
-	// bubbling focusout / focusin event).
-	reg := make(map[render.Object]*event.EventTarget)
-	resolver := func(obj render.Object) *event.EventTarget { return reg[obj] }
-	d := event.NewDispatcher(resolver)
-	m := focus.NewManager(root, d, resolver)
+	d := event.NewDispatcher()
+	m := focus.NewManager(root, d)
 
 	var fired []event.EventType
-	rootET := &event.EventTarget{}
-	reg[root] = rootET
 	for _, typ := range []event.EventType{event.EventFocusIn, event.EventFocusOut} {
 		t2 := typ
-		rootET.AddEventListener(t2, func(e event.Event) {
+		root.AddEventListener(t2, func(e event.Event) {
 			fired = append(fired, e.Type())
 		})
 	}

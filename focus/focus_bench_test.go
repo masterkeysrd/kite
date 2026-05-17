@@ -5,15 +5,13 @@ import (
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/render"
 )
 
 // newBenchManager returns a Manager with a simple no-op dispatcher/resolver,
 // suitable for benchmarks that don't care about event dispatch.
 func newBenchManager(root *testObject) *focus.Manager {
-	resolver := func(_ render.Object) *event.EventTarget { return nil }
-	d := event.NewDispatcher(resolver)
-	return focus.NewManager(root, d, resolver)
+	d := event.NewDispatcher()
+	return focus.NewManager(root, d)
 }
 
 // BenchmarkManager_Next_LargeTree measures Next() over a flat tree with many

@@ -4,17 +4,30 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/style"
 )
 
 // fakeRO is a test-only render.Object that counts MarkChildrenDirty calls.
-// It embeds render.BaseRender to satisfy the full render.Object interface.
 type fakeRO struct {
-	render.BaseRender
 	calls int
 }
 
 func (f *fakeRO) MarkChildrenDirty() { f.calls++ }
+func (f *fakeRO) EventTarget() event.EventTarget { return nil }
+func (f *fakeRO) Parent() render.Object { return nil }
+func (f *fakeRO) FirstChild() render.Object { return nil }
+func (f *fakeRO) LastChild() render.Object { return nil }
+func (f *fakeRO) NextSibling() render.Object { return nil }
+func (f *fakeRO) PreviousSibling() render.Object { return nil }
+func (f *fakeRO) Bounds() layout.Rect { return layout.Rect{} }
+func (f *fakeRO) SetBounds(layout.Rect) {}
+func (f *fakeRO) Focusable() bool { return false }
+func (f *fakeRO) Disabled() bool { return false }
+func (f *fakeRO) ComputedStyle() *style.Computed { return nil }
+func (f *fakeRO) MarkDirty(render.DirtyFlag) {}
 
 var _ render.Object = (*fakeRO)(nil)
 

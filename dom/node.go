@@ -3,6 +3,7 @@ package dom
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/render"
 )
 
@@ -27,6 +28,8 @@ func asLinkable(n Node) linkable {
 // baseNode holds the common link fields shared by element and textNode.
 // It is embedded by value in both concrete types.
 type baseNode struct {
+	event.Target
+
 	parent        Element
 	next          Node
 	prev          Node

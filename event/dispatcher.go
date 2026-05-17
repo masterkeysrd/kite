@@ -2,8 +2,6 @@ package event
 
 import (
 	"sync/atomic"
-
-	"github.com/masterkeysrd/kite/render"
 )
 
 // Subscription is a cancellable event listener registration. Call Cancel to
@@ -53,7 +51,7 @@ type registration struct {
 // subscription wraps a *registration and the target it belongs to.
 type subscription struct {
 	reg    *registration
-	target *EventTarget
+	target EventTarget
 }
 
 // Cancel removes the listener. Idempotent.
@@ -70,38 +68,30 @@ func nextRegID() uint64 { return regIDGen.Add(1) }
 
 // --- Dispatcher --------------------------------------------------------------
 
-// HitTester resolves the render object at a screen-space point. This is
+// HitTester resolves the event target at a screen-space point. This is
 // typically implemented by the engine.
 type HitTester interface {
-	HitTest(x, y int) render.Object
+	HitTest(x, y int) EventTarget
 }
 
 // AncestorWalker returns the ancestor chain from target up to the root
 // (inclusive), in child-to-root order.
-type AncestorWalker func(target render.Object) []render.Object
-
-// EventTargetResolver maps a render.Object to its EventTarget, or nil if
-// the object has no target registered.
-type EventTargetResolver func(render.Object) EventTarget
+type AncestorWalker func(target EventTarget) []EventTarget
 
 // Dispatcher performs 3-phase (capture → target → bubble) event dispatch.
-// It does not own the event-target registry; callers supply a resolver.
 //
 // Dispatcher is not safe for concurrent use.
-type Dispatcher struct {
-	resolver EventTargetResolver
-}
+type Dispatcher struct{}
 
-// NewDispatcher creates a Dispatcher that uses resolver to look up the
-// EventTarget for each render object in the ancestor chain.
-func NewDispatcher(resolver EventTargetResolver) *Dispatcher {
-	return &Dispatcher{resolver: resolver}
+// NewDispatcher creates a Dispatcher.
+func NewDispatcher() *Dispatcher {
+	return &Dispatcher{}
 }
 
 // Dispatch routes e through the ancestor chain described by path.
 // path must be ordered root → target (index 0 = root, last = target).
 // Dispatch modifies e's internal phase/target/currentTarget fields in-place.
-func (d *Dispatcher) Dispatch(e Event, path []render.Object) {
+func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 	if len(path) == 0 {
 		return
 	}
@@ -110,16 +100,12 @@ func (d *Dispatcher) Dispatch(e Event, path []render.Object) {
 
 	// Phase 1: Capture — root → target's parent.
 	e.setPhase(PhaseCapture)
-	for _, obj := range path[:len(path)-1] {
+	for _, et := range path[:len(path)-1] {
 		if e.PropagationStopped() {
 			return
 		}
-		et := d.resolver(obj)
-		if et == nil {
-			continue
-		}
-		e.setCurrentTarget(obj)
-		et.dispatchTo(e)
+		e.setCurrentTarget(et)
+		et.DispatchTo(e)
 	}
 
 	if e.PropagationStopped() {
@@ -129,11 +115,7 @@ func (d *Dispatcher) Dispatch(e Event, path []render.Object) {
 	// Phase 2: Target — both capture and bubble listeners fire.
 	e.setPhase(PhaseTarget)
 	e.setCurrentTarget(target)
-	et := d.resolver(target)
-	if et != nil {
-		// Invoke capture-registered listeners first, then bubble.
-		et.dispatchToTarget(e)
-	}
+	target.DispatchToTarget(e)
 
 	if e.PropagationStopped() || !e.Bubbles() {
 		return
@@ -145,13 +127,9 @@ func (d *Dispatcher) Dispatch(e Event, path []render.Object) {
 		if e.PropagationStopped() {
 			return
 		}
-		obj := path[i]
-		et := d.resolver(obj)
-		if et == nil {
-			continue
-		}
-		e.setCurrentTarget(obj)
-		et.dispatchTo(e)
+		et := path[i]
+		e.setCurrentTarget(et)
+		et.DispatchTo(e)
 	}
 }
 
@@ -170,17 +148,12 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 
 	// Capture.
 	e.setPhase(PhaseCapture)
-	for _, obj := range path[:len(path)-1] {
+	for _, et := range path[:len(path)-1] {
 		if e.PropagationStopped() {
 			return
 		}
-		et := d.resolver(obj)
-		if et == nil {
-			continue
-		}
-		e.setCurrentTarget(obj)
-		et.dispatchTo(e)
-		// et.dispatchTo(e)
+		e.setCurrentTarget(et)
+		et.DispatchTo(e)
 	}
 
 	if e.PropagationStopped() {
@@ -190,9 +163,8 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 	// Target.
 	e.setPhase(PhaseTarget)
 	e.setCurrentTarget(target)
-	if et := d.resolver(target); et != nil {
-		et.dispatchToTarget(e)
-	}
+	target.DispatchToTarget(e)
+
 	// Check if target itself is Scrollable.
 	if sc, ok := scrollables[target]; ok {
 		sc.OnWheel(e)
@@ -209,32 +181,31 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 		if e.PropagationStopped() {
 			return
 		}
-		obj := path[i]
-		if sc, ok := scrollables[obj]; ok {
-			e.setCurrentTarget(obj)
+		et := path[i]
+		if sc, ok := scrollables[et]; ok {
+			e.setCurrentTarget(et)
 			sc.OnWheel(e)
 			return
 		}
-		et := d.resolver(obj)
-		if et == nil {
-			continue
-		}
-		e.setCurrentTarget(obj)
-		et.dispatchTo(e)
+		e.setCurrentTarget(et)
+		et.DispatchTo(e)
 	}
 }
 
 type EventTarget interface {
 	AddEventListener(typ EventType, fn Listener, opts ...Option) Subscription
+	DispatchTo(e Event)
+	DispatchToTarget(e Event)
+	removeRegistration(id uint64)
 }
 
-// eventTarget manages event listeners for a single render object. It should
-// be embedded in (or stored alongside) render objects that need to receive
-// event.
+// Target manages event listeners for a single object. It should
+// be embedded in (or stored alongside) objects that need to receive
+// events.
 //
-// EventTarget is not safe for concurrent use; it must be accessed from the
+// Target is not safe for concurrent use; it must be accessed from the
 // single main-loop goroutine.
-type eventTarget struct {
+type Target struct {
 	listeners map[EventType][]*registration
 }
 
@@ -242,7 +213,7 @@ type eventTarget struct {
 // target. Options control the phase (capture vs bubble), auto-cancellation
 // (once), and the passive hint. The returned Subscription can be used to
 // remove the listener without pointer comparison.
-func (t *eventTarget) AddEventListener(typ EventType, fn Listener, opts ...Option) Subscription {
+func (t *Target) AddEventListener(typ EventType, fn Listener, opts ...Option) Subscription {
 	reg := &registration{
 		id: nextRegID(),
 		fn: fn,
@@ -259,7 +230,7 @@ func (t *eventTarget) AddEventListener(typ EventType, fn Listener, opts ...Optio
 
 // removeRegistration removes the registration with the given id. Called by
 // subscription.Cancel.
-func (t *eventTarget) removeRegistration(id uint64) {
+func (t *Target) removeRegistration(id uint64) {
 	for typ, regs := range t.listeners {
 		for i, r := range regs {
 			if r.id == id {
@@ -270,10 +241,10 @@ func (t *eventTarget) removeRegistration(id uint64) {
 	}
 }
 
-// dispatchTo fires listeners on this target for the given event. It
+// DispatchTo fires listeners on this target for the given event. It
 // respects the phase and the once flag. Cancelled registrations are
 // purged after each call.
-func (t *eventTarget) dispatchTo(e Event) {
+func (t *Target) DispatchTo(e Event) {
 	typ := e.Type()
 	regs := t.listeners[typ]
 	if len(regs) == 0 {
@@ -315,11 +286,11 @@ func (t *eventTarget) dispatchTo(e Event) {
 	t.listeners[typ] = surviving
 }
 
-// dispatchToTarget invokes capture-registered listeners followed by
+// DispatchToTarget invokes capture-registered listeners followed by
 // bubble-registered listeners for the target phase. This mirrors the
 // DOM specification where the target phase fires capture listeners then
 // bubble listeners in registration order.
-func (t *eventTarget) dispatchToTarget(e Event) {
+func (t *Target) DispatchToTarget(e Event) {
 	typ := e.Type()
 	regs := t.listeners[typ]
 	if len(regs) == 0 {

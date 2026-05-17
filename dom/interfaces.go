@@ -3,6 +3,7 @@ package dom
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/render"
 )
 
@@ -12,6 +13,8 @@ import (
 // DOM nodes do not own dirty flags, layout state, or computed style — those
 // live on render.Object (see ADR-0002, ADR-0003).
 type Node interface {
+	event.EventTarget
+
 	// Parent returns the parent Element, or nil if this node has no parent.
 	Parent() Element
 

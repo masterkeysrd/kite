@@ -61,24 +61,20 @@ type Manager struct {
 	reason     Reason
 	scopes     []*Scope
 	dispatcher *event.Dispatcher
-	resolver   event.EventTargetResolver
 }
 
-// NewManager creates a Manager backed by dispatcher and resolver.
+// NewManager creates a Manager backed by dispatcher.
 // A default root scope covering the entire tree (with root as Root) is
 // established automatically via PushScope; this mirrors the engine startup
 // contract described in ADR-0010.
 //
-// resolver maps a render.Object to its EventTarget (may return nil).
 // dispatcher routes focus / blur event through the render tree.
 func NewManager(
 	root render.Object,
 	dispatcher *event.Dispatcher,
-	resolver event.EventTargetResolver,
 ) *Manager {
 	m := &Manager{
 		dispatcher: dispatcher,
-		resolver:   resolver,
 	}
 	m.PushScope(&Scope{Root: root})
 	return m
@@ -158,16 +154,24 @@ func (m *Manager) setFocus(next render.Object, reason Reason) {
 	if old != nil {
 		old.MarkDirty(render.DirtyPaint)
 		path := ancestorPath(old)
-		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventBlur, next), path)
-		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventFocusOut, next), path)
+		etNext := event.EventTarget(nil)
+		if next != nil {
+			etNext = next.EventTarget()
+		}
+		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventBlur, etNext), path)
+		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventFocusOut, etNext), path)
 	}
 
 	// Dispatch gain-focus event on new node.
 	if next != nil {
 		next.MarkDirty(render.DirtyPaint)
 		path := ancestorPath(next)
-		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventFocus, old), path)
-		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventFocusIn, old), path)
+		etOld := event.EventTarget(nil)
+		if old != nil {
+			etOld = old.EventTarget()
+		}
+		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventFocus, etOld), path)
+		m.dispatcher.Dispatch(event.NewFocusEvent(event.EventFocusIn, etOld), path)
 	}
 }
 
@@ -351,10 +355,12 @@ func findPrev(candidates []render.Object, current render.Object) render.Object {
 // ancestorPath returns the ancestor chain from the tree root down to n
 // (inclusive), ordered root → n. This is the path format required by
 // event.Dispatcher.Dispatch.
-func ancestorPath(n render.Object) []render.Object {
-	var chain []render.Object
+func ancestorPath(n render.Object) []event.EventTarget {
+	var chain []event.EventTarget
 	for cur := n; cur != nil; cur = cur.Parent() {
-		chain = append(chain, cur)
+		if et := cur.EventTarget(); et != nil {
+			chain = append(chain, et)
+		}
 	}
 	// Reverse to get root → n order.
 	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {

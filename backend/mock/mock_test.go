@@ -31,7 +31,7 @@ func TestBackend_Mock_RecordsBeginEndFrame(t *testing.T) {
 	}
 
 	// Write a cell to confirm the surface is a usable FrameBuffer.
-	surface.Set(5, 3, paint.Cell{Rune: 'X', Width: 1})
+	surface.Set(5, 3, paint.Cell{Content: "X", Width: 1})
 
 	if err := b.EndFrame(); err != nil {
 		t.Fatalf("EndFrame returned error: %v", err)
@@ -46,8 +46,8 @@ func TestBackend_Mock_RecordsBeginEndFrame(t *testing.T) {
 	// The stored frame's surface must contain the cell we wrote.
 	fr := b.LastFrame()
 	got := fr.Surface.Get(5, 3)
-	if got.Rune != 'X' {
-		t.Errorf("stored frame cell at (5,3) = %q, want 'X'", got.Rune)
+	if got.Content != "X" {
+		t.Errorf("stored frame cell at (5,3) = %q, want \"X\"", got.Content)
 	}
 
 	// Second frame.

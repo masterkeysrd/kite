@@ -19,6 +19,7 @@ import (
 // spatialObj is a lightweight render.Object that lets tests set exact bounds
 // and focusability.
 type spatialObj struct {
+	event.Target
 	parent        *spatialObj
 	children      []*spatialObj
 	focusable     bool
@@ -95,6 +96,8 @@ func (o *spatialObj) PreviousSibling() render.Object {
 	return nil
 }
 
+func (o *spatialObj) EventTarget() event.EventTarget { return o }
+
 func (o *spatialObj) Children() iter.Seq[render.Object] {
 	return func(yield func(render.Object) bool) {
 		for _, c := range o.children {
@@ -122,9 +125,6 @@ func (o *spatialObj) IsDirtyLayout() bool                 { return false }
 func (o *spatialObj) IsDirtyPaint() bool                  { return false }
 func (o *spatialObj) IsDirtyScroll() bool                 { return false }
 func (o *spatialObj) IsDirtyStructure() bool              { return false }
-func (o *spatialObj) LayoutFlags() render.LayoutFlag      { return 0 }
-func (o *spatialObj) SetLayoutFlag(_ render.LayoutFlag)   {}
-func (o *spatialObj) ClearLayoutFlag(_ render.LayoutFlag) {}
 func (o *spatialObj) Focusable() bool                     { return o.focusable }
 func (o *spatialObj) SetFocusable(v bool)                 { o.focusable = v }
 func (o *spatialObj) Disabled() bool                      { return o.disabled }
@@ -148,9 +148,8 @@ var _ render.Object = (*spatialObj)(nil)
 
 // makeManager returns a focus.Manager with a no-op event dispatcher.
 func makeManager(root *spatialObj) *focus.Manager {
-	resolver := func(_ render.Object) *event.EventTarget { return nil }
-	d := event.NewDispatcher(resolver)
-	return focus.NewManager(root, d, resolver)
+	d := event.NewDispatcher()
+	return focus.NewManager(root, d)
 }
 
 // rect is a convenience constructor for layout.Rect.

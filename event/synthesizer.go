@@ -2,7 +2,6 @@ package event
 
 import (
 	"github.com/masterkeysrd/kite/layout"
-	"github.com/masterkeysrd/kite/render"
 )
 
 // FocusReader returns the currently focused render object. The Synthesizer
@@ -31,9 +30,9 @@ type SynthesizerOptions struct {
 	// If nil, clipboard events are synthesized without backend I/O.
 	Clipboard ClipboardBridge
 
-	// ScrollableResolver maps a render object to its Scrollable, or nil.
+	// ScrollableResolver maps a target to its Scrollable, or nil.
 	// Used by DispatchWheel.
-	ScrollableResolver func(render.Object) Scrollable
+	ScrollableResolver func(EventTarget) Scrollable
 }
 
 // Synthesizer converts raw backend input (RawEvent) into structured events
@@ -122,11 +121,11 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 // synthesizeCopy creates a ClipboardEvent{Copy} if the focused element has a
 // selection.
 func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
-	focused := s.focus.FocusedObject()
+	focused := s.focus.FocusedTarget()
 	if focused == nil {
 		return nil
 	}
-	sp, ok := focused.LogicalNode().(SelectionProvider)
+	sp, ok := focused.(SelectionProvider)
 	if !ok {
 		return nil
 	}
@@ -145,11 +144,11 @@ func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
 // synthesizeCut creates a ClipboardEvent{Cut} if the focused element has a
 // selection.
 func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
-	focused := s.focus.FocusedObject()
+	focused := s.focus.FocusedTarget()
 	if focused == nil {
 		return nil
 	}
-	sp, ok := focused.LogicalNode().(SelectionProvider)
+	sp, ok := focused.(SelectionProvider)
 	if !ok {
 		return nil
 	}
@@ -174,7 +173,7 @@ func (s *Synthesizer) synthesizePasteFromClipboard() *ClipboardEvent {
 	}
 	ce := NewClipboardEvent(EventPaste, ClipboardPaste, data)
 	if s.focus != nil {
-		ce.setTarget(s.focus.FocusedObject())
+		ce.setTarget(s.focus.FocusedTarget())
 	}
 	return ce
 }
@@ -183,14 +182,14 @@ func (s *Synthesizer) synthesizePasteFromClipboard() *ClipboardEvent {
 // and drag as appropriate.
 func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 	pos := layout.Point{X: raw.X, Y: raw.Y}
-	hitObj := s.hitTest(pos)
+	hitTarget := s.hitTest(pos)
 
 	var events []Event
 
 	if raw.DeltaX != 0 || raw.DeltaY != 0 {
 		// Wheel event.
 		we := NewWheelEvent(pos, raw.DeltaX, raw.DeltaY, raw.Mod)
-		we.setTarget(hitObj)
+		we.setTarget(hitTarget)
 		events = append(events, we)
 		return events
 	}
@@ -198,8 +197,8 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 	if !raw.Up && !raw.Move {
 		// Mouse down.
 		me := NewMouseEvent(EventMouseDown, pos, raw.Button, raw.Mod)
-		me.Hit = HitResult{Object: hitObj}
-		me.setTarget(hitObj)
+		me.Hit = HitResult{Target: hitTarget}
+		me.setTarget(hitTarget)
 		s.pendingDown = me
 		s.pendingDownPos = pos
 		events = append(events, me)
@@ -209,15 +208,15 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 	if raw.Move {
 		// Mouse move.
 		me := NewMouseEvent(EventMouseMove, pos, raw.Button, raw.Mod)
-		me.Hit = HitResult{Object: hitObj}
-		me.setTarget(hitObj)
+		me.Hit = HitResult{Target: hitTarget}
+		me.setTarget(hitTarget)
 		events = append(events, me)
 
 		// Check for drag: down pending and movement beyond tolerance.
 		if s.pendingDown != nil && s.beyondTolerance(s.pendingDownPos, pos) {
 			drag := NewMouseEvent(EventDrag, pos, raw.Button, raw.Mod)
-			drag.Hit = HitResult{Object: hitObj}
-			drag.setTarget(hitObj)
+			drag.Hit = HitResult{Target: hitTarget}
+			drag.setTarget(hitTarget)
 			events = append(events, drag)
 			s.pendingDown = nil // drag cancels pending click
 		}
@@ -227,8 +226,8 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 	if raw.Up {
 		// Mouse up.
 		me := NewMouseEvent(EventMouseUp, pos, raw.Button, raw.Mod)
-		me.Hit = HitResult{Object: hitObj}
-		me.setTarget(hitObj)
+		me.Hit = HitResult{Target: hitTarget}
+		me.setTarget(hitTarget)
 		events = append(events, me)
 
 		// Synthesize click if we have a pending down on the same target and
@@ -236,8 +235,8 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 		if s.pendingDown != nil {
 			if !s.beyondTolerance(s.pendingDownPos, pos) {
 				click := NewMouseEvent(EventClick, pos, raw.Button, raw.Mod)
-				click.Hit = HitResult{Object: hitObj}
-				click.setTarget(hitObj)
+				click.Hit = HitResult{Target: hitTarget}
+				click.setTarget(hitTarget)
 				events = append(events, click)
 			}
 			s.pendingDown = nil
@@ -258,11 +257,11 @@ func (s *Synthesizer) processResize(raw *RawResizeEvent) []Event {
 func (s *Synthesizer) processBracketedPaste(raw *RawBracketedPaste) []Event {
 	pe := NewPasteEvent(raw.Text)
 	if s.focus != nil {
-		pe.setTarget(s.focus.FocusedObject())
+		pe.setTarget(s.focus.FocusedTarget())
 	}
 	ce := NewClipboardEvent(EventPaste, ClipboardPaste, raw.Text)
 	if s.focus != nil {
-		ce.setTarget(s.focus.FocusedObject())
+		ce.setTarget(s.focus.FocusedTarget())
 	}
 	if s.clipboard != nil {
 		s.clipboard.SetClipboard(raw.Text)
@@ -270,8 +269,8 @@ func (s *Synthesizer) processBracketedPaste(raw *RawBracketedPaste) []Event {
 	return []Event{pe, ce}
 }
 
-// hitTest resolves the render object at p, or nil if the hit tester is unset.
-func (s *Synthesizer) hitTest(p layout.Point) render.Object {
+// hitTest resolves the target at p, or nil if the hit tester is unset.
+func (s *Synthesizer) hitTest(p layout.Point) EventTarget {
 	if s.hit == nil {
 		return nil
 	}

@@ -18,30 +18,32 @@ import (
 // stubObject is a minimal render.Object used by tests. It supports Parent()
 // to allow ancestor-chain construction.
 type stubObject struct {
-	parent   render.Object
+	event.Target
+	parent   event.EventTarget
 	bounds   layout.Rect
-	children []render.Object
+	children []event.EventTarget
 }
 
 func newStub(bounds layout.Rect) *stubObject { return &stubObject{bounds: bounds} }
 
-func (s *stubObject) Parent() render.Object { return s.parent }
-func (s *stubObject) FirstChild() render.Object {
+func (s *stubObject) Parent() event.EventTarget { return s.parent }
+func (s *stubObject) FirstChild() event.EventTarget {
 	if len(s.children) > 0 {
 		return s.children[0]
 	}
 	return nil
 }
-func (s *stubObject) LastChild() render.Object {
+func (s *stubObject) LastChild() event.EventTarget {
 	if n := len(s.children); n > 0 {
 		return s.children[n-1]
 	}
 	return nil
 }
-func (s *stubObject) NextSibling() render.Object     { return nil }
-func (s *stubObject) PreviousSibling() render.Object { return nil }
-func (s *stubObject) Children() iter.Seq[render.Object] {
-	return func(yield func(render.Object) bool) {
+func (s *stubObject) NextSibling() event.EventTarget     { return nil }
+func (s *stubObject) PreviousSibling() event.EventTarget { return nil }
+func (s *stubObject) EventTarget() event.EventTarget     { return s }
+func (s *stubObject) Children() iter.Seq[event.EventTarget] {
+	return func(yield func(event.EventTarget) bool) {
 		for _, c := range s.children {
 			if !yield(c) {
 				return
@@ -68,13 +70,11 @@ func (s *stubObject) IsDirtyLayout() bool               { return false }
 func (s *stubObject) IsDirtyPaint() bool                { return false }
 func (s *stubObject) IsDirtyScroll() bool               { return false }
 func (s *stubObject) IsDirtyStructure() bool            { return false }
-func (s *stubObject) LayoutFlags() render.LayoutFlag    { return 0 }
-func (s *stubObject) SetLayoutFlag(render.LayoutFlag)   {}
-func (s *stubObject) ClearLayoutFlag(render.LayoutFlag) {}
 func (s *stubObject) Focusable() bool                   { return false }
 func (s *stubObject) SetFocusable(bool)                 {}
 func (s *stubObject) Disabled() bool                    { return false }
 func (s *stubObject) SetDisabled(bool)                  {}
+func (s *stubObject) SelectedText() string              { return "" }
 
 // addChild sets parent and appends child.
 func addChild(parent, child *stubObject) {
@@ -83,26 +83,21 @@ func addChild(parent, child *stubObject) {
 }
 
 // buildPath builds a root→target path from ancestor chain by walking parents.
-func buildPath(objs ...*stubObject) []render.Object {
-	path := make([]render.Object, len(objs))
+func buildPath(objs ...*stubObject) []event.EventTarget {
+	path := make([]event.EventTarget, len(objs))
 	for i, o := range objs {
 		path[i] = o
 	}
 	return path
 }
 
-// newRegistry builds an EventTargetResolver and a map for registering targets.
-func newRegistry() (event.EventTargetResolver, map[render.Object]*event.EventTarget) {
-	m := make(map[render.Object]*event.EventTarget)
-	resolver := func(obj render.Object) *event.EventTarget { return m[obj] }
-	return resolver, m
+// newRegistry builds an event.Target map for registering targets.
+func newRegistry() map[event.EventTarget]event.EventTarget {
+	return make(map[event.EventTarget]event.EventTarget)
 }
 
-func ensureTarget(m map[render.Object]*event.EventTarget, obj render.Object) *event.EventTarget {
-	if _, ok := m[obj]; !ok {
-		m[obj] = &event.EventTarget{}
-	}
-	return m[obj]
+func ensureTarget(m map[event.EventTarget]event.EventTarget, obj event.EventTarget) event.EventTarget {
+	return obj
 }
 
 // ---------------------------------------------------------------------------
@@ -118,27 +113,27 @@ func TestDispatcher_CaptureTargetBubble_Order(t *testing.T) {
 	addChild(root, mid)
 	addChild(mid, target)
 
-	resolver, reg := newRegistry()
-	d := event.NewDispatcher(resolver)
+	_ = newRegistry()
+	d := event.NewDispatcher()
 
 	var order []string
 
-	ensureTarget(reg, root).AddEventListener(event.EventClick, func(e event.Event) {
+	root.AddEventListener(event.EventClick, func(e event.Event) {
 		order = append(order, "root-capture")
 	}, event.Capture())
-	ensureTarget(reg, mid).AddEventListener(event.EventClick, func(e event.Event) {
+	mid.AddEventListener(event.EventClick, func(e event.Event) {
 		order = append(order, "mid-capture")
 	}, event.Capture())
-	ensureTarget(reg, target).AddEventListener(event.EventClick, func(e event.Event) {
+	target.AddEventListener(event.EventClick, func(e event.Event) {
 		order = append(order, "target-capture")
 	}, event.Capture())
-	ensureTarget(reg, target).AddEventListener(event.EventClick, func(e event.Event) {
+	target.AddEventListener(event.EventClick, func(e event.Event) {
 		order = append(order, "target-bubble")
 	})
-	ensureTarget(reg, mid).AddEventListener(event.EventClick, func(e event.Event) {
+	mid.AddEventListener(event.EventClick, func(e event.Event) {
 		order = append(order, "mid-bubble")
 	})
-	ensureTarget(reg, root).AddEventListener(event.EventClick, func(e event.Event) {
+	root.AddEventListener(event.EventClick, func(e event.Event) {
 		order = append(order, "root-bubble")
 	})
 
@@ -170,14 +165,14 @@ func TestDispatcher_StopPropagation_HaltsBubble(t *testing.T) {
 	root := newStub(layout.Rect{})
 	target := newStub(layout.Rect{})
 
-	resolver, reg := newRegistry()
-	d := event.NewDispatcher(resolver)
+	_ = newRegistry()
+	d := event.NewDispatcher()
 
 	reached := false
-	ensureTarget(reg, target).AddEventListener(event.EventClick, func(e event.Event) {
+	target.AddEventListener(event.EventClick, func(e event.Event) {
 		e.StopPropagation()
 	})
-	ensureTarget(reg, root).AddEventListener(event.EventClick, func(_ event.Event) {
+	root.AddEventListener(event.EventClick, func(_ event.Event) {
 		reached = true
 	})
 
@@ -196,15 +191,15 @@ func TestDispatcher_PreventDefault_FlagOnly(t *testing.T) {
 	root := newStub(layout.Rect{})
 	target := newStub(layout.Rect{})
 
-	resolver, reg := newRegistry()
-	d := event.NewDispatcher(resolver)
+	_ = newRegistry()
+	d := event.NewDispatcher()
 
-	ensureTarget(reg, target).AddEventListener(event.EventClick, func(e event.Event) {
+	target.AddEventListener(event.EventClick, func(e event.Event) {
 		e.PreventDefault()
 	})
 
 	rootReached := false
-	ensureTarget(reg, root).AddEventListener(event.EventClick, func(_ event.Event) {
+	root.AddEventListener(event.EventClick, func(_ event.Event) {
 		rootReached = true
 	})
 
@@ -224,9 +219,8 @@ func TestSubscription_Cancel_RemovesListener(t *testing.T) {
 	t.Parallel()
 
 	obj := newStub(layout.Rect{})
-	resolver, reg := newRegistry()
-	d := event.NewDispatcher(resolver)
-	et := ensureTarget(reg, obj)
+	d := event.NewDispatcher()
+	et := event.EventTarget(obj)
 
 	calls := 0
 	sub := et.AddEventListener(event.EventClick, func(_ event.Event) {
@@ -281,26 +275,26 @@ func TestKeyEvent_MatchString(t *testing.T) {
 // Synthesizer tests
 // ---------------------------------------------------------------------------
 
-// stubHitTester returns a fixed render.Object regardless of coordinates.
+// stubHitTester returns a fixed event.EventTarget regardless of coordinates.
 type stubHitTester struct {
-	result render.Object
+	result event.EventTarget
 }
 
-func (h *stubHitTester) HitTest(_, _ int) render.Object { return h.result }
+func (h *stubHitTester) HitTest(_, _ int) event.EventTarget { return h.result }
 
 // stubFocus always returns the same focused object.
 type stubFocus struct {
-	obj render.Object
+	target event.EventTarget
 }
 
-func (f *stubFocus) FocusedObject() render.Object { return f.obj }
+func (f *stubFocus) FocusedTarget() event.EventTarget { return f.target }
 
 func TestSynthesizer_ClickWithinTolerance(t *testing.T) {
 	t.Parallel()
 
 	target := newStub(layout.Rect{})
 	hit := &stubHitTester{result: target}
-	focus := &stubFocus{obj: target}
+	focus := &stubFocus{target: target}
 	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{ClickRadius: 3})
 
 	// Mouse down at (5,5).
@@ -318,7 +312,7 @@ func TestSynthesizer_DragBeyondTolerance(t *testing.T) {
 
 	target := newStub(layout.Rect{})
 	hit := &stubHitTester{result: target}
-	focus := &stubFocus{obj: target}
+	focus := &stubFocus{target: target}
 	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{ClickRadius: 3})
 
 	// Mouse down.
@@ -353,8 +347,8 @@ func TestSynthesizer_ResolvesHitTarget(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *MouseEvent")
 	}
-	if me.Hit.Object != target {
-		t.Errorf("expected hit object to be target, got %v", me.Hit.Object)
+	if me.Hit.Target != target {
+		t.Errorf("expected hit target to be target, got %v", me.Hit.Target)
 	}
 }
 
@@ -365,22 +359,26 @@ func TestSynthesizer_ResolvesHitTarget(t *testing.T) {
 // stubRenderView is a minimal render tree for hit-test testing.
 type stubRenderView struct {
 	stubObject
-	overlays []render.Object
+	overlays []event.EventTarget
 }
 
-func (v *stubRenderView) Overlays() []render.Object { return v.overlays }
+func (v *stubRenderView) Overlays() []event.EventTarget { return v.overlays }
 
 // hitTestObject replicates the engine's logic for testing.
-func hitTestObject(obj render.Object, p layout.Point) render.Object {
-	if !obj.Bounds().Contains(p) {
+func hitTestObject(obj event.EventTarget, p layout.Point) event.EventTarget {
+	sobj := obj.(*stubObject)
+	if !sobj.Bounds().Contains(p) {
 		return nil
 	}
-	var last render.Object
-	for child := range obj.Children() {
-		last = child
+	// This is a simple stub, we don't have PreviousSibling in stubObject yet but we can walk children again or just assume it's linear.
+	// For testing topmost, we should walk in reverse.
+	children := make([]event.EventTarget, 0)
+	for child := range sobj.Children() {
+		children = append(children, child)
 	}
-	for child := last; child != nil; child = child.PreviousSibling() {
-		if hit := hitTestObject(child, p); hit != nil {
+
+	for i := len(children) - 1; i >= 0; i-- {
+		if hit := hitTestObject(children[i], p); hit != nil {
 			return hit
 		}
 	}
@@ -391,7 +389,7 @@ type testHitTester struct {
 	view *stubRenderView
 }
 
-func (h *testHitTester) HitTest(x, y int) render.Object {
+func (h *testHitTester) HitTest(x, y int) event.EventTarget {
 	p := layout.Point{X: x, Y: y}
 	overlays := h.view.overlays
 	for i := len(overlays) - 1; i >= 0; i-- {
@@ -419,7 +417,7 @@ func TestHitTest_OverlayBeforeDocument(t *testing.T) {
 		Origin: layout.Point{X: 5, Y: 5},
 		Size:   layout.Size{Width: 10, Height: 10},
 	})
-	view.overlays = []render.Object{overlay}
+	view.overlays = []event.EventTarget{overlay}
 
 	ht := &testHitTester{view: view}
 
@@ -473,11 +471,10 @@ func TestWheel_RoutesToFirstScrollableAncestor(t *testing.T) {
 	addChild(root, mid)
 	addChild(mid, target)
 
-	resolver, _ := newRegistry()
-	d := event.NewDispatcher(resolver)
+	d := event.NewDispatcher()
 
 	sc := &stubScrollable{}
-	scrollables := map[render.Object]event.Scrollable{mid: sc}
+	scrollables := map[event.EventTarget]event.Scrollable{mid: sc}
 
 	path := buildPath(root, mid, target)
 	e := event.NewWheelEvent(layout.Point{}, 0, 3, 0)
@@ -494,11 +491,10 @@ func TestWheel_NoScrollable_NoOp(t *testing.T) {
 	root := newStub(layout.Rect{})
 	target := newStub(layout.Rect{})
 
-	resolver, reg := newRegistry()
-	d := event.NewDispatcher(resolver)
+	d := event.NewDispatcher()
 
 	rootCalled := false
-	ensureTarget(reg, root).AddEventListener(event.EventWheel, func(_ event.Event) {
+	root.AddEventListener(event.EventWheel, func(_ event.Event) {
 		rootCalled = true
 	})
 
@@ -548,26 +544,23 @@ func TestPaste_BracketedSequence_BecomesSinglePasteEvent(t *testing.T) {
 }
 
 // stubSelectionProvider is an in-memory SelectionProvider.
-type stubLogicalNode struct {
+type stubSelectionProvider struct {
+	stubObject
 	selected string
 }
 
-func (s *stubLogicalNode) SelectedText() string { return s.selected }
-
-// stubObjectWithLogical wraps stubObject to return a custom LogicalNode.
-type stubObjectWithLogical struct {
-	stubObject
-	node any
-}
-
-func (s *stubObjectWithLogical) LogicalNode() any { return s.node }
+func (s *stubSelectionProvider) SelectedText() string { return s.selected }
 
 func TestClipboard_CopyCut_FromSelectionProvider(t *testing.T) {
 	t.Parallel()
 
-	ln := &stubLogicalNode{selected: "selected text"}
-	focusedObj := &stubObjectWithLogical{node: ln}
-	focus := &stubFocus{obj: focusedObj}
+	focusedObj := &stubSelectionProvider{
+		stubObject: stubObject{
+			bounds: layout.Rect{Size: layout.Size{Width: 80, Height: 24}},
+		},
+		selected: "selected text",
+	}
+	focus := &stubFocus{target: focusedObj}
 	cb := &stubClipboard{}
 	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{Clipboard: cb})
 

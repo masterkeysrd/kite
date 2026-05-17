@@ -5,7 +5,6 @@ package event
 import (
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/layout"
-	"github.com/masterkeysrd/kite/render"
 )
 
 // EventType is a typed string identifier for event.
@@ -53,11 +52,11 @@ type Event interface {
 	Type() EventType
 
 	// Target returns the element that originally received the event.
-	Target() render.Object
+	Target() EventTarget
 
 	// CurrentTarget returns the element whose listener is currently
 	// being invoked.
-	CurrentTarget() render.Object
+	CurrentTarget() EventTarget
 
 	// Phase returns the current dispatch phase.
 	Phase() EventPhase
@@ -79,10 +78,10 @@ type Event interface {
 	DefaultPrevented() bool
 
 	// setTarget sets the event target. Used internally by Dispatcher.
-	setTarget(render.Object)
+	setTarget(EventTarget)
 
 	// setCurrentTarget sets the current target. Used internally by Dispatcher.
-	setCurrentTarget(render.Object)
+	setCurrentTarget(EventTarget)
 
 	// setPhase sets the dispatch phase. Used internally by Dispatcher.
 	setPhase(EventPhase)
@@ -92,8 +91,8 @@ type Event interface {
 // Concrete event types embed BaseEvent.
 type BaseEvent struct {
 	typ              EventType
-	target           render.Object
-	currentTarget    render.Object
+	target           EventTarget
+	currentTarget    EventTarget
 	phase            EventPhase
 	propagationStop  bool
 	defaultPrevented bool
@@ -104,10 +103,10 @@ type BaseEvent struct {
 func (b *BaseEvent) Type() EventType { return b.typ }
 
 // Target returns the element that originally received the event.
-func (b *BaseEvent) Target() render.Object { return b.target }
+func (b *BaseEvent) Target() EventTarget { return b.target }
 
 // CurrentTarget returns the element whose listener is currently being invoked.
-func (b *BaseEvent) CurrentTarget() render.Object { return b.currentTarget }
+func (b *BaseEvent) CurrentTarget() EventTarget { return b.currentTarget }
 
 // Phase returns the current dispatch phase.
 func (b *BaseEvent) Phase() EventPhase { return b.phase }
@@ -127,9 +126,9 @@ func (b *BaseEvent) PreventDefault() { b.defaultPrevented = true }
 // DefaultPrevented reports whether PreventDefault was called.
 func (b *BaseEvent) DefaultPrevented() bool { return b.defaultPrevented }
 
-func (b *BaseEvent) setTarget(o render.Object)        { b.target = o }
-func (b *BaseEvent) setCurrentTarget(o render.Object) { b.currentTarget = o }
-func (b *BaseEvent) setPhase(p EventPhase)            { b.phase = p }
+func (b *BaseEvent) setTarget(o EventTarget)        { b.target = o }
+func (b *BaseEvent) setCurrentTarget(o EventTarget) { b.currentTarget = o }
+func (b *BaseEvent) setPhase(p EventPhase)          { b.phase = p }
 
 // --- Key types ---------------------------------------------------------------
 
@@ -180,8 +179,8 @@ func NewKeyEvent(typ EventType, k key.Key) *KeyEvent {
 // HitResult caches the hit-test result computed when a MouseEvent is
 // synthesized. It is valid only for the lifetime of the event.
 type HitResult struct {
-	// Object is the deepest render object at the hit point.
-	Object render.Object
+	// Target is the deepest event target at the hit point.
+	Target EventTarget
 }
 
 // MouseEvent is dispatched for mouse-button, move, and click event.
@@ -245,11 +244,11 @@ type FocusEvent struct {
 
 	// RelatedTarget is the element losing focus (for focus event) or
 	// gaining focus (for blur event), or nil if none.
-	RelatedTarget render.Object
+	RelatedTarget EventTarget
 }
 
 // NewFocusEvent creates a FocusEvent of the given type.
-func NewFocusEvent(typ EventType, related render.Object) *FocusEvent {
+func NewFocusEvent(typ EventType, related EventTarget) *FocusEvent {
 	bubbles := typ == EventFocusIn || typ == EventFocusOut
 	return &FocusEvent{
 		BaseEvent:     BaseEvent{typ: typ, bubbles: bubbles},

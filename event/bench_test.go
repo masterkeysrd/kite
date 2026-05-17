@@ -5,7 +5,6 @@ import (
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/layout"
-	"github.com/masterkeysrd/kite/render"
 )
 
 // BenchmarkDispatcher_3Phase_DepthN measures the cost of dispatching a
@@ -20,15 +19,14 @@ func BenchmarkDispatcher_3Phase_DepthN(b *testing.B) {
 		nodes[i].parent = nodes[i-1]
 	}
 
-	resolver, reg := newRegistry()
-	d := event.NewDispatcher(resolver)
+	d := event.NewDispatcher()
 	// Register a capture and bubble listener at root.
-	ensureTarget(reg, nodes[0]).AddEventListener(event.EventClick, func(_ event.Event) {}, event.Capture())
-	ensureTarget(reg, nodes[0]).AddEventListener(event.EventClick, func(_ event.Event) {})
+	nodes[0].AddEventListener(event.EventClick, func(_ event.Event) {}, event.Capture())
+	nodes[0].AddEventListener(event.EventClick, func(_ event.Event) {})
 	// Register listeners at target.
-	ensureTarget(reg, nodes[depth-1]).AddEventListener(event.EventClick, func(_ event.Event) {})
+	nodes[depth-1].AddEventListener(event.EventClick, func(_ event.Event) {})
 
-	path := make([]render.Object, depth)
+	path := make([]event.EventTarget, depth)
 	for i, n := range nodes {
 		path[i] = n
 	}
