@@ -1,0 +1,46 @@
+package layout
+
+import (
+	"iter"
+
+	"github.com/masterkeysrd/kite/style"
+)
+
+// Node is the layout engine's view of a render object. It provides the
+// style, tree-walk, and bounds-mutation interface required by
+// formatting-context algorithms without importing the render package.
+//
+// Any render object that participates in layout must implement this interface.
+type Node interface {
+	// Style returns the node's fully-resolved computed style.
+	// Must not return nil for nodes that participate in layout.
+	Style() *style.Computed
+
+	// LayoutChildren returns an iterator over the node's direct children in
+	// tree order. Named LayoutChildren (not Children) so that render objects
+	// can implement both this interface and a separate Children() method that
+	// returns typed render objects without a method-set conflict.
+	LayoutChildren() iter.Seq[Node]
+
+	// Bounds returns the node's current layout rectangle.
+	Bounds() Rect
+
+	// SetBounds updates the node's layout rectangle. Called by the engine
+	// during Measure (to record the measured size) and by Position (to write
+	// the absolute origin).
+	SetBounds(Rect)
+
+	// LogicalNode returns the logical DOM node that owns this render object,
+	// typed as any to avoid an import cycle. May be nil.
+	LogicalNode() any
+
+	// IsDirtyLayout reports whether this node's layout is stale. The engine
+	// uses this signal to decide whether cached intrinsic sizes are still
+	// valid.
+	IsDirtyLayout() bool
+
+	// ClearDirtyLayout clears the DirtyLayout flag on this node. Called by
+	// the layout engine after successfully measuring the node so that
+	// subsequent cache lookups are valid.
+	ClearDirtyLayout()
+}
