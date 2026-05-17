@@ -102,8 +102,6 @@ func (o *testObject) Children() iter.Seq[render.Object] {
 	}
 }
 
-func (o *testObject) Bounds() layout.Rect                { return layout.Rect{} }
-func (o *testObject) SetBounds(_ layout.Rect)            {}
 func (o *testObject) LogicalNode() any                   { return nil }
 func (o *testObject) MarkDetached()                      {}
 func (o *testObject) IsDetached() bool                   { return false }
@@ -147,6 +145,9 @@ func (o *testObject) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {}
 }
 func (o *testObject) ClearDirtyLayout() {}
+func (o *testObject) Fragment() *layout.Fragment { return nil }
+func (o *testObject) CachedLayout(layout.ConstraintSpace) *layout.Fragment { return nil }
+func (o *testObject) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
 
 // compile-time interface check
 var _ render.Object = (*testObject)(nil)

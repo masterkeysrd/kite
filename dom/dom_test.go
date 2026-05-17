@@ -26,8 +26,6 @@ func (f *fakeRO) PreviousSibling() render.Object { return nil }
 func (f *fakeRO) Children() iter.Seq[render.Object] {
 	return func(yield func(render.Object) bool) {}
 }
-func (f *fakeRO) Bounds() layout.Rect              { return layout.Rect{} }
-func (f *fakeRO) SetBounds(layout.Rect)            {}
 func (f *fakeRO) Focusable() bool                  { return false }
 func (f *fakeRO) Disabled() bool                   { return false }
 func (f *fakeRO) Style() *style.Computed           { return nil }
@@ -55,6 +53,9 @@ func (f *fakeRO) LayoutChildren() iter.Seq[layout.Node] {
 }
 func (f *fakeRO) IsDirtyLayout() bool { return false }
 func (f *fakeRO) ClearDirtyLayout()   {}
+func (f *fakeRO) Fragment() *layout.Fragment { return nil }
+func (f *fakeRO) CachedLayout(layout.ConstraintSpace) *layout.Fragment { return nil }
+func (f *fakeRO) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
 func (f *fakeRO) LogicalNode() any    { return nil }
 
 var _ render.Object = (*fakeRO)(nil)

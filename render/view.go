@@ -10,9 +10,10 @@ import (
 
 // BaseRender provides a default implementation for many render.Object methods.
 type BaseRender struct {
-	parent Object
-	flags  DirtyFlag
-	bounds layout.Rect
+	parent      Object
+	flags       DirtyFlag
+	cachedSpace layout.ConstraintSpace
+	cachedFrag  *layout.Fragment
 }
 
 func (b *BaseRender) Flags() DirtyFlag { return b.flags }
@@ -44,9 +45,28 @@ func (b *BaseRender) MarkChildrenDirty() {
 	b.MarkDirty(DirtyStructure | DirtyLayout)
 }
 
-func (b *BaseRender) Parent() Object          { return b.parent }
-func (b *BaseRender) Bounds() layout.Rect     { return b.bounds }
-func (b *BaseRender) SetBounds(r layout.Rect) { b.bounds = r }
+func (b *BaseRender) Parent() Object { return b.parent }
+
+func (b *BaseRender) Fragment() *layout.Fragment { return b.cachedFrag }
+
+func (b *BaseRender) CachedLayout(space layout.ConstraintSpace) *layout.Fragment {
+	// If the layout tree is dirty, the cache is invalid.
+	if b.flags&DirtyLayout != 0 {
+		return nil
+	}
+	// Return fragment only if the incoming constraints match exactly.
+	if b.cachedSpace == space {
+		return b.cachedFrag
+	}
+	return nil
+}
+
+func (b *BaseRender) SetCachedLayout(space layout.ConstraintSpace, frag *layout.Fragment) {
+	b.cachedSpace = space
+	b.cachedFrag = frag
+	// Successfully measured; clean the dirty flag.
+	b.ClearDirty(DirtyLayout)
+}
 
 // RenderView is the root of a render tree. It represents the viewport.
 type RenderView struct {
@@ -122,17 +142,26 @@ func (v *RenderView) IsDirtyLayout() bool { return v.flags&DirtyLayout != 0 }
 func (v *RenderView) ClearDirtyLayout()   { v.ClearDirty(DirtyLayout) }
 func (v *RenderView) LogicalNode() any    { return nil }
 
-// LayoutMeasurer is the interface for the layout engine.
-type LayoutMeasurer interface {
-	Measure(node layout.Node, c layout.Constraints) layout.MeasureResult
-	Position(node layout.Node, origin layout.Point)
-}
-
-// LayoutPhase runs the layout process for the given subtree.
-func LayoutPhase(lm LayoutMeasurer, root Object, available layout.Size) {
-	if root.Flags()&DirtyLayout != 0 {
-		lm.Measure(root, layout.Constraints{Max: available})
+// LayoutPhase runs the layout process for the given subtree using the LayoutNG-inspired architecture.
+func LayoutPhase(root Object, available layout.Size) {
+	// 1. Build the constraint space for the viewport.
+	// The viewport forces a fixed size.
+	space := layout.ConstraintSpace{
+		Constraints: layout.Constraints{
+			Min: available,
+			Max: available,
+		},
 	}
+
+	// 2. Wrap the root in the formatting context algorithm.
+	algo := layout.BlockAlgorithm{
+		Node:  root,
+		Space: space,
+	}
+
+	// 3. Execute the layout pass.
+	// This will recursively visit children and cache fragments internally.
+	algo.Layout()
 }
 
 // Unlink removes obj from its parent.

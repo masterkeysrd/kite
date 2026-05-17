@@ -10,7 +10,6 @@ import (
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/engine"
-	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 )
 
@@ -58,29 +57,11 @@ func (c *fakeClock) Advance(d time.Duration) {
 	c.mu.Unlock()
 }
 
-// fakeLayoutEngine is a counting layout engine for tests.
-type fakeLayoutEngine struct {
-	MeasureCalls  int
-	PositionCalls int
-}
-
-func (f *fakeLayoutEngine) Measure(node layout.Node, c layout.Constraints) layout.MeasureResult {
-	f.MeasureCalls++
-	// Clear the dirty flag as the real engine does after a successful measurement.
-	node.ClearDirtyLayout()
-	return layout.MeasureResult{}
-}
-
-func (f *fakeLayoutEngine) Position(node layout.Node, origin layout.Point) {
-	f.PositionCalls++
-}
-
 // newTestEngine creates an Engine with a mock backend and fake layout engine
 // for unit tests. Width and height default to 80x24.
-func newTestEngine(t *testing.T, opts ...engine.Options) (*engine.Engine, *mock.Backend, *fakeLayoutEngine) {
+func newTestEngine(t *testing.T, opts ...engine.Options) (*engine.Engine, *mock.Backend) {
 	t.Helper()
 	b := mock.New(80, 24)
-	le := &fakeLayoutEngine{}
 	opt := engine.Options{}
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -88,16 +69,15 @@ func newTestEngine(t *testing.T, opts ...engine.Options) (*engine.Engine, *mock.
 	if opt.Clock == nil {
 		opt.Clock = engine.RealClock()
 	}
-	e := engine.New(b, le, opt)
-	return e, b, le
+	e := engine.New(b, opt)
+	return e, b
 }
 
 // newTestEngineWithCaps creates an Engine with specific backend capabilities.
 func newTestEngineWithCaps(t *testing.T, caps backend.Caps) (*engine.Engine, *mock.Backend) {
 	t.Helper()
 	b := mock.NewWithCaps(80, 24, caps)
-	le := &fakeLayoutEngine{}
-	e := engine.New(b, le, engine.Options{Clock: engine.RealClock()})
+	e := engine.New(b, engine.Options{Clock: engine.RealClock()})
 	return e, b
 }
 
@@ -110,7 +90,7 @@ func newTestEngineWithCaps(t *testing.T, caps backend.Caps) (*engine.Engine, *mo
 func TestEngine_Frame_NoOp_WhenClean(t *testing.T) {
 	t.Parallel()
 
-	e, b, _ := newTestEngine(t)
+	e, b := newTestEngine(t)
 	defer e.Stop()
 
 	e.Frame()
@@ -128,7 +108,7 @@ func TestEngine_Frame_NoOp_WhenClean(t *testing.T) {
 func TestEngine_Frame_RunsAllPhases_WhenAllDirty(t *testing.T) {
 	t.Parallel()
 
-	e, b, le := newTestEngine(t)
+	e, b := newTestEngine(t)
 	defer e.Stop()
 
 	root := e.RenderView()
@@ -142,9 +122,8 @@ func TestEngine_Frame_RunsAllPhases_WhenAllDirty(t *testing.T) {
 	if b.EndFrameCalls != 1 {
 		t.Errorf("EndFrameCalls = %d, want 1", b.EndFrameCalls)
 	}
-	// Layout engine should have been called.
-	if le.MeasureCalls == 0 {
-		t.Error("layout engine Measure was not called")
+	if root.Flags()&render.DirtyLayout != 0 {
+		t.Error("layout engine did not clear DirtyLayout")
 	}
 }
 
@@ -153,12 +132,11 @@ func TestEngine_Frame_RunsAllPhases_WhenAllDirty(t *testing.T) {
 func TestEngine_PhaseGate_StyleOnly(t *testing.T) {
 	t.Parallel()
 
-	e, b, le := newTestEngine(t)
+	e, b := newTestEngine(t)
 	defer e.Stop()
 
 	// Clear initial dirty flags (from SetViewportSize in newTestEngine).
 	e.Frame()
-	le.MeasureCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyStyle)
@@ -169,10 +147,7 @@ func TestEngine_PhaseGate_StyleOnly(t *testing.T) {
 	if b.BeginFrameCalls != 0 {
 		t.Errorf("BeginFrameCalls = %d, want 0 (no paint dirty)", b.BeginFrameCalls)
 	}
-	// Layout engine should not have been called.
-	if le.MeasureCalls != 0 {
-		t.Errorf("layout Measure called %d times, want 0 (no layout dirty)", le.MeasureCalls)
-	}
+	// Layout Engine checks removed since LayoutNG runs implicitly through root node
 }
 
 // TestEngine_PhaseGate_LayoutOnly verifies that only the layout phase runs
@@ -180,7 +155,7 @@ func TestEngine_PhaseGate_StyleOnly(t *testing.T) {
 func TestEngine_PhaseGate_LayoutOnly(t *testing.T) {
 	t.Parallel()
 
-	e, b, le := newTestEngine(t)
+	e, b := newTestEngine(t)
 	defer e.Stop()
 
 	root := e.RenderView()
@@ -192,8 +167,8 @@ func TestEngine_PhaseGate_LayoutOnly(t *testing.T) {
 	if b.BeginFrameCalls != 0 {
 		t.Errorf("BeginFrameCalls = %d, want 0 (no paint dirty)", b.BeginFrameCalls)
 	}
-	if le.MeasureCalls == 0 {
-		t.Error("layout engine Measure was not called")
+	if root.Flags()&render.DirtyLayout != 0 {
+		t.Error("layout engine did not clear DirtyLayout")
 	}
 }
 
@@ -202,7 +177,7 @@ func TestEngine_PhaseGate_LayoutOnly(t *testing.T) {
 func TestEngine_PhaseGate_PaintOnly(t *testing.T) {
 	t.Parallel()
 
-	e, b, _ := newTestEngine(t)
+	e, b := newTestEngine(t)
 	defer e.Stop()
 
 	root := e.RenderView()
@@ -224,7 +199,7 @@ func TestEngine_PhaseGate_PaintOnly(t *testing.T) {
 func TestEngine_Run_BlocksUntilStop(t *testing.T) {
 	t.Parallel()
 
-	e, _, _ := newTestEngine(t)
+	e, _ := newTestEngine(t)
 
 	done := make(chan struct{})
 	go func() {
@@ -256,7 +231,7 @@ func TestEngine_Run_BlocksUntilStop(t *testing.T) {
 func TestEngine_Post_RunsInMicrotaskPhase(t *testing.T) {
 	t.Parallel()
 
-	e, _, _ := newTestEngine(t)
+	e, _ := newTestEngine(t)
 	defer e.Stop()
 
 	var run bool
@@ -274,7 +249,7 @@ func TestEngine_Post_RunsInMicrotaskPhase(t *testing.T) {
 func TestEngine_PostMacro_RespectsBudget(t *testing.T) {
 	t.Parallel()
 
-	e, _, _ := newTestEngine(t, engine.Options{
+	e, _ := newTestEngine(t, engine.Options{
 		MacroTaskBudget: 2,
 	})
 	defer e.Stop()
@@ -318,7 +293,7 @@ func (j *countingJob) OnComplete(result any, err error) {
 func TestEngine_Submit_RunsOnWorker(t *testing.T) {
 	t.Parallel()
 
-	e, _, _ := newTestEngine(t)
+	e, _ := newTestEngine(t)
 	defer e.Stop()
 
 	job := &countingJob{}

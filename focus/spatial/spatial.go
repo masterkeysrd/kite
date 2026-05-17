@@ -112,7 +112,11 @@ func bestCandidate(scope *focus.Scope, current render.Object, dir Direction) ren
 		return nil
 	}
 
-	curBounds := current.Bounds()
+	curBounds, ok := layout.AbsoluteBounds(scope.Root.Fragment(), current)
+	if !ok {
+		return nil
+	}
+
 	var bestNode render.Object
 	const maxScore = 1<<53 - 1 // large sentinel; avoids math.MaxFloat64 import
 	bestScore := float64(maxScore)
@@ -124,7 +128,10 @@ func bestCandidate(scope *focus.Scope, current render.Object, dir Direction) ren
 		if !focus.IsFocusable(n, scope) {
 			continue
 		}
-		nb := n.Bounds()
+		nb, found := layout.AbsoluteBounds(scope.Root.Fragment(), n)
+		if !found {
+			continue
+		}
 		if !inHalfPlane(curBounds, nb, dir) {
 			continue
 		}
@@ -145,7 +152,11 @@ func rankedCandidates(scope *focus.Scope, current render.Object, dir Direction) 
 		return nil
 	}
 
-	curBounds := current.Bounds()
+	curBounds, ok := layout.AbsoluteBounds(scope.Root.Fragment(), current)
+	if !ok {
+		return nil
+	}
+
 	type entry struct {
 		node  render.Object
 		score float64
@@ -159,7 +170,10 @@ func rankedCandidates(scope *focus.Scope, current render.Object, dir Direction) 
 		if !focus.IsFocusable(n, scope) {
 			continue
 		}
-		nb := n.Bounds()
+		nb, found := layout.AbsoluteBounds(scope.Root.Fragment(), n)
+		if !found {
+			continue
+		}
 		if !inHalfPlane(curBounds, nb, dir) {
 			continue
 		}

@@ -26,6 +26,8 @@ type spatialObj struct {
 	disabled      bool
 	display       style.Display
 	bounds        layout.Rect
+	cachedSpace   layout.ConstraintSpace
+	cachedFrag    *layout.Fragment
 	computedStyle *style.Computed // cached to avoid per-call allocs
 }
 
@@ -108,8 +110,6 @@ func (o *spatialObj) Children() iter.Seq[render.Object] {
 	}
 }
 
-func (o *spatialObj) Bounds() layout.Rect                { return o.bounds }
-func (o *spatialObj) SetBounds(r layout.Rect)            { o.bounds = r }
 func (o *spatialObj) LogicalNode() any                   { return nil }
 func (o *spatialObj) MarkDetached()                      {}
 func (o *spatialObj) IsDetached() bool                   { return false }
@@ -157,6 +157,34 @@ func (o *spatialObj) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {}
 }
 func (o *spatialObj) ClearDirtyLayout() {}
+func (o *spatialObj) Fragment() *layout.Fragment {
+	// Build a mock fragment tree recursively so that layout.AbsoluteBounds works.
+	frag := &layout.Fragment{
+		Node: o,
+		Size: o.bounds.Size,
+	}
+	for _, c := range o.children {
+		cFrag := c.Fragment()
+		// Convert absolute bounds back to relative offsets for the mock tree.
+		offset := layout.Point{
+			X: c.bounds.Origin.X - o.bounds.Origin.X,
+			Y: c.bounds.Origin.Y - o.bounds.Origin.Y,
+		}
+		frag.Children = append(frag.Children, layout.FragmentLink{
+			Offset:   offset,
+			Fragment: cFrag,
+		})
+	}
+	return frag
+}
+func (o *spatialObj) CachedLayout(space layout.ConstraintSpace) *layout.Fragment {
+	// For testing, mock a fragment using the manually set bounds.
+	return &layout.Fragment{
+		Node: o,
+		Size: o.bounds.Size,
+	}
+}
+func (o *spatialObj) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
 
 // compile-time check
 var _ render.Object = (*spatialObj)(nil)

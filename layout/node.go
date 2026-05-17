@@ -22,14 +22,6 @@ type Node interface {
 	// returns typed render objects without a method-set conflict.
 	LayoutChildren() iter.Seq[Node]
 
-	// Bounds returns the node's current layout rectangle.
-	Bounds() Rect
-
-	// SetBounds updates the node's layout rectangle. Called by the engine
-	// during Measure (to record the measured size) and by Position (to write
-	// the absolute origin).
-	SetBounds(Rect)
-
 	// LogicalNode returns the logical DOM node that owns this render object,
 	// typed as any to avoid an import cycle. May be nil.
 	LogicalNode() any
@@ -43,4 +35,17 @@ type Node interface {
 	// the layout engine after successfully measuring the node so that
 	// subsequent cache lookups are valid.
 	ClearDirtyLayout()
+
+	// Fragment returns the most recent LayoutNG fragment generated for this node.
+	// It is used by paint, hit testing, and spatial navigation to retrieve the 
+	// physical representation of the element.
+	Fragment() *Fragment
+
+	// CachedLayout returns a previously computed fragment if the node is clean
+	// and the constraints match. Returns nil if a re-layout is required.
+	CachedLayout(space ConstraintSpace) *Fragment
+
+	// SetCachedLayout stores the computed fragment and the constraints that generated it.
+	// Implementing this should implicitly clear the DirtyLayout flag.
+	SetCachedLayout(space ConstraintSpace, frag *Fragment)
 }

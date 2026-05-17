@@ -71,8 +71,8 @@ type Engine struct {
 	// resolver drives the Style phase.
 	resolver *style.Resolver
 
-	// layoutEngine drives the Layout phase.
-	layoutEngine render.LayoutMeasurer
+	// layoutEngine was removed in favor of LayoutNG.
+	// layoutEngine render.LayoutMeasurer
 
 	// paintEngine drives the Paint pipeline.
 	paintEngine *paint.PaintEngine
@@ -171,7 +171,7 @@ type Options struct {
 //
 // Call Engine.Run to start the event loop (blocking), or call Engine.Frame
 // directly for testing.
-func New(b backend.Backend, layoutEngine render.LayoutMeasurer, opts Options) *Engine {
+func New(b backend.Backend, opts Options) *Engine {
 	numWorkers := opts.NumWorkers
 	if numWorkers <= 0 {
 		numWorkers = DefaultWorkers
@@ -203,7 +203,6 @@ func New(b backend.Backend, layoutEngine render.LayoutMeasurer, opts Options) *E
 		renderView:        render.NewRenderView(),
 		document:          dom.NewDocument(),
 		resolver:          style.NewResolver(),
-		layoutEngine:      layoutEngine,
 		paintEngine:       paint.NewPaintEngine(),
 		backend:           b,
 		workerResults:     make(chan workerResult, numWorkers*2),
@@ -306,12 +305,12 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 	// Walk overlays from the end (topmost) to start.
 	overlays := e.renderView.Overlays()
 	for i := len(overlays) - 1; i >= 0; i-- {
-		if hit := hitTestObject(overlays[i], p); hit != nil {
+		if hit := hitTestFragment(overlays[i].Fragment(), p); hit != nil {
 			return hit.EventTarget()
 		}
 	}
 	// Fall through to the main tree.
-	if hit := hitTestObject(e.renderView, p); hit != nil {
+	if hit := hitTestFragment(e.renderView.Fragment(), p); hit != nil {
 		return hit.EventTarget()
 	}
 	return nil
@@ -418,23 +417,32 @@ func (e *Engine) PostMacro(fn func()) {
 	e.macroQueue = append(e.macroQueue, fn)
 }
 
-// hitTestObject walks the render tree rooted at obj and returns the deepest
-// render.Object whose bounds contain p, or nil if none match.
-func hitTestObject(obj render.Object, p layout.Point) render.Object {
-	if !obj.Bounds().Contains(p) {
+// hitTestFragment walks the immutable layout Fragment tree and returns the deepest
+// render.Object whose computed bounds contain p. p is in the local coordinate space
+// of the given fragment.
+func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
+	if frag == nil {
+		return nil
+	}
+	if !(layout.Rect{Size: frag.Size}).Contains(p) {
 		return nil
 	}
 	// Walk children in reverse paint order (last child is topmost).
-	var last render.Object
-	for child := range obj.Children() {
-		last = child
-	}
-	for child := last; child != nil; child = child.PreviousSibling() {
-		if hit := hitTestObject(child, p); hit != nil {
+	for i := len(frag.Children) - 1; i >= 0; i-- {
+		link := frag.Children[i]
+		// Translate point into child's coordinate space
+		childPoint := layout.Point{
+			X: p.X - link.Offset.X,
+			Y: p.Y - link.Offset.Y,
+		}
+		if hit := hitTestFragment(link.Fragment, childPoint); hit != nil {
 			return hit
 		}
 	}
-	return obj
+	if ro, ok := frag.Node.(render.Object); ok {
+		return ro
+	}
+	return nil
 }
 
 // Frame executes one complete frame pipeline:
@@ -472,11 +480,10 @@ func (e *Engine) Frame() {
 		viewport := root.ViewportSize()
 		e.logger.Info("engine: layout phase", "viewport", viewport)
 
-		render.LayoutPhase(e.layoutEngine, root, viewport)
+		render.LayoutPhase(root, viewport)
 
 		for _, overlay := range root.Overlays() {
-			render.LayoutPhase(e.layoutEngine, overlay, overlay.Bounds().Size)
-			e.layoutEngine.Position(overlay.(layout.Node), overlay.Bounds().Origin)
+			render.LayoutPhase(overlay, viewport)
 		}
 		// Reap detached render objects in the layout phase.
 		e.reapDetached(root)
@@ -490,12 +497,12 @@ func (e *Engine) Frame() {
 	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint.
 	if root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 		surface := e.backend.BeginFrame()
-		e.logger.Info("engine: painting main content", "root_bounds", root.Bounds())
-		e.paintEngine.Paint(root, surface)
+		e.logger.Info("engine: painting main content")
+		e.paintEngine.Paint(root.Fragment(), surface)
 		for _, overlay := range root.Overlays() {
 			if overlay.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 				e.logger.Info("engine: painting overlay")
-				e.paintEngine.Paint(overlay, surface)
+				e.paintEngine.Paint(overlay.Fragment(), surface)
 			}
 		}
 		// 7. Sync — hand the frame to the render goroutine.

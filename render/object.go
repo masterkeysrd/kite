@@ -21,9 +21,6 @@ type Object interface {
 	PreviousSibling() Object
 	Children() iter.Seq[Object]
 
-	Bounds() layout.Rect
-	SetBounds(layout.Rect)
-
 	Focusable() bool
 	Disabled() bool
 	ComputedStyle() *style.Computed
@@ -51,5 +48,8 @@ type Object interface {
 	LayoutChildren() iter.Seq[layout.Node]
 	IsDirtyLayout() bool
 	ClearDirtyLayout()
+	Fragment() *layout.Fragment
+	CachedLayout(layout.ConstraintSpace) *layout.Fragment
+	SetCachedLayout(layout.ConstraintSpace, *layout.Fragment)
 	LogicalNode() any
 }
