@@ -1,0 +1,25 @@
+apiVersion: warp/v1alpha1
+kind: ModelProvider
+metadata:
+  name: genai
+  description: Google GenAI provider configuration for TaskSmith.
+spec:
+  type: genai
+  endpoint: https://generativelanguage.googleapis.com
+  defaultModel: genai/gemini-3-flash-preview
+  auth:
+    type: env
+    key: GOOGLE_API_KEY
+  models:
+    - id: gemini-3-flash-preview
+      name: gemini-3-flash-preview
+      label: Gemini 3 Flash Preview
+      limits:
+        context: 1048576
+        output: 65536
+    - id: gemini-3.1-pro-preview
+      name: gemini-3.1-pro-preview
+      label: Gemini 3.1 Pro Preview
+      limits:
+        context: 500000
+        output: 65536
