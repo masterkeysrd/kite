@@ -96,6 +96,15 @@ func (d *document) UnregisterAnchor(name string) {
 	delete(d.anchors, name)
 }
 
+func (d *document) Body() Element {
+	for child := range d.Children() {
+		if el, ok := child.(Element); ok {
+			return el
+		}
+	}
+	return nil
+}
+
 // --- walker implementation --------------------------------------------------
 
 // runAppendChild implements the authoritative AppendChild sequence from

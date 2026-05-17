@@ -57,3 +57,13 @@ func (r Rect) Intersect(other Rect) Rect {
 		Size:   Size{Width: x2 - x1, Height: y2 - y1},
 	}
 }
+
+// Constraints defines the minimum and maximum dimensions allowed for a box.
+type Constraints struct {
+	Min, Max Size
+}
+
+// MeasureResult is the output of a node's Measure method.
+type MeasureResult struct {
+	Size Size
+}

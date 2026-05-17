@@ -108,36 +108,55 @@ func (o *spatialObj) Children() iter.Seq[render.Object] {
 	}
 }
 
-func (o *spatialObj) Bounds() layout.Rect                 { return o.bounds }
-func (o *spatialObj) SetBounds(r layout.Rect)             { o.bounds = r }
-func (o *spatialObj) LogicalNode() any                    { return nil }
-func (o *spatialObj) MarkDetached()                       {}
-func (o *spatialObj) IsDetached() bool                    { return false }
-func (o *spatialObj) MarkChildrenDirty()                  {}
-func (o *spatialObj) RawStyle() style.Style               { return style.Style{} }
-func (o *spatialObj) SetRawStyle(_ style.Style)           {}
-func (o *spatialObj) Flags() render.DirtyFlag             { return 0 }
-func (o *spatialObj) MarkDirty(_ render.DirtyFlag)        {}
-func (o *spatialObj) ClearDirty(_ render.DirtyFlag)       {}
-func (o *spatialObj) IsDirtySet(_ render.DirtyFlag) bool  { return false }
-func (o *spatialObj) IsDirtyStyle() bool                  { return false }
-func (o *spatialObj) IsDirtyLayout() bool                 { return false }
-func (o *spatialObj) IsDirtyPaint() bool                  { return false }
-func (o *spatialObj) IsDirtyScroll() bool                 { return false }
-func (o *spatialObj) IsDirtyStructure() bool              { return false }
-func (o *spatialObj) Focusable() bool                     { return o.focusable }
-func (o *spatialObj) SetFocusable(v bool)                 { o.focusable = v }
-func (o *spatialObj) Disabled() bool                      { return o.disabled }
-func (o *spatialObj) SetDisabled(v bool)                  { o.disabled = v }
+func (o *spatialObj) Bounds() layout.Rect                { return o.bounds }
+func (o *spatialObj) SetBounds(r layout.Rect)            { o.bounds = r }
+func (o *spatialObj) LogicalNode() any                   { return nil }
+func (o *spatialObj) MarkDetached()                      {}
+func (o *spatialObj) IsDetached() bool                   { return false }
+func (o *spatialObj) MarkChildrenDirty()                 {}
+func (o *spatialObj) RawStyle() style.Style              { return style.Style{} }
+func (o *spatialObj) SetRawStyle(_ style.Style)          {}
+func (o *spatialObj) Flags() render.DirtyFlag            { return 0 }
+func (o *spatialObj) MarkDirty(_ render.DirtyFlag)       {}
+func (o *spatialObj) ClearDirty(_ render.DirtyFlag)      {}
+func (o *spatialObj) IsDirtySet(_ render.DirtyFlag) bool { return false }
+func (o *spatialObj) IsDirtyStyle() bool                 { return false }
+func (o *spatialObj) IsDirtyLayout() bool                { return false }
+func (o *spatialObj) IsDirtyPaint() bool                 { return false }
+func (o *spatialObj) IsDirtyScroll() bool                { return false }
+func (o *spatialObj) IsDirtyStructure() bool             { return false }
+func (o *spatialObj) Focusable() bool                    { return o.focusable }
+func (o *spatialObj) SetFocusable(v bool)                { o.focusable = v }
+func (o *spatialObj) Disabled() bool                     { return o.disabled }
+func (o *spatialObj) SetDisabled(v bool)                 { o.disabled = v }
 
-func (o *spatialObj) ComputedStyle() *style.Computed {
+func (o *spatialObj) Style() *style.Computed {
 	if o.computedStyle == nil {
 		o.computedStyle = &style.Computed{Display: o.display}
 	}
 	return o.computedStyle
 }
 
-func (o *spatialObj) SetComputedStyle(_ *style.Computed) {}
+func (o *spatialObj) ComputedStyle() *style.Computed {
+	return o.Style()
+}
+
+func (o *spatialObj) SetComputedStyle(s *style.Computed) { o.computedStyle = s }
+
+// StyleNode implementation
+func (o *spatialObj) ElementDefaultStyle() style.Style  { return style.Style{} }
+func (o *spatialObj) HasDirtyStyleChild() bool          { return false }
+func (o *spatialObj) ClearDirtyStyle()                  {}
+func (o *spatialObj) ClearChildNeedsStyle()             {}
+func (o *spatialObj) StyleParent() style.StyleNode      { return o.Parent() }
+func (o *spatialObj) StyleFirstChild() style.StyleNode  { return o.FirstChild() }
+func (o *spatialObj) StyleNextSibling() style.StyleNode { return o.NextSibling() }
+
+// layout.Node implementation
+func (o *spatialObj) LayoutChildren() iter.Seq[layout.Node] {
+	return func(yield func(layout.Node) bool) {}
+}
+func (o *spatialObj) ClearDirtyLayout() {}
 
 // compile-time check
 var _ render.Object = (*spatialObj)(nil)

@@ -1,6 +1,8 @@
 package render
 
 import (
+	"iter"
+
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
@@ -17,6 +19,7 @@ type Object interface {
 	LastChild() Object
 	NextSibling() Object
 	PreviousSibling() Object
+	Children() iter.Seq[Object]
 
 	Bounds() layout.Rect
 	SetBounds(layout.Rect)
@@ -24,6 +27,29 @@ type Object interface {
 	Focusable() bool
 	Disabled() bool
 	ComputedStyle() *style.Computed
+	SetComputedStyle(*style.Computed)
+	Flags() DirtyFlag
 	MarkDirty(DirtyFlag)
+	ClearDirty(DirtyFlag)
 	MarkChildrenDirty()
+
+	IsDetached() bool
+
+	// StyleNode implementation (Task 06)
+	RawStyle() style.Style
+	ElementDefaultStyle() style.Style
+	IsDirtyStyle() bool
+	HasDirtyStyleChild() bool
+	ClearDirtyStyle()
+	ClearChildNeedsStyle()
+	StyleParent() style.StyleNode
+	StyleFirstChild() style.StyleNode
+	StyleNextSibling() style.StyleNode
+
+	// layout.Node implementation (Task 05)
+	Style() *style.Computed
+	LayoutChildren() iter.Seq[layout.Node]
+	IsDirtyLayout() bool
+	ClearDirtyLayout()
+	LogicalNode() any
 }

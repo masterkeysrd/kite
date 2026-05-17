@@ -51,30 +51,30 @@ func (s *stubObject) Children() iter.Seq[event.EventTarget] {
 		}
 	}
 }
-func (s *stubObject) Bounds() layout.Rect               { return s.bounds }
-func (s *stubObject) SetBounds(r layout.Rect)           { s.bounds = r }
-func (s *stubObject) LogicalNode() any                  { return nil }
-func (s *stubObject) MarkDetached()                     {}
-func (s *stubObject) IsDetached() bool                  { return false }
-func (s *stubObject) MarkChildrenDirty()                {}
-func (s *stubObject) RawStyle() style.Style             { return style.Style{} }
-func (s *stubObject) SetRawStyle(style.Style)           {}
-func (s *stubObject) ComputedStyle() *style.Computed    { return nil }
-func (s *stubObject) SetComputedStyle(*style.Computed)  {}
-func (s *stubObject) Flags() render.DirtyFlag           { return 0 }
-func (s *stubObject) MarkDirty(render.DirtyFlag)        {}
-func (s *stubObject) ClearDirty(render.DirtyFlag)       {}
-func (s *stubObject) IsDirtySet(render.DirtyFlag) bool  { return false }
-func (s *stubObject) IsDirtyStyle() bool                { return false }
-func (s *stubObject) IsDirtyLayout() bool               { return false }
-func (s *stubObject) IsDirtyPaint() bool                { return false }
-func (s *stubObject) IsDirtyScroll() bool               { return false }
-func (s *stubObject) IsDirtyStructure() bool            { return false }
-func (s *stubObject) Focusable() bool                   { return false }
-func (s *stubObject) SetFocusable(bool)                 {}
-func (s *stubObject) Disabled() bool                    { return false }
-func (s *stubObject) SetDisabled(bool)                  {}
-func (s *stubObject) SelectedText() string              { return "" }
+func (s *stubObject) Bounds() layout.Rect              { return s.bounds }
+func (s *stubObject) SetBounds(r layout.Rect)          { s.bounds = r }
+func (s *stubObject) LogicalNode() any                 { return nil }
+func (s *stubObject) MarkDetached()                    {}
+func (s *stubObject) IsDetached() bool                 { return false }
+func (s *stubObject) MarkChildrenDirty()               {}
+func (s *stubObject) RawStyle() style.Style            { return style.Style{} }
+func (s *stubObject) SetRawStyle(style.Style)          {}
+func (s *stubObject) ComputedStyle() *style.Computed   { return nil }
+func (s *stubObject) SetComputedStyle(*style.Computed) {}
+func (s *stubObject) Flags() render.DirtyFlag          { return 0 }
+func (s *stubObject) MarkDirty(render.DirtyFlag)       {}
+func (s *stubObject) ClearDirty(render.DirtyFlag)      {}
+func (s *stubObject) IsDirtySet(render.DirtyFlag) bool { return false }
+func (s *stubObject) IsDirtyStyle() bool               { return false }
+func (s *stubObject) IsDirtyLayout() bool              { return false }
+func (s *stubObject) IsDirtyPaint() bool               { return false }
+func (s *stubObject) IsDirtyScroll() bool              { return false }
+func (s *stubObject) IsDirtyStructure() bool           { return false }
+func (s *stubObject) Focusable() bool                  { return false }
+func (s *stubObject) SetFocusable(bool)                {}
+func (s *stubObject) Disabled() bool                   { return false }
+func (s *stubObject) SetDisabled(bool)                 {}
+func (s *stubObject) SelectedText() string             { return "" }
 
 // addChild sets parent and appends child.
 func addChild(parent, child *stubObject) {

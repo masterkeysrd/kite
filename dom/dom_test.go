@@ -1,6 +1,7 @@
 package dom_test
 
 import (
+	"iter"
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -15,19 +16,46 @@ type fakeRO struct {
 	calls int
 }
 
-func (f *fakeRO) MarkChildrenDirty() { f.calls++ }
+func (f *fakeRO) MarkChildrenDirty()             { f.calls++ }
 func (f *fakeRO) EventTarget() event.EventTarget { return nil }
-func (f *fakeRO) Parent() render.Object { return nil }
-func (f *fakeRO) FirstChild() render.Object { return nil }
-func (f *fakeRO) LastChild() render.Object { return nil }
-func (f *fakeRO) NextSibling() render.Object { return nil }
+func (f *fakeRO) Parent() render.Object          { return nil }
+func (f *fakeRO) FirstChild() render.Object      { return nil }
+func (f *fakeRO) LastChild() render.Object       { return nil }
+func (f *fakeRO) NextSibling() render.Object     { return nil }
 func (f *fakeRO) PreviousSibling() render.Object { return nil }
-func (f *fakeRO) Bounds() layout.Rect { return layout.Rect{} }
-func (f *fakeRO) SetBounds(layout.Rect) {}
-func (f *fakeRO) Focusable() bool { return false }
-func (f *fakeRO) Disabled() bool { return false }
-func (f *fakeRO) ComputedStyle() *style.Computed { return nil }
-func (f *fakeRO) MarkDirty(render.DirtyFlag) {}
+func (f *fakeRO) Children() iter.Seq[render.Object] {
+	return func(yield func(render.Object) bool) {}
+}
+func (f *fakeRO) Bounds() layout.Rect              { return layout.Rect{} }
+func (f *fakeRO) SetBounds(layout.Rect)            {}
+func (f *fakeRO) Focusable() bool                  { return false }
+func (f *fakeRO) Disabled() bool                   { return false }
+func (f *fakeRO) Style() *style.Computed           { return nil }
+func (f *fakeRO) ComputedStyle() *style.Computed   { return nil }
+func (f *fakeRO) SetComputedStyle(*style.Computed) {}
+func (f *fakeRO) Flags() render.DirtyFlag          { return 0 }
+func (f *fakeRO) MarkDirty(render.DirtyFlag)       {}
+func (f *fakeRO) ClearDirty(render.DirtyFlag)      {}
+func (f *fakeRO) IsDetached() bool                 { return false }
+
+// StyleNode implementation
+func (f *fakeRO) RawStyle() style.Style             { return style.Style{} }
+func (f *fakeRO) ElementDefaultStyle() style.Style  { return style.Style{} }
+func (f *fakeRO) IsDirtyStyle() bool                { return false }
+func (f *fakeRO) HasDirtyStyleChild() bool          { return false }
+func (f *fakeRO) ClearDirtyStyle()                  {}
+func (f *fakeRO) ClearChildNeedsStyle()             {}
+func (f *fakeRO) StyleParent() style.StyleNode      { return nil }
+func (f *fakeRO) StyleFirstChild() style.StyleNode  { return nil }
+func (f *fakeRO) StyleNextSibling() style.StyleNode { return nil }
+
+// layout.Node implementation
+func (f *fakeRO) LayoutChildren() iter.Seq[layout.Node] {
+	return func(yield func(layout.Node) bool) {}
+}
+func (f *fakeRO) IsDirtyLayout() bool { return false }
+func (f *fakeRO) ClearDirtyLayout()   {}
+func (f *fakeRO) LogicalNode() any    { return nil }
 
 var _ render.Object = (*fakeRO)(nil)
 

@@ -102,33 +102,51 @@ func (o *testObject) Children() iter.Seq[render.Object] {
 	}
 }
 
-func (o *testObject) Bounds() layout.Rect                 { return layout.Rect{} }
-func (o *testObject) SetBounds(_ layout.Rect)             {}
-func (o *testObject) LogicalNode() any                    { return nil }
-func (o *testObject) MarkDetached()                       {}
-func (o *testObject) IsDetached() bool                    { return false }
-func (o *testObject) MarkChildrenDirty()                  {}
-func (o *testObject) RawStyle() style.Style               { return style.Style{} }
-func (o *testObject) SetRawStyle(_ style.Style)           {}
-func (o *testObject) Flags() render.DirtyFlag             { return 0 }
-func (o *testObject) MarkDirty(_ render.DirtyFlag)        { o.dirty++ }
-func (o *testObject) ClearDirty(_ render.DirtyFlag)       {}
-func (o *testObject) IsDirtySet(_ render.DirtyFlag) bool  { return false }
-func (o *testObject) IsDirtyStyle() bool                  { return false }
-func (o *testObject) IsDirtyLayout() bool                 { return false }
-func (o *testObject) IsDirtyPaint() bool                  { return false }
-func (o *testObject) IsDirtyScroll() bool                 { return false }
-func (o *testObject) IsDirtyStructure() bool              { return false }
-func (o *testObject) Focusable() bool                     { return o.focusable }
-func (o *testObject) SetFocusable(v bool)                 { o.focusable = v }
-func (o *testObject) Disabled() bool                      { return o.disabled }
-func (o *testObject) SetDisabled(v bool)                  { o.disabled = v }
+func (o *testObject) Bounds() layout.Rect                { return layout.Rect{} }
+func (o *testObject) SetBounds(_ layout.Rect)            {}
+func (o *testObject) LogicalNode() any                   { return nil }
+func (o *testObject) MarkDetached()                      {}
+func (o *testObject) IsDetached() bool                   { return false }
+func (o *testObject) MarkChildrenDirty()                 {}
+func (o *testObject) RawStyle() style.Style              { return style.Style{} }
+func (o *testObject) SetRawStyle(_ style.Style)          {}
+func (o *testObject) Flags() render.DirtyFlag            { return 0 }
+func (o *testObject) MarkDirty(_ render.DirtyFlag)       { o.dirty++ }
+func (o *testObject) ClearDirty(_ render.DirtyFlag)      {}
+func (o *testObject) IsDirtySet(_ render.DirtyFlag) bool { return false }
+func (o *testObject) IsDirtyStyle() bool                 { return false }
+func (o *testObject) IsDirtyLayout() bool                { return false }
+func (o *testObject) IsDirtyPaint() bool                 { return false }
+func (o *testObject) IsDirtyScroll() bool                { return false }
+func (o *testObject) IsDirtyStructure() bool             { return false }
+func (o *testObject) Focusable() bool                    { return o.focusable }
+func (o *testObject) SetFocusable(v bool)                { o.focusable = v }
+func (o *testObject) Disabled() bool                     { return o.disabled }
+func (o *testObject) SetDisabled(v bool)                 { o.disabled = v }
 
-func (o *testObject) ComputedStyle() *style.Computed {
+func (o *testObject) Style() *style.Computed {
 	return &style.Computed{Display: o.display}
 }
+func (o *testObject) ComputedStyle() *style.Computed {
+	return o.Style()
+}
 
-func (o *testObject) SetComputedStyle(_ *style.Computed) {}
+func (o *testObject) SetComputedStyle(*style.Computed) {}
+
+// StyleNode implementation
+func (o *testObject) ElementDefaultStyle() style.Style  { return style.Style{} }
+func (o *testObject) HasDirtyStyleChild() bool          { return false }
+func (o *testObject) ClearDirtyStyle()                  {}
+func (o *testObject) ClearChildNeedsStyle()             {}
+func (o *testObject) StyleParent() style.StyleNode      { return o.Parent() }
+func (o *testObject) StyleFirstChild() style.StyleNode  { return o.FirstChild() }
+func (o *testObject) StyleNextSibling() style.StyleNode { return o.NextSibling() }
+
+// layout.Node implementation
+func (o *testObject) LayoutChildren() iter.Seq[layout.Node] {
+	return func(yield func(layout.Node) bool) {}
+}
+func (o *testObject) ClearDirtyLayout() {}
 
 // compile-time interface check
 var _ render.Object = (*testObject)(nil)

@@ -14,3 +14,9 @@ func Outer(n Node) Node {
 	}
 	return n
 }
+
+// AdoptOuterTree runs an adoption walk over the subtree rooted at n.
+// This is typically called by the engine during initial mount.
+func AdoptOuterTree(n Node) {
+	// Implementation would go here. For now, it's a stub.
+}

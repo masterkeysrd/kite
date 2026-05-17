@@ -145,4 +145,8 @@ type Document interface {
 	// UnregisterAnchor removes the entry for name from the anchor registry.
 	// Called by Anchor elements when they are destroyed or their name changes.
 	UnregisterAnchor(name string)
+
+	// Body returns the root element of the document (similar to <body>).
+	// If no body is mounted, it returns nil.
+	Body() Element
 }
