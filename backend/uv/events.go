@@ -1,8 +1,6 @@
 package uv
 
 import (
-	"strings"
-
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
@@ -121,12 +119,12 @@ func translateModifiers(mod uv.KeyMod) key.Mod {
 }
 
 func translateMouseButton(button uv.MouseButton) event.MouseButton {
-	switch strings.ToLower(button.String()) {
-	case "left":
+	switch button {
+	case uv.MouseLeft:
 		return event.ButtonLeft
-	case "middle":
+	case uv.MouseMiddle:
 		return event.ButtonMiddle
-	case "right":
+	case uv.MouseRight:
 		return event.ButtonRight
 	default:
 		return event.ButtonNone

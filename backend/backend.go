@@ -17,6 +17,10 @@ import (
 //	engine.Paint(root, surface)
 //	if err := backend.EndFrame(); err != nil { … }
 type Backend interface {
+	// Start initializes the terminal (e.g., enters alt-screen, enables raw mode).
+	// It must be called by the engine before any other methods.
+	Start() error
+
 	// BeginFrame prepares a new frame and returns the Surface the paint
 	// engine should draw into. BeginFrame must be called before EndFrame.
 	BeginFrame() paint.Surface
@@ -38,6 +42,8 @@ type Backend interface {
 	// Restore is safe to call from a signal handler or a deferred panic
 	// recovery; it must not block.
 	Restore()
+
+	Resize(layout.Size)
 
 	// Size returns the current dimensions of the backend's output area.
 	Size() layout.Size

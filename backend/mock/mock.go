@@ -25,6 +25,9 @@ type FrameRecord struct {
 type Backend struct {
 	width, height int
 
+	// events is the channel returned by Events().
+	events chan event.RawEvent
+
 	// caps holds the simulated terminal capabilities for this backend.
 	// Tests may set fields on caps before passing the backend to an engine.
 	caps backend.Caps
@@ -43,13 +46,27 @@ type Backend struct {
 
 // New creates a recording Backend for a terminal of the given dimensions.
 func New(width, height int) *Backend {
-	return &Backend{width: width, height: height}
+	return &Backend{
+		width:  width,
+		height: height,
+		events: make(chan event.RawEvent),
+	}
 }
 
 // NewWithCaps creates a recording Backend with the given dimensions and
 // terminal capabilities.
 func NewWithCaps(width, height int, caps backend.Caps) *Backend {
-	return &Backend{width: width, height: height, caps: caps}
+	return &Backend{
+		width:  width,
+		height: height,
+		caps:   caps,
+		events: make(chan event.RawEvent),
+	}
+}
+
+// Start records the startup call.
+func (b *Backend) Start() error {
+	return nil
 }
 
 // BeginFrame allocates a fresh FrameBuffer, records the call, and returns the
@@ -76,12 +93,16 @@ func (b *Backend) EndFrame() error {
 // Caps returns the simulated terminal capabilities.
 func (b *Backend) Caps() backend.Caps { return b.caps }
 
-// event returns a channel of input event. In the mock backend this returns
-// nil by default; tests may set it if they need to simulate input.
-func (b *Backend) Events() <-chan event.RawEvent { return nil }
+// Events returns a channel of input events.
+func (b *Backend) Events() <-chan event.RawEvent { return b.events }
 
 // Restore records the call. In the mock backend this is a no-op.
 func (b *Backend) Restore() { b.RestoreCalls++ }
+
+func (b *Backend) Resize(size layout.Size) {
+	b.width = size.Width
+	b.height = size.Height
+}
 
 // Size returns the simulated dimensions.
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }

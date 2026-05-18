@@ -1,10 +1,11 @@
 package uv
 
 import (
-	"image/color"
+	"log/slog"
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	uv "github.com/charmbracelet/ultraviolet"
 
@@ -27,13 +28,13 @@ type renderRequest struct {
 // for input and a uv.TerminalScreen for output. EndFrame copies the painted
 // FrameBuffer to the TerminalScreen and signals the render goroutine to diff
 // and flush.
-//
-// The Backend must be created via New and used from a single main goroutine
-// for frame operations; the render goroutine is internal and backend-owned.
 type Backend struct {
 	terminal *uv.Terminal
 	screen   *uv.TerminalScreen
 	caps     backend.Caps
+
+	wg      sync.WaitGroup
+	eventCh chan event.RawEvent
 
 	// current is the FrameBuffer prepared by BeginFrame and drawn into by the
 	// paint engine. It is handed to the render goroutine in EndFrame.
@@ -52,25 +53,34 @@ type Backend struct {
 	stopped atomic.Bool
 
 	// onResize is called when the terminal is resized.
-	onResize func(width, height int)
+	onResize func(layout.Size)
 }
 
 // New creates a UV backend using the default controlling terminal.
-//
-// The returned Backend is ready for use but not yet started. Callers must
-// call Start before invoking BeginFrame / EndFrame.
 func New() (*Backend, error) {
-	t := uv.DefaultTerminal()
+	opts := uv.DefaultOptions()
+	// Match the working integration's event timeout.
+	opts.EventTimeout = 8 * time.Millisecond
+
+	t := uv.NewTerminal(nil, opts)
+	screen := t.Screen()
+
+	// Initial setup of the screen properties.
+	screen.SetMouseEncoding(uv.MouseEncodingSGR)
+	screen.SetMouseMode(uv.MouseModeClick)
+	screen.SetSynchronizedUpdates(os.Getenv("TMUX") == "")
+
 	w, h, err := t.GetSize()
 	if err != nil {
-		return nil, err
+		w, h = 80, 24
 	}
 
 	b := &Backend{
 		terminal: t,
-		screen:   t.Screen(),
+		screen:   screen,
 		width:    w,
 		height:   h,
+		eventCh:  make(chan event.RawEvent),
 		renderCh: make(chan renderRequest, 2),
 	}
 	b.caps = probeCapabilities(os.Environ())
@@ -78,34 +88,45 @@ func New() (*Backend, error) {
 }
 
 // SetResizeHandler registers fn as the callback invoked when the terminal is
-// resized. fn is called with the new dimensions. It is safe to call this
-// before Start.
-func (b *Backend) SetResizeHandler(fn func(width, height int)) {
+// resized.
+func (b *Backend) SetResizeHandler(fn func(layout.Size)) {
 	b.onResize = fn
 }
 
 // Start enters alt-screen, enables raw mode, and starts the render goroutine.
-// It must be called once before BeginFrame / EndFrame.
 func (b *Backend) Start() error {
-	b.screen.EnterAltScreen()
 	if err := b.terminal.Start(); err != nil {
 		return err
 	}
+	b.screen.EnterAltScreen()
+	b.screen.HideCursor()
+
+	// Update dimensions from the now-started terminal/screen.
+	b.width = b.screen.Width()
+	b.height = b.screen.Height()
+
+	// Initial flush to clear the screen.
+	b.screen.Render()
+	_ = b.screen.Flush()
+
 	b.renderWG.Add(1)
 	go b.renderLoop()
+
+	b.wg.Go(func() {
+		b.loopEvents()
+	})
+
 	return nil
 }
 
-// BeginFrame allocates a fresh FrameBuffer for the current terminal size,
-// bumps its version, and returns it as a paint.Surface.
+// BeginFrame allocates a fresh FrameBuffer for the current terminal size.
 func (b *Backend) BeginFrame() paint.Surface {
 	b.current = paint.NewFrameBuffer(0, 0, b.width, b.height)
 	b.current.BumpVersion()
 	return b.current
 }
 
-// EndFrame hands the current FrameBuffer to the render goroutine. It panics
-// if BeginFrame was not called first.
+// EndFrame hands the current FrameBuffer to the render goroutine.
 func (b *Backend) EndFrame() error {
 	if b.current == nil {
 		panic("uv.Backend.EndFrame called without a preceding BeginFrame")
@@ -120,10 +141,10 @@ func (b *Backend) EndFrame() error {
 func (b *Backend) Caps() backend.Caps { return b.caps }
 
 // Restore unconditionally exits alt-screen, restores terminal state, and shows
-// the cursor. Safe to call from a signal handler or deferred panic recovery.
+// the cursor.
 func (b *Backend) Restore() {
 	if b.stopped.Swap(true) {
-		return // already restored
+		return
 	}
 	b.screen.ExitAltScreen()
 	b.screen.ShowCursor()
@@ -133,43 +154,26 @@ func (b *Backend) Restore() {
 // Stop closes the render goroutine gracefully and calls Restore.
 func (b *Backend) Stop() {
 	close(b.renderCh)
+	close(b.eventCh)
 	b.renderWG.Wait()
 	b.Restore()
 }
 
-// Events returns the terminal event channel. The engine's input goroutine
-// ranges over this channel until the backend is stopped.
+// Events returns the terminal event channel.
 func (b *Backend) Events() <-chan event.RawEvent {
-	ch := make(chan event.RawEvent)
-	go func() {
-		defer close(ch)
-		for ev := range b.terminal.Events() {
-			ch <- translateEvent(ev)
-		}
-	}()
-	return ch
+	return b.eventCh
 }
 
 // Resize updates the internal dimensions after a terminal resize event.
-func (b *Backend) Resize(width, height int) {
-	b.width = width
-	b.height = height
-	b.screen.Resize(width, height)
+func (b *Backend) Resize(size layout.Size) {
+	b.width = size.Width
+	b.height = size.Height
+	b.screen.Resize(size.Width, size.Height)
 }
-
-// Width returns the current terminal width.
-func (b *Backend) Width() int { return b.width }
-
-// Height returns the current terminal height.
-func (b *Backend) Height() int { return b.height }
 
 // Size returns the current terminal size.
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
 
-// renderLoop is the backend-owned goroutine that receives frames from EndFrame,
-// converts them to uv.Cells, sets them on the TerminalScreen, and flushes.
-//
-// renderLoop exits when renderCh is closed (by Stop).
 func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()
 	for req := range b.renderCh {
@@ -177,9 +181,23 @@ func (b *Backend) renderLoop() {
 	}
 }
 
-// renderFrame copies cells from fb to the TerminalScreen and flushes.
+func (b *Backend) loopEvents() {
+	for ev := range b.terminal.Events() {
+		KiteEv := translateEvent(ev)
+		b.eventCh <- KiteEv
+	}
+}
+
 func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
+	slog.Info("uv: renderFrame started", "width", fb.Bounds().Size.Width, "height", fb.Bounds().Size.Height)
 	bounds := fb.Bounds()
+	if bounds.Size.Width <= 0 || bounds.Size.Height <= 0 {
+		slog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", bounds.Size.Width, "height", bounds.Size.Height)
+		return
+	}
+
+	// For UV, we iterate the whole requested buffer and set cells.
+	// UV's own diffing will handle efficient updates.
 	for y := 0; y < bounds.Size.Height; y++ {
 		for x := 0; x < bounds.Size.Width; {
 			c := fb.Get(bounds.Origin.X+x, bounds.Origin.Y+y)
@@ -189,10 +207,14 @@ func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
 		}
 	}
 	b.screen.Render()
-	_ = b.screen.Flush()
+	slog.Info("uv: screen.Render called")
+	if err := b.screen.Flush(); err != nil {
+		slog.Error("uv: flush error", "error", err)
+	} else {
+		slog.Info("uv: screen.Flush called")
+	}
 }
 
-// paintCellToUV converts a paint.Cell to a *uv.Cell for writing to the screen.
 func paintCellToUV(c paint.Cell) *uv.Cell {
 	content := c.Content
 	if content == "" || content == "\x00" {
@@ -205,8 +227,11 @@ func paintCellToUV(c paint.Cell) *uv.Cell {
 	}
 
 	cell.Style.Fg = c.FG
-	if c.BG != color.Transparent {
-		cell.Style.Bg = c.BG
+	if c.BG != nil {
+		_, _, _, a := c.BG.RGBA()
+		if a > 0 {
+			cell.Style.Bg = c.BG
+		}
 	}
 
 	if c.Attrs&paint.AttrBold != 0 {
