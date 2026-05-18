@@ -1,5 +1,9 @@
 package layout
 
+import (
+	"github.com/masterkeysrd/kite/style"
+)
+
 // BlockAlgorithm implements the Block formatting context layout.
 // It stacks children vertically (in the block-flow direction) and calculates
 // its own intrinsic size based on the accumulated height of its children.
@@ -74,7 +78,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		// 6. Accumulate dimensions.
 		// Advance the Y cursor by the child's top margin, the fragment height, and the child's bottom margin.
 		currentY += childMargin.Top + childFrag.Size.Height + childMargin.Bottom
-		
+
 		// The footprint of the child includes its horizontal margins.
 		childFootprint := childMargin.Left + childFrag.Size.Width + childMargin.Right
 		if childFootprint > maxChildWidth {
@@ -84,9 +88,38 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 
 	// 7. Add bottom decoration to the accumulated height.
 	currentY += border.Bottom + padding.Bottom
-	
+
 	// The intrinsic width is the max child footprint plus our inner decorations.
 	intrinsicWidth := maxChildWidth + parentDecorX
+
+	// Resolve explicit dimensions from the computed style.
+	// This ensures an element forces its size if Width or Height are set,
+	// instead of always shrink-wrapping its intrinsic size.
+	var explicitWidth, explicitHeight int
+	var hasExplicitWidth, hasExplicitHeight bool
+
+	if comp.Width.Kind() == style.KindCells {
+		explicitWidth = comp.Width.CellsValue()
+		hasExplicitWidth = true
+	} else if comp.Width.Kind() == style.KindPercent {
+		explicitWidth = int(float32(a.Space.Constraints.Max.Width) * (comp.Width.PercentValue() / 100.0))
+		hasExplicitWidth = true
+	}
+
+	if comp.Height.Kind() == style.KindCells {
+		explicitHeight = comp.Height.CellsValue()
+		hasExplicitHeight = true
+	} else if comp.Height.Kind() == style.KindPercent {
+		explicitHeight = int(float32(a.Space.Constraints.Max.Height) * (comp.Height.PercentValue() / 100.0))
+		hasExplicitHeight = true
+	}
+
+	if hasExplicitWidth {
+		intrinsicWidth = explicitWidth
+	}
+	if hasExplicitHeight {
+		currentY = explicitHeight
+	}
 
 	// 8. Compute the final physical size of this block fragment
 	// clamped by the min/max constraints of the space.

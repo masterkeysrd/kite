@@ -37,7 +37,7 @@ type Node interface {
 	ClearDirtyLayout()
 
 	// Fragment returns the most recent LayoutNG fragment generated for this node.
-	// It is used by paint, hit testing, and spatial navigation to retrieve the 
+	// It is used by paint, hit testing, and spatial navigation to retrieve the
 	// physical representation of the element.
 	Fragment() *Fragment
 
