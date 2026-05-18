@@ -7,7 +7,7 @@
 //
 // # Adoption and connection (ADR-0036)
 //
-// Every element carries an outer back-pointer set by the DOM during the
+// Every element carries a self back-pointer set by the DOM during the
 // attach walk so that event.Target(), GetElementByID(), and
 // RenderObject.Node() all return the outermost user-visible wrapper even
 // when a widget embeds a native element.

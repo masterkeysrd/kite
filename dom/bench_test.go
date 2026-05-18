@@ -13,11 +13,11 @@ func BenchmarkElement_AppendChild(b *testing.B) {
 	doc := dom.NewDocument()
 	children := make([]dom.Node, n)
 	for i := range children {
-		children[i] = doc.CreateElement("span")
+		children[i] = doc.CreateElement("span", nil)
 	}
 
 	for b.Loop() {
-		parent := doc.CreateElement("div")
+		parent := doc.CreateElement("div", nil)
 		for _, child := range children {
 			parent.AppendChild(child)
 		}
@@ -33,14 +33,14 @@ func BenchmarkElement_AppendChild(b *testing.B) {
 func BenchmarkElement_RemoveChild_Middle(b *testing.B) {
 	const n = 1000
 	doc := dom.NewDocument()
-	parent := doc.CreateElement("div")
+	parent := doc.CreateElement("div", nil)
 	for range n {
-		parent.AppendChild(doc.CreateElement("span"))
+		parent.AppendChild(doc.CreateElement("span", nil))
 	}
 
 	// Collect children to find middle and its next sibling.
 	children := make([]dom.Node, 0, n)
-	for c := range parent.Children() {
+	for c := range parent.ChildNodes() {
 		children = append(children, c)
 	}
 	middle := children[n/2]

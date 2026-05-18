@@ -21,19 +21,26 @@ type Object interface {
 	PreviousSibling() Object
 	Children() iter.Seq[Object]
 
+	InsertChild(child, before Object)
+	RemoveChild(child Object)
+
 	Focusable() bool
 	Disabled() bool
+	SetDisabled(bool)
+	SetFocusable(bool)
 	ComputedStyle() *style.Computed
 	SetComputedStyle(*style.Computed)
 	Flags() DirtyFlag
 	MarkDirty(DirtyFlag)
 	ClearDirty(DirtyFlag)
 	MarkChildrenDirty()
+	ClearDirtyRecursive(DirtyFlag)
 
 	IsDetached() bool
 
 	// StyleNode implementation (Task 06)
 	RawStyle() style.Style
+	SetRawStyle(style.Style)
 	ElementDefaultStyle() style.Style
 	IsDirtyStyle() bool
 	HasDirtyStyleChild() bool

@@ -9,10 +9,23 @@ type textNode struct {
 // Compile-time assertion.
 var _ TextNode = (*textNode)(nil)
 
+// NewTextNode allocates a TextNode with the given data and owner document.
+// If self is nil, the node's identity is itself.
+func NewTextNode(doc Document, data string, self Node) TextNode {
+	return newTextNode(data, doc, self)
+}
+
 // newTextNode allocates a TextNode with the given data and owner document.
-func newTextNode(data string, doc Document) *textNode {
+func newTextNode(data string, doc Document, self Node) *textNode {
 	t := &textNode{data: data}
-	t.baseNode.ownerDocument = doc
+	t.ownerDocument = doc
+	if self == nil {
+		t.self = t
+	} else {
+		t.self = self
+	}
+	t.kind = KindText
+	t.name = "#text"
 	return t
 }
 
@@ -28,3 +41,6 @@ func (t *textNode) SetData(data string) {
 		}
 	}
 }
+
+// asBase returns the underlying *baseNode.
+func (t *textNode) asBase() *baseNode { return &t.baseNode }

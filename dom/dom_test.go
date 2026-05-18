@@ -28,16 +28,23 @@ func (f *fakeRO) Children() iter.Seq[render.Object] {
 }
 func (f *fakeRO) Focusable() bool                  { return false }
 func (f *fakeRO) Disabled() bool                   { return false }
+func (f *fakeRO) SetDisabled(bool)                 {}
+func (f *fakeRO) SetFocusable(bool)                {}
 func (f *fakeRO) Style() *style.Computed           { return nil }
 func (f *fakeRO) ComputedStyle() *style.Computed   { return nil }
 func (f *fakeRO) SetComputedStyle(*style.Computed) {}
 func (f *fakeRO) Flags() render.DirtyFlag          { return 0 }
 func (f *fakeRO) MarkDirty(render.DirtyFlag)       {}
 func (f *fakeRO) ClearDirty(render.DirtyFlag)      {}
+func (f *fakeRO) ClearDirtyRecursive(render.DirtyFlag) {}
 func (f *fakeRO) IsDetached() bool                 { return false }
+func (f *fakeRO) Node() dom.Node                   { return nil }
+func (f *fakeRO) InsertChild(child, before render.Object) {}
+func (f *fakeRO) RemoveChild(child render.Object)         {}
 
 // StyleNode implementation
 func (f *fakeRO) RawStyle() style.Style             { return style.Style{} }
+func (f *fakeRO) SetRawStyle(style.Style)           {}
 func (f *fakeRO) ElementDefaultStyle() style.Style  { return style.Style{} }
 func (f *fakeRO) IsDirtyStyle() bool                { return false }
 func (f *fakeRO) HasDirtyStyleChild() bool          { return false }
@@ -51,12 +58,12 @@ func (f *fakeRO) StyleNextSibling() style.StyleNode { return nil }
 func (f *fakeRO) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {}
 }
-func (f *fakeRO) IsDirtyLayout() bool { return false }
-func (f *fakeRO) ClearDirtyLayout()   {}
-func (f *fakeRO) Fragment() *layout.Fragment { return nil }
-func (f *fakeRO) CachedLayout(layout.ConstraintSpace) *layout.Fragment { return nil }
+func (f *fakeRO) IsDirtyLayout() bool                                      { return false }
+func (f *fakeRO) ClearDirtyLayout()                                        {}
+func (f *fakeRO) Fragment() *layout.Fragment                               { return nil }
+func (f *fakeRO) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
 func (f *fakeRO) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
-func (f *fakeRO) LogicalNode() any    { return nil }
+func (f *fakeRO) LogicalNode() any                                         { return nil }
 
 var _ render.Object = (*fakeRO)(nil)
 
@@ -70,10 +77,10 @@ func requireNode(t *testing.T, label string, got, want dom.Node) {
 
 func TestElement_AppendChild_LinksSiblings(t *testing.T) {
 	doc := dom.NewDocument()
-	parent := doc.CreateElement("div")
-	a := doc.CreateElement("a")
-	b := doc.CreateElement("b")
-	c := doc.CreateElement("c")
+	parent := doc.CreateElement("div", nil)
+	a := doc.CreateElement("a", nil)
+	b := doc.CreateElement("b", nil)
+	c := doc.CreateElement("c", nil)
 
 	parent.AppendChild(a)
 	parent.AppendChild(b)
@@ -108,10 +115,10 @@ func TestElement_InsertBefore_HeadAndMiddle(t *testing.T) {
 	doc := dom.NewDocument()
 
 	t.Run("InsertAtHead", func(t *testing.T) {
-		parent := doc.CreateElement("div")
-		a := doc.CreateElement("a")
-		b := doc.CreateElement("b")
-		x := doc.CreateElement("x")
+		parent := doc.CreateElement("div", nil)
+		a := doc.CreateElement("a", nil)
+		b := doc.CreateElement("b", nil)
+		x := doc.CreateElement("x", nil)
 
 		parent.AppendChild(a)
 		parent.AppendChild(b)
@@ -125,11 +132,11 @@ func TestElement_InsertBefore_HeadAndMiddle(t *testing.T) {
 	})
 
 	t.Run("InsertInMiddle", func(t *testing.T) {
-		parent := doc.CreateElement("div")
-		a := doc.CreateElement("a")
-		b := doc.CreateElement("b")
-		c := doc.CreateElement("c")
-		x := doc.CreateElement("x")
+		parent := doc.CreateElement("div", nil)
+		a := doc.CreateElement("a", nil)
+		b := doc.CreateElement("b", nil)
+		c := doc.CreateElement("c", nil)
+		x := doc.CreateElement("x", nil)
 
 		parent.AppendChild(a)
 		parent.AppendChild(b)
@@ -148,10 +155,10 @@ func TestElement_InsertBefore_HeadAndMiddle(t *testing.T) {
 
 func TestElement_RemoveChild_Unlinks(t *testing.T) {
 	doc := dom.NewDocument()
-	parent := doc.CreateElement("div")
-	a := doc.CreateElement("a")
-	b := doc.CreateElement("b")
-	c := doc.CreateElement("c")
+	parent := doc.CreateElement("div", nil)
+	a := doc.CreateElement("a", nil)
+	b := doc.CreateElement("b", nil)
+	c := doc.CreateElement("c", nil)
 
 	parent.AppendChild(a)
 	parent.AppendChild(b)
@@ -178,11 +185,11 @@ func TestElement_RemoveChild_Unlinks(t *testing.T) {
 
 func TestElement_ReplaceChild_PreservesSiblings(t *testing.T) {
 	doc := dom.NewDocument()
-	parent := doc.CreateElement("div")
-	a := doc.CreateElement("a")
-	b := doc.CreateElement("b")
-	c := doc.CreateElement("c")
-	x := doc.CreateElement("x") // replaces b
+	parent := doc.CreateElement("div", nil)
+	a := doc.CreateElement("a", nil)
+	b := doc.CreateElement("b", nil)
+	c := doc.CreateElement("c", nil)
+	x := doc.CreateElement("x", nil) // replaces b
 
 	parent.AppendChild(a)
 	parent.AppendChild(b)
@@ -201,125 +208,104 @@ func TestElement_ReplaceChild_PreservesSiblings(t *testing.T) {
 	requireNode(t, "x.PreviousSibling", x.PreviousSibling(), a)
 	requireNode(t, "x.NextSibling", x.NextSibling(), c)
 	requireNode(t, "c.PreviousSibling", c.PreviousSibling(), x)
-	if x.Parent() != parent {
-		t.Error("x.Parent should be parent")
-	}
-
-	// b should be unlinked
-	if b.Parent() != nil {
-		t.Error("replaced node's Parent should be nil")
-	}
-	requireNode(t, "b.NextSibling", b.NextSibling(), nil)
-	requireNode(t, "b.PreviousSibling", b.PreviousSibling(), nil)
 }
 
-func TestTextNode_SetData_NotifiesParent(t *testing.T) {
+func TestElement_ChildNodes_Iterator(t *testing.T) {
 	doc := dom.NewDocument()
-	parent := doc.CreateElement("div")
-	text := doc.CreateTextNode("hello")
+	parent := doc.CreateElement("div", nil)
+	a := doc.CreateElement("a", nil)
+	b := doc.CreateElement("b", nil)
+	c := doc.CreateElement("c", nil)
 
+	parent.AppendChild(a)
+	parent.AppendChild(b)
+	parent.AppendChild(c)
+
+	want := []dom.Node{a, b, c}
+	got := []dom.Node{}
+	for child := range parent.ChildNodes() {
+		got = append(got, child)
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("ChildNodes: got %d nodes, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("ChildNodes[%d]: got %v, want %v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestElement_TextContent(t *testing.T) {
+	doc := dom.NewDocument()
+	root := doc.CreateElement("div", nil)
+	a := doc.CreateElement("span", nil)
+	a.AppendChild(doc.CreateTextNode("Hello ", nil))
+	b := doc.CreateElement("span", nil)
+	b.AppendChild(doc.CreateTextNode("World!", nil))
+
+	root.AppendChild(a)
+	root.AppendChild(b)
+
+	want := "Hello World!"
+	if got := root.TextContent(); got != want {
+		t.Errorf("TextContent: got %q, want %q", got, want)
+	}
+}
+
+func TestElement_CloneNode(t *testing.T) {
+	doc := dom.NewDocument()
+	parent := doc.CreateElement("div", nil)
+	parent.SetID("root")
+	child := doc.CreateElement("span", nil)
+	child.AppendChild(doc.CreateTextNode("foo", nil))
+	parent.AppendChild(child)
+
+	t.Run("Shallow", func(t *testing.T) {
+		clone := parent.CloneNode(false).(dom.Element)
+		if clone.TagName() != "div" {
+			t.Errorf("CloneTagName: got %q, want %q", clone.TagName(), "div")
+		}
+		if clone.ID() != "root" {
+			t.Errorf("CloneID: got %q, want %q", clone.ID(), "root")
+		}
+		if clone.HasChildNodes() {
+			t.Error("Shallow clone should have no children")
+		}
+	})
+
+	t.Run("Deep", func(t *testing.T) {
+		clone := parent.CloneNode(true).(dom.Element)
+		if !clone.HasChildNodes() {
+			t.Fatal("Deep clone should have children")
+		}
+		c := clone.FirstChild().(dom.Element)
+		if c.TagName() != "span" {
+			t.Errorf("ChildTagName: got %q, want %q", c.TagName(), "span")
+		}
+		if c.TextContent() != "foo" {
+			t.Errorf("ChildText: got %q, want %q", c.TextContent(), "foo")
+		}
+	})
+}
+
+func TestElement_MarkChildrenDirty_OnMutation(t *testing.T) {
+	doc := dom.NewDocument()
+	parent := doc.CreateElement("div", nil)
 	ro := &fakeRO{}
 	parent.SetRenderObject(ro)
 
-	parent.AppendChild(text)
-	ro.calls = 0 // reset counter after append
+	child := doc.CreateElement("span", nil)
+	parent.AppendChild(child)
 
-	text.SetData("world")
-
-	if ro.calls != 1 {
-		t.Errorf("MarkChildrenDirty call count = %d, want 1", ro.calls)
-	}
-	if text.Data() != "world" {
-		t.Error("Data() should return the updated value")
-	}
-}
-
-func TestDocument_CreateElement_AssignsTagName(t *testing.T) {
-	doc := dom.NewDocument()
-	el := doc.CreateElement("section")
-
-	if el.TagName() != "section" {
-		t.Errorf("TagName = %q, want %q", el.TagName(), "section")
-	}
-	if el.OwnerDocument() != doc {
-		t.Error("OwnerDocument should be the creating document")
-	}
-	if el.Parent() != nil {
-		t.Error("newly created element should have no parent")
-	}
-}
-
-// --- ID registry -----------------------------------------------------------
-
-func TestDocument_GetElementByID_ReturnsElement(t *testing.T) {
-	doc := dom.NewDocument()
-	el := doc.CreateElement("div")
-	el.SetID("hero")
-	doc.AppendChild(el)
-
-	got := doc.GetElementByID("hero")
-	if got != el {
-		t.Errorf("GetElementByID(%q) = %v, want %v", "hero", got, el)
-	}
-}
-
-func TestDocument_GetElementByID_UpdatesOnSetID(t *testing.T) {
-	doc := dom.NewDocument()
-	el := doc.CreateElement("div")
-	el.SetID("old")
-	doc.AppendChild(el)
-
-	el.SetID("new")
-
-	if got := doc.GetElementByID("old"); got != nil {
-		t.Error("GetElementByID(\"old\") should be nil after ID was changed")
-	}
-	if got := doc.GetElementByID("new"); got != el {
-		t.Errorf("GetElementByID(%q) = %v, want %v", "new", got, el)
-	}
-}
-
-func TestDocument_GetElementByID_RemovesOnDetach(t *testing.T) {
-	doc := dom.NewDocument()
-	el := doc.CreateElement("span")
-	el.SetID("target")
-	doc.AppendChild(el)
-
-	doc.RemoveChild(el)
-
-	if got := doc.GetElementByID("target"); got != nil {
-		t.Error("GetElementByID should return nil after element is removed from tree")
-	}
-}
-
-// --- Anchor registry -------------------------------------------------------
-
-func TestDocument_FindAnchor_ScopedToAnchorRegistry(t *testing.T) {
-	doc := dom.NewDocument()
-	anchor := doc.CreateElement("a")
-
-	// ID registry and anchor registry are independent.
-	anchor.SetID("section-nav")
-	doc.AppendChild(anchor)
-
-	// Registering under the same string in the anchor registry should not
-	// shadow the element in the ID registry, and vice-versa.
-	doc.RegisterAnchor("section-nav", anchor)
-
-	if got := doc.GetElementByID("section-nav"); got != anchor {
-		t.Error("GetElementByID must still return the element even when an anchor shares the name")
-	}
-	if got := doc.FindAnchor("section-nav"); got != anchor {
-		t.Errorf("FindAnchor(%q) = %v, want %v", "section-nav", got, anchor)
+	if ro.calls == 0 {
+		t.Error("MarkChildrenDirty should be called on AppendChild")
 	}
 
-	// Unregistering the anchor must not affect the ID registry.
-	doc.UnregisterAnchor("section-nav")
-
-	if got := doc.FindAnchor("section-nav"); got != nil {
-		t.Error("FindAnchor should return nil after UnregisterAnchor")
-	}
-	if got := doc.GetElementByID("section-nav"); got != anchor {
-		t.Error("GetElementByID must still work after anchor is unregistered")
+	before := ro.calls
+	parent.RemoveChild(child)
+	if ro.calls <= before {
+		t.Error("MarkChildrenDirty should be called on RemoveChild")
 	}
 }

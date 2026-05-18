@@ -2,94 +2,247 @@ package dom
 
 import (
 	"iter"
+	"strings"
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/render"
 )
 
-// linkable is an unexported interface used internally to update the link
-// fields of a Node without exposing mutation methods on the public interface.
-// All concrete node types in this package satisfy linkable.
-type linkable interface {
-	setParent(p Element)
-	setNext(n Node)
-	setPrev(n Node)
-	setOwnerDocument(d Document)
-	setConnected(v bool)
-}
+var _ Node = (*baseNode)(nil)
 
-// asLinkable asserts that n satisfies linkable. All concrete node types
-// produced by this package do; a panic here indicates that a foreign Node
-// implementation was passed to a mutation method.
-func asLinkable(n Node) linkable {
-	return n.(linkable)
-}
-
-// baseNode holds the common link fields shared by element and textNode.
-// It is embedded by value in both concrete types.
 type baseNode struct {
 	event.Target
 
-	parent        Element
+	name          string
+	kind          Kind
+	self          Node
+	parent        Node
 	next          Node
 	prev          Node
+	firstChild    Node
+	lastChild     Node
 	ownerDocument Document
 	renderObject  render.Object
-	// connected is true when this node is reachable from the Document root.
-	// It is toggled by the attach/detach walks run inside the mutation
-	// methods (see ADR-0036 §3).
-	connected bool
+	connected     bool
 }
 
-// Parent returns the parent Element, or nil.
-func (b *baseNode) Parent() Element { return b.parent }
+// asBase returns the underlying *baseNode for any Node produced by this package.
+func asBase(n Node) *baseNode {
+	if n == nil {
+		return nil
+	}
+	switch v := n.(type) {
+	case *document:
+		return &v.baseNode
+	case *element:
+		return &v.baseNode
+	case *textNode:
+		return &v.baseNode
+	case interface{ asBase() *baseNode }:
+		return v.asBase()
+	case interface{ DOMElement() Element }:
+		return asBase(v.DOMElement())
+	default:
+		return nil
+	}
+}
 
-// NextSibling returns the next sibling Node, or nil.
-func (b *baseNode) NextSibling() Node { return b.next }
+func (b *baseNode) Kind() Kind { return b.kind }
 
-// PreviousSibling returns the previous sibling Node, or nil.
-func (b *baseNode) PreviousSibling() Node { return b.prev }
+func (b *baseNode) NodeName() string { return b.name }
 
-// OwnerDocument returns the Document that owns this node.
-func (b *baseNode) OwnerDocument() Document { return b.ownerDocument }
+func (b *baseNode) Parent() Node { return b.parent }
 
-// IsConnected reports whether this node is reachable from the Document root.
-func (b *baseNode) IsConnected() bool { return b.connected }
+func (b *baseNode) ParentElement() Element {
+	if el, ok := b.parent.(Element); ok {
+		return el
+	}
+	return nil
+}
 
-// RenderObject returns the associated render.Object, or nil.
-func (b *baseNode) RenderObject() render.Object { return b.renderObject }
-
-// SetRenderObject attaches or detaches the render object for this node.
+func (b *baseNode) NextSibling() Node                { return b.next }
+func (b *baseNode) PreviousSibling() Node            { return b.prev }
+func (b *baseNode) OwnerDocument() Document          { return b.ownerDocument }
+func (b *baseNode) IsConnected() bool                { return b.connected }
+func (b *baseNode) RenderObject() render.Object      { return b.renderObject }
 func (b *baseNode) SetRenderObject(ro render.Object) { b.renderObject = ro }
 
-// linkable implementation (unexported setters).
-func (b *baseNode) setParent(p Element)         { b.parent = p }
-func (b *baseNode) setNext(n Node)              { b.next = n }
-func (b *baseNode) setPrev(n Node)              { b.prev = n }
-func (b *baseNode) setOwnerDocument(d Document) { b.ownerDocument = d }
-func (b *baseNode) setConnected(v bool)         { b.connected = v }
+func (b *baseNode) FirstChild() Node { return b.firstChild }
+func (b *baseNode) LastChild() Node  { return b.lastChild }
 
-// --- Node interface implementation (defaults for non-container nodes) --------
+func (b *baseNode) HasChildNodes() bool { return b.firstChild != nil }
+
+func (b *baseNode) ChildNodes() iter.Seq[Node] {
+	return func(yield func(Node) bool) {
+		for n := b.firstChild; n != nil; {
+			next := n.NextSibling()
+			if !yield(n) {
+				return
+			}
+			n = next
+		}
+	}
+}
 
 func (b *baseNode) AppendChild(child Node) Node {
-	panic("dom: node does not support children")
+	return b.self.InsertBefore(child, nil)
 }
 
 func (b *baseNode) InsertBefore(newChild, ref Node) Node {
-	panic("dom: node does not support children")
+	if b.kind == KindText {
+		panic("dom: text node does not support children")
+	}
+
+	if newChild == b.self {
+		panic("dom: cannot insert a node into itself")
+	}
+
+	// Cross-document check.
+	if newChild.OwnerDocument() != b.ownerDocument {
+		panic("dom: cross-document insertion")
+	}
+
+	// Remove from old parent if any.
+	if p := newChild.Parent(); p != nil {
+		p.RemoveChild(newChild)
+	}
+
+	newBase := asBase(newChild)
+	newBase.parent = b.self
+
+	if ref == nil {
+		// Link as last child.
+		newBase.prev = b.lastChild
+		newBase.next = nil
+		if b.lastChild != nil {
+			asBase(b.lastChild).next = newChild
+		} else {
+			b.firstChild = newChild
+		}
+		b.lastChild = newChild
+	} else {
+		// Link before ref.
+		if ref.Parent() != b.self {
+			panic("dom: reference node is not a child of this node")
+		}
+		refBase := asBase(ref)
+		newBase.prev = refBase.prev
+		newBase.next = ref
+		if refBase.prev != nil {
+			asBase(refBase.prev).next = newChild
+		} else {
+			b.firstChild = newChild
+		}
+		refBase.prev = newChild
+	}
+
+	// Trigger attach walk if connected.
+	if b.connected {
+		if w, ok := b.ownerDocument.(interface {
+			attachWalk(parent Node, child Node)
+		}); ok {
+			w.attachWalk(b.self, newChild)
+		}
+	}
+
+	b.notifyStructureChange()
+	return newChild
 }
 
 func (b *baseNode) RemoveChild(child Node) Node {
-	panic("dom: node does not support children")
+	if child.Parent() != b.self {
+		panic("dom: node to be removed is not a child of this node")
+	}
+
+	cBase := asBase(child)
+
+	// Trigger detach walk if connected.
+	if b.connected {
+		if w, ok := b.ownerDocument.(interface {
+			detachWalk(parent Node, child Node)
+		}); ok {
+			w.detachWalk(b.self, child)
+		}
+	}
+
+	// Unlink.
+	if cBase.prev != nil {
+		asBase(cBase.prev).next = cBase.next
+	} else {
+		b.firstChild = cBase.next
+	}
+	if cBase.next != nil {
+		asBase(cBase.next).prev = cBase.prev
+	} else {
+		b.lastChild = cBase.prev
+	}
+
+	cBase.parent = nil
+	cBase.next = nil
+	cBase.prev = nil
+	cBase.connected = false
+
+	b.notifyStructureChange()
+	return child
 }
 
 func (b *baseNode) ReplaceChild(newChild, oldChild Node) Node {
-	panic("dom: node does not support children")
+	ref := oldChild.NextSibling()
+	b.RemoveChild(oldChild)
+	b.InsertBefore(newChild, ref)
+	return oldChild
 }
 
-func (b *baseNode) FirstChild() Node { return nil }
-func (b *baseNode) LastChild() Node  { return nil }
+func (b *baseNode) Contains(descendant Node) bool {
+	for n := descendant; n != nil; n = n.Parent() {
+		if n == b.self {
+			return true
+		}
+	}
+	return false
+}
 
-func (b *baseNode) Children() iter.Seq[Node] {
-	return func(yield func(Node) bool) {}
+func (b *baseNode) TextContent() string {
+	if b.kind == KindText {
+		if tn, ok := b.self.(TextNode); ok {
+			return tn.Data()
+		}
+	}
+	var sb strings.Builder
+	for child := range b.ChildNodes() {
+		sb.WriteString(child.TextContent())
+	}
+	return sb.String()
+}
+
+func (b *baseNode) CloneNode(deep bool) Node {
+	var clone Node
+	switch b.kind {
+	case KindDocument:
+		// Cloning a document is usually not supported or returns a special copy.
+		// Kite v2 interfaces suggest Document is special.
+		panic("dom: cloning document is not supported")
+	case KindElement:
+		el := b.self.(Element)
+		clone = b.ownerDocument.CreateElement(el.TagName(), nil)
+		if el.ID() != "" {
+			clone.(Element).SetID(el.ID())
+		}
+	case KindText:
+		tn := b.self.(TextNode)
+		clone = b.ownerDocument.CreateTextNode(tn.Data(), nil)
+	}
+
+	if deep {
+		for child := range b.ChildNodes() {
+			clone.AppendChild(child.CloneNode(true))
+		}
+	}
+	return clone
+}
+
+func (b *baseNode) notifyStructureChange() {
+	if ro := b.renderObject; ro != nil {
+		ro.MarkChildrenDirty()
+	}
 }

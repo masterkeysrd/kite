@@ -7,6 +7,18 @@ import (
 	"github.com/masterkeysrd/kite/render"
 )
 
+// Kind identifies the type of a Node. It is used by Node.Kind() to allow callers to determine
+// the concrete type of a Node without relying on Go's type system or incurring the cost of
+// a type assertion. The set of possible values is fixed by the current DOM implementation
+// and may not be extended by user code.
+type Kind int
+
+const (
+	KindDocument Kind = iota
+	KindElement
+	KindText
+)
+
 // Node is the base interface for every node in the logical DOM tree.
 // It carries parent/sibling links, owner-document reference, and an optional
 // back-reference to the render object created for this node by the engine.
@@ -15,8 +27,19 @@ import (
 type Node interface {
 	event.EventTarget
 
-	// Parent returns the parent Element, or nil if this node has no parent.
-	Parent() Element
+	// Kind returns the kind of this node (Document, Element, or Text).
+	Kind() Kind
+
+	// NodeName returns the name of this node. For Element nodes it is the tag
+	// name; for Text nodes it is "#text"; for Document it is "#document".
+	NodeName() string
+
+	// Parent returns the parent Node, or nil if this node is the Document root.
+	Parent() Node
+
+	// ParentElement returns the parent Node if it is an Element, or nil if
+	// this node has no parent or its parent is not an Element.
+	ParentElement() Element
 
 	// NextSibling returns the next sibling Node, or nil if there is none.
 	NextSibling() Node
@@ -61,9 +84,24 @@ type Node interface {
 	// LastChild returns the last child Node, or nil if the node has no children.
 	LastChild() Node
 
-	// Children returns an iterator over the direct children of this node
-	// in document order.
-	Children() iter.Seq[Node]
+	// HasChildNodes reports whether this node has any children.
+	HasChildNodes() bool
+
+	// Contains reports whether this node is an ancestor of descendant.
+	Contains(descendant Node) bool
+
+	// ChildNodes returns an iterator over direct children in document order.
+	ChildNodes() iter.Seq[Node]
+
+	// TextContent returns the concatenation of all text content in this node's subtree. For Text
+	// nodes it is the same as Data(). For Element and Document nodes it is the concatenation of
+	// the TextContent of all descendant Text nodes in document order.
+	TextContent() string
+
+	// CloneNode returns a new Node that is a copy of this node. If deep is true, the clone also
+	// includes clones of all descendant nodes; otherwise the clone has no children. The returned
+	// node is detached (no parent).
+	CloneNode(deep bool) Node
 }
 
 // Element extends Node with identity (tag name, id).
@@ -78,6 +116,11 @@ type Element interface {
 
 	// SetID sets the element's identifier attribute value.
 	SetID(id string)
+
+	// ReplaceWith replaces this element with the given nodes and returns this
+	// element. The new nodes are appended in the order they are given. If this
+	// element has no parent, the call is a no-op and this element is returned.
+	ReplaceWith(nodes ...Node) Element
 }
 
 // TextNode is a leaf node that carries character data. It has no children.
@@ -120,12 +163,15 @@ type Document interface {
 	Node
 
 	// CreateElement returns a new Element with the given tag name, owned by
-	// this document. The returned node is detached (no parent).
-	CreateElement(tag string) Element
+	// this document. If self is nil, the element's identity is itself;
+	// if self is not nil, it is set as the element's identity (Task 02).
+	// The returned node is detached (no parent).
+	CreateElement(tag string, self Node) Element
 
 	// CreateTextNode returns a new TextNode with the given data, owned by
-	// this document. The returned node is detached (no parent).
-	CreateTextNode(data string) TextNode
+	// this document. If self is nil, the node's identity is itself.
+	// The returned node is detached (no parent).
+	CreateTextNode(data string, self Node) TextNode
 
 	// GetElementByID returns the Element whose ID equals id, or nil if no
 	// such element exists in this document. The lookup is O(1); the registry

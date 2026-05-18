@@ -5,7 +5,7 @@ import (
 )
 
 // lifecycleNode is a test-only Node that records OnConnected / OnDisconnected
-// events. It embeds *element directly so the unexported linkable methods are
+// events. It embeds *element directly so the structural mutation methods are
 // promoted automatically, making it insertable into the live tree.
 //
 // This type lives in the internal test file so it can access *element.
@@ -22,17 +22,13 @@ func (l *lifecycleNode) OnDisconnected() {
 	*l.events = append(*l.events, "disconnected:"+l.tagName)
 }
 
-// coreEl satisfies the coreElement interface so that asElement() can unwrap
-// this test wrapper during the attach/detach walks.
-func (l *lifecycleNode) coreEl() *element { return l.element }
-
 // newLifecycleNode creates a lifecycleNode with its own events slice.
 func newLifecycleNode(doc Document, tag string) (*lifecycleNode, *[]string) {
 	events := &[]string{}
-	inner := newElement(tag, doc)
+	inner := newElement(tag, doc, nil)
 	ln := &lifecycleNode{element: inner, events: events}
-	// Set the outer pointer to the wrapper so adoption works correctly.
-	inner.outer = ln
+	// Set the self pointer to the wrapper so adoption works correctly.
+	inner.self = ln
 	return ln, events
 }
 
@@ -60,7 +56,7 @@ func TestDocument_IsConnected(t *testing.T) {
 
 func TestElement_AppendChild_SetsConnected(t *testing.T) {
 	doc := NewDocument()
-	el := newElement("div", doc)
+	el := newElement("div", doc, nil)
 
 	if el.IsConnected() {
 		t.Error("detached element must not be connected")
@@ -73,7 +69,7 @@ func TestElement_AppendChild_SetsConnected(t *testing.T) {
 
 func TestElement_RemoveChild_ClearsConnected(t *testing.T) {
 	doc := NewDocument()
-	el := newElement("div", doc)
+	el := newElement("div", doc, nil)
 	doc.AppendChild(el)
 	doc.RemoveChild(el)
 
@@ -86,8 +82,8 @@ func TestElement_AppendChild_DetachedTree_LeavesRegistryEmpty(t *testing.T) {
 	// Build a subtree off-document; the ID should not appear in the registry
 	// until the subtree is attached to a connected ancestor.
 	doc := NewDocument()
-	root := newElement("div", doc)
-	child := newElement("span", doc)
+	root := newElement("div", doc, nil)
+	child := newElement("span", doc, nil)
 	child.SetID("greeting")
 
 	root.AppendChild(child)
@@ -105,7 +101,7 @@ func TestElement_AppendChild_DetachedTree_LeavesRegistryEmpty(t *testing.T) {
 func TestElement_AppendChild_DetachedTree_StillAdopts(t *testing.T) {
 	// Adoption (outer back-pointer) runs even when the parent is not connected.
 	doc := NewDocument()
-	root := newElement("div", doc)
+	root := newElement("div", doc, nil)
 	lc, events := newLifecycleNode(doc, "span")
 
 	root.AppendChild(lc)
@@ -140,7 +136,7 @@ func TestElement_RemoveChild_PreservesOuter(t *testing.T) {
 
 func TestElement_SetID_BeforeAttach_RegistersOnAttach(t *testing.T) {
 	doc := NewDocument()
-	el := newElement("div", doc)
+	el := newElement("div", doc, nil)
 	el.SetID("hero") // disconnected → registry untouched
 
 	if doc.GetElementByID("hero") != nil {
@@ -154,7 +150,7 @@ func TestElement_SetID_BeforeAttach_RegistersOnAttach(t *testing.T) {
 
 func TestElement_SetID_AfterDetach_NoOpOnRegistry(t *testing.T) {
 	doc := NewDocument()
-	el := newElement("div", doc)
+	el := newElement("div", doc, nil)
 	el.SetID("target")
 	doc.AppendChild(el)
 	doc.RemoveChild(el)
@@ -171,8 +167,8 @@ func TestElement_SetID_AfterDetach_NoOpOnRegistry(t *testing.T) {
 
 func TestElement_RemoveChild_UnregistersSubtree(t *testing.T) {
 	doc := NewDocument()
-	parent := newElement("div", doc)
-	child := newElement("span", doc)
+	parent := newElement("div", doc, nil)
+	child := newElement("span", doc, nil)
 	child.SetID("child-id")
 	parent.AppendChild(child)
 	doc.AppendChild(parent)
@@ -194,9 +190,9 @@ func TestElement_Lifecycle_OnConnected_FiresPreOrder(t *testing.T) {
 
 	// Share the events slice so we can observe all callbacks in order.
 	makeLC := func(tag string) *lifecycleNode {
-		inner := newElement(tag, doc)
+		inner := newElement(tag, doc, nil)
 		ln := &lifecycleNode{element: inner, events: events}
-		inner.outer = ln
+		inner.self = ln
 		return ln
 	}
 
@@ -221,9 +217,9 @@ func TestElement_Lifecycle_OnDisconnected_FiresPostOrder(t *testing.T) {
 	events := &[]string{}
 
 	makeLC := func(tag string) *lifecycleNode {
-		inner := newElement(tag, doc)
+		inner := newElement(tag, doc, nil)
 		ln := &lifecycleNode{element: inner, events: events}
-		inner.outer = ln
+		inner.self = ln
 		return ln
 	}
 
@@ -251,10 +247,10 @@ func TestElement_Lifecycle_SelfMutation_Allowed(t *testing.T) {
 	// Appending a child to a connected node inside AppendChild (post-attach)
 	// must connect the new child immediately.
 	doc := NewDocument()
-	parent := newElement("box", doc)
+	parent := newElement("box", doc, nil)
 	doc.AppendChild(parent)
 
-	extra := newElement("extra", doc)
+	extra := newElement("extra", doc, nil)
 	parent.AppendChild(extra)
 
 	if !extra.IsConnected() {
@@ -268,12 +264,12 @@ func TestElement_Move_ObservesDisconnectThenConnect(t *testing.T) {
 	doc := NewDocument()
 	events := &[]string{}
 
-	srcParent := newElement("src", doc)
-	dstParent := newElement("dst", doc)
+	srcParent := newElement("src", doc, nil)
+	dstParent := newElement("dst", doc, nil)
 
-	inner := newElement("mover", doc)
+	inner := newElement("mover", doc, nil)
 	lc := &lifecycleNode{element: inner, events: events}
-	inner.outer = lc
+	inner.self = lc
 
 	doc.AppendChild(srcParent)
 	doc.AppendChild(dstParent)
@@ -294,7 +290,7 @@ func TestElement_Move_ObservesDisconnectThenConnect(t *testing.T) {
 func TestElement_CrossDocumentAppend_PanicsInDev(t *testing.T) {
 	doc1 := NewDocument()
 	doc2 := NewDocument()
-	foreign := doc2.CreateElement("div")
+	foreign := doc2.CreateElement("div", nil)
 
 	defer func() {
 		if r := recover(); r == nil {
@@ -308,7 +304,7 @@ func TestElement_CrossDocumentAppend_PanicsInDev(t *testing.T) {
 
 func TestAnchor_Name_BeforeAttach_RegistersOnAttach(t *testing.T) {
 	doc := NewDocument()
-	el := newElement("anchor", doc)
+	el := newElement("anchor", doc, nil)
 
 	if doc.FindAnchor("nav") != nil {
 		t.Error("anchor must not be in registry before attach")
@@ -330,9 +326,9 @@ func TestAnchor_Name_BeforeAttach_RegistersOnAttach(t *testing.T) {
 func TestElement_AppendChild_RegistersSubtreeIDs(t *testing.T) {
 	// Attaching a whole subtree at once must register all IDs in the walk.
 	doc := NewDocument()
-	root := newElement("div", doc)
-	a := newElement("a", doc)
-	b := newElement("b", doc)
+	root := newElement("div", doc, nil)
+	a := newElement("a", doc, nil)
+	b := newElement("b", doc, nil)
 	a.SetID("node-a")
 	b.SetID("node-b")
 	root.AppendChild(a)
