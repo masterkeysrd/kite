@@ -29,7 +29,7 @@ func (b *Box) OnConnected() {
 		ro := render.NewBlock(b, b)
 		ro.SetRawStyle(b.GetStyle())
 		ro.SetDisabled(b.IsDisabled())
-		ro.SetFocusable(b.Element.TagName() == "button" || b.Element.TagName() == "input") // Generic fallback
+		ro.SetFocusable(b.TagName() == "button" || b.TagName() == "input") // Generic fallback
 		b.SetRenderObject(ro)
 	}
 

@@ -10,15 +10,15 @@ import (
 
 // BaseRender provides a default implementation for many render.Object methods.
 type BaseRender struct {
-	self        Object
-	parent      Object
-	firstChild  Object
-	lastChild   Object
-	next        Object
-	prev        Object
-	flags       DirtyFlag
-	cachedSpace layout.ConstraintSpace
-	cachedFrag  *layout.Fragment
+	self         Object
+	parent       Object
+	firstChild   Object
+	lastChild    Object
+	next         Object
+	prev         Object
+	flags        DirtyFlag
+	cachedSpace  layout.ConstraintSpace
+	cachedFrag   *layout.Fragment
 	cachedMinMax layout.MinMaxSizes
 	minMaxValid  bool
 }

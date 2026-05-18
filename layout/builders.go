@@ -88,7 +88,7 @@ func (b *BoxFragmentBuilder) AddChild(frag *Fragment, offset Point) {
 
 // ToFragment finalizes the builder and returns an immutable Fragment.
 func (b *BoxFragmentBuilder) ToFragment() *Fragment {
-	// TODO: Apply Min/Max constraints from style if needed, 
+	// TODO: Apply Min/Max constraints from style if needed,
 	// though they are often already handled by the algorithm.
 	return &Fragment{
 		Node:     b.node,

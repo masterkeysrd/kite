@@ -26,19 +26,19 @@ func (f *fakeRO) PreviousSibling() render.Object { return nil }
 func (f *fakeRO) Children() iter.Seq[render.Object] {
 	return func(yield func(render.Object) bool) {}
 }
-func (f *fakeRO) Focusable() bool                  { return false }
-func (f *fakeRO) Disabled() bool                   { return false }
-func (f *fakeRO) SetDisabled(bool)                 {}
-func (f *fakeRO) SetFocusable(bool)                {}
-func (f *fakeRO) Style() *style.Computed           { return nil }
-func (f *fakeRO) ComputedStyle() *style.Computed   { return nil }
-func (f *fakeRO) SetComputedStyle(*style.Computed) {}
-func (f *fakeRO) Flags() render.DirtyFlag          { return 0 }
-func (f *fakeRO) MarkDirty(render.DirtyFlag)       {}
-func (f *fakeRO) ClearDirty(render.DirtyFlag)      {}
-func (f *fakeRO) ClearDirtyRecursive(render.DirtyFlag) {}
-func (f *fakeRO) IsDetached() bool                 { return false }
-func (f *fakeRO) Node() dom.Node                   { return nil }
+func (f *fakeRO) Focusable() bool                         { return false }
+func (f *fakeRO) Disabled() bool                          { return false }
+func (f *fakeRO) SetDisabled(bool)                        {}
+func (f *fakeRO) SetFocusable(bool)                       {}
+func (f *fakeRO) Style() *style.Computed                  { return nil }
+func (f *fakeRO) ComputedStyle() *style.Computed          { return nil }
+func (f *fakeRO) SetComputedStyle(*style.Computed)        {}
+func (f *fakeRO) Flags() render.DirtyFlag                 { return 0 }
+func (f *fakeRO) MarkDirty(render.DirtyFlag)              {}
+func (f *fakeRO) ClearDirty(render.DirtyFlag)             {}
+func (f *fakeRO) ClearDirtyRecursive(render.DirtyFlag)    {}
+func (f *fakeRO) IsDetached() bool                        { return false }
+func (f *fakeRO) Node() dom.Node                          { return nil }
 func (f *fakeRO) InsertChild(child, before render.Object) {}
 func (f *fakeRO) RemoveChild(child render.Object)         {}
 

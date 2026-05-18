@@ -1,5 +1,9 @@
 package layout
 
+import (
+	"github.com/masterkeysrd/kite/text"
+)
+
 // Fragment represents the immutable output of a layout algorithm.
 // Once created, a Fragment's fields must never be modified. This immutability
 // allows fragments to be cached and reused across layout passes.
@@ -12,6 +16,12 @@ type Fragment struct {
 
 	// Children contains the positioned child fragments relative to this fragment.
 	Children []FragmentLink
+
+	// Text contains the shaped clusters if this fragment represents a text run.
+	Text []text.Cluster
+
+	// ParentNode is the containing inline element for text fragments (for style inheritance).
+	ParentNode Node
 }
 
 // FragmentLink connects a child Fragment to its parent at a specific physical offset.

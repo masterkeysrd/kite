@@ -7,4 +7,10 @@
 // of each element, which can then be used by engine in the Layout phase of the rendering process
 // to draw the elements on the screen. The layout package is a critical component of the rendering
 // pipeline and is designed to be efficient and flexible to handle a wide range of layout scenarios.
+// The package implements two primary formatting contexts:
+//   - Block Formatting Context (BFC): Stacks elements vertically.
+//   - Inline Formatting Context (IFC): Lays out text and atomic inlines horizontally,
+//     wrapping them into line boxes.
+//
+// The layout process follows a LayoutNG-inspired immutable fragment tree model.
 package layout

@@ -1,6 +1,8 @@
 package layout
 
 import (
+	"iter"
+
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -10,6 +12,14 @@ import (
 type BlockAlgorithm struct {
 	Node  Node
 	Space ConstraintSpace
+}
+
+func (a *BlockAlgorithm) isInlineLevel(node Node) bool {
+	if _, ok := node.LogicalNode().(textSource); ok {
+		return true
+	}
+	comp := node.Style()
+	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock
 }
 
 // Layout executes the block layout algorithm and returns an immutable Fragment.
@@ -62,33 +72,80 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
 	parentDecorY := border.Top + border.Bottom + padding.Top + padding.Bottom
 
+	contentWidth := max(0, resolvedInlineSize-parentDecorX)
+
 	// 4. Child Iteration: Loop through in-flow layout children.
-	for child := range a.Node.LayoutChildren() {
+	children := a.Node.LayoutChildren()
+	nextChild, stop := iter.Pull(children)
+	defer stop()
+
+	child, ok := nextChild()
+	for ok {
+		if a.isInlineLevel(child) {
+			// Sequence of inline children: group into Anonymous Block (IFC).
+			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)
+			inlineBuilder.collect(child)
+
+			for {
+				peek, peekOk := nextChild()
+				if !peekOk {
+					child = nil
+					ok = false
+					break
+				}
+				if a.isInlineLevel(peek) {
+					inlineBuilder.collect(peek)
+				} else {
+					child = peek
+					ok = true
+					break
+				}
+			}
+
+			items := inlineBuilder.items
+			blockStyle := a.Node.Style()
+			breaker := NewLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
+			for {
+				line, ok := breaker.NextLine()
+				if !ok {
+					break
+				}
+				lineFrag := line.ToFragment()
+				offset := Point{
+					X: insetX,
+					Y: builder.CurrentBlockOffset(),
+				}
+				builder.AddChild(lineFrag, offset)
+				builder.AdvanceBlockOffset(lineFrag.Size.Height)
+			}
+
+			if !ok {
+				break
+			}
+			continue // Process current 'child' (first block after inlines)
+		}
+
+		// Standard Block Child Layout
 		childStyle := child.Style()
 		childMargin := childStyle.Margin
 
 		// 5. Constraint Generation: Use ConstraintSpaceBuilder.
-		// Available width for child is our resolved width minus our decorations and child margins.
 		childAvailWidth := max(0, resolvedInlineSize-parentDecorX-childMargin.Left-childMargin.Right)
-		
-		// For block height, we pass down what's left of our available height.
 		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-(border.Bottom+padding.Bottom))
 
 		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
 		childSpaceBuilder.SetPercentageResolutionSize(Size{
-			Width:  max(0, resolvedInlineSize-parentDecorX),
+			Width:  contentWidth,
 			Height: max(0, a.Space.AvailableSize.Height-parentDecorY),
 		})
-		
-		// If child has explicit width, we can set IsFixedInlineSize.
+
 		if childStyle.Width.Kind() == style.KindCells {
 			childSpaceBuilder.SetIsFixedInlineSize(true)
 			childSpaceBuilder.space.AvailableSize.Width = childStyle.Width.CellsValue()
 		} else if childStyle.Width.Kind() == style.KindPercent {
 			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = int(float32(resolvedInlineSize-parentDecorX) * childStyle.Width.PercentValue() / 100.0)
+			childSpaceBuilder.space.AvailableSize.Width = int(float32(contentWidth) * childStyle.Width.PercentValue() / 100.0)
 		} else if childStyle.Width.Kind() == style.KindAuto {
-			// Auto width on a block child also results in a fixed inline size (stretched)
 			childSpaceBuilder.SetIsFixedInlineSize(true)
 			childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
 		}
@@ -97,37 +154,32 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 			childSpaceBuilder.SetIsFixedBlockSize(true)
 			childSpaceBuilder.space.AvailableSize.Height = childStyle.Height.CellsValue()
 		} else if childStyle.Height.Kind() == style.KindPercent {
-			// Height percentage resolution is only possible if we have a fixed height or similar.
-			// For now, resolve against our available height if it's fixed.
 			if a.Space.IsFixedBlockSize {
 				childSpaceBuilder.SetIsFixedBlockSize(true)
-				childSpaceBuilder.space.AvailableSize.Height = int(float32(a.Space.AvailableSize.Height-(border.Top+border.Bottom+padding.Top+padding.Bottom)) * childStyle.Height.PercentValue() / 100.0)
+				childSpaceBuilder.space.AvailableSize.Height = int(float32(a.Space.AvailableSize.Height-parentDecorY) * childStyle.Height.PercentValue() / 100.0)
 			}
 		}
 
 		childSpace := childSpaceBuilder.ToConstraintSpace()
-
-		// 6. Child Layout & Positioning.
 		childAlgo := &BlockAlgorithm{
 			Node:  child,
 			Space: childSpace,
 		}
 		childFrag := childAlgo.Layout()
 
-		// Position the child fragment.
 		offset := Point{
 			X: insetX + childMargin.Left,
 			Y: builder.CurrentBlockOffset() + childMargin.Top,
 		}
 		builder.AddChild(childFrag, offset)
-
-		// Advance the block offset (Y cursor).
 		builder.AdvanceBlockOffset(childMargin.Top + childFrag.Size.Height + childMargin.Bottom)
+
+		child, ok = nextChild()
 	}
 
 	// Final block size includes bottom decorations.
 	builder.AdvanceBlockOffset(border.Bottom + padding.Bottom)
-	
+
 	// If height is fixed, use that instead.
 	if a.Space.IsFixedBlockSize {
 		builder.SetBlockSize(a.Space.AvailableSize.Height)
@@ -177,15 +229,51 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	// Otherwise, iterate through children.
 	var childrenMinMax MinMaxSizes
 
-	for child := range a.Node.LayoutChildren() {
+	children := a.Node.LayoutChildren()
+	nextChild, stop := iter.Pull(children)
+	defer stop()
+
+	child, ok := nextChild()
+	for ok {
+		if a.isInlineLevel(child) {
+			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)
+			inlineBuilder.collect(child)
+
+			for {
+				peek, peekOk := nextChild()
+				if !peekOk {
+					child = nil
+					ok = false
+					break
+				}
+				if a.isInlineLevel(peek) {
+					inlineBuilder.collect(peek)
+				} else {
+					child = peek
+					ok = true
+					break
+				}
+			}
+
+			inlineMinMax := ComputeInlineMinMaxSizes(inlineBuilder.items)
+			childrenMinMax.Encompass(inlineMinMax)
+
+			if !ok {
+				break
+			}
+			continue
+		}
+
 		childMargin := child.Style().Margin
 		childAlgo := &BlockAlgorithm{
 			Node: child,
 		}
 		childMinMax := childAlgo.ComputeMinMaxSizes()
-		
+
 		childMinMax = childMinMax.Add(childMargin.Left + childMargin.Right)
 		childrenMinMax.Encompass(childMinMax)
+
+		child, ok = nextChild()
 	}
 
 	result = childrenMinMax.Add(parentDecorX)

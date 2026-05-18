@@ -102,28 +102,28 @@ func (o *testObject) Children() iter.Seq[render.Object] {
 	}
 }
 
-func (o *testObject) LogicalNode() any                   { return nil }
-func (o *testObject) MarkDetached()                      {}
-func (o *testObject) IsDetached() bool                   { return false }
-func (o *testObject) MarkChildrenDirty()                 {}
+func (o *testObject) LogicalNode() any                        { return nil }
+func (o *testObject) MarkDetached()                           {}
+func (o *testObject) IsDetached() bool                        { return false }
+func (o *testObject) MarkChildrenDirty()                      {}
 func (o *testObject) InsertChild(child, before render.Object) {}
 func (o *testObject) RemoveChild(child render.Object)         {}
-func (o *testObject) RawStyle() style.Style              { return style.Style{} }
-func (o *testObject) SetRawStyle(_ style.Style)          {}
-func (o *testObject) Flags() render.DirtyFlag            { return 0 }
-func (o *testObject) MarkDirty(_ render.DirtyFlag)       { o.dirty++ }
-func (o *testObject) ClearDirty(_ render.DirtyFlag)      {}
-func (o *testObject) ClearDirtyRecursive(_ render.DirtyFlag) {}
-func (o *testObject) IsDirtySet(_ render.DirtyFlag) bool { return false }
-func (o *testObject) IsDirtyStyle() bool                 { return false }
-func (o *testObject) IsDirtyLayout() bool                { return false }
-func (o *testObject) IsDirtyPaint() bool                 { return false }
-func (o *testObject) IsDirtyScroll() bool                { return false }
-func (o *testObject) IsDirtyStructure() bool             { return false }
-func (o *testObject) Focusable() bool                    { return o.focusable }
-func (o *testObject) SetFocusable(v bool)                { o.focusable = v }
-func (o *testObject) Disabled() bool                     { return o.disabled }
-func (o *testObject) SetDisabled(v bool)                 { o.disabled = v }
+func (o *testObject) RawStyle() style.Style                   { return style.Style{} }
+func (o *testObject) SetRawStyle(_ style.Style)               {}
+func (o *testObject) Flags() render.DirtyFlag                 { return 0 }
+func (o *testObject) MarkDirty(_ render.DirtyFlag)            { o.dirty++ }
+func (o *testObject) ClearDirty(_ render.DirtyFlag)           {}
+func (o *testObject) ClearDirtyRecursive(_ render.DirtyFlag)  {}
+func (o *testObject) IsDirtySet(_ render.DirtyFlag) bool      { return false }
+func (o *testObject) IsDirtyStyle() bool                      { return false }
+func (o *testObject) IsDirtyLayout() bool                     { return false }
+func (o *testObject) IsDirtyPaint() bool                      { return false }
+func (o *testObject) IsDirtyScroll() bool                     { return false }
+func (o *testObject) IsDirtyStructure() bool                  { return false }
+func (o *testObject) Focusable() bool                         { return o.focusable }
+func (o *testObject) SetFocusable(v bool)                     { o.focusable = v }
+func (o *testObject) Disabled() bool                          { return o.disabled }
+func (o *testObject) SetDisabled(v bool)                      { o.disabled = v }
 
 func (o *testObject) Style() *style.Computed {
 	return &style.Computed{Display: o.display}
@@ -151,8 +151,10 @@ func (o *testObject) ClearDirtyLayout()                                        {
 func (o *testObject) Fragment() *layout.Fragment                               { return nil }
 func (o *testObject) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
 func (o *testObject) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
-func (o *testObject) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { return layout.MinMaxSizes{}, false }
-func (o *testObject) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
+func (o *testObject) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
+	return layout.MinMaxSizes{}, false
+}
+func (o *testObject) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
 
 // compile-time interface check
 var _ render.Object = (*testObject)(nil)

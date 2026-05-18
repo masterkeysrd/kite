@@ -24,6 +24,10 @@ This document provides guidelines and architectural context for AI assistants an
 4.  **Event Bubbling:**
     *   Events must strictly follow the Capture -> Target -> Bubble sequence. 
     *   Avoid introducing "IntentEvents" (a deprecated concept from v1). Rely on the `Synthesizer` to convert raw inputs into semantic events.
+5.  **Inline Layout (LayoutNG):**
+    *   Inline formatting contexts (IFC) must use a flat representation of `InlineItem`s rather than a recursive tree walk during line breaking.
+    *   Text nodes must be collapsed and shaped before layout.
+    *   `inline-block` elements are treated as atomic inlines that run their own block layout internally.
 
 ## 🧑‍💻 Coding Conventions
 

@@ -22,7 +22,8 @@ func (m *mockNode) Style() *style.Computed { return m.style }
 func (m *mockNode) LayoutChildren() iter.Seq[Node] {
 	return func(yield func(Node) bool) {
 		for n := m.firstChild; n != nil; {
-			next := n.(*mockNode).NextSibling()
+			type sibling interface{ NextSibling() Node }
+			next := n.(sibling).NextSibling()
 			if !yield(n) {
 				return
 			}

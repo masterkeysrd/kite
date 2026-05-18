@@ -90,18 +90,9 @@ func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 // the [style.Style] value level via Style.Merge (see ADR-0012 §6).
 func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
-	if ro := b.Element.RenderObject(); ro != nil {
+	if ro := b.RenderObject(); ro != nil {
 		ro.SetRawStyle(s)
 	}
-	return b.self
-}
-
-// setIDModifier sets the element's identifier and returns *Self. Concrete
-// types expose this as their public ID(string) *Self modifier, which shadows
-// the dom.Element.ID() string getter on the concrete type level. Callers
-// that need the getter use GetID().
-func (b *elementBase[Self]) setIDModifier(id string) *Self {
-	b.Element.SetID(id)
 	return b.self
 }
 
@@ -114,7 +105,7 @@ func (b *elementBase[Self]) WithClass(class string) *Self {
 // Disabled sets or clears the disabled state and returns *Self.
 func (b *elementBase[Self]) Disabled(v bool) *Self {
 	b.disabled = v
-	if ro := b.Element.RenderObject(); ro != nil {
+	if ro := b.RenderObject(); ro != nil {
 		ro.SetDisabled(v)
 	}
 	return b.self

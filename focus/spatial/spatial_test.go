@@ -110,28 +110,28 @@ func (o *spatialObj) Children() iter.Seq[render.Object] {
 	}
 }
 
-func (o *spatialObj) LogicalNode() any                   { return nil }
-func (o *spatialObj) MarkDetached()                      {}
-func (o *spatialObj) IsDetached() bool                   { return false }
-func (o *spatialObj) MarkChildrenDirty()                 {}
+func (o *spatialObj) LogicalNode() any                        { return nil }
+func (o *spatialObj) MarkDetached()                           {}
+func (o *spatialObj) IsDetached() bool                        { return false }
+func (o *spatialObj) MarkChildrenDirty()                      {}
 func (o *spatialObj) InsertChild(child, before render.Object) {}
 func (o *spatialObj) RemoveChild(child render.Object)         {}
-func (o *spatialObj) RawStyle() style.Style              { return style.Style{} }
-func (o *spatialObj) SetRawStyle(_ style.Style)          {}
-func (o *spatialObj) Flags() render.DirtyFlag            { return 0 }
-func (o *spatialObj) MarkDirty(_ render.DirtyFlag)       {}
-func (o *spatialObj) ClearDirty(_ render.DirtyFlag)      {}
-func (o *spatialObj) ClearDirtyRecursive(_ render.DirtyFlag) {}
-func (o *spatialObj) IsDirtySet(_ render.DirtyFlag) bool { return false }
-func (o *spatialObj) IsDirtyStyle() bool                 { return false }
-func (o *spatialObj) IsDirtyLayout() bool                { return false }
-func (o *spatialObj) IsDirtyPaint() bool                 { return false }
-func (o *spatialObj) IsDirtyScroll() bool                { return false }
-func (o *spatialObj) IsDirtyStructure() bool             { return false }
-func (o *spatialObj) Focusable() bool                    { return o.focusable }
-func (o *spatialObj) SetFocusable(v bool)                { o.focusable = v }
-func (o *spatialObj) Disabled() bool                     { return o.disabled }
-func (o *spatialObj) SetDisabled(v bool)                 { o.disabled = v }
+func (o *spatialObj) RawStyle() style.Style                   { return style.Style{} }
+func (o *spatialObj) SetRawStyle(_ style.Style)               {}
+func (o *spatialObj) Flags() render.DirtyFlag                 { return 0 }
+func (o *spatialObj) MarkDirty(_ render.DirtyFlag)            {}
+func (o *spatialObj) ClearDirty(_ render.DirtyFlag)           {}
+func (o *spatialObj) ClearDirtyRecursive(_ render.DirtyFlag)  {}
+func (o *spatialObj) IsDirtySet(_ render.DirtyFlag) bool      { return false }
+func (o *spatialObj) IsDirtyStyle() bool                      { return false }
+func (o *spatialObj) IsDirtyLayout() bool                     { return false }
+func (o *spatialObj) IsDirtyPaint() bool                      { return false }
+func (o *spatialObj) IsDirtyScroll() bool                     { return false }
+func (o *spatialObj) IsDirtyStructure() bool                  { return false }
+func (o *spatialObj) Focusable() bool                         { return o.focusable }
+func (o *spatialObj) SetFocusable(v bool)                     { o.focusable = v }
+func (o *spatialObj) Disabled() bool                          { return o.disabled }
+func (o *spatialObj) SetDisabled(v bool)                      { o.disabled = v }
 
 func (o *spatialObj) Style() *style.Computed {
 	if o.computedStyle == nil {
@@ -188,8 +188,10 @@ func (o *spatialObj) CachedLayout(space layout.ConstraintSpace) *layout.Fragment
 	}
 }
 func (o *spatialObj) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
-func (o *spatialObj) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { return layout.MinMaxSizes{}, false }
-func (o *spatialObj) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
+func (o *spatialObj) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
+	return layout.MinMaxSizes{}, false
+}
+func (o *spatialObj) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
 
 // compile-time check
 var _ render.Object = (*spatialObj)(nil)
