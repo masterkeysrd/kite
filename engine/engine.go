@@ -224,15 +224,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.document.SetRenderObject(e.renderView)
 	e.renderView.SetLogicalNode(e.document)
 
-	// Initialize viewport size from backend.
-	if sz, ok := b.(interface{ Size() layout.Size }); ok {
-		e.renderView.SetViewportSize(sz.Size())
-	} else if sz, ok := b.(interface {
-		Width() int
-		Height() int
-	}); ok {
-		e.renderView.SetViewportSize(layout.Size{Width: sz.Width(), Height: sz.Height()})
-	}
+	e.renderView.SetViewportSize(b.Size())
 
 	e.dispatcher = event.NewDispatcher()
 	e.focusManager = focus.NewManager(e.renderView, e.dispatcher)
@@ -484,11 +476,15 @@ func (e *Engine) Frame() {
 		viewport := root.ViewportSize()
 		e.logger.Info("engine: layout phase", "viewport", viewport)
 
+		start := e.clock.Now()
 		render.LayoutPhase(root, viewport)
 
 		for _, overlay := range root.Overlays() {
 			render.LayoutPhase(overlay, viewport)
 		}
+		duration := e.clock.Now().Sub(start)
+		e.logger.Info("engine: layout complete", "duration_ms", duration.Milliseconds())
+
 		// Reap detached render objects in the layout phase.
 		e.reapDetached(root)
 		for _, overlay := range root.Overlays() {
