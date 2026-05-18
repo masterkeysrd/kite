@@ -75,6 +75,14 @@ func (t *Text) StyleNextSibling() style.StyleNode {
 
 func (t *Text) LogicalNode() any { return t.logicalNode }
 
+// Data returns the text content from the logical node.
+func (t *Text) Data() string {
+	if ts, ok := t.logicalNode.(interface{ Data() string }); ok {
+		return ts.Data()
+	}
+	return ""
+}
+
 // Text nodes have no layout children.
 func (t *Text) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {

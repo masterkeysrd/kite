@@ -14,6 +14,9 @@ const (
 	// DisplayInlineBlock renders the element as an inline-level box that
 	// establishes its own block-formatting context internally.
 	DisplayInlineBlock
+	// DisplayInlineFlex renders the element as an inline-level box that
+	// establishes its own flex-formatting context internally.
+	DisplayInlineFlex
 	// DisplayNone removes the element from the layout entirely.
 	DisplayNone
 )

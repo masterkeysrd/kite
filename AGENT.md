@@ -28,6 +28,10 @@ This document provides guidelines and architectural context for AI assistants an
     *   Inline formatting contexts (IFC) must use a flat representation of `InlineItem`s rather than a recursive tree walk during line breaking.
     *   Text nodes must be collapsed and shaped before layout.
     *   `inline-block` elements are treated as atomic inlines that run their own block layout internally.
+6.  **Flex Layout (LayoutNG):**
+    *   Flex layout utilizes a two-pass approach: a measure pass to determine flex base sizes and a layout pass to resolve flexible lengths and alignment.
+    *   The algorithm must use logical geometry (`MainSize`, `CrossSize`) to remain agnostic of the `flex-direction`.
+    *   To maintain performance, the resolution loop must utilize the "freeze and restart" strategy for items hitting their min/max constraints, ensuring $O(N)$ or near-$O(N)$ complexity.
 
 ## 🧑‍💻 Coding Conventions
 

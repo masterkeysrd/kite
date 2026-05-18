@@ -115,7 +115,7 @@ func (b *InlineItemsBuilder) collect(node Node) {
 	}
 
 	// Determine if it's an atomic inline or a container.
-	if comp.Display == style.DisplayInlineBlock {
+	if comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex {
 		b.items = append(b.items, InlineItem{
 			Type:       InlineAtomic,
 			Node:       node,
@@ -232,12 +232,9 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 			continue
 
 		case InlineAtomic:
-			childAlgo := &BlockAlgorithm{
-				Node: item.Node,
-				Space: ConstraintSpace{
-					AvailableSize: Size{Width: l.width, Height: 1000},
-				},
-			}
+			childAlgo := NewAlgorithm(item.Node, ConstraintSpace{
+				AvailableSize: Size{Width: l.width, Height: 1000},
+			})
 			frag := childAlgo.Layout()
 			itemWidth := frag.Size.Width
 			itemHeight := frag.Size.Height
@@ -372,10 +369,12 @@ lineEnded:
 		}
 
 		switch itemAlign {
-		case style.AlignCenter:
+		case style.AlignCenter, style.AlignStretch:
 			offsetY = (lineHeight - li.height) / 2
 		case style.AlignEnd:
 			offsetY = lineHeight - li.height
+		case style.AlignStart:
+			offsetY = 0
 		default:
 			offsetY = 0
 		}
@@ -471,9 +470,8 @@ func ComputeInlineMinMaxSizes(items []InlineItem) MinMaxSizes {
 			result.Min = max(result.Min, unbreakableRun)
 
 		case InlineAtomic:
-			// Call ComputeMinMaxSizes on the atomic node.
-			childAlgo := &BlockAlgorithm{Node: item.Node}
-			childMinMax := childAlgo.ComputeMinMaxSizes()
+			// Call intrinsic helper on the atomic node.
+			childMinMax := IntrinsicMinMaxSizes(item.Node)
 			result.Min = max(result.Min, childMinMax.Min)
 			currentLineMax += childMinMax.Max
 		}

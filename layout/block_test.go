@@ -36,39 +36,8 @@ func (m *mockNode) IsDirtyLayout() bool { return m.dirty }
 func (m *mockNode) ClearDirtyLayout()   { m.dirty = false }
 func (m *mockNode) Fragment() *Fragment { return m.cachedFragment }
 func (m *mockNode) CachedLayout(space ConstraintSpace) *Fragment {
-	if m.cachedFragment != nil {
+	if m.cachedFragment != nil && m.cachedSpace == space {
 		return m.cachedFragment
-	}
-	// For leaf nodes, return a fragment based on Style if requested
-	if m.firstChild == nil {
-		width := 0
-		switch m.style.Width.Kind() {
-		case style.KindCells:
-			width = m.style.Width.CellsValue()
-		case style.KindPercent:
-			width = int(float32(space.PercentageResolutionSize.Width) * m.style.Width.PercentValue() / 100.0)
-		case style.KindAuto:
-			if space.IsFixedInlineSize {
-				width = space.AvailableSize.Width
-			}
-		}
-
-		height := 0
-		switch m.style.Height.Kind() {
-		case style.KindCells:
-			height = m.style.Height.CellsValue()
-		case style.KindPercent:
-			height = int(float32(space.PercentageResolutionSize.Height) * m.style.Height.PercentValue() / 100.0)
-		case style.KindAuto:
-			if space.IsFixedBlockSize {
-				height = space.AvailableSize.Height
-			}
-		}
-
-		return &Fragment{
-			Size: Size{Width: width, Height: height},
-			Node: m,
-		}
 	}
 	return nil
 }
@@ -90,6 +59,14 @@ func (m *mockNode) SetCachedMinMaxSizes(sizes MinMaxSizes) {
 	m.minMaxValid = true
 }
 func (m *mockNode) NextSibling() Node { return m.nextSibling }
+
+type mockTextNode struct {
+	mockNode
+	data string
+}
+
+func (m *mockTextNode) Data() string     { return m.data }
+func (m *mockTextNode) LogicalNode() any { return m }
 
 func TestBlockLayout_VerticalStacking(t *testing.T) {
 	// Create a parent with 3 children, each 10x2

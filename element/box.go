@@ -3,6 +3,7 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/style"
 )
 
 // Box represents a generic container element (like a HTML <div>).
@@ -26,7 +27,13 @@ func NewBox(doc dom.Document) *Box {
 // OnConnected handles attaching the element's render object into the render tree.
 func (b *Box) OnConnected() {
 	if b.RenderObject() == nil {
-		ro := render.NewBlock(b, b)
+		display := b.GetStyle().Display.UnwrapOr(style.DisplayBlock)
+		var ro render.Object
+		if display == style.DisplayFlex || display == style.DisplayInlineFlex {
+			ro = render.NewFlex(b, b)
+		} else {
+			ro = render.NewBlock(b, b)
+		}
 		ro.SetRawStyle(b.GetStyle())
 		ro.SetDisabled(b.IsDisabled())
 		ro.SetFocusable(b.TagName() == "button" || b.TagName() == "input") // Generic fallback

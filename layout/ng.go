@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
 
@@ -100,6 +101,37 @@ type Algorithm interface {
 
 	// ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
 	ComputeMinMaxSizes() MinMaxSizes
+}
+
+// NewAlgorithm returns the appropriate layout algorithm for the given node and constraints.
+func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
+	switch node.Style().Display {
+	case style.DisplayFlex, style.DisplayInlineFlex:
+		return &FlexAlgorithm{Node: node, Space: space}
+	default:
+		return &BlockAlgorithm{Node: node, Space: space}
+	}
+}
+
+// IntrinsicMinMaxSizes computes the intrinsic min/max widths for a node by selecting
+// the correct algorithm based on its display style.
+func IntrinsicMinMaxSizes(node Node) MinMaxSizes {
+	if sizes, ok := node.CachedMinMaxSizes(); ok {
+		return sizes
+	}
+	// Note: We pass an empty ConstraintSpace as intrinsic sizes should not
+	// depend on parent constraints.
+	algo := NewAlgorithm(node, ConstraintSpace{})
+	return algo.ComputeMinMaxSizes()
+}
+
+// IntrinsicBlockSize returns the intrinsic block size (height) of a node given an
+// available inline size (width).
+func IntrinsicBlockSize(node Node, availableWidth int) int {
+	// For now, we just run a probe layout. In the future, this should be cached.
+	space := NewConstraintSpaceBuilder(Size{Width: availableWidth, Height: 1000}).ToConstraintSpace()
+	algo := NewAlgorithm(node, space)
+	return algo.Layout().Size.Height
 }
 
 // AbsoluteBounds traverses the fragment tree starting at root and computes the absolute

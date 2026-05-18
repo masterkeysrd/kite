@@ -122,6 +122,34 @@ func main() {
 	paragraph.AppendChild(element.NewText(doc, " working together in a single flow."))
 	inner.AppendChild(paragraph)
 
+	// Flexbox Test Section
+	flexSection := element.NewBox(doc).Style(style.Style{
+		Display:       style.Some(style.DisplayFlex),
+		FlexDirection: style.Some(style.FlexRow),
+		FlexWrap:      style.Some(style.FlexWrapOn),
+		Width:         style.Some(style.Percent(100)),
+		Margin:        style.Some(style.Edges(1, 0)),
+		Padding:       style.Some(style.Edges(1)),
+		Background:    style.Some[color.Color](color.RGBA{R: 50, G: 50, B: 50, A: 255}),
+		Gap:           style.Some(style.Gap(1, 2)),
+	})
+
+	for i := 1; i <= 6; i++ {
+		item := element.NewBox(doc).Style(style.Style{
+			Width:      style.Some(style.Cells(12)),
+			Height:     style.Some(style.Cells(3)),
+			Background: style.Some[color.Color](color.RGBA{R: uint8(40 * i), G: 100, B: 150, A: 255}),
+			Border: style.Some(style.Border{
+				Width: style.Edges(1),
+				Style: style.EdgeAll(style.BorderSingle),
+			}),
+			Flex: style.Some(style.Flex(1, 1, style.Cells(10))),
+		})
+		item.AppendChild(element.NewText(doc, fmt.Sprintf("Flex Item %d", i)))
+		flexSection.AppendChild(item)
+	}
+	inner.AppendChild(flexSection)
+
 	// Add inner to root
 	root.AppendChild(inner)
 

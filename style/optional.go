@@ -31,6 +31,14 @@ func (o *Optional[T]) Unset() {
 // is returned.
 func (o Optional[T]) Value() T { return o.value }
 
+// UnwrapOr returns the stored value if it is set, otherwise it returns fallback.
+func (o Optional[T]) UnwrapOr(fallback T) T {
+	if o.set {
+		return o.value
+	}
+	return fallback
+}
+
 // IsSet reports whether a value has been explicitly set.
 func (o Optional[T]) IsSet() bool { return o.set }
 

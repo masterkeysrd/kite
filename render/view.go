@@ -295,10 +295,7 @@ func LayoutPhase(root Object, available layout.Size) {
 		ToConstraintSpace()
 
 	// 2. Wrap the root in the formatting context algorithm.
-	algo := layout.BlockAlgorithm{
-		Node:  root,
-		Space: space,
-	}
+	algo := layout.NewAlgorithm(root, space)
 
 	// 3. Execute the layout pass.
 	// This will recursively visit children and cache fragments internally.

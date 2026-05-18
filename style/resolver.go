@@ -85,7 +85,7 @@ func DefaultStyle() Computed {
 		FlexDirection:  FlexRow,      // main axis is left → right
 		FlexWrap:       FlexNoWrap,   // single-line by default
 		JustifyContent: JustifyStart, // pack toward main-start
-		AlignItems:     AlignStart,   // cross-start alignment
+		AlignItems:     AlignStretch, // stretch items by default (CSS parity)
 		AlignContent:   AlignStretch, // stretch lines by default
 		AlignSelf:      AlignStart,   // defers to parent AlignItems
 		Gap:            GapValue{},   // no inter-child gap

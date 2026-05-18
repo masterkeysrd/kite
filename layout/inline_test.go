@@ -7,14 +7,6 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-type mockTextNode struct {
-	mockNode
-	data string
-}
-
-func (m *mockTextNode) Data() string     { return m.data }
-func (m *mockTextNode) LogicalNode() any { return m }
-
 func TestInlineLayout_BasicText(t *testing.T) {
 	textNode := &mockTextNode{
 		mockNode: mockNode{
@@ -135,6 +127,69 @@ func TestInlineLayout_AtomicInline(t *testing.T) {
 	}
 	if lineBoxFrag.Size.Height != 2 { // Height of atomic inline
 		t.Errorf("expected LineBox height 2, got %d", lineBoxFrag.Size.Height)
+	}
+}
+
+func TestInlineLayout_InlineFlexAtomic(t *testing.T) {
+	// A flex container as an atomic inline
+	child := &mockNode{
+		style: &style.Computed{
+			Width:  style.Cells(5),
+			Height: style.Cells(1),
+		},
+	}
+	flex := &mockNode{
+		style: &style.Computed{
+			Display:       style.DisplayInlineFlex,
+			FlexDirection: style.FlexRow,
+			Width:         style.Cells(10),
+			Height:        style.Cells(2),
+		},
+		firstChild: child,
+	}
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display: style.DisplayInline,
+			},
+			nextSibling: flex,
+		},
+		data: "Hey",
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(20),
+		},
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// Should have one LineBox fragment
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+
+	lineBoxFrag := frag.Children[0].Fragment
+	// "Hey" (3) + Flex (10) = 13
+	if lineBoxFrag.Size.Width != 13 {
+		t.Errorf("expected LineBox width 13, got %d", lineBoxFrag.Size.Width)
+	}
+	if lineBoxFrag.Size.Height != 2 {
+		t.Errorf("expected LineBox height 2, got %d", lineBoxFrag.Size.Height)
+	}
+
+	// Verify the flex container actually laid out its child.
+	flexLink := lineBoxFrag.Children[1]
+	if flexLink.Fragment.Size.Width != 10 {
+		t.Errorf("expected flex container width 10, got %d", flexLink.Fragment.Size.Width)
+	}
+	if len(flexLink.Fragment.Children) != 1 {
+		t.Fatalf("expected 1 child in flex container, got %d", len(flexLink.Fragment.Children))
 	}
 }
 
@@ -579,5 +634,71 @@ func BenchmarkInlineLayout_LargeText(b *testing.B) {
 
 	for b.Loop() {
 		algo.Layout()
+	}
+}
+func TestInlineLayout_VerticalAlignment(t *testing.T) {
+	// Container (Block) with AlignItems: Stretch (default)
+	// Contains: Text (height 1) and InlineFlex (height 3)
+	// Surrounding text should ideally be centered relative to the tall InlineFlex item if the line height is 3.
+
+	itemStyle := style.DefaultStyle()
+	itemStyle.Display = style.DisplayInlineFlex
+	itemStyle.Width = style.Cells(10)
+	itemStyle.Height = style.Cells(3)
+	
+	inlineFlex := &mockNode{style: &itemStyle}
+
+	textStyle := style.DefaultStyle()
+	textStyle.Display = style.DisplayInline
+	textNode1 := &mockTextNode{
+		mockNode: mockNode{style: &textStyle},
+		data:     "Before",
+	}
+	textNode1.nextSibling = inlineFlex
+
+	textNode2 := &mockTextNode{
+		mockNode: mockNode{style: &textStyle},
+		data:     "After",
+	}
+	inlineFlex.nextSibling = textNode2
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayBlock
+	parentStyle.AlignItems = style.AlignStretch
+	parentStyle.Width = style.Cells(100)
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: textNode1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// Line height should be 3
+	if len(frag.Children) == 0 {
+		t.Fatalf("expected at least one line child")
+	}
+	lineFrag := frag.Children[0].Fragment
+	if lineFrag.Size.Height != 3 {
+		t.Errorf("expected line height 3, got %d", lineFrag.Size.Height)
+	}
+
+	// In lineFrag.Children:
+	// 0: "Before" (text)
+	// 1: inlineFlex (atomic)
+	// 2: "After" (text)
+
+	if len(lineFrag.Children) != 3 {
+		t.Fatalf("expected 3 items on line, got %d", len(lineFrag.Children))
+	}
+
+	// Check "Before" text vertical offset.
+	// If it's AlignStart (defaulting from Stretch), offset.Y will be 0.
+	// If we want it centered, it should be (3 - 1) / 2 = 1.
+	beforeTextOffset := lineFrag.Children[0].Offset.Y
+	if beforeTextOffset != 1 {
+		t.Errorf("expected 'Before' text Y offset 1 (centered), got %d", beforeTextOffset)
 	}
 }

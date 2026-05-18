@@ -19,7 +19,7 @@ func (a *BlockAlgorithm) isInlineLevel(node Node) bool {
 		return true
 	}
 	comp := node.Style()
-	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock
+	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
 }
 
 // Layout executes the block layout algorithm and returns an immutable Fragment.
@@ -161,10 +161,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		}
 
 		childSpace := childSpaceBuilder.ToConstraintSpace()
-		childAlgo := &BlockAlgorithm{
-			Node:  child,
-			Space: childSpace,
-		}
+		childAlgo := NewAlgorithm(child, childSpace)
 		childFrag := childAlgo.Layout()
 
 		offset := Point{
@@ -184,7 +181,11 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	if a.Space.IsFixedBlockSize {
 		builder.SetBlockSize(a.Space.AvailableSize.Height)
 	} else {
-		builder.SetBlockSize(builder.CurrentBlockOffset())
+		resolvedHeight := builder.CurrentBlockOffset()
+		if comp.Height.Kind() == style.KindCells {
+			resolvedHeight = max(resolvedHeight, comp.Height.CellsValue())
+		}
+		builder.SetBlockSize(resolvedHeight)
 	}
 
 	// 7. Finalization: Invoke ToFragment() to seal the immutable fragment.
@@ -218,13 +219,12 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		return result
 	}
 
-	if comp.Width.Kind() == style.KindPercent {
-		// If we know the percentage resolution size, we could resolve it here.
-		// But intrinsic sizes usually shouldn't depend on the parent's resolved size.
-		// However, in many engines, percentages are treated as 0 for min-content
-		// and the resolved value for max-content if known.
-		// For Kite, we'll just fall through to child measurement if it's not KindCells.
-	}
+	// If we know the percentage resolution size, we could resolve it here.
+	// But intrinsic sizes usually shouldn't depend on the parent's resolved size.
+	// However, in many engines, percentages are treated as 0 for min-content
+	// and the resolved value for max-content if known.
+	// For Kite, we'll just fall through to child measurement if it's not KindCells.
+	// if comp.Width.Kind() == style.KindPercent {
 
 	// Otherwise, iterate through children.
 	var childrenMinMax MinMaxSizes
@@ -265,10 +265,7 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		}
 
 		childMargin := child.Style().Margin
-		childAlgo := &BlockAlgorithm{
-			Node: child,
-		}
-		childMinMax := childAlgo.ComputeMinMaxSizes()
+		childMinMax := IntrinsicMinMaxSizes(child)
 
 		childMinMax = childMinMax.Add(childMargin.Left + childMargin.Right)
 		childrenMinMax.Encompass(childMinMax)
