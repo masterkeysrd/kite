@@ -58,5 +58,7 @@ type Object interface {
 	Fragment() *layout.Fragment
 	CachedLayout(layout.ConstraintSpace) *layout.Fragment
 	SetCachedLayout(layout.ConstraintSpace, *layout.Fragment)
+	CachedMinMaxSizes() (layout.MinMaxSizes, bool)
+	SetCachedMinMaxSizes(layout.MinMaxSizes)
 	LogicalNode() any
 }

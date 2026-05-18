@@ -63,6 +63,8 @@ func (f *fakeRO) ClearDirtyLayout()                                        {}
 func (f *fakeRO) Fragment() *layout.Fragment                               { return nil }
 func (f *fakeRO) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
 func (f *fakeRO) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
+func (f *fakeRO) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { return layout.MinMaxSizes{}, false }
+func (f *fakeRO) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
 func (f *fakeRO) LogicalNode() any                                         { return nil }
 
 var _ render.Object = (*fakeRO)(nil)

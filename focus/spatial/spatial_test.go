@@ -188,6 +188,8 @@ func (o *spatialObj) CachedLayout(space layout.ConstraintSpace) *layout.Fragment
 	}
 }
 func (o *spatialObj) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
+func (o *spatialObj) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { return layout.MinMaxSizes{}, false }
+func (o *spatialObj) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
 
 // compile-time check
 var _ render.Object = (*spatialObj)(nil)

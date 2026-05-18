@@ -19,6 +19,8 @@ type BaseRender struct {
 	flags       DirtyFlag
 	cachedSpace layout.ConstraintSpace
 	cachedFrag  *layout.Fragment
+	cachedMinMax layout.MinMaxSizes
+	minMaxValid  bool
 }
 
 // Init sets the self-pointer for the BaseRender so it can pass the correct interface
@@ -205,6 +207,19 @@ func (b *BaseRender) SetCachedLayout(space layout.ConstraintSpace, frag *layout.
 	b.ClearDirty(DirtyLayout)
 }
 
+func (b *BaseRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
+	// If the layout tree is dirty, the intrinsic sizes may be invalid.
+	if b.flags&DirtyLayout != 0 {
+		return layout.MinMaxSizes{}, false
+	}
+	return b.cachedMinMax, b.minMaxValid
+}
+
+func (b *BaseRender) SetCachedMinMaxSizes(sizes layout.MinMaxSizes) {
+	b.cachedMinMax = sizes
+	b.minMaxValid = true
+}
+
 // RenderView is the root of a render tree. It represents the viewport.
 type RenderView struct {
 	BaseRender
@@ -274,12 +289,10 @@ func (v *RenderView) SetLogicalNode(n any) { v.logicalNode = n }
 func LayoutPhase(root Object, available layout.Size) {
 	// 1. Build the constraint space for the viewport.
 	// The viewport forces a fixed size.
-	space := layout.ConstraintSpace{
-		Constraints: layout.Constraints{
-			Min: available,
-			Max: available,
-		},
-	}
+	space := layout.NewConstraintSpaceBuilder(available).
+		SetIsFixedInlineSize(true).
+		SetIsFixedBlockSize(true).
+		ToConstraintSpace()
 
 	// 2. Wrap the root in the formatting context algorithm.
 	algo := layout.BlockAlgorithm{

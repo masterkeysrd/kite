@@ -48,4 +48,10 @@ type Node interface {
 	// SetCachedLayout stores the computed fragment and the constraints that generated it.
 	// Implementing this should implicitly clear the DirtyLayout flag.
 	SetCachedLayout(space ConstraintSpace, frag *Fragment)
+
+	// CachedMinMaxSizes returns the intrinsic minimum and maximum sizes if they are still valid.
+	CachedMinMaxSizes() (MinMaxSizes, bool)
+
+	// SetCachedMinMaxSizes stores the computed intrinsic minimum and maximum sizes.
+	SetCachedMinMaxSizes(sizes MinMaxSizes)
 }

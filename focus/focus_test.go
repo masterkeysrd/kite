@@ -151,6 +151,8 @@ func (o *testObject) ClearDirtyLayout()                                        {
 func (o *testObject) Fragment() *layout.Fragment                               { return nil }
 func (o *testObject) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
 func (o *testObject) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
+func (o *testObject) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { return layout.MinMaxSizes{}, false }
+func (o *testObject) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
 
 // compile-time interface check
 var _ render.Object = (*testObject)(nil)

@@ -14,127 +14,183 @@ type BlockAlgorithm struct {
 
 // Layout executes the block layout algorithm and returns an immutable Fragment.
 func (a *BlockAlgorithm) Layout() *Fragment {
-	// 0. Return cached fragment immediately if constraints match and the node is clean.
+	// 1. Cache Check: Return cached fragment if constraints match and the node is clean.
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
 
-	var children []FragmentLink
-
-	// Get computed style to extract border and padding.
-	// In a border-box model, margin is NOT part of the node's own bounds.
-	// Margins are spacing applied by the *parent* when positioning this node.
 	comp := a.Node.Style()
 	border := comp.Border.Width
 	padding := comp.Padding
 
+	// 2. Intrinsic Sizing: If inline size is not fixed, use ComputeMinMaxSizes.
+	var minMax MinMaxSizes
+	if !a.Space.IsFixedInlineSize {
+		minMax = a.ComputeMinMaxSizes()
+	}
+
+	// Resolve the resolved inline size (width).
+	var resolvedInlineSize int
+	if a.Space.IsFixedInlineSize {
+		resolvedInlineSize = a.Space.AvailableSize.Width
+	} else {
+		switch comp.Width.Kind() {
+		case style.KindPercent:
+			resolvedInlineSize = int(float32(a.Space.PercentageResolutionSize.Width) * comp.Width.PercentValue() / 100.0)
+		case style.KindCells:
+			resolvedInlineSize = comp.Width.CellsValue()
+		case style.KindAuto:
+			// Block elements stretch to available width by default.
+			resolvedInlineSize = a.Space.AvailableSize.Width
+		case style.KindContent:
+			// Content (shrink-wrap)
+			resolvedInlineSize = min(minMax.Max, a.Space.AvailableSize.Width)
+		default:
+			// Fallback to stretching for block elements as per specification
+			resolvedInlineSize = a.Space.AvailableSize.Width
+		}
+	}
+
+	// 3. Setup Builder: Initialize BoxFragmentBuilder and resolve FragmentGeometry.
+	builder := NewBoxFragmentBuilder(a.Node, a.Space)
+	builder.SetInlineSize(resolvedInlineSize)
+
 	// Internal content boundaries for positioning children.
 	insetX := border.Left + padding.Left
-	currentY := border.Top + padding.Top
 
-	// Calculate the parent's horizontal decoration size (padding + border).
+	// Parent horizontal and vertical decoration size.
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
+	parentDecorY := border.Top + border.Bottom + padding.Top + padding.Bottom
 
-	// We track the maximum width footprint (width + horizontal margins) of any child.
-	maxChildWidth := 0
-
-	// 1. Iterate over all direct layout children.
+	// 4. Child Iteration: Loop through in-flow layout children.
 	for child := range a.Node.LayoutChildren() {
-		childMargin := child.Style().Margin
+		childStyle := child.Style()
+		childMargin := childStyle.Margin
 
-		// 2. Build the ConstraintSpace for the child.
-		// A block child can consume all available width (minus parent padding/borders and its own margins).
-		// Its max height is bounded by what remains in the parent's max constraints.
-		availWidth := max(0, a.Space.Constraints.Max.Width-parentDecorX-childMargin.Left-childMargin.Right)
-		availHeight := max(0, a.Space.Constraints.Max.Height-currentY-childMargin.Top-childMargin.Bottom-(border.Bottom+padding.Bottom))
+		// 5. Constraint Generation: Use ConstraintSpaceBuilder.
+		// Available width for child is our resolved width minus our decorations and child margins.
+		childAvailWidth := max(0, resolvedInlineSize-parentDecorX-childMargin.Left-childMargin.Right)
+		
+		// For block height, we pass down what's left of our available height.
+		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-(border.Bottom+padding.Bottom))
 
-		childSpace := ConstraintSpace{
-			Constraints: Constraints{
-				Min: Size{Width: 0, Height: 0},
-				Max: Size{Width: availWidth, Height: availHeight},
-			},
+		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
+		childSpaceBuilder.SetPercentageResolutionSize(Size{
+			Width:  max(0, resolvedInlineSize-parentDecorX),
+			Height: max(0, a.Space.AvailableSize.Height-parentDecorY),
+		})
+		
+		// If child has explicit width, we can set IsFixedInlineSize.
+		if childStyle.Width.Kind() == style.KindCells {
+			childSpaceBuilder.SetIsFixedInlineSize(true)
+			childSpaceBuilder.space.AvailableSize.Width = childStyle.Width.CellsValue()
+		} else if childStyle.Width.Kind() == style.KindPercent {
+			childSpaceBuilder.SetIsFixedInlineSize(true)
+			childSpaceBuilder.space.AvailableSize.Width = int(float32(resolvedInlineSize-parentDecorX) * childStyle.Width.PercentValue() / 100.0)
+		} else if childStyle.Width.Kind() == style.KindAuto {
+			// Auto width on a block child also results in a fixed inline size (stretched)
+			childSpaceBuilder.SetIsFixedInlineSize(true)
+			childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
 		}
 
-		// 3. Dispatch to the appropriate layout algorithm for the child.
+		if childStyle.Height.Kind() == style.KindCells {
+			childSpaceBuilder.SetIsFixedBlockSize(true)
+			childSpaceBuilder.space.AvailableSize.Height = childStyle.Height.CellsValue()
+		} else if childStyle.Height.Kind() == style.KindPercent {
+			// Height percentage resolution is only possible if we have a fixed height or similar.
+			// For now, resolve against our available height if it's fixed.
+			if a.Space.IsFixedBlockSize {
+				childSpaceBuilder.SetIsFixedBlockSize(true)
+				childSpaceBuilder.space.AvailableSize.Height = int(float32(a.Space.AvailableSize.Height-(border.Top+border.Bottom+padding.Top+padding.Bottom)) * childStyle.Height.PercentValue() / 100.0)
+			}
+		}
+
+		childSpace := childSpaceBuilder.ToConstraintSpace()
+
+		// 6. Child Layout & Positioning.
 		childAlgo := &BlockAlgorithm{
 			Node:  child,
 			Space: childSpace,
 		}
-
-		// 4. Perform the layout pass for the child.
 		childFrag := childAlgo.Layout()
 
-		// 5. Record the child fragment and its physical offset.
-		// A child in a block flow starts at the parent's left inset plus its own left margin.
-		// Vertically, it's pushed down by its top margin.
-		children = append(children, FragmentLink{
-			Offset: Point{
-				X: insetX + childMargin.Left,
-				Y: currentY + childMargin.Top,
-			},
-			Fragment: childFrag,
-		})
-
-		// 6. Accumulate dimensions.
-		// Advance the Y cursor by the child's top margin, the fragment height, and the child's bottom margin.
-		currentY += childMargin.Top + childFrag.Size.Height + childMargin.Bottom
-
-		// The footprint of the child includes its horizontal margins.
-		childFootprint := childMargin.Left + childFrag.Size.Width + childMargin.Right
-		if childFootprint > maxChildWidth {
-			maxChildWidth = childFootprint
+		// Position the child fragment.
+		offset := Point{
+			X: insetX + childMargin.Left,
+			Y: builder.CurrentBlockOffset() + childMargin.Top,
 		}
+		builder.AddChild(childFrag, offset)
+
+		// Advance the block offset (Y cursor).
+		builder.AdvanceBlockOffset(childMargin.Top + childFrag.Size.Height + childMargin.Bottom)
 	}
 
-	// 7. Add bottom decoration to the accumulated height.
-	currentY += border.Bottom + padding.Bottom
-
-	// The intrinsic width is the max child footprint plus our inner decorations.
-	intrinsicWidth := maxChildWidth + parentDecorX
-
-	// Resolve explicit dimensions from the computed style.
-	// This ensures an element forces its size if Width or Height are set,
-	// instead of always shrink-wrapping its intrinsic size.
-	var explicitWidth, explicitHeight int
-	var hasExplicitWidth, hasExplicitHeight bool
-
-	if comp.Width.Kind() == style.KindCells {
-		explicitWidth = comp.Width.CellsValue()
-		hasExplicitWidth = true
-	} else if comp.Width.Kind() == style.KindPercent {
-		explicitWidth = int(float32(a.Space.Constraints.Max.Width) * (comp.Width.PercentValue() / 100.0))
-		hasExplicitWidth = true
+	// Final block size includes bottom decorations.
+	builder.AdvanceBlockOffset(border.Bottom + padding.Bottom)
+	
+	// If height is fixed, use that instead.
+	if a.Space.IsFixedBlockSize {
+		builder.SetBlockSize(a.Space.AvailableSize.Height)
+	} else {
+		builder.SetBlockSize(builder.CurrentBlockOffset())
 	}
 
-	if comp.Height.Kind() == style.KindCells {
-		explicitHeight = comp.Height.CellsValue()
-		hasExplicitHeight = true
-	} else if comp.Height.Kind() == style.KindPercent {
-		explicitHeight = int(float32(a.Space.Constraints.Max.Height) * (comp.Height.PercentValue() / 100.0))
-		hasExplicitHeight = true
-	}
+	// 7. Finalization: Invoke ToFragment() to seal the immutable fragment.
+	frag := builder.ToFragment()
 
-	if hasExplicitWidth {
-		intrinsicWidth = explicitWidth
-	}
-	if hasExplicitHeight {
-		currentY = explicitHeight
-	}
-
-	// 8. Compute the final physical size of this block fragment
-	// clamped by the min/max constraints of the space.
-	finalWidth := max(a.Space.Constraints.Min.Width, min(intrinsicWidth, a.Space.Constraints.Max.Width))
-	finalHeight := max(a.Space.Constraints.Min.Height, min(currentY, a.Space.Constraints.Max.Height))
-
-	// 9. Return the immutable layout fragment.
-	frag := &Fragment{
-		Size:     Size{Width: finalWidth, Height: finalHeight},
-		Node:     a.Node,
-		Children: children,
-	}
-
-	// 9. Store the result in the cache so subsequent identical passes can skip this work.
+	// Store the result in the cache.
 	a.Node.SetCachedLayout(a.Space, frag)
 
 	return frag
+}
+
+// ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
+func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+	// 1. Cache Check.
+	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
+		return sizes
+	}
+
+	comp := a.Node.Style()
+	border := comp.Border.Width
+	padding := comp.Padding
+	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
+
+	var result MinMaxSizes
+
+	// If width is explicitly set, min and max are that width.
+	if comp.Width.Kind() == style.KindCells {
+		val := comp.Width.CellsValue()
+		result = MinMaxSizes{Min: val, Max: val}
+		a.Node.SetCachedMinMaxSizes(result)
+		return result
+	}
+
+	if comp.Width.Kind() == style.KindPercent {
+		// If we know the percentage resolution size, we could resolve it here.
+		// But intrinsic sizes usually shouldn't depend on the parent's resolved size.
+		// However, in many engines, percentages are treated as 0 for min-content
+		// and the resolved value for max-content if known.
+		// For Kite, we'll just fall through to child measurement if it's not KindCells.
+	}
+
+	// Otherwise, iterate through children.
+	var childrenMinMax MinMaxSizes
+
+	for child := range a.Node.LayoutChildren() {
+		childMargin := child.Style().Margin
+		childAlgo := &BlockAlgorithm{
+			Node: child,
+		}
+		childMinMax := childAlgo.ComputeMinMaxSizes()
+		
+		childMinMax = childMinMax.Add(childMargin.Left + childMargin.Right)
+		childrenMinMax.Encompass(childMinMax)
+	}
+
+	result = childrenMinMax.Add(parentDecorX)
+
+	// 2. Cache and return.
+	a.Node.SetCachedMinMaxSizes(result)
+	return result
 }

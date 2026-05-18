@@ -29,15 +29,67 @@ type FragmentLink struct {
 // physical size constraints (Min/Max) alongside any additional context required
 // during the layout walk (e.g., percentage resolution sizes, exclusion spaces for floats).
 type ConstraintSpace struct {
-	// Constraints defines the minimum and maximum dimensions allowed for this layout pass.
-	// A fixed size is simply represented by Min == Max.
-	Constraints Constraints
+	// AvailableSize is the ideal size the node should consume, provided by the parent.
+	AvailableSize Size
+
+	// PercentageResolutionSize is the size used to resolve percentage-based dimensions.
+	PercentageResolutionSize Size
+
+	// IsFixedInlineSize indicates the inline size (width) is pre-determined.
+	IsFixedInlineSize bool
+
+	// IsFixedBlockSize indicates the block size (height) is pre-determined.
+	IsFixedBlockSize bool
+}
+
+// MinMaxSizes represents the intrinsic minimum and maximum widths of a node.
+type MinMaxSizes struct {
+	Min, Max int
+}
+
+// Encompass expands the min/max bounds to fit another MinMaxSizes.
+func (m *MinMaxSizes) Encompass(other MinMaxSizes) {
+	m.Min = max(m.Min, other.Min)
+	m.Max = max(m.Max, other.Max)
+}
+
+// EncompassSize expands the min/max bounds to fit an explicit value.
+func (m *MinMaxSizes) EncompassSize(value int) {
+	m.Min = max(m.Min, value)
+	m.Max = max(m.Max, value)
+}
+
+// Constrain caps the boundaries (min/max) to a specific value.
+func (m MinMaxSizes) Constrain(value int) MinMaxSizes {
+	return MinMaxSizes{
+		Min: min(m.Min, value),
+		Max: min(m.Max, value),
+	}
+}
+
+// Add shifts both min and max sizes simultaneously.
+func (m MinMaxSizes) Add(value int) MinMaxSizes {
+	return MinMaxSizes{
+		Min: m.Min + value,
+		Max: m.Max + value,
+	}
+}
+
+// Subtract shifts both min and max sizes simultaneously.
+func (m MinMaxSizes) Subtract(value int) MinMaxSizes {
+	return MinMaxSizes{
+		Min: max(0, m.Min-value),
+		Max: max(0, m.Max-value),
+	}
 }
 
 // Algorithm is the interface that all LayoutNG-inspired layout formatters must implement.
 type Algorithm interface {
 	// Layout computes and returns an immutable Fragment based on the underlying node and constraints.
 	Layout() *Fragment
+
+	// ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
+	ComputeMinMaxSizes() MinMaxSizes
 }
 
 // AbsoluteBounds traverses the fragment tree starting at root and computes the absolute
