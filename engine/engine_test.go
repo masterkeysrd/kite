@@ -93,6 +93,11 @@ func TestEngine_Frame_NoOp_WhenClean(t *testing.T) {
 	e, b := newTestEngine(t)
 	defer e.Stop()
 
+	// Clear initial dirty bits from engine initialization (SetViewportSize).
+	e.Frame()
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
+
 	e.Frame()
 
 	if b.BeginFrameCalls != 0 {
@@ -110,6 +115,10 @@ func TestEngine_Frame_RunsAllPhases_WhenAllDirty(t *testing.T) {
 
 	e, b := newTestEngine(t)
 	defer e.Stop()
+
+	// Clear initial dirty flags.
+	e.Frame()
+	b.BeginFrameCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyStyle | render.DirtyLayout | render.DirtyPaint)
@@ -158,6 +167,10 @@ func TestEngine_PhaseGate_LayoutOnly(t *testing.T) {
 	e, b := newTestEngine(t)
 	defer e.Stop()
 
+	// Clear initial dirty flags.
+	e.Frame()
+	b.BeginFrameCalls = 0
+
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyLayout)
 
@@ -179,6 +192,10 @@ func TestEngine_PhaseGate_PaintOnly(t *testing.T) {
 
 	e, b := newTestEngine(t)
 	defer e.Stop()
+
+	// Clear initial dirty flags.
+	e.Frame()
+	b.BeginFrameCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyPaint)

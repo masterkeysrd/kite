@@ -220,6 +220,10 @@ func New(b backend.Backend, opts Options) *Engine {
 		closeCh:           make(chan struct{}),
 	}
 
+	// Link the document root to the render view so element adoption walks can find the tree root.
+	e.document.SetRenderObject(e.renderView)
+	e.renderView.SetLogicalNode(e.document)
+
 	// Initialize viewport size from backend.
 	if sz, ok := b.(interface{ Size() layout.Size }); ok {
 		e.renderView.SetViewportSize(sz.Size())
@@ -491,8 +495,11 @@ func (e *Engine) Frame() {
 			e.reapDetached(overlay)
 		}
 
-		root.ClearDirty(render.DirtyLayout | render.DirtyStructure | render.ChildNeedsLayout)
+		root.ClearDirtyRecursive(render.DirtyLayout | render.DirtyStructure | render.ChildNeedsLayout)
+		// root.MarkDirty(render.DirtyPaint)
 	}
+
+	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
 
 	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint.
 	if root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
@@ -509,6 +516,7 @@ func (e *Engine) Frame() {
 		if err := e.backend.EndFrame(); err != nil {
 			e.logger.Error("engine: EndFrame error", slog.Any("error", err))
 		}
+		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
 		e.logger.Info("engine: frame committed", slog.Uint64("version", e.frameVersion))
 		e.frameVersion++
 	}
@@ -666,6 +674,11 @@ func (e *Engine) Stop() {
 // Run starts the engine's main event loop. It blocks until Stop is called or
 // the backend signals exit.
 func (e *Engine) Run(ctx context.Context) error {
+	if err := e.backend.Start(); err != nil {
+		return err
+	}
+	// Restore terminal state when leaving run loop
+	defer e.backend.Restore()
 	defer e.Stop()
 
 	ticker := time.NewTicker(MinFrameInterval)
@@ -693,6 +706,7 @@ func (e *Engine) Run(ctx context.Context) error {
 }
 
 func (e *Engine) processRawEvent(raw event.RawEvent) {
+	e.logger.Info("engine: received raw event", slog.Any("event", raw))
 	evts := e.synthesizer.Process(raw)
 	for _, ev := range evts {
 		switch evt := ev.(type) {
@@ -746,17 +760,26 @@ func nodeAncestorPath(n dom.Node) []event.EventTarget {
 }
 
 func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
+	var path []event.EventTarget
 	if focused := e.focusManager.Current(); focused != nil {
-		path := ancestorPath(focused)
-		e.dispatcher.Dispatch(ev, path)
-		if !ev.DefaultPrevented() {
-			e.handleDefaultKeyAction(ev)
-		}
+		path = ancestorPath(focused)
+	} else {
+		// Fallback: Dispatch to document if nothing is focused
+		path = []event.EventTarget{e.document}
+	}
+
+	e.dispatcher.Dispatch(ev, path)
+	if !ev.DefaultPrevented() {
+		e.handleDefaultKeyAction(ev)
 	}
 }
 
 func (e *Engine) handleResize(ev *event.ResizeEvent) {
-	e.renderView.SetViewportSize(layout.Size{Width: ev.Width, Height: ev.Height})
+	e.backend.Resize(layout.Size{Width: ev.Width, Height: ev.Height})
+	e.renderView.SetViewportSize(layout.Size{
+		Width:  ev.Width,
+		Height: ev.Height,
+	})
 	e.RequestFrame()
 }
 
