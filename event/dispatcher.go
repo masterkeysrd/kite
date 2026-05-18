@@ -228,9 +228,12 @@ func (t *Target) AddEventListener(typ EventType, fn Listener, opts ...Option) Su
 	return &subscription{reg: reg, target: t}
 }
 
-// removeRegistration removes the registration with the given id. Called by
-// subscription.Cancel.
 func (t *Target) removeRegistration(id uint64) {
+	t.RemoveRegistration(id)
+}
+
+// RemoveRegistration removes the registration with the given id.
+func (t *Target) RemoveRegistration(id uint64) {
 	for typ, regs := range t.listeners {
 		for i, r := range regs {
 			if r.id == id {

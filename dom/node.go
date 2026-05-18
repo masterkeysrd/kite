@@ -31,20 +31,14 @@ func asBase(n Node) *baseNode {
 	if n == nil {
 		return nil
 	}
-	switch v := n.(type) {
-	case *document:
-		return &v.baseNode
-	case *element:
-		return &v.baseNode
-	case *textNode:
-		return &v.baseNode
-	case interface{ asBase() *baseNode }:
-		return v.asBase()
-	case interface{ DOMElement() Element }:
-		return asBase(v.DOMElement())
-	default:
-		return nil
+
+	// If the node provides the baseNode directly, we are done.
+	if b, ok := n.(interface{ asBase() *baseNode }); ok {
+		return b.asBase()
 	}
+
+	// Otherwise, it's a wrapper, so unwrap it and try again.
+	return asBase(n.Unwrap())
 }
 
 func (b *baseNode) Kind() Kind { return b.kind }
@@ -66,6 +60,8 @@ func (b *baseNode) OwnerDocument() Document          { return b.ownerDocument }
 func (b *baseNode) IsConnected() bool                { return b.connected }
 func (b *baseNode) RenderObject() render.Object      { return b.renderObject }
 func (b *baseNode) SetRenderObject(ro render.Object) { b.renderObject = ro }
+
+func (b *baseNode) Unwrap() Node { return nil }
 
 func (b *baseNode) FirstChild() Node { return b.firstChild }
 func (b *baseNode) LastChild() Node  { return b.lastChild }

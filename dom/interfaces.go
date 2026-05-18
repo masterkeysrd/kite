@@ -93,6 +93,10 @@ type Node interface {
 	// ChildNodes returns an iterator over direct children in document order.
 	ChildNodes() iter.Seq[Node]
 
+	// Unwrap returns the underlying Node being decorated by this wrapper, or nil
+	// if this node is a base implementation.
+	Unwrap() Node
+
 	// TextContent returns the concatenation of all text content in this node's subtree. For Text
 	// nodes it is the same as Data(). For Element and Document nodes it is the concatenation of
 	// the TextContent of all descendant Text nodes in document order.

@@ -62,8 +62,26 @@ func (b *BaseRender) ClearDirty(f DirtyFlag) {
 
 func (b *BaseRender) ClearDirtyRecursive(f DirtyFlag) {
 	b.ClearDirty(f)
+
 	for child := range b.Children() {
 		child.ClearDirtyRecursive(f)
+	}
+
+	// After clearing children, we can clear our own relay flags if no children need them anymore.
+	// In a real implementation, we might check if ANY child still has dirty flags.
+	// For now, let's just clear them since this is a recursive clear of everything.
+	relay := Clean
+	if f&DirtyStyle != 0 {
+		relay |= ChildNeedsStyle
+	}
+	if f&(DirtyLayout|DirtyStructure) != 0 {
+		relay |= ChildNeedsLayout
+	}
+	if f&DirtyPaint != 0 {
+		relay |= ChildNeedsPaint
+	}
+	if relay != Clean {
+		b.ClearDirty(relay)
 	}
 }
 

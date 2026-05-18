@@ -114,11 +114,14 @@ func (o *spatialObj) LogicalNode() any                   { return nil }
 func (o *spatialObj) MarkDetached()                      {}
 func (o *spatialObj) IsDetached() bool                   { return false }
 func (o *spatialObj) MarkChildrenDirty()                 {}
+func (o *spatialObj) InsertChild(child, before render.Object) {}
+func (o *spatialObj) RemoveChild(child render.Object)         {}
 func (o *spatialObj) RawStyle() style.Style              { return style.Style{} }
 func (o *spatialObj) SetRawStyle(_ style.Style)          {}
 func (o *spatialObj) Flags() render.DirtyFlag            { return 0 }
 func (o *spatialObj) MarkDirty(_ render.DirtyFlag)       {}
 func (o *spatialObj) ClearDirty(_ render.DirtyFlag)      {}
+func (o *spatialObj) ClearDirtyRecursive(_ render.DirtyFlag) {}
 func (o *spatialObj) IsDirtySet(_ render.DirtyFlag) bool { return false }
 func (o *spatialObj) IsDirtyStyle() bool                 { return false }
 func (o *spatialObj) IsDirtyLayout() bool                { return false }

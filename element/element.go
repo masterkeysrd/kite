@@ -71,8 +71,8 @@ type PendingListener struct {
 
 // --- Element interface implementation ----------------------------------------
 
-// DOMElement returns the underlying [dom.Element].
-func (b *elementBase[Self]) DOMElement() dom.Element { return b.Element }
+// Unwrap returns the underlying [dom.Node].
+func (b *elementBase[Self]) Unwrap() dom.Node { return b.Element }
 
 // GetStyle returns the author-set style for this element.
 func (b *elementBase[Self]) GetStyle() style.Style { return b.rawStyle }

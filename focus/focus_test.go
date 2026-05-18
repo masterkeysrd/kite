@@ -106,11 +106,14 @@ func (o *testObject) LogicalNode() any                   { return nil }
 func (o *testObject) MarkDetached()                      {}
 func (o *testObject) IsDetached() bool                   { return false }
 func (o *testObject) MarkChildrenDirty()                 {}
+func (o *testObject) InsertChild(child, before render.Object) {}
+func (o *testObject) RemoveChild(child render.Object)         {}
 func (o *testObject) RawStyle() style.Style              { return style.Style{} }
 func (o *testObject) SetRawStyle(_ style.Style)          {}
 func (o *testObject) Flags() render.DirtyFlag            { return 0 }
 func (o *testObject) MarkDirty(_ render.DirtyFlag)       { o.dirty++ }
 func (o *testObject) ClearDirty(_ render.DirtyFlag)      {}
+func (o *testObject) ClearDirtyRecursive(_ render.DirtyFlag) {}
 func (o *testObject) IsDirtySet(_ render.DirtyFlag) bool { return false }
 func (o *testObject) IsDirtyStyle() bool                 { return false }
 func (o *testObject) IsDirtyLayout() bool                { return false }
@@ -144,9 +147,9 @@ func (o *testObject) StyleNextSibling() style.StyleNode { return o.NextSibling()
 func (o *testObject) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {}
 }
-func (o *testObject) ClearDirtyLayout() {}
-func (o *testObject) Fragment() *layout.Fragment { return nil }
-func (o *testObject) CachedLayout(layout.ConstraintSpace) *layout.Fragment { return nil }
+func (o *testObject) ClearDirtyLayout()                                        {}
+func (o *testObject) Fragment() *layout.Fragment                               { return nil }
+func (o *testObject) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
 func (o *testObject) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
 
 // compile-time interface check
