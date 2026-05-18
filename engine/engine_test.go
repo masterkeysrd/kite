@@ -9,7 +9,9 @@ import (
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 )
 
@@ -119,6 +121,7 @@ func TestEngine_Frame_RunsAllPhases_WhenAllDirty(t *testing.T) {
 	// Clear initial dirty flags.
 	e.Frame()
 	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyStyle | render.DirtyLayout | render.DirtyPaint)
@@ -146,6 +149,8 @@ func TestEngine_PhaseGate_StyleOnly(t *testing.T) {
 
 	// Clear initial dirty flags (from SetViewportSize in newTestEngine).
 	e.Frame()
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyStyle)
@@ -170,15 +175,16 @@ func TestEngine_PhaseGate_LayoutOnly(t *testing.T) {
 	// Clear initial dirty flags.
 	e.Frame()
 	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyLayout)
 
 	e.Frame()
 
-	// Layout ran but no paint.
-	if b.BeginFrameCalls != 0 {
-		t.Errorf("BeginFrameCalls = %d, want 0 (no paint dirty)", b.BeginFrameCalls)
+	// Layout ran and triggered paint.
+	if b.BeginFrameCalls != 1 {
+		t.Errorf("BeginFrameCalls = %d, want 1 (layout triggers paint)", b.BeginFrameCalls)
 	}
 	if root.Flags()&render.DirtyLayout != 0 {
 		t.Error("layout engine did not clear DirtyLayout")
@@ -196,6 +202,7 @@ func TestEngine_PhaseGate_PaintOnly(t *testing.T) {
 	// Clear initial dirty flags.
 	e.Frame()
 	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
 
 	root := e.RenderView()
 	root.MarkDirty(render.DirtyPaint)
@@ -334,5 +341,82 @@ func TestEngine_Submit_RunsOnWorker(t *testing.T) {
 
 	if job.completes.Load() == 0 {
 		t.Error("OnComplete was not called")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Resize and Re-layout tests
+// ---------------------------------------------------------------------------
+
+func TestEngine_Resize(t *testing.T) {
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{})
+	defer e.Stop()
+
+	// 1. Initial Frame
+	e.Frame()
+	if e.RenderView().ViewportSize().Width != 80 {
+		t.Errorf("initial viewport width = %d, want 80", e.RenderView().ViewportSize().Width)
+	}
+	if b.BeginFrameCalls != 1 {
+		t.Errorf("initial BeginFrameCalls = %d, want 1", b.BeginFrameCalls)
+	}
+
+	// 2. Simulate Resize
+	e.RenderView().SetViewportSize(layout.Size{Width: 120, Height: 40})
+
+	// Check if dirty bits are set
+	if e.RenderView().Flags()&render.DirtyLayout == 0 {
+		t.Error("DirtyLayout not set after SetViewportSize")
+	}
+	if e.RenderView().Flags()&render.DirtyPaint == 0 {
+		t.Error("DirtyPaint not set after SetViewportSize")
+	}
+
+	b.BeginFrameCalls = 0
+	e.Frame()
+
+	if e.RenderView().ViewportSize().Width != 120 {
+		t.Errorf("after resize viewport width = %d, want 120", e.RenderView().ViewportSize().Width)
+	}
+	if b.BeginFrameCalls != 1 {
+		t.Errorf("after resize BeginFrameCalls = %d, want 1", b.BeginFrameCalls)
+	}
+}
+
+func TestEngine_ChildDirtyLayout_TriggersParentRelayout(t *testing.T) {
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{})
+	defer e.Stop()
+
+	doc := e.Document()
+	root := e.RenderView()
+
+	// Create a child
+	child := element.NewBox(doc)
+	doc.AppendChild(child)
+
+	e.Frame() // Initial layout
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
+
+	// Get child's render object
+	childRO := child.RenderObject()
+	if childRO == nil {
+		t.Fatal("child render object not found")
+	}
+
+	// Mark child dirty
+	childRO.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+
+	// Parent (root) should now have ChildNeedsLayout
+	if root.Flags()&render.ChildNeedsLayout == 0 {
+		t.Error("root does not have ChildNeedsLayout after child MarkDirty")
+	}
+
+	e.Frame()
+
+	if b.BeginFrameCalls != 1 {
+		t.Errorf("BeginFrameCalls = %d, want 1 (child was dirty)", b.BeginFrameCalls)
 	}
 }

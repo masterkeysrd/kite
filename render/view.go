@@ -190,7 +190,7 @@ func (b *BaseRender) Fragment() *layout.Fragment { return b.cachedFrag }
 
 func (b *BaseRender) CachedLayout(space layout.ConstraintSpace) *layout.Fragment {
 	// If the layout tree is dirty, the cache is invalid.
-	if b.flags&DirtyLayout != 0 {
+	if b.flags&(DirtyLayout|ChildNeedsLayout) != 0 {
 		return nil
 	}
 	// Return fragment only if the incoming constraints match exactly.
@@ -243,7 +243,7 @@ func (v *RenderView) ViewportSize() layout.Size {
 // SetViewportSize updates the viewport dimensions.
 func (v *RenderView) SetViewportSize(sz layout.Size) {
 	v.viewportSize = sz
-	v.MarkDirty(DirtyLayout)
+	v.MarkDirty(DirtyLayout | DirtyPaint)
 }
 
 // Overlays returns the list of overlay render trees.

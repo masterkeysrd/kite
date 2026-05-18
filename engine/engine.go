@@ -492,7 +492,7 @@ func (e *Engine) Frame() {
 		}
 
 		root.ClearDirtyRecursive(render.DirtyLayout | render.DirtyStructure | render.ChildNeedsLayout)
-		// root.MarkDirty(render.DirtyPaint)
+		root.MarkDirty(render.DirtyPaint)
 	}
 
 	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
