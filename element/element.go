@@ -106,9 +106,6 @@ func (b *elementBase[Self]) WithClass(class string) *Self {
 // Disabled sets or clears the disabled state and returns *Self.
 func (b *elementBase[Self]) Disabled(v bool) *Self {
 	b.disabled = v
-	if ro := b.RenderObject(); ro != nil {
-		ro.SetDisabled(v)
-	}
 	return b.self
 }
 
@@ -142,14 +139,31 @@ func (b *elementBase[Self]) AddChild(child dom.Node) *Self {
 	return b.self
 }
 
+// --- dom.Disableable and dom.Focusable implementation -------------------
+
+// SetDisabled sets the disabled state.
+func (b *elementBase[Self]) SetDisabled(v bool) {
+	b.disabled = v
+}
+
+// IsFocusable reports whether the element is focusable.
+func (b *elementBase[Self]) IsFocusable() bool {
+	tag := b.TagName()
+	return tag == "button" || tag == "input"
+}
+
+// Focus is a no-op placeholder for focus acquisition.
+func (b *elementBase[Self]) Focus() {}
+
+// Blur is a no-op placeholder for focus loss.
+func (b *elementBase[Self]) Blur() {}
+
 // --- Internal helpers --------------------------------------------------------
 
 // OnRenderObjectCreated implements [render.RenderObjectHook].
 func (b *elementBase[Self]) OnRenderObjectCreated(ro render.Object) {
-	ro.SetDisabled(b.disabled)
-	// Default focusable logic for elements.
-	tag := b.TagName()
-	ro.SetFocusable(tag == "button" || tag == "input")
+	// Interactivity is now handled via dom.Focusable and dom.Disableable
+	// interfaces queried by the focus manager.
 }
 
 // initBase initialises b with the given DOM element and self-pointer.

@@ -1,9 +1,9 @@
 package spatial
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/layout"
-	"github.com/masterkeysrd/kite/render"
 )
 
 // Direction represents the four cardinal directions for spatial navigation.
@@ -60,7 +60,7 @@ func Navigate(m *focus.Manager, dir Direction) bool {
 // Candidates returns the focusable nodes in dir from the current focus,
 // ranked by suitability (lowest score first). It is exposed for advanced use
 // such as showing a navigation preview. Most callers want Navigate.
-func Candidates(m *focus.Manager, dir Direction) []render.Object {
+func Candidates(m *focus.Manager, dir Direction) []dom.Node {
 	scope := m.ActiveScope()
 	if scope == nil {
 		return nil
@@ -83,9 +83,9 @@ func Candidates(m *focus.Manager, dir Direction) []render.Object {
 
 // --- helpers -----------------------------------------------------------------
 
-// firstFocusable returns the first focusable object in DOM order within scope,
+// firstFocusable returns the first focusable node in DOM order within scope,
 // or nil if there are none.
-func firstFocusable(scope *focus.Scope) render.Object {
+func firstFocusable(scope *focus.Scope) dom.Node {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
@@ -94,7 +94,7 @@ func firstFocusable(scope *focus.Scope) render.Object {
 
 // firstFocusableInSubtree walks the subtree rooted at root and returns the
 // first focusable node in DOM pre-order, or nil.
-func firstFocusableInSubtree(root render.Object, scope *focus.Scope) render.Object {
+func firstFocusableInSubtree(root dom.Node, scope *focus.Scope) dom.Node {
 	for n := root; n != nil; n = nextPreOrder(n, root) {
 		if focus.IsFocusable(n, scope) {
 			return n
@@ -107,17 +107,26 @@ func firstFocusableInSubtree(root render.Object, scope *focus.Scope) render.Obje
 // from current within scope, or nil if none qualify.
 //
 // This function is on the hot path of Navigate and must not allocate.
-func bestCandidate(scope *focus.Scope, current render.Object, dir Direction) render.Object {
+func bestCandidate(scope *focus.Scope, current dom.Node, dir Direction) dom.Node {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
 
-	curBounds, ok := layout.AbsoluteBounds(scope.Root.Fragment(), current)
+	rootRO := scope.Root.RenderObject()
+	if rootRO == nil {
+		return nil
+	}
+	currentRO := current.RenderObject()
+	if currentRO == nil {
+		return nil
+	}
+
+	curBounds, ok := layout.AbsoluteBounds(rootRO.Fragment(), currentRO)
 	if !ok {
 		return nil
 	}
 
-	var bestNode render.Object
+	var bestNode dom.Node
 	const maxScore = 1<<53 - 1 // large sentinel; avoids math.MaxFloat64 import
 	bestScore := float64(maxScore)
 
@@ -128,7 +137,11 @@ func bestCandidate(scope *focus.Scope, current render.Object, dir Direction) ren
 		if !focus.IsFocusable(n, scope) {
 			continue
 		}
-		nb, found := layout.AbsoluteBounds(scope.Root.Fragment(), n)
+		ro := n.RenderObject()
+		if ro == nil {
+			continue
+		}
+		nb, found := layout.AbsoluteBounds(rootRO.Fragment(), ro)
 		if !found {
 			continue
 		}
@@ -147,18 +160,27 @@ func bestCandidate(scope *focus.Scope, current render.Object, dir Direction) ren
 
 // rankedCandidates returns all focusable candidates in dir from current,
 // sorted ascending by score. Ties preserve DOM order.
-func rankedCandidates(scope *focus.Scope, current render.Object, dir Direction) []render.Object {
+func rankedCandidates(scope *focus.Scope, current dom.Node, dir Direction) []dom.Node {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
 
-	curBounds, ok := layout.AbsoluteBounds(scope.Root.Fragment(), current)
+	rootRO := scope.Root.RenderObject()
+	if rootRO == nil {
+		return nil
+	}
+	currentRO := current.RenderObject()
+	if currentRO == nil {
+		return nil
+	}
+
+	curBounds, ok := layout.AbsoluteBounds(rootRO.Fragment(), currentRO)
 	if !ok {
 		return nil
 	}
 
 	type entry struct {
-		node  render.Object
+		node  dom.Node
 		score float64
 	}
 	var entries []entry
@@ -170,7 +192,11 @@ func rankedCandidates(scope *focus.Scope, current render.Object, dir Direction) 
 		if !focus.IsFocusable(n, scope) {
 			continue
 		}
-		nb, found := layout.AbsoluteBounds(scope.Root.Fragment(), n)
+		ro := n.RenderObject()
+		if ro == nil {
+			continue
+		}
+		nb, found := layout.AbsoluteBounds(rootRO.Fragment(), ro)
 		if !found {
 			continue
 		}
@@ -188,7 +214,7 @@ func rankedCandidates(scope *focus.Scope, current render.Object, dir Direction) 
 		}
 	}
 
-	out := make([]render.Object, len(entries))
+	out := make([]dom.Node, len(entries))
 	for i, e := range entries {
 		out[i] = e.node
 	}
@@ -199,7 +225,7 @@ func rankedCandidates(scope *focus.Scope, current render.Object, dir Direction) 
 // subtree rooted at root. Returns nil when the traversal is complete.
 //
 // This iterative approach avoids the allocation overhead of recursive closures.
-func nextPreOrder(n, root render.Object) render.Object {
+func nextPreOrder(n, root dom.Node) dom.Node {
 	// Descend into first child if present.
 	if c := n.FirstChild(); c != nil {
 		return c

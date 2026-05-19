@@ -4,6 +4,7 @@ import (
 	"iter"
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/layout"
@@ -15,8 +16,7 @@ import (
 // Test helpers
 // ---------------------------------------------------------------------------
 
-// testObject is a lightweight render.Object for focus tests. It records
-// MarkDirty calls and exposes full focusable/disabled/display control.
+// testObject is a lightweight dom.Node for focus tests.
 type testObject struct {
 	event.Target
 	parent    *testObject
@@ -24,17 +24,26 @@ type testObject struct {
 	focusable bool
 	disabled  bool
 	display   style.Display
-	dirty     int
+	render    *testRender
+}
+
+type testRender struct {
+	node  *testObject
+	dirty int
 }
 
 // newFocusable returns a testObject that can receive focus (display=Block).
 func newFocusable() *testObject {
-	return &testObject{focusable: true, display: style.DisplayBlock}
+	obj := &testObject{focusable: true, display: style.DisplayBlock}
+	obj.render = &testRender{node: obj}
+	return obj
 }
 
 // newNonFocusable returns a testObject that cannot receive focus.
 func newNonFocusable() *testObject {
-	return &testObject{focusable: false, display: style.DisplayBlock}
+	obj := &testObject{focusable: false, display: style.DisplayBlock}
+	obj.render = &testRender{node: obj}
+	return obj
 }
 
 // link appends child to parent's children list (DOM order).
@@ -43,30 +52,18 @@ func link(parent, child *testObject) {
 	parent.children = append(parent.children, child)
 }
 
-// --- render.Object interface -------------------------------------------------
+// --- dom.Node interface ------------------------------------------------------
 
-func (o *testObject) Parent() render.Object {
+func (o *testObject) Kind() dom.Kind   { return dom.KindElement }
+func (o *testObject) NodeName() string { return "test" }
+func (o *testObject) Parent() dom.Node {
 	if o.parent == nil {
 		return nil
 	}
 	return o.parent
 }
-
-func (o *testObject) FirstChild() render.Object {
-	if len(o.children) == 0 {
-		return nil
-	}
-	return o.children[0]
-}
-
-func (o *testObject) LastChild() render.Object {
-	if n := len(o.children); n > 0 {
-		return o.children[n-1]
-	}
-	return nil
-}
-
-func (o *testObject) NextSibling() render.Object {
+func (o *testObject) ParentElement() dom.Element { return nil }
+func (o *testObject) NextSibling() dom.Node {
 	if o.parent == nil {
 		return nil
 	}
@@ -77,8 +74,7 @@ func (o *testObject) NextSibling() render.Object {
 	}
 	return nil
 }
-
-func (o *testObject) PreviousSibling() render.Object {
+func (o *testObject) PreviousSibling() dom.Node {
 	if o.parent == nil {
 		return nil
 	}
@@ -89,11 +85,41 @@ func (o *testObject) PreviousSibling() render.Object {
 	}
 	return nil
 }
-
-func (o *testObject) EventTarget() event.EventTarget { return o }
-
-func (o *testObject) Children() iter.Seq[render.Object] {
-	return func(yield func(render.Object) bool) {
+func (o *testObject) OwnerDocument() dom.Document   { return nil }
+func (o *testObject) IsConnected() bool             { return true }
+func (o *testObject) RenderObject() render.Object   { return o.render }
+func (o *testObject) SetRenderObject(render.Object) {}
+func (o *testObject) AppendChild(n dom.Node) dom.Node {
+	o.children = append(o.children, n.(*testObject))
+	n.(*testObject).parent = o
+	return n
+}
+func (o *testObject) InsertBefore(n, ref dom.Node) dom.Node             { return nil }
+func (o *testObject) RemoveChild(n dom.Node) dom.Node                   { return nil }
+func (o *testObject) ReplaceChild(newChild, oldChild dom.Node) dom.Node { return nil }
+func (o *testObject) FirstChild() dom.Node {
+	if len(o.children) == 0 {
+		return nil
+	}
+	return o.children[0]
+}
+func (o *testObject) LastChild() dom.Node {
+	if len(o.children) == 0 {
+		return nil
+	}
+	return o.children[len(o.children)-1]
+}
+func (o *testObject) HasChildNodes() bool { return len(o.children) > 0 }
+func (o *testObject) Contains(n dom.Node) bool {
+	for cur := n; cur != nil; cur = cur.Parent() {
+		if cur == o {
+			return true
+		}
+	}
+	return false
+}
+func (o *testObject) ChildNodes() iter.Seq[dom.Node] {
+	return func(yield func(dom.Node) bool) {
 		for _, c := range o.children {
 			if !yield(c) {
 				return
@@ -101,62 +127,105 @@ func (o *testObject) Children() iter.Seq[render.Object] {
 		}
 	}
 }
+func (o *testObject) Unwrap() dom.Node        { return nil }
+func (o *testObject) TextContent() string     { return "" }
+func (o *testObject) CloneNode(bool) dom.Node { return nil }
+func (o *testObject) NeedsSync() bool         { return false }
+func (o *testObject) ChildNeedsSync() bool    { return false }
+func (o *testObject) MarkNeedsSync()          {}
+func (o *testObject) ClearSyncFlags()         {}
 
-func (o *testObject) LogicalNode() any                        { return nil }
-func (o *testObject) MarkDetached()                           {}
-func (o *testObject) IsDetached() bool                        { return false }
-func (o *testObject) MarkChildrenDirty()                      {}
-func (o *testObject) InsertChild(child, before render.Object) {}
-func (o *testObject) RemoveChild(child render.Object)         {}
-func (o *testObject) RawStyle() style.Style                   { return style.Style{} }
-func (o *testObject) SetRawStyle(_ style.Style)               {}
-func (o *testObject) Flags() render.DirtyFlag                 { return 0 }
-func (o *testObject) MarkDirty(_ render.DirtyFlag)            { o.dirty++ }
-func (o *testObject) ClearDirty(_ render.DirtyFlag)           {}
-func (o *testObject) ClearDirtyRecursive(_ render.DirtyFlag)  {}
-func (o *testObject) IsDirtySet(_ render.DirtyFlag) bool      { return false }
-func (o *testObject) IsDirtyStyle() bool                      { return false }
-func (o *testObject) IsDirtyLayout() bool                     { return false }
-func (o *testObject) IsDirtyPaint() bool                      { return false }
-func (o *testObject) IsDirtyScroll() bool                     { return false }
-func (o *testObject) Focusable() bool                         { return o.focusable }
-func (o *testObject) SetFocusable(v bool)                     { o.focusable = v }
-func (o *testObject) Disabled() bool                          { return o.disabled }
-func (o *testObject) SetDisabled(v bool)                      { o.disabled = v }
+// --- dom.Focusable and dom.Disableable ---------------------------------------
 
-func (o *testObject) Style() *style.Computed {
-	return &style.Computed{Display: o.display}
-}
-func (o *testObject) ComputedStyle() *style.Computed {
-	return o.Style()
+func (o *testObject) IsFocusable() bool { return o.focusable }
+func (o *testObject) Focus()            {}
+func (o *testObject) Blur()             {}
+func (o *testObject) IsDisabled() bool  { return o.disabled }
+func (o *testObject) SetDisabled(v bool) {
+	o.disabled = v
 }
 
-func (o *testObject) SetComputedStyle(*style.Computed) {}
+// --- render.Object interface (testRender) ------------------------------------
 
-// StyleNode implementation
-func (o *testObject) ElementDefaultStyle() style.Style  { return style.Style{} }
-func (o *testObject) HasDirtyStyleChild() bool          { return false }
-func (o *testObject) ClearDirtyStyle()                  {}
-func (o *testObject) ClearChildNeedsStyle()             {}
-func (o *testObject) StyleParent() style.StyleNode      { return o.Parent() }
-func (o *testObject) StyleFirstChild() style.StyleNode  { return o.FirstChild() }
-func (o *testObject) StyleNextSibling() style.StyleNode { return o.NextSibling() }
-
-// layout.Node implementation
-func (o *testObject) LayoutChildren() iter.Seq[layout.Node] {
+func (r *testRender) EventTarget() event.EventTarget { return r.node }
+func (r *testRender) Parent() render.Object {
+	if r.node.parent != nil {
+		return r.node.parent.render
+	}
+	return nil
+}
+func (r *testRender) FirstChild() render.Object {
+	if len(r.node.children) > 0 {
+		return r.node.children[0].render
+	}
+	return nil
+}
+func (r *testRender) LastChild() render.Object {
+	if len(r.node.children) > 0 {
+		return r.node.children[len(r.node.children)-1].render
+	}
+	return nil
+}
+func (r *testRender) NextSibling() render.Object {
+	if ns := r.node.NextSibling(); ns != nil {
+		return ns.RenderObject()
+	}
+	return nil
+}
+func (r *testRender) PreviousSibling() render.Object {
+	if ps := r.node.PreviousSibling(); ps != nil {
+		return ps.RenderObject()
+	}
+	return nil
+}
+func (r *testRender) Children() iter.Seq[render.Object] {
+	return func(yield func(render.Object) bool) {
+		for _, c := range r.node.children {
+			if !yield(c.render) {
+				return
+			}
+		}
+	}
+}
+func (r *testRender) InsertChild(child, before render.Object) {}
+func (r *testRender) RemoveChild(child render.Object)         {}
+func (r *testRender) ComputedStyle() *style.Computed {
+	return &style.Computed{Display: r.node.display}
+}
+func (r *testRender) SetComputedStyle(*style.Computed)     {}
+func (r *testRender) Flags() render.DirtyFlag              { return 0 }
+func (r *testRender) MarkDirty(f render.DirtyFlag)         { r.dirty++ }
+func (r *testRender) ClearDirty(render.DirtyFlag)          {}
+func (r *testRender) MarkChildrenDirty()                   {}
+func (r *testRender) ClearDirtyRecursive(render.DirtyFlag) {}
+func (r *testRender) IsDetached() bool                     { return false }
+func (r *testRender) RawStyle() style.Style                { return style.Style{} }
+func (r *testRender) SetRawStyle(style.Style)              {}
+func (r *testRender) ElementDefaultStyle() style.Style     { return style.Style{} }
+func (r *testRender) IsDirtyStyle() bool                   { return false }
+func (r *testRender) HasDirtyStyleChild() bool             { return false }
+func (r *testRender) ClearDirtyStyle()                     {}
+func (r *testRender) ClearChildNeedsStyle()                {}
+func (r *testRender) StyleParent() style.StyleNode         { return r.Parent() }
+func (r *testRender) StyleFirstChild() style.StyleNode     { return r.FirstChild() }
+func (r *testRender) StyleNextSibling() style.StyleNode    { return r.NextSibling() }
+func (r *testRender) Style() *style.Computed               { return r.ComputedStyle() }
+func (r *testRender) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {}
 }
-func (o *testObject) ClearDirtyLayout()                                        {}
-func (o *testObject) Fragment() *layout.Fragment                               { return nil }
-func (o *testObject) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
-func (o *testObject) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
-func (o *testObject) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
+func (r *testRender) IsDirtyLayout() bool                                      { return false }
+func (r *testRender) ClearDirtyLayout()                                        {}
+func (r *testRender) Fragment() *layout.Fragment                               { return nil }
+func (r *testRender) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }
+func (r *testRender) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
+func (r *testRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 	return layout.MinMaxSizes{}, false
 }
-func (o *testObject) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
+func (r *testRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
+func (r *testRender) LogicalNode() any                        { return r.node }
 
-// compile-time interface check
-var _ render.Object = (*testObject)(nil)
+var _ dom.Node = (*testObject)(nil)
+var _ render.Object = (*testRender)(nil)
 
 // ---------------------------------------------------------------------------
 // Manager factory helpers

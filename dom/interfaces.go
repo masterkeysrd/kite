@@ -173,6 +173,19 @@ type Lifecycle interface {
 	OnDisconnected()
 }
 
+// Disableable indicates that an element can be semantically disabled.
+type Disableable interface {
+	IsDisabled() bool
+	SetDisabled(bool)
+}
+
+// Focusable indicates that an element can be focused.
+type Focusable interface {
+	IsFocusable() bool
+	Focus()
+	Blur()
+}
+
 // Document is the root of a DOM tree and the factory for all new nodes.
 // Tree-global concerns such as overlays, focus management, and the task
 // scheduler are out of scope here and will be added in later tasks.

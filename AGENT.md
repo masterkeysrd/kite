@@ -37,6 +37,10 @@ This document provides guidelines and architectural context for AI assistants an
     *   Flex layout utilizes a two-pass approach: a measure pass to determine flex base sizes and a layout pass to resolve flexible lengths and alignment.
     *   The algorithm must use logical geometry (`MainSize`, `CrossSize`) to remain agnostic of the `flex-direction`.
     *   To maintain performance, the resolution loop must utilize the "freeze and restart" strategy for items hitting their min/max constraints, ensuring $O(N)$ or near-$O(N)$ complexity.
+8.  **Focus Management:**
+    *   Focus state and navigation logic operate strictly on the logical `dom.Node` tree.
+    *   The `focus.Manager` uses the `dom.Focusable` and `dom.Disableable` interfaces to determine interactivity.
+    *   Spatial navigation queries physical geometry by accessing the `RenderObject().Fragment()` of the logical nodes, rather than using the render tree as the primary source of truth for focus.
 
 ## 🧑‍💻 Coding Conventions
 

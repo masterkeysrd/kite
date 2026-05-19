@@ -227,7 +227,7 @@ func New(b backend.Backend, opts Options) *Engine {
 
 	// Mark document for initial sync
 	e.document.MarkNeedsSync()
-	e.focusManager = focus.NewManager(e.renderView, e.dispatcher)
+	e.focusManager = focus.NewManager(e.document, e.dispatcher)
 	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{})
 
 	// Probe capabilities from the backend.
@@ -282,11 +282,7 @@ func (e *Engine) FocusedTarget() event.EventTarget {
 	if e.focusManager == nil {
 		return nil
 	}
-	cur := e.focusManager.Current()
-	if cur == nil {
-		return nil
-	}
-	return cur.EventTarget()
+	return e.focusManager.Current()
 }
 
 // HitTest walks the render tree at point (x, y) and returns the topmost
@@ -307,23 +303,6 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 		return hit.EventTarget()
 	}
 	return nil
-}
-
-// ancestorPath returns the ancestor chain from the tree root down to n
-// (inclusive), ordered root → n. This is the path format required by
-// event.Dispatcher.Dispatch.
-func ancestorPath(n render.Object) []event.EventTarget {
-	var chain []event.EventTarget
-	for cur := n; cur != nil; cur = cur.Parent() {
-		if et := cur.EventTarget(); et != nil {
-			chain = append(chain, et)
-		}
-	}
-	// Reverse to get root → n order.
-	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
-		chain[i], chain[j] = chain[j], chain[i]
-	}
-	return chain
 }
 
 // Caps returns the terminal capability snapshot probed at startup.
@@ -779,7 +758,7 @@ func (e *Engine) processRawEvent(raw event.RawEvent) {
 		default:
 			// For generic events (paste, etc), dispatch to focused element.
 			if focused := e.focusManager.Current(); focused != nil {
-				path := ancestorPath(focused)
+				path := nodeAncestorPath(focused)
 				e.dispatcher.Dispatch(ev, path)
 			}
 		}
@@ -822,7 +801,7 @@ func nodeAncestorPath(n dom.Node) []event.EventTarget {
 func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
 	var path []event.EventTarget
 	if focused := e.focusManager.Current(); focused != nil {
-		path = ancestorPath(focused)
+		path = nodeAncestorPath(focused)
 	} else {
 		// Fallback: Dispatch to document if nothing is focused
 		path = []event.EventTarget{e.document}

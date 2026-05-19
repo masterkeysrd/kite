@@ -37,10 +37,6 @@ type Object interface {
 	InsertChild(child, before Object)
 	RemoveChild(child Object)
 
-	Focusable() bool
-	Disabled() bool
-	SetDisabled(bool)
-	SetFocusable(bool)
 	ComputedStyle() *style.Computed
 	SetComputedStyle(*style.Computed)
 	Flags() DirtyFlag

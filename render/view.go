@@ -26,8 +26,6 @@ type BaseRender struct {
 	eventTarget   event.EventTarget
 	computedStyle *style.Computed
 	rawStyle      style.Style
-	focusable     bool
-	disabled      bool
 }
 
 // Init sets the self-pointer and logical identity for the BaseRender.
@@ -107,10 +105,6 @@ func (b *BaseRender) PreviousSibling() Object {
 
 func (b *BaseRender) EventTarget() event.EventTarget { return b.eventTarget }
 
-func (b *BaseRender) Focusable() bool                { return b.focusable }
-func (b *BaseRender) SetFocusable(v bool)            { b.focusable = v }
-func (b *BaseRender) Disabled() bool                 { return b.disabled }
-func (b *BaseRender) SetDisabled(v bool)             { b.disabled = v }
 func (b *BaseRender) IsDetached() bool               { return b.parent == nil }
 func (b *BaseRender) LogicalNode() any               { return b.logicalNode }
 func (b *BaseRender) ComputedStyle() *style.Computed { return b.computedStyle }
