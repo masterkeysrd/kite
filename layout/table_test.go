@@ -77,7 +77,7 @@ func TestTableLayout_UniformGrid(t *testing.T) {
 		t.Errorf("expected table height 4, got %d", frag.Size.Height)
 	}
 
-	row1Frag := frag.Children[0].Fragment
+	row1Frag := frag.Children[0].Fragment.Children[0].Fragment
 	if row1Frag.Children[0].Offset.X != 0 {
 		t.Errorf("cell 1,1 X expected 0, got %d", row1Frag.Children[0].Offset.X)
 	}
@@ -184,7 +184,7 @@ func TestTableLayout_FaultTolerance_AnonymousRow(t *testing.T) {
 		t.Fatalf("expected 1 row child, got %d", len(frag.Children))
 	}
 
-	rowFrag := frag.Children[0].Fragment
+	rowFrag := frag.Children[0].Fragment.Children[0].Fragment
 	if len(rowFrag.Children) != 2 {
 		t.Fatalf("expected 2 cells in row, got %d", len(rowFrag.Children))
 	}

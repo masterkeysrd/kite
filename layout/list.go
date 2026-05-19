@@ -23,7 +23,7 @@ func (a *ListAlgorithm) Layout() *Fragment {
 	}
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 
 	// 2. Resolve inline size
@@ -207,7 +207,8 @@ func (a *ListAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	}
 
 	comp := a.Node.Style()
-	parentDecorX := comp.Border.Width.Left + comp.Border.Width.Right + comp.Padding.Left + comp.Padding.Right
+	border := comp.Border.Widths()
+	parentDecorX := border.Left + border.Right + comp.Padding.Left + comp.Padding.Right
 
 	markerText := a.getMarkerText()
 	markerWidth := 0

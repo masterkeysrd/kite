@@ -55,7 +55,7 @@ func NewBoxFragmentBuilder(node Node, space ConstraintSpace) *BoxFragmentBuilder
 	return &BoxFragmentBuilder{
 		node:               node,
 		space:              space,
-		currentBlockOffset: comp.Border.Width.Top + comp.Padding.Top,
+		currentBlockOffset: comp.Border.Widths().Top + comp.Padding.Top,
 	}
 }
 

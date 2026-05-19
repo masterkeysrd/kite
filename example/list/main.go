@@ -88,10 +88,7 @@ func main() {
 			Width:   style.Some(style.Percent(90)),
 			Margin:  style.Some(style.Edges(1, 0)),
 			Padding: style.Some(style.Edges(1, 2)),
-			Border: style.Some(style.Border{
-				Width: style.Edges(1),
-				Style: style.EdgeAll(style.BorderSingle),
-			}),
+			Border:  style.SingleBorder().Some(),
 		}),
 	).Style(style.Style{
 		Width:      style.Some(style.Percent(100)),

@@ -20,7 +20,7 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	}
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 	insetX := border.Left + padding.Left
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
@@ -149,7 +149,8 @@ func (a *TableAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	}
 
 	comp := a.Node.Style()
-	parentDecorX := comp.Border.Width.Left + comp.Border.Width.Right + comp.Padding.Left + comp.Padding.Right
+	border := comp.Border.Widths()
+	parentDecorX := border.Left + border.Right + comp.Padding.Left + comp.Padding.Right
 	tableMinMax.Min += parentDecorX
 	tableMinMax.Max += parentDecorX
 
@@ -171,7 +172,7 @@ func (a *TableSectionAlgorithm) Layout() *Fragment {
 	}
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 	insetX := border.Left + padding.Left
 	parentDecorY := border.Top + border.Bottom + padding.Top + padding.Bottom
@@ -357,7 +358,7 @@ func (a *TableRowAlgorithm) Layout() *Fragment {
 	// Disable cache since layout depends on injected properties not in ConstraintSpace
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 	insetX := border.Left + padding.Left
 

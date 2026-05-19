@@ -101,7 +101,7 @@ func main() {
 			element.Box(inlineFlexItems...).Style(style.Style{
 				Display:    style.Some(style.DisplayInlineFlex),
 				Background: style.Some[color.Color](color.RGBA{R: 0, G: 80, B: 150, A: 255}),
-				Border:     style.Some(style.Border{Width: style.Edges(1), Style: style.EdgeAll(style.BorderSingle)}),
+				Border:     style.SingleBorder().Some(),
 				Gap:        style.Some(style.Gap(0, 1)),
 				Padding:    style.Some(style.Edges(0, 1)),
 			}),
@@ -157,21 +157,21 @@ func main() {
 				Padding:    style.Some(style.Edges(0, 1)),
 				Order:      style.Some(3),
 				Flex:       style.Some(style.Flex(1)),
-				Border:     style.Some(style.Border{Width: style.Edges(1), Style: style.EdgeAll(style.BorderSingle)}),
+				Border:     style.SingleBorder().Some(),
 			}),
 			element.Box("Second in DOM (Order 1)").Style(style.Style{
 				Background: style.Some[color.Color](color.RGBA{R: 0, G: 200, B: 0, A: 255}),
 				Padding:    style.Some(style.Edges(0, 1)),
 				Order:      style.Some(1),
 				Flex:       style.Some(style.Flex(1)),
-				Border:     style.Some(style.Border{Width: style.Edges(1), Style: style.EdgeAll(style.BorderSingle)}),
+				Border:     style.SingleBorder().Some(),
 			}),
 			element.Box("Third in DOM (Order 2)").Style(style.Style{
 				Background: style.Some[color.Color](color.RGBA{R: 0, G: 0, B: 200, A: 255}),
 				Padding:    style.Some(style.Edges(0, 1)),
 				Order:      style.Some(2),
 				Flex:       style.Some(style.Flex(1)),
-				Border:     style.Some(style.Border{Width: style.Edges(1), Style: style.EdgeAll(style.BorderSingle)}),
+				Border:     style.SingleBorder().Some(),
 			}),
 		).Style(style.Style{
 			Display:       style.Some(style.DisplayFlex),
@@ -180,7 +180,7 @@ func main() {
 			Width:         style.Some(style.Percent(100)),
 			Padding:       style.Some(style.Edges(0, 2)),
 			Gap:           style.Some(style.Gap(2)),
-			Border:        style.Some(style.Border{Width: style.Edges(1), Style: style.EdgeAll(style.BorderSingle)}),
+			Border:        style.SingleBorder().Some(),
 		}),
 	).Style(style.Style{
 		Width:         style.Some(style.Percent(100)),

@@ -38,16 +38,13 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 			}, surface, " ", color.Transparent, s.Background)
 		}
 
-		// Render border (simplified ASCII border rendering).
-		border := s.Border.Width
-		if border.Top > 0 || border.Bottom > 0 || border.Left > 0 || border.Right > 0 {
+		// Render border.
+		if s.Border.Edges.Top || s.Border.Edges.Bottom || s.Border.Edges.Left || s.Border.Edges.Right {
+			_, bg := p.getInheritedStyle(frag)
 			p.drawBorder(layout.Rect{
 				Origin: origin,
 				Size:   frag.Size,
-			}, surface, style.Border{
-				Width: border,
-				Color: s.Border.Color,
-			})
+			}, surface, s.Border, bg)
 		}
 	}
 
@@ -136,28 +133,109 @@ func (p *PaintEngine) fillRect(r layout.Rect, surface Surface, content string, f
 	}
 }
 
-func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, borderStyle style.Border) {
-	// Simplified ASCII border rendering based on border width and color.
-	borderCol := borderStyle.Color.Top // Simplify: use top color for all
-	if borderCol == nil {
-		borderCol = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, border style.Border, bg color.Color) {
+	width := r.Size.Width
+	height := r.Size.Height
+	x := r.Origin.X
+	y := r.Origin.Y
+
+	// Helper to get glyphs for a side
+	getGlyphs := func(s style.BorderStyle) style.BorderGlyphs {
+		if s == style.BorderCustom {
+			return border.Glyphs
+		}
+		return style.BorderGlyphsMap[s]
 	}
-	// Draw Top border
-	for x := 0; x < r.Size.Width; x++ {
-		surface.Set(r.Origin.X+x, r.Origin.Y, Cell{Content: "-", Width: 1, FG: borderCol})
+
+	// Draw Edges
+	if border.Edges.Top {
+		glyphs := getGlyphs(border.Styles.Top)
+		c := border.Colors.Top
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		for i := 0; i < width; i++ {
+			surface.Set(x+i, y, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg})
+		}
 	}
-	// Draw Bottom border
-	for x := 0; x < r.Size.Width; x++ {
-		surface.Set(r.Origin.X+x, r.Origin.Y+r.Size.Height-1, Cell{Content: "-", Width: 1, FG: borderCol})
+	if border.Edges.Bottom {
+		glyphs := getGlyphs(border.Styles.Bottom)
+		c := border.Colors.Bottom
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		for i := 0; i < width; i++ {
+			surface.Set(x+i, y+height-1, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg})
+		}
 	}
-	// Draw side borders
-	for y := 0; y < r.Size.Height; y++ {
-		surface.Set(r.Origin.X, r.Origin.Y+y, Cell{Content: "|", Width: 1, FG: borderCol})
-		surface.Set(r.Origin.X+r.Size.Width-1, r.Origin.Y+y, Cell{Content: "|", Width: 1, FG: borderCol})
+	if border.Edges.Left {
+		glyphs := getGlyphs(border.Styles.Left)
+		c := border.Colors.Left
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		for i := 0; i < height; i++ {
+			surface.Set(x, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg})
+		}
 	}
-	// Corners
-	surface.Set(r.Origin.X, r.Origin.Y, Cell{Content: "+", Width: 1, FG: borderCol})
-	surface.Set(r.Origin.X+r.Size.Width-1, r.Origin.Y, Cell{Content: "+", Width: 1, FG: borderCol})
-	surface.Set(r.Origin.X, r.Origin.Y+r.Size.Height-1, Cell{Content: "+", Width: 1, FG: borderCol})
-	surface.Set(r.Origin.X+r.Size.Width-1, r.Origin.Y+r.Size.Height-1, Cell{Content: "+", Width: 1, FG: borderCol})
+	if border.Edges.Right {
+		glyphs := getGlyphs(border.Styles.Right)
+		c := border.Colors.Right
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		for i := 0; i < height; i++ {
+			surface.Set(x+width-1, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg})
+		}
+	}
+
+	// Draw Corners
+	// Top-Left
+	if border.Edges.Top && border.Edges.Left {
+		glyph := border.Glyphs.EffectiveTL()
+		if glyph == "" {
+			glyph = getGlyphs(border.Styles.Top).TL
+		}
+		c := border.Colors.Top
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		surface.Set(x, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg})
+	}
+	// Top-Right
+	if border.Edges.Top && border.Edges.Right {
+		glyph := border.Glyphs.EffectiveTR()
+		if glyph == "" {
+			glyph = getGlyphs(border.Styles.Top).TR
+		}
+		c := border.Colors.Top
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		surface.Set(x+width-1, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg})
+	}
+	// Bottom-Left
+	if border.Edges.Bottom && border.Edges.Left {
+		glyph := border.Glyphs.EffectiveBL()
+		if glyph == "" {
+			glyph = getGlyphs(border.Styles.Bottom).BL
+		}
+		c := border.Colors.Bottom
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		surface.Set(x, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg})
+	}
+	// Bottom-Right
+	if border.Edges.Bottom && border.Edges.Right {
+		glyph := border.Glyphs.EffectiveBR()
+		if glyph == "" {
+			glyph = getGlyphs(border.Styles.Bottom).BR
+		}
+		c := border.Colors.Bottom
+		if c == nil {
+			c = color.RGBA{255, 255, 255, 255}
+		}
+		surface.Set(x+width-1, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg})
+	}
 }

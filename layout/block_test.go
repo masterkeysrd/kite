@@ -123,9 +123,7 @@ func TestBlockLayout_PaddingAndBorder(t *testing.T) {
 			Width:   style.Auto,
 			Height:  style.Auto,
 			Padding: style.EdgeValues[int]{Top: 1, Bottom: 1, Left: 2, Right: 2},
-			Border: style.Border{
-				Width: style.EdgeValues[int]{Top: 1, Bottom: 1, Left: 1, Right: 1},
-			},
+			Border:  style.SingleBorder(),
 		},
 		firstChild: &mockNode{
 			style: &style.Computed{

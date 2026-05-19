@@ -64,11 +64,8 @@ func main() {
 			Width:      style.Some(style.Cells(12)),
 			Height:     style.Some(style.Cells(3)),
 			Background: style.Some[color.Color](color.RGBA{R: uint8(40 * i), G: 100, B: 150, A: 255}),
-			Border: style.Some(style.Border{
-				Width: style.Edges(1),
-				Style: style.EdgeAll(style.BorderSingle),
-			}),
-			Flex: style.Some(style.Flex(1, 1, style.Cells(10))),
+			Border:     style.SingleBorder().Some(),
+			Flex:       style.Some(style.Flex(1, 1, style.Cells(10))),
 		})
 		flexItems = append(flexItems, item)
 	}
@@ -98,10 +95,7 @@ func main() {
 					Height:     style.Some(style.Cells(3)),
 					Background: style.Some[color.Color](color.RGBA{R: 0, G: 200, B: 100, A: 255}),
 					Margin:     style.Some(style.Edges(0, 1)),
-					Border: style.Some(style.Border{
-						Width: style.Edges(1),
-						Style: style.EdgeAll(style.BorderSingle),
-					}),
+					Border:     style.SingleBorder().Some(),
 				}),
 				" working together in a single flow.",
 			).Style(style.Style{
@@ -149,11 +143,8 @@ func main() {
 						element.TD("Row 1, Cell 2"),
 					),
 				).Style(style.Style{
-					Width: style.Some(style.Percent(100)),
-					Border: style.Some(style.Border{
-						Width: style.Edges(1),
-						Style: style.EdgeAll(style.BorderSingle),
-					}),
+					Width:  style.Some(style.Percent(100)),
+					Border: style.SingleBorder().Some(),
 				}),
 			).Style(style.Style{
 				Margin:     style.Some(style.Edges(1, 0)),
@@ -165,12 +156,8 @@ func main() {
 			Height:     style.Some(style.Auto),
 			Margin:     style.Some(style.Edges(1, 2)),
 			Background: style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 30, A: 255}),
-			Border: style.Some(style.Border{
-				Width: style.Edges(1),
-				Style: style.EdgeAll(style.BorderSingle),
-				Color: style.EdgeAll[color.Color](color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-			}),
-			Padding: style.Some(style.Edges(1, 2)),
+			Border:     style.SingleBorder().Color(color.RGBA{R: 200, G: 200, B: 200, A: 255}).Some(),
+			Padding:    style.Some(style.Edges(1, 2)),
 		}),
 	).Style(style.Style{
 		Width:      style.Some(style.Percent(100)),

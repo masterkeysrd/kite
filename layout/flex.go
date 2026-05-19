@@ -164,7 +164,7 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	}
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
 	gap := comp.Gap
@@ -227,7 +227,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	geom := flexGeometry{direction: comp.FlexDirection}
 
 	// 1. Resolve Container Main/Cross Sizes
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 	decorX := border.Left + border.Right + padding.Left + padding.Right
 	decorY := border.Top + border.Bottom + padding.Top + padding.Bottom
@@ -717,7 +717,7 @@ func (a *FlexAlgorithm) resolveFlexibleLengths(line *flexLine, geom flexGeometry
 func (a *FlexAlgorithm) layoutLines(builder *BoxFragmentBuilder, lines []*flexLine, geom flexGeometry, containerSize Size) {
 	comp := a.Node.Style()
 	padding := comp.Padding
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 
 	mainGap := comp.Gap.Column
 	crossGap := comp.Gap.Row

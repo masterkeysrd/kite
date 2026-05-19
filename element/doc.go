@@ -19,6 +19,14 @@
 // Elements created via declarative constructors are implicitly adopted by
 // the engine's main document when the tree is mounted via engine.Mount().
 //
+// # Borders
+//
+// Borders are configured using a fluent, immutable API on the [style.Border] type.
+//
+//	element.Box("Content").Style(style.Style{
+//	    Border: style.SingleBorder().Color(color.RGBA{255, 0, 0, 255}).Some(),
+//	})
+//
 // # Available components:
 //   - Box: A generic container (similar to <div>).
 //   - Span: An inline container (similar to <span>).

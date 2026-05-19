@@ -24,7 +24,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	// fmt.Printf("DEBUG: Layout node kind=%v\n", a.Node.Style().Display)
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 
 	// 2. Intrinsic Sizing: If inline size is not fixed, use ComputeMinMaxSizes.
@@ -202,7 +202,7 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	}
 
 	comp := a.Node.Style()
-	border := comp.Border.Width
+	border := comp.Border.Widths()
 	padding := comp.Padding
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
 
