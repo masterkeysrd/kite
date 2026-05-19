@@ -122,6 +122,8 @@ func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
 	switch node.Style().Display {
 	case style.DisplayFlex, style.DisplayInlineFlex:
 		return &FlexAlgorithm{Node: node, Space: space}
+	case style.DisplayListItem:
+		return &ListAlgorithm{Node: node, Space: space}
 	default:
 		return &BlockAlgorithm{Node: node, Space: space}
 	}

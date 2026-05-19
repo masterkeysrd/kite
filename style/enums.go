@@ -19,6 +19,8 @@ const (
 	DisplayInlineFlex
 	// DisplayNone removes the element from the layout entirely.
 	DisplayNone
+	// DisplayListItem renders the element as a list item with a marker.
+	DisplayListItem
 )
 
 // FlexDirection defines the main axis of a flex container.
@@ -166,4 +168,20 @@ const (
 	OverflowScroll
 	// OverflowClip clips overflowing content without scrolling.
 	OverflowClip
+)
+
+// ListStyleType defines the appearance of a list item marker.
+type ListStyleType uint8
+
+const (
+	// ListStyleNone renders no marker.
+	ListStyleNone ListStyleType = iota
+	// ListStyleDisc renders a solid bullet (•).
+	ListStyleDisc
+	// ListStyleCircle renders a hollow circle (○).
+	ListStyleCircle
+	// ListStyleSquare renders a solid square (■).
+	ListStyleSquare
+	// ListStyleDecimal renders a decimal number (1., 2., 3.).
+	ListStyleDecimal
 )

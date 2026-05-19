@@ -85,3 +85,15 @@ The Inline Formatting Context (IFC) is highly specialized for text handling, ope
    - The line is split at that index.
 6. **Line Box Construction**: For each broken line, a `LineBox` fragment is generated. The text elements inside are aligned vertically (handling varying font heights or inline-block vertical alignment, like `baseline` or `middle`). 
 7. **Bidi Reordering (UAX#9)**: If RTL (Right-to-Left) text is present, the physical order of the fragments inside the `LineBox` is reversed or shuffled according to the Unicode Bidirectional Algorithm before final fragment assembly.
+
+### List Algorithm (`list.go`)
+
+The List Formatting Context (LFC) implements the layout for `display: list-item` elements. It specializes in rendering markers (bullets, numbers) using a virtual, layout-driven strategy that avoids phantom render objects.
+
+#### Detailed Flow
+1. **Virtual Marker Synthesis**: Unlike web engines that inject anonymous boxes for list markers, the `ListAlgorithm` synthesizes the marker as a transient, physical text fragment directly during the layout phase. This adheres to the "Unified Render Box" principle and prevents architectural leaks.
+2. **Two-Column Row Layout**: The algorithm formats the list item as a logical two-column row:
+   - **Column 1**: Contains the synthesized marker fragment (e.g., "• " or "1. "), measured to its exact cell width using the text shaper.
+   - **Column 2**: Contains the actual child content of the list item, laid out using standard Block layout rules.
+3. **Ordinal Calculation**: For numbered lists (`ListStyleDecimal`), the algorithm computes the ordinal by walking the previous logical siblings of the node to count consecutive `display: list-item` elements.
+4. **Content Wrapping**: Multi-line content in Column 2 is constrained to the remaining available inline space, ensuring that text wraps cleanly adjacent to the marker rather than underneath it.

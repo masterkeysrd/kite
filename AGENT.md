@@ -41,6 +41,10 @@ This document provides guidelines and architectural context for AI assistants an
     *   Focus state and navigation logic operate strictly on the logical `dom.Node` tree.
     *   The `focus.Manager` uses the `dom.Focusable` and `dom.Disableable` interfaces to determine interactivity.
     *   Spatial navigation queries physical geometry by accessing the `RenderObject().Fragment()` of the logical nodes, rather than using the render tree as the primary source of truth for focus.
+9.  **List Layout (Virtual Markers):**
+    *   `ListAlgorithm` implements the `DisplayListItem` layout using a specialized two-column row layout.
+    *   The marker is synthesized as a virtual, transient text fragment directly during layout (based on `ListStyleType`) to avoid creating phantom nodes in the render tree.
+    *   Ordinal calculation for numbered lists uses an $O(N)$ sibling walk of the logical tree.
 
 ## 🧑‍💻 Coding Conventions
 

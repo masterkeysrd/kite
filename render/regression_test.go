@@ -126,3 +126,26 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 		t.Errorf("Block children should not overlap vertically. c1.Y=%d, c2.Y=%d", c1.Offset.Y, c2.Offset.Y)
 	}
 }
+
+func TestRegression_ListNoChildrenNoCrash(t *testing.T) {
+	node := NewBox(nil, nil)
+	node.SetComputedStyle(&style.Computed{
+		Display:       style.DisplayListItem,
+		ListStyleType: style.ListStyleDisc,
+	})
+
+	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
+	algo := layout.NewAlgorithm(node, space)
+
+	// Should not crash
+	frag := algo.Layout()
+
+	if frag == nil {
+		t.Fatal("Fragment is nil")
+	}
+
+	// Should have 1 child (the marker)
+	if len(frag.Children) != 1 {
+		t.Errorf("Expected 1 child (marker), got %d", len(frag.Children))
+	}
+}

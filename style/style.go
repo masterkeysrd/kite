@@ -20,6 +20,8 @@ type Style struct {
 
 	// Display controls how the element participates in its parent's layout.
 	Display Optional[Display]
+	// ListStyleType defines the appearance of a list item marker.
+	ListStyleType Optional[ListStyleType]
 	// FlexDirection sets the main axis of a flex container.
 	FlexDirection Optional[FlexDirection]
 	// FlexWrap controls whether items wrap onto new lines.
@@ -108,6 +110,9 @@ type Style struct {
 func (s Style) Apply(base Computed) Computed {
 	if s.Display.IsSet() {
 		base.Display = s.Display.Value()
+	}
+	if s.ListStyleType.IsSet() {
+		base.ListStyleType = s.ListStyleType.Value()
 	}
 	if s.FlexDirection.IsSet() {
 		base.FlexDirection = s.FlexDirection.Value()

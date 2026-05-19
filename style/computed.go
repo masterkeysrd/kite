@@ -9,6 +9,7 @@ type Computed struct {
 	// --- Flex / display -------------------------------------------------------
 
 	Display        Display
+	ListStyleType  ListStyleType
 	FlexDirection  FlexDirection
 	FlexWrap       FlexWrap
 	JustifyContent Justify
@@ -67,6 +68,7 @@ func (c *Computed) AffectsLayout(other *Computed) bool {
 		return true
 	}
 	return c.Display != other.Display ||
+		c.ListStyleType != other.ListStyleType ||
 		c.FlexDirection != other.FlexDirection ||
 		c.FlexWrap != other.FlexWrap ||
 		c.JustifyContent != other.JustifyContent ||
