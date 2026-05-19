@@ -21,9 +21,9 @@ The framework will explicitly support `display: table-header-group` (`thead`), `
 - **Layout Ordering:** Regardless of DOM order, the `TableAlgorithm` will always position header groups first, followed by row groups, and finally footer groups.
 - **Synchronized Sizing:** The grid sizing pass evaluates all cells across all sections simultaneously to calculate global column constraints.
 
-### 3. Two-Pass Layout Algorithm (`layout/table.go`)
-- **Pass 1 (Measurement/Grid Sizing):** The `TableAlgorithm` sorts sections, then iterates through all rows and cells to compute intrinsic column widths. It handles `ColSpan` and `RowSpan` by distributing a cell's `MinMaxSizes` across the spanned columns/rows.
-- **Pass 2 (Fragment Generation):** Once column widths are resolved, the table passes these fixed constraints down through the sections to the `TableRowAlgorithm`, which positions the cells horizontally.
+### 3. Two-Pass Layout Algorithm & Implicit Border Collapse (`layout/table.go`)
+- **Pass 1 (Measurement/Grid Sizing):** The `TableAlgorithm` sorts sections, then iterates through all rows and cells to compute intrinsic column widths. It handles `ColSpan` and `RowSpan` by distributing a cell's `MinMaxSizes` across the spanned columns/rows. The total table width calculation must dynamically subtract 1 cell of intrinsic width where adjacent columns share borders to support collapse.
+- **Pass 2 (Fragment Generation):** Once column widths are resolved, the table passes these fixed constraints down through the sections to the `TableRowAlgorithm`, which positions the cells horizontally. **Crucially, if two adjacent cells share a border edge, the algorithm must offset their coordinates by -1 (overlap) so they share the exact physical cell on the screen. This allows the global screen-space paint resolver to magically merge their lines into cross-junctions (`┼`).**
 
 ### 4. Fault Tolerance via Anonymous Wrappers
 To handle malformed DOM structures without polluting the logical DOM or the core engine sync phase, we will rely on **Layout-Driven Fault Tolerance**:
