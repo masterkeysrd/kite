@@ -72,8 +72,6 @@ const (
 // Caps is a snapshot of the terminal capabilities detected at startup by the
 // backend. Consumers (paint engine, widget implementations) should treat Caps
 // as read-only after the engine starts.
-//
-// See ADR-0028 for the detection strategy and the canonical field set.
 type Caps struct {
 	// TrueColor reports whether the terminal supports 24-bit RGB color. When
 	// false, the paint engine down-samples to the highest supported palette.

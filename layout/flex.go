@@ -411,6 +411,10 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	// align-content: stretch (default)
 	// If there's extra cross space, distribute it among the lines.
 	extraCross := contentCrossSizeForItems - totalSumLineCross
+
+	// Support block fragmentation
+	var breakToken *BreakToken
+
 	if extraCross > 0 && len(lines) > 0 {
 		// For simplicity, we currently just give all extra space to the first line
 		// or distribute if we want to be more accurate.
@@ -421,11 +425,46 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 				line.CrossSize += perLineExtra
 			}
 		}
+	} else if extraCross < 0 && a.Space.IsFixedBlockSize {
+		// Content overflows fixed block size, find break point.
+		currentTotalCross := 0
+		breakLineIndex := -1
+
+		// Total items to skip in next fragmentation
+		itemsToSkip := 0
+		if a.Space.BreakToken != nil {
+			itemsToSkip = a.Space.BreakToken.ChildIndex
+		}
+
+		for i, line := range lines {
+			lineHeightWithGap := line.CrossSize
+			if i > 0 {
+				lineHeightWithGap += crossGap
+			}
+
+			if currentTotalCross+lineHeightWithGap > contentCrossSizeForItems {
+				breakLineIndex = i
+				break
+			}
+			currentTotalCross += lineHeightWithGap
+			itemsToSkip += len(line.Items)
+		}
+
+		if breakLineIndex != -1 {
+			// Create break token to resume from the global child index
+			breakToken = &BreakToken{
+				Node:       a.Node,
+				ChildIndex: itemsToSkip,
+			}
+			// Truncate lines for this fragment
+			lines = lines[:breakLineIndex]
+		}
 	}
 
 	builder := NewBoxFragmentBuilder(a.Node, a.Space)
 	builder.SetInlineSize(resolvedWidth)
 	builder.SetBlockSize(resolvedHeight)
+	builder.SetBreakToken(breakToken)
 
 	a.layoutLines(builder, lines, geom, containerSize)
 
@@ -441,15 +480,12 @@ type flexLine struct {
 }
 
 func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
-	if _, ok := node.LogicalNode().(textSource); ok {
-		return true
-	}
 	comp := node.Style()
 	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
 }
 
 func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
-	var items []*FlexItem
+	var allItems []*FlexItem
 
 	children := a.Node.LayoutChildren()
 	nextChild, stop := iter.Pull(children)
@@ -458,9 +494,6 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 	child, ok := nextChild()
 	for ok {
 		if a.isInlineLevel(child) {
-			// Sequence of inline children: group into Anonymous Block (IFC).
-			// Flexbox specification: "Contiguous runs of text that are direct children of a flex container
-			// are wrapped in an anonymous flex item."
 			anon := &AnonymousBlock{
 				parent: a.Node,
 			}
@@ -488,7 +521,7 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 				Grow:   childStyle.Flex.Grow,
 				Shrink: childStyle.Flex.Shrink,
 			}
-			items = append(items, item)
+			allItems = append(allItems, item)
 
 			if !ok {
 				break
@@ -503,24 +536,33 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 			Shrink: childStyle.Flex.Shrink,
 			Order:  childStyle.Order,
 		}
-		items = append(items, item)
+		allItems = append(allItems, item)
 
 		child, ok = nextChild()
 	}
 
 	// Sort by order
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[i].Order < items[j].Order
+	sort.SliceStable(allItems, func(i, j int) bool {
+		return allItems[i].Order < allItems[j].Order
 	})
 
 	// Handle reverse directions
 	if geom.direction == style.FlexRowReverse || geom.direction == style.FlexColumnReverse {
-		for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
-			items[i], items[j] = items[j], items[i]
+		for i, j := 0, len(allItems)-1; i < j; i, j = i+1, j-1 {
+			allItems[i], allItems[j] = allItems[j], allItems[i]
 		}
 	}
 
-	return items
+	startIndex := 0
+	if a.Space.BreakToken != nil {
+		startIndex = a.Space.BreakToken.ChildIndex
+	}
+
+	if startIndex >= len(allItems) {
+		return nil
+	}
+
+	return allItems[startIndex:]
 }
 
 func (a *FlexAlgorithm) breakLines(items []*FlexItem, geom flexGeometry, availableMain, availableCross int) []*flexLine {

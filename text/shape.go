@@ -8,9 +8,8 @@ import (
 	"github.com/rivo/uniseg"
 )
 
-// Shape segments text into extended grapheme clusters (UAX #29), assigns
-// East-Asian-Width cell widths, and classifies line-break opportunities
-// (simplified UAX #14, per ADR-0023).
+// Shape segments text into extended grapheme clusters, assigns
+// East-Asian-Width cell widths, and classifies line-break opportunities.
 //
 // The Bytes field of each returned Cluster aliases text's backing memory
 // without copying. text must outlive the returned slice.
@@ -59,7 +58,7 @@ func unsafeStringBytes(s string) []byte {
 // classifyBreak returns the BreakClass for a cluster whose first rune is r,
 // given whether the immediately-preceding cluster was a breakable space.
 func classifyBreak(r rune, prevWasBreakableSpace bool) BreakClass {
-	// Mandatory line-break characters (ADR-0023 §3).
+	// Mandatory line-break characters.
 	switch r {
 	case '\n', '\r', '\f', '\u0085', '\u2028', '\u2029':
 		return BreakMandatory
@@ -76,8 +75,7 @@ func classifyBreak(r rune, prevWasBreakableSpace bool) BreakClass {
 	}
 
 	// Word boundary: non-space cluster that immediately follows a breakable
-	// space cluster. This models the "between whitespace and non-whitespace"
-	// rule from ADR-0023 §3.
+	// space cluster. This models the "between whitespace and non-whitespace".
 	if prevWasBreakableSpace && !isBreakableSpace(r) {
 		return BreakSoft
 	}
@@ -99,7 +97,7 @@ func isBreakableSpace(r rune) bool {
 }
 
 // isCJKOrEmoji reports whether r belongs to a CJK ideograph, CJK-adjacent
-// syllabary, or emoji range that warrants BreakAnywhere treatment per ADR-0023.
+// syllabary, or emoji range that warrants BreakAnywhere treatment.
 func isCJKOrEmoji(r rune) bool {
 	switch {
 	// Hiragana (U+3040–U+309F) and Katakana (U+30A0–U+30FF)

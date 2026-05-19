@@ -17,16 +17,16 @@ func (m *mockNode) Style() *style.Computed { return m.s }
 
 func TestPaint_InheritedStyle(t *testing.T) {
 	pe := &PaintEngine{}
-	
+
 	red := color.RGBA{255, 0, 0, 255}
 	blue := color.RGBA{0, 0, 255, 255}
 
 	tests := []struct {
-		name       string
-		nodeStyle  *style.Computed
+		name        string
+		nodeStyle   *style.Computed
 		parentStyle *style.Computed
-		wantFG     color.Color
-		wantBG     color.Color
+		wantFG      color.Color
+		wantBG      color.Color
 	}{
 		{
 			name: "Default style",

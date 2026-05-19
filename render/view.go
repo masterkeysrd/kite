@@ -21,12 +21,20 @@ type BaseRender struct {
 	cachedFrag   *layout.Fragment
 	cachedMinMax layout.MinMaxSizes
 	minMaxValid  bool
+
+	logicalNode   any
+	eventTarget   event.EventTarget
+	computedStyle *style.Computed
+	rawStyle      style.Style
+	focusable     bool
+	disabled      bool
 }
 
-// Init sets the self-pointer for the BaseRender so it can pass the correct interface
-// when linking children.
-func (b *BaseRender) Init(self Object) {
+// Init sets the self-pointer and logical identity for the BaseRender.
+func (b *BaseRender) Init(self Object, logicalNode any, target event.EventTarget) {
 	b.self = self
+	b.logicalNode = logicalNode
+	b.eventTarget = target
 }
 
 func (b *BaseRender) selfObject() Object {
@@ -46,7 +54,7 @@ func (b *BaseRender) MarkDirty(f DirtyFlag) {
 		if f&(DirtyStyle|ChildNeedsStyle) != 0 {
 			relay |= ChildNeedsStyle
 		}
-		if f&(DirtyLayout|DirtyStructure|ChildNeedsLayout) != 0 {
+		if f&(DirtyLayout|ChildNeedsLayout) != 0 {
 			relay |= ChildNeedsLayout
 		}
 		if f&(DirtyPaint|DirtyScroll|ChildNeedsPaint) != 0 {
@@ -70,16 +78,14 @@ func (b *BaseRender) ClearDirtyRecursive(f DirtyFlag) {
 	}
 
 	// After clearing children, we can clear our own relay flags if no children need them anymore.
-	// In a real implementation, we might check if ANY child still has dirty flags.
-	// For now, let's just clear them since this is a recursive clear of everything.
 	relay := Clean
 	if f&DirtyStyle != 0 {
 		relay |= ChildNeedsStyle
 	}
-	if f&(DirtyLayout|DirtyStructure) != 0 {
+	if f&DirtyLayout != 0 {
 		relay |= ChildNeedsLayout
 	}
-	if f&DirtyPaint != 0 {
+	if f&(DirtyPaint|DirtyScroll) != 0 {
 		relay |= ChildNeedsPaint
 	}
 	if relay != Clean {
@@ -88,14 +94,56 @@ func (b *BaseRender) ClearDirtyRecursive(f DirtyFlag) {
 }
 
 func (b *BaseRender) MarkChildrenDirty() {
-	b.MarkDirty(DirtyStructure | DirtyLayout | DirtyStyle)
+	b.MarkDirty(DirtyLayout | DirtyStyle)
 }
 
-func (b *BaseRender) Parent() Object          { return b.parent }
-func (b *BaseRender) FirstChild() Object      { return b.firstChild }
-func (b *BaseRender) LastChild() Object       { return b.lastChild }
-func (b *BaseRender) NextSibling() Object     { return b.next }
-func (b *BaseRender) PreviousSibling() Object { return b.prev }
+func (b *BaseRender) Parent() Object      { return b.parent }
+func (b *BaseRender) FirstChild() Object  { return b.firstChild }
+func (b *BaseRender) LastChild() Object   { return b.lastChild }
+func (b *BaseRender) NextSibling() Object { return b.next }
+func (b *BaseRender) PreviousSibling() Object {
+	return b.prev
+}
+
+func (b *BaseRender) EventTarget() event.EventTarget { return b.eventTarget }
+
+func (b *BaseRender) Focusable() bool                { return b.focusable }
+func (b *BaseRender) SetFocusable(v bool)            { b.focusable = v }
+func (b *BaseRender) Disabled() bool                 { return b.disabled }
+func (b *BaseRender) SetDisabled(v bool)             { b.disabled = v }
+func (b *BaseRender) IsDetached() bool               { return b.parent == nil }
+func (b *BaseRender) LogicalNode() any               { return b.logicalNode }
+func (b *BaseRender) ComputedStyle() *style.Computed { return b.computedStyle }
+func (b *BaseRender) Style() *style.Computed         { return b.computedStyle }
+
+func (b *BaseRender) SetComputedStyle(c *style.Computed) {
+	if b.computedStyle != nil {
+		if b.computedStyle.AffectsLayout(c) {
+			b.MarkDirty(DirtyLayout | DirtyPaint)
+		} else if b.computedStyle.AffectsPaint(c) {
+			b.MarkDirty(DirtyPaint)
+		}
+	} else {
+		// First time initialization
+		b.MarkDirty(DirtyLayout | DirtyPaint)
+	}
+	b.computedStyle = c
+}
+
+func (b *BaseRender) RawStyle() style.Style { return b.rawStyle }
+func (b *BaseRender) SetRawStyle(s style.Style) {
+	b.rawStyle = s
+	b.MarkDirty(DirtyStyle)
+}
+
+func (b *BaseRender) ElementDefaultStyle() style.Style  { return style.Style{} }
+func (b *BaseRender) IsDirtyStyle() bool                { return b.Flags()&DirtyStyle != 0 }
+func (b *BaseRender) HasDirtyStyleChild() bool          { return b.Flags()&ChildNeedsStyle != 0 }
+func (b *BaseRender) ClearDirtyStyle()                  { b.ClearDirty(DirtyStyle) }
+func (b *BaseRender) ClearChildNeedsStyle()             { b.ClearDirty(ChildNeedsStyle) }
+func (b *BaseRender) StyleParent() style.StyleNode      { return b.parent }
+func (b *BaseRender) StyleFirstChild() style.StyleNode  { return b.firstChild }
+func (b *BaseRender) StyleNextSibling() style.StyleNode { return b.next }
 
 func (b *BaseRender) Children() iter.Seq[Object] {
 	return func(yield func(Object) bool) {
@@ -153,7 +201,13 @@ func (b *BaseRender) InsertChild(child, before Object) {
 			b.firstChild = child
 		}
 	}
-	b.MarkDirty(DirtyStructure | DirtyLayout | DirtyPaint | DirtyStyle | ChildNeedsStyle)
+
+	// Propagate child's existing flags up the new parent chain.
+	if childFlags := child.Flags(); childFlags != Clean {
+		b.MarkDirty(childFlags)
+	}
+
+	b.MarkDirty(DirtyLayout | DirtyPaint | DirtyStyle | ChildNeedsStyle)
 }
 
 func (b *BaseRender) RemoveChild(child Object) {
@@ -176,7 +230,7 @@ func (b *BaseRender) RemoveChild(child Object) {
 	c.setParent(nil)
 	c.setNext(nil)
 	c.setPrev(nil)
-	b.MarkDirty(DirtyStructure | DirtyLayout | DirtyPaint | DirtyStyle | ChildNeedsStyle)
+	b.MarkDirty(DirtyLayout | DirtyPaint | DirtyStyle | ChildNeedsStyle)
 }
 
 // selfObject returns the concrete render object wrapping this BaseRender.
@@ -201,9 +255,12 @@ func (b *BaseRender) CachedLayout(space layout.ConstraintSpace) *layout.Fragment
 }
 
 func (b *BaseRender) SetCachedLayout(space layout.ConstraintSpace, frag *layout.Fragment) {
+	if b.cachedFrag != frag {
+		b.MarkDirty(DirtyPaint)
+	}
 	b.cachedSpace = space
 	b.cachedFrag = frag
-	// Successfully measured; clean the dirty flag.
+	// Successfully measured; clean the dirty flag and ensure parents know we are clean.
 	b.ClearDirty(DirtyLayout)
 }
 
@@ -223,7 +280,6 @@ func (b *BaseRender) SetCachedMinMaxSizes(sizes layout.MinMaxSizes) {
 // RenderView is the root of a render tree. It represents the viewport.
 type RenderView struct {
 	BaseRender
-	logicalNode  any
 	viewportSize layout.Size
 	overlays     []Object
 }
@@ -231,7 +287,7 @@ type RenderView struct {
 // NewRenderView creates a new RenderView.
 func NewRenderView() *RenderView {
 	v := &RenderView{}
-	v.Init(v)
+	v.Init(v, nil, nil)
 	return v
 }
 
@@ -251,38 +307,20 @@ func (v *RenderView) Overlays() []Object {
 	return v.overlays
 }
 
-// EventTarget implementation
-func (v *RenderView) EventTarget() event.EventTarget { return nil }
-
-func (v *RenderView) Focusable() bool     { return false }
-func (v *RenderView) Disabled() bool      { return false }
-func (v *RenderView) SetFocusable(b bool) {}
-func (v *RenderView) SetDisabled(b bool)  {}
-
 func (v *RenderView) Style() *style.Computed {
 	return &style.Computed{Display: style.DisplayBlock}
 }
+
 func (v *RenderView) ComputedStyle() *style.Computed {
 	return v.Style()
 }
+
 func (v *RenderView) SetComputedStyle(*style.Computed) {}
 
 func (v *RenderView) IsDetached() bool { return false }
 
-// StyleNode implementation
-func (v *RenderView) RawStyle() style.Style             { return style.Style{} }
-func (v *RenderView) SetRawStyle(s style.Style)         {}
-func (v *RenderView) ElementDefaultStyle() style.Style  { return style.Style{} }
-func (v *RenderView) IsDirtyStyle() bool                { return v.flags&DirtyStyle != 0 }
-func (v *RenderView) HasDirtyStyleChild() bool          { return v.flags&ChildNeedsStyle != 0 }
-func (v *RenderView) ClearDirtyStyle()                  { v.ClearDirty(DirtyStyle) }
-func (v *RenderView) ClearChildNeedsStyle()             { v.ClearDirty(ChildNeedsStyle) }
-func (v *RenderView) StyleParent() style.StyleNode      { return nil }
-func (v *RenderView) StyleFirstChild() style.StyleNode  { return v.FirstChild() }
-func (v *RenderView) StyleNextSibling() style.StyleNode { return v.NextSibling() }
+func (v *RenderView) StyleParent() style.StyleNode { return nil }
 
-// layout.Node implementation
-func (v *RenderView) LogicalNode() any     { return v.logicalNode }
 func (v *RenderView) SetLogicalNode(n any) { v.logicalNode = n }
 
 // LayoutPhase runs the layout process for the given subtree using the LayoutNG-inspired architecture.
@@ -304,10 +342,15 @@ func LayoutPhase(root Object, available layout.Size) {
 
 // Unlink removes obj from its parent.
 func Unlink(obj Object) {
-	// Implementation would go here.
+	if obj == nil || obj.Parent() == nil {
+		return
+	}
+	obj.Parent().RemoveChild(obj)
 }
 
 // Attach sets the back-pointer from a logical element to its render object.
 func Attach(logical any, ro Object) {
-	// Implementation would go here.
+	if host, ok := logical.(HostNode); ok {
+		host.SetRenderObject(ro)
+	}
 }

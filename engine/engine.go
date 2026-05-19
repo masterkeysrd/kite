@@ -62,8 +62,6 @@ type workerResult struct {
 // Engine must be used from a single main goroutine for all render-tree
 // operations; the worker pool runs concurrent goroutines for user-submitted
 // Job.Run methods only.
-//
-// See ADR-0007 for the pipeline design.
 type Engine struct {
 	document   dom.Document
 	renderView *render.RenderView
@@ -220,18 +218,17 @@ func New(b backend.Backend, opts Options) *Engine {
 		closeCh:           make(chan struct{}),
 	}
 
-	// Link the document root to the render view so element adoption walks can find the tree root.
+	e.dispatcher = event.NewDispatcher()
+
+	// Link document to render view
 	e.document.SetRenderObject(e.renderView)
 	e.renderView.SetLogicalNode(e.document)
-
 	e.renderView.SetViewportSize(b.Size())
 
-	e.dispatcher = event.NewDispatcher()
+	// Mark document for initial sync
+	e.document.MarkNeedsSync()
 	e.focusManager = focus.NewManager(e.renderView, e.dispatcher)
 	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{})
-
-	// Link logical document to the root render view.
-	e.document.SetRenderObject(e.renderView)
 
 	// Probe capabilities from the backend.
 	e.caps = b.Caps()
@@ -457,7 +454,12 @@ func (e *Engine) Frame() {
 	// 0. Collect completed job results into the microtask queue.
 	e.drainWorkerResults()
 
-	// 1 & 2. Drain macrotasks (budget-capped), draining microtasks between
+	// 1. Sync Phase — walk logical DOM and project to render tree.
+	if e.document.NeedsSync() || e.document.ChildNeedsSync() {
+		e.syncRenderTree(e.document, e.renderView)
+	}
+
+	// 2 & 3. Drain macrotasks (budget-capped), draining microtasks between
 	// each macrotask and at the end.
 	e.drainMacroTasks()
 
@@ -471,8 +473,8 @@ func (e *Engine) Frame() {
 		style.ResolveTree(e.resolver, root)
 	}
 
-	// 5. Layout phase — gated on DirtyLayout | DirtyStructure | ChildNeedsLayout.
-	if root.Flags()&(render.DirtyLayout|render.DirtyStructure|render.ChildNeedsLayout) != 0 {
+	// 5. Layout phase — gated on DirtyLayout | ChildNeedsLayout.
+	if root.Flags()&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
 		viewport := root.ViewportSize()
 		e.logger.Info("engine: layout phase", "viewport", viewport)
 
@@ -485,14 +487,7 @@ func (e *Engine) Frame() {
 		duration := e.clock.Now().Sub(start)
 		e.logger.Info("engine: layout complete", "duration_ms", duration.Milliseconds())
 
-		// Reap detached render objects in the layout phase.
-		e.reapDetached(root)
-		for _, overlay := range root.Overlays() {
-			e.reapDetached(overlay)
-		}
-
-		root.ClearDirtyRecursive(render.DirtyLayout | render.DirtyStructure | render.ChildNeedsLayout)
-		root.MarkDirty(render.DirtyPaint)
+		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
 	}
 
 	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
@@ -568,25 +563,94 @@ func (e *Engine) drainMicroTasks() {
 	}
 }
 
-// reapDetached walks the render tree rooted at root and removes any detached
-// render objects from their parents. This is the Reap phase (ADR-0007).
-func (e *Engine) reapDetached(root render.Object) {
-	e.reapSubtree(root)
+// syncRenderTree walks the logical DOM and ensures the render tree matches
+// its structure.
+func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
+	if n.NeedsSync() {
+		e.diffChildren(n, ro)
+	} else if n.ChildNeedsSync() {
+		for child := range n.ChildNodes() {
+			if childRO := child.RenderObject(); childRO != nil {
+				e.syncRenderTree(child, childRO)
+			}
+		}
+	}
+	n.ClearSyncFlags()
 }
 
-// reapSubtree recursively walks the subtree and unlinks detached children.
-func (e *Engine) reapSubtree(obj render.Object) {
-	child := obj.FirstChild()
-	for child != nil {
-		next := child.NextSibling()
-		if child.IsDetached() {
-			render.Unlink(child)
-		} else {
-			e.reapSubtree(child)
+// diffChildren synchronizes the children of n into the render object ro.
+func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
+	// Map existing render children.
+	existing := make(map[render.Object]struct{})
+	for childRO := range parentRO.Children() {
+		existing[childRO] = struct{}{}
+	}
+
+	var lastRO render.Object
+	for child := range n.ChildNodes() {
+		childRO := child.RenderObject()
+		if childRO == nil {
+			childRO = e.createRenderObject(child)
+			child.SetRenderObject(childRO)
 		}
-		child = next
+
+		delete(existing, childRO)
+
+		// Ensure correct position in render tree.
+		if childRO.Parent() != parentRO || childRO.PreviousSibling() != lastRO {
+			render.Unlink(childRO)
+			var before render.Object
+			if lastRO == nil {
+				before = parentRO.FirstChild()
+			} else {
+				before = lastRO.NextSibling()
+			}
+			parentRO.InsertChild(childRO, before)
+		}
+
+		// If the child was already there, it might still need internal sync.
+		// If it was just created, createRenderObject already synced its children.
+		if child.NeedsSync() || child.ChildNeedsSync() {
+			e.syncRenderTree(child, childRO)
+		}
+
+		lastRO = childRO
+	}
+
+	// Remove orphaned render objects.
+	for orphaned := range existing {
+		render.Unlink(orphaned)
 	}
 }
+
+// createRenderObject creates a new render object for the given logical node.
+// It also recursively creates render objects for any existing children.
+func (e *Engine) createRenderObject(n dom.Node) render.Object {
+	var ro render.Object
+	switch n.Kind() {
+	case dom.KindText:
+		ro = render.NewText(n, n)
+	default:
+		ro = render.NewBox(n, n)
+	}
+
+	// Pull author-set style if available.
+	if s, ok := n.(interface{ GetStyle() style.Style }); ok {
+		ro.SetRawStyle(s.GetStyle())
+	}
+
+	// Notify logical node of creation.
+	if h, ok := n.(render.RenderObjectHook); ok {
+		h.OnRenderObjectCreated(ro)
+	}
+
+	// Recursively build render subtree for existing DOM children.
+	e.diffChildren(n, ro)
+
+	return ro
+}
+
+// reapDetached was removed in favor of the Sync phase.
 
 // recoverFrame is a deferred function that catches panics in the frame loop.
 // It restores the terminal, logs the panic and stack trace, and re-panics so

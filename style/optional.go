@@ -42,6 +42,11 @@ func (o Optional[T]) UnwrapOr(fallback T) T {
 // IsSet reports whether a value has been explicitly set.
 func (o Optional[T]) IsSet() bool { return o.set }
 
+// Get returns the stored value and a boolean indicating if it is set.
+func (o Optional[T]) Get() (T, bool) {
+	return o.value, o.set
+}
+
 // Merge returns other if it is set, otherwise it returns o. This is the
 // building block used by [Style.Merge] to combine two styles field-by-field.
 func (o Optional[T]) Merge(other Optional[T]) Optional[T] {

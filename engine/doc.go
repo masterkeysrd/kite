@@ -5,6 +5,4 @@
 // Paint → Sync. Hit-testing is not a phase; it is an on-demand query
 // dispatched by the engine between frames. The engine coordinates all other
 // kitex packages and is the only package that imports all of them.
-//
-// See ADR-0007: https://github.com/masterkeysrd/tasksmith/docs/kite/adr/0007-engine-pipeline.md
 package engine

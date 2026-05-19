@@ -119,7 +119,6 @@ func (o *testObject) IsDirtyStyle() bool                      { return false }
 func (o *testObject) IsDirtyLayout() bool                     { return false }
 func (o *testObject) IsDirtyPaint() bool                      { return false }
 func (o *testObject) IsDirtyScroll() bool                     { return false }
-func (o *testObject) IsDirtyStructure() bool                  { return false }
 func (o *testObject) Focusable() bool                         { return o.focusable }
 func (o *testObject) SetFocusable(v bool)                     { o.focusable = v }
 func (o *testObject) Disabled() bool                          { return o.disabled }

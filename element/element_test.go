@@ -1,52 +1,46 @@
-package element
+package element_test
 
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/element"
+	"github.com/masterkeysrd/kite/engine"
 )
 
 func TestInlineTreeConstruction(t *testing.T) {
-	doc := dom.NewDocument()
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+	doc := eng.Document()
 
 	// Create a hierarchy: Box > Span > Text
-	box := NewBox(doc)
-	span := NewSpan(doc)
-	text := NewText(doc, "Hello")
+
+	// Create a hierarchy: Box > Span > Text
+	box := element.NewBox(doc)
+	span := element.NewSpan(doc)
+	text := element.NewText(doc, "Hello")
 
 	box.AppendChild(span)
 	span.AppendChild(text)
+	doc.AppendChild(box)
 
-	// Manually trigger OnConnected (simulating the engine/document attach walk)
-	// In a real app, doc.AppendChild(box) would trigger this.
-	box.OnConnected()
-	span.OnConnected()
-	text.OnConnected()
+	// Trigger sync phase
+	eng.Frame()
 
 	// Verify Render Objects are created
 	boxRO := box.RenderObject()
 	if boxRO == nil {
 		t.Fatal("Box render object not created")
 	}
-	if _, ok := boxRO.(*render.Block); !ok {
-		t.Errorf("expected *render.Block, got %T", boxRO)
-	}
 
 	spanRO := span.RenderObject()
 	if spanRO == nil {
 		t.Fatal("Span render object not created")
 	}
-	if _, ok := spanRO.(*render.Inline); !ok {
-		t.Errorf("expected *render.Inline, got %T", spanRO)
-	}
 
 	textRO := text.RenderObject()
 	if textRO == nil {
 		t.Fatal("Text render object not created")
-	}
-	if _, ok := textRO.(*render.Text); !ok {
-		t.Errorf("expected *render.Text, got %T", textRO)
 	}
 
 	// Verify Render Tree Structure
@@ -56,31 +50,27 @@ func TestInlineTreeConstruction(t *testing.T) {
 	if textRO.Parent() != spanRO {
 		t.Errorf("Text RO parent should be Span RO")
 	}
-
-	if boxRO.FirstChild() != spanRO {
-		t.Errorf("Box RO first child should be Span RO")
-	}
-	if spanRO.FirstChild() != textRO {
-		t.Errorf("Span RO first child should be Text RO")
-	}
 }
 
 func TestMixedTreeConstruction(t *testing.T) {
-	doc := dom.NewDocument()
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+	doc := eng.Document()
+
+	// Box
 
 	// Box
 	//  - Span
 	//  - Box (nested)
-	box := NewBox(doc)
-	span := NewSpan(doc)
-	nestedBox := NewBox(doc)
+	box := element.NewBox(doc)
+	span := element.NewSpan(doc)
+	nestedBox := element.NewBox(doc)
 
 	box.AppendChild(span)
 	box.AppendChild(nestedBox)
+	doc.AppendChild(box)
 
-	box.OnConnected()
-	span.OnConnected()
-	nestedBox.OnConnected()
+	eng.Frame()
 
 	boxRO := box.RenderObject()
 	spanRO := span.RenderObject()

@@ -19,19 +19,20 @@ import (
 
 func main() {
 	var b backend.Backend
+	f, er := os.Create("kite.log")
+	if er != nil {
+		fmt.Fprintf(os.Stderr, "failed to create log file: %v\n", er)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	logger := slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
 	if os.Getenv("USE_MOCK_BACKEND") == "1" {
 		slog.Info("Using mock backend")
 		b = mock.New(80, 24)
 	} else {
-		f, er := os.Create("kite.log")
-		if er != nil {
-			fmt.Fprintf(os.Stderr, "failed to create log file: %v\n", er)
-			os.Exit(1)
-		}
-		defer f.Close()
-
-		logger := slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		slog.SetDefault(logger)
 
 		slog.Info("Using UV backend")
 		var err error

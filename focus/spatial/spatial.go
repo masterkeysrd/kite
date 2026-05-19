@@ -22,7 +22,7 @@ const (
 
 // offAxisPenalty is the multiplier applied to the off-axis distance when
 // scoring candidates. A higher value penalizes diagonal candidates more
-// aggressively. See ADR-0011.
+// aggressively.
 const offAxisPenalty = 2.0
 
 // Navigate moves focus in dir within the active scope of m.

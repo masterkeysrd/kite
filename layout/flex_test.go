@@ -12,7 +12,7 @@ func TestFlexLayout_RowDirection(t *testing.T) {
 	childStyle.Width = style.Cells(10)
 	childStyle.Height = style.Cells(2)
 	childStyle.Flex = style.FlexItemValue{Grow: 1, Shrink: 1}
-	
+
 	c3 := &mockNode{style: &childStyle}
 	c2 := &mockNode{style: &childStyle, nextSibling: c3}
 	c1 := &mockNode{style: &childStyle, nextSibling: c2}
@@ -108,7 +108,7 @@ func TestFlexLayout_JustifyCenter(t *testing.T) {
 	childStyle.Display = style.DisplayBlock
 	childStyle.Width = style.Cells(10)
 	childStyle.Height = style.Cells(2)
-	
+
 	c2 := &mockNode{style: &childStyle}
 	c1 := &mockNode{style: &childStyle, nextSibling: c2}
 
@@ -143,7 +143,7 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 	childStyle.Display = style.DisplayBlock
 	childStyle.Width = style.Cells(10)
 	childStyle.Height = style.Cells(2)
-	
+
 	c2 := &mockNode{style: &childStyle} // Second in DOM, should be first visually
 	c1 := &mockNode{style: &childStyle, nextSibling: c2}
 
@@ -194,7 +194,7 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 	// Visual: [  ][c1][c2]
 	//
 	// The test failed with: expected c2 offset X 30, got 20.
-	// Why? 
+	// Why?
 	// In layoutLines:
 	// startMainOffset = remainingMain (20)
 	// currentMainOffset = startMainOffset (20)
@@ -212,12 +212,12 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 	//
 	// My implementation currentMainOffset logic:
 	/*
-			itemMainSize := geom.MainSize(item.Fragment.Size)
-			if isReverse {
-				currentMainOffset -= itemMainSize
-			} else {
-				currentMainOffset += itemMainSize
-			}
+		itemMainSize := geom.MainSize(item.Fragment.Size)
+		if isReverse {
+			currentMainOffset -= itemMainSize
+		} else {
+			currentMainOffset += itemMainSize
+		}
 	*/
 	// Wait, I am doing currentMainOffset -= itemMainSize AFTER builder.AddChild(c2, currentMainOffset).
 	// If startMainOffset is 20, i=0 (c2) is placed at 20. Then currentMainOffset becomes 10.
@@ -230,7 +230,7 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 	// This doesn't seem right for JustifyStart. JustifyStart should be at main-start (Right).
 	// If isReverse, startMainOffset = remainingMain = 20.
 	// But it should be 40 (the end) if we are going backwards?
-	
+
 	if frag.Children[0].Offset.X != 20 {
 		t.Errorf("expected c2 offset X 20, got %d", frag.Children[0].Offset.X)
 	}
@@ -348,7 +348,7 @@ func TestFlexLayout_InlineFlexShrinkWrap(t *testing.T) {
 	childStyle := style.DefaultStyle()
 	childStyle.Width = style.Cells(10)
 	childStyle.Height = style.Cells(1)
-	
+
 	c2 := &mockNode{style: &childStyle}
 	c1 := &mockNode{style: &childStyle, nextSibling: c2}
 
@@ -375,13 +375,13 @@ func TestFlexLayout_InlineFlexShrinkWrap(t *testing.T) {
 }
 
 func TestFlexLayout_NoWrapItems(t *testing.T) {
-	// A flex container where items have width: auto. 
+	// A flex container where items have width: auto.
 	// They should NOT wrap their internal text if there is enough space.
 	textStyle := style.DefaultStyle()
 	textStyle.Display = style.DisplayInline
 	textNode := &mockTextNode{
 		mockNode: mockNode{style: &textStyle},
-		data: "VeryLongWord", // 12 cells
+		data:     "VeryLongWord", // 12 cells
 	}
 	itemStyle := style.DefaultStyle()
 	itemStyle.Display = style.DisplayBlock
@@ -411,22 +411,22 @@ func TestFlexLayout_NoWrapItems(t *testing.T) {
 	}
 
 	itemFrag := frag.Children[0].Fragment
-	// If it used min-content, it might be smaller than 12. 
+	// If it used min-content, it might be smaller than 12.
 	// But "VeryLongWord" is unbreakable, so min-content is also 12.
 	// Let's use two words.
 	textNode.data = "Two Words" // "Two" (3), "Words" (5), Total (9). Max = 9, Min = 5.
 	// Reset cache by creating new mock nodes
 	item = &mockNode{
-		style: &itemStyle,
+		style:      &itemStyle,
 		firstChild: textNode,
 	}
 	parent = &mockNode{
-		style: &parentStyle,
+		style:      &parentStyle,
 		firstChild: item,
 	}
 	algo = NewAlgorithm(parent, space)
 	frag = algo.Layout()
-	
+
 	itemFrag = frag.Children[0].Fragment
 	if itemFrag.Size.Width < 9 {
 		t.Errorf("expected item width at least 9 (max-content), got %d. This causes wrapping!", itemFrag.Size.Width)
@@ -462,11 +462,11 @@ func TestFlexLayout_HorizontalPositioning(t *testing.T) {
 	}
 
 	if frag.Children[0].Offset.Y != 0 || frag.Children[1].Offset.Y != 0 {
-		t.Errorf("expected children to be on the same row (Y=0), got Y=%d and Y=%d", 
+		t.Errorf("expected children to be on the same row (Y=0), got Y=%d and Y=%d",
 			frag.Children[0].Offset.Y, frag.Children[1].Offset.Y)
 	}
-	
-	if frag.Children[1].Offset.X < frag.Children[0].Offset.X + 10 {
+
+	if frag.Children[1].Offset.X < frag.Children[0].Offset.X+10 {
 		t.Errorf("expected child 1 to be to the right of child 0, got X=%d and X=%d",
 			frag.Children[0].Offset.X, frag.Children[1].Offset.X)
 	}
@@ -501,10 +501,10 @@ func TestFlexLayout_InlineFlexHorizontalPositioning(t *testing.T) {
 	}
 
 	if frag.Children[0].Offset.Y != 0 || frag.Children[1].Offset.Y != 0 {
-		t.Errorf("expected children to be on the same row (Y=0), got Y=%d and Y=%d", 
+		t.Errorf("expected children to be on the same row (Y=0), got Y=%d and Y=%d",
 			frag.Children[0].Offset.Y, frag.Children[1].Offset.Y)
 	}
-	
+
 	if frag.Children[1].Offset.X != 10 {
 		t.Errorf("expected child 1 to be at X=10, got X=%d", frag.Children[1].Offset.X)
 	}
@@ -749,9 +749,9 @@ func TestFlexLayout_ReproIssue(t *testing.T) {
 	rowFlexStyle.FlexDirection = style.FlexRow
 	rowFlexStyle.Width = style.Auto
 	rowFlexStyle.Height = style.Cells(1)
-	
+
 	rowFlex := &mockNode{
-		style: &rowFlexStyle,
+		style:      &rowFlexStyle,
 		firstChild: childItem,
 	}
 
@@ -763,7 +763,7 @@ func TestFlexLayout_ReproIssue(t *testing.T) {
 	rootStyle.Height = style.Auto
 
 	root := &mockNode{
-		style: &rootStyle,
+		style:      &rootStyle,
 		firstChild: rowFlex,
 	}
 
@@ -816,5 +816,78 @@ func TestFlexLayout_AlignStart_ShrinkWrap(t *testing.T) {
 
 	if frag.Children[0].Fragment.Size.Width != 10 {
 		t.Errorf("expected rowFlex width 10 when AlignStart, got %d.", frag.Children[0].Fragment.Size.Width)
+	}
+}
+
+func TestFlexLayout_Fragmentation(t *testing.T) {
+	// 5 children, each 10x2
+	childStyle := style.Computed{
+		Width:  style.Cells(10),
+		Height: style.Cells(2),
+	}
+
+	c5 := &mockNode{style: &childStyle}
+	c4 := &mockNode{style: &childStyle, nextSibling: c5}
+	c3 := &mockNode{style: &childStyle, nextSibling: c4}
+	c2 := &mockNode{style: &childStyle, nextSibling: c3}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.Computed{
+		Display:       style.DisplayFlex,
+		FlexDirection: style.FlexColumn,
+		Width:         style.Cells(10),
+		Height:        style.Cells(5), // Only fits 2 items (2*2 + 1 gap = 5)
+		Gap:           style.Gap(1),
+		FlexWrap:      style.FlexWrapOn, // Enable wrapping
+	}
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	// First fragmentainer
+	space1 := NewConstraintSpaceBuilder(Size{10, 5}).SetIsFixedInlineSize(true).SetIsFixedBlockSize(true).ToConstraintSpace()
+	algo1 := NewAlgorithm(parent, space1)
+	frag1 := algo1.Layout()
+
+	if len(frag1.Children) != 2 {
+		t.Fatalf("expected 2 children in first fragment, got %d", len(frag1.Children))
+	}
+	if frag1.BreakToken == nil {
+		t.Fatal("expected break token in first fragment")
+	}
+	if frag1.BreakToken.ChildIndex != 2 {
+		t.Errorf("expected break token to point to child index 2, got %d", frag1.BreakToken.ChildIndex)
+	}
+
+	// Second fragmentainer (resume from break token)
+	space2 := NewConstraintSpaceBuilder(Size{10, 5}).SetIsFixedInlineSize(true).SetIsFixedBlockSize(true).ToConstraintSpace()
+	space2.BreakToken = frag1.BreakToken
+	algo2 := NewAlgorithm(parent, space2)
+	frag2 := algo2.Layout()
+
+	// Should contain next 2 items
+	if len(frag2.Children) != 2 {
+		t.Fatalf("expected 2 children in second fragment, got %d", len(frag2.Children))
+	}
+	if frag2.BreakToken == nil {
+		t.Fatal("expected break token in second fragment")
+	}
+	if frag2.BreakToken.ChildIndex != 4 {
+		t.Errorf("expected break token to point to child index 4, got %d", frag2.BreakToken.ChildIndex)
+	}
+
+	// Third fragmentainer
+	space3 := NewConstraintSpaceBuilder(Size{10, 5}).SetIsFixedInlineSize(true).SetIsFixedBlockSize(true).ToConstraintSpace()
+	space3.BreakToken = frag2.BreakToken
+	algo3 := NewAlgorithm(parent, space3)
+	frag3 := algo3.Layout()
+
+	if len(frag3.Children) != 1 {
+		t.Fatalf("expected 1 child in third fragment, got %d", len(frag3.Children))
+	}
+	if frag3.BreakToken != nil {
+		t.Fatal("expected no break token in final fragment")
 	}
 }

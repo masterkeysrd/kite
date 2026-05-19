@@ -8,8 +8,6 @@ import (
 
 // Reason describes how focus was acquired on the current element. It is used
 // by painters to decide whether to draw a visible focus indicator (ring).
-//
-// See ADR-0010 §Reason.
 type Reason uint8
 
 const (
@@ -32,8 +30,6 @@ const (
 //   - PushScope captures the current focus into PreviousFocus.
 //   - PopScope restores PreviousFocus with ReasonRestore, or blurs if the
 //     previous node is no longer focusable.
-//
-// See ADR-0010 §Scope.
 type Scope struct {
 	// Root is the render object that acts as the boundary for tab navigation
 	// and focus queries while this scope is active. Must not be nil.
@@ -54,8 +50,6 @@ type Scope struct {
 // render tree. All methods must be called from the single main-loop goroutine.
 //
 // A Manager must be constructed with NewManager; the zero value is invalid.
-//
-// See ADR-0010 §Manager.
 type Manager struct {
 	current    render.Object
 	reason     Reason
@@ -66,7 +60,7 @@ type Manager struct {
 // NewManager creates a Manager backed by dispatcher.
 // A default root scope covering the entire tree (with root as Root) is
 // established automatically via PushScope; this mirrors the engine startup
-// contract described in ADR-0010.
+// contract.
 //
 // dispatcher routes focus / blur event through the render tree.
 func NewManager(

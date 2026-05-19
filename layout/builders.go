@@ -46,6 +46,7 @@ type BoxFragmentBuilder struct {
 	size               Size
 	children           []FragmentLink
 	currentBlockOffset int
+	breakToken         *BreakToken
 }
 
 // NewBoxFragmentBuilder creates a new builder for the given node and constraint space.
@@ -56,6 +57,11 @@ func NewBoxFragmentBuilder(node Node, space ConstraintSpace) *BoxFragmentBuilder
 		space:              space,
 		currentBlockOffset: comp.Border.Width.Top + comp.Padding.Top,
 	}
+}
+
+// SetBreakToken sets the break token for the fragment.
+func (b *BoxFragmentBuilder) SetBreakToken(token *BreakToken) {
+	b.breakToken = token
 }
 
 // SetInlineSize sets the final inline size (width) of the fragment.
@@ -91,8 +97,9 @@ func (b *BoxFragmentBuilder) ToFragment() *Fragment {
 	// TODO: Apply Min/Max constraints from style if needed,
 	// though they are often already handled by the algorithm.
 	return &Fragment{
-		Node:     b.node,
-		Size:     b.size,
-		Children: b.children,
+		Node:       b.node,
+		Size:       b.size,
+		Children:   b.children,
+		BreakToken: b.breakToken,
 	}
 }

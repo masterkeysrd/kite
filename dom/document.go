@@ -16,7 +16,7 @@ type document struct {
 	// mutating is the reentrancy guard. It is true while an attach or detach
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
-	// subtree currently being walked (see ADR-0036 §8).
+	// subtree currently being walked.
 	mutating bool
 }
 
@@ -24,7 +24,7 @@ type document struct {
 var _ Document = (*document)(nil)
 
 // NewDocument creates and returns a new, empty Document.
-// The document itself is always connected (ADR-0036 §3).
+// The document itself is always connected.
 func NewDocument() Document {
 	d := &document{
 		byID:    make(map[string]Element),
@@ -35,6 +35,7 @@ func NewDocument() Document {
 	d.connected = true  // the document is always connected
 	d.kind = KindDocument
 	d.name = "#document"
+	d.needsSync = true
 	return d
 }
 

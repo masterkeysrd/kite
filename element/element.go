@@ -46,7 +46,7 @@ type elementBase[Self any] struct {
 	dom.Element
 
 	// rawStyle holds the author-set sparse style. Replaced wholesale by
-	// Style(); see ADR-0012 §6.
+	// Style();
 	rawStyle style.Style
 
 	// class is the string classification tag; no selector engine is implied.
@@ -88,12 +88,11 @@ func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 
 // Style replaces the element's style wholesale and returns *Self.
 // Calling Style twice discards the first call; style composition belongs at
-// the [style.Style] value level via Style.Merge (see ADR-0012 §6).
+// the [style.Style] value level via Style.Merge.
 func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
 	if ro := b.RenderObject(); ro != nil {
-		ro.SetRawStyle(s)
-		ro.MarkDirty(render.DirtyStyle | render.DirtyLayout | render.DirtyPaint)
+		ro.MarkDirty(render.DirtyStyle)
 	}
 	return b.self
 }
@@ -139,11 +138,19 @@ func (b *elementBase[Self]) EventListeners() []PendingListener { return b.listen
 // AddChild adds child as the last child of this element and returns the element itself
 // for fluent chaining.
 func (b *elementBase[Self]) AddChild(child dom.Node) *Self {
-	b.Element.AppendChild(child)
+	b.AppendChild(child)
 	return b.self
 }
 
 // --- Internal helpers --------------------------------------------------------
+
+// OnRenderObjectCreated implements [render.RenderObjectHook].
+func (b *elementBase[Self]) OnRenderObjectCreated(ro render.Object) {
+	ro.SetDisabled(b.disabled)
+	// Default focusable logic for elements.
+	tag := b.TagName()
+	ro.SetFocusable(tag == "button" || tag == "input")
+}
 
 // initBase initialises b with the given DOM element and self-pointer.
 // Must be called exactly once, at the end of each element's constructor,

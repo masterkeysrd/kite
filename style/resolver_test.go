@@ -220,6 +220,13 @@ func TestResolveTree_PhaseGated(t *testing.T) {
 	root.appendChild(clean)
 	dirty.markDirty() // propagates dirtyChild to root
 
+	// Prime the tree first so everyone has a computed style
+	style.ResolveTree(r, root)
+	dirty.visited = false
+	clean.visited = false
+
+	// Now mark dirty again and verify gating
+	dirty.markDirty()
 	style.ResolveTree(r, root)
 
 	if !dirty.visited {

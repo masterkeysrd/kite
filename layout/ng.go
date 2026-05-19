@@ -23,6 +23,17 @@ type Fragment struct {
 
 	// ParentNode is the containing inline element for text fragments (for style inheritance).
 	ParentNode Node
+
+	// BreakToken is the token to resume layout in the next fragmentainer.
+	BreakToken *BreakToken
+}
+
+// BreakToken represents the state needed to resume layout of a node in a new
+// fragmentainer (e.g., the next page or column).
+type BreakToken struct {
+	Node        Node
+	ChildIndex  int
+	InlineToken any // For resuming text layout
 }
 
 // FragmentLink connects a child Fragment to its parent at a specific physical offset.
@@ -51,6 +62,9 @@ type ConstraintSpace struct {
 
 	// IsFixedBlockSize indicates the block size (height) is pre-determined.
 	IsFixedBlockSize bool
+
+	// BreakToken is the token to resume layout from.
+	BreakToken *BreakToken
 }
 
 // MinMaxSizes represents the intrinsic minimum and maximum widths of a node.

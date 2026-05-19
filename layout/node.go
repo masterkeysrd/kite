@@ -55,3 +55,16 @@ type Node interface {
 	// SetCachedMinMaxSizes stores the computed intrinsic minimum and maximum sizes.
 	SetCachedMinMaxSizes(sizes MinMaxSizes)
 }
+
+type InlineLever interface {
+	IsInlineLevel() bool
+}
+
+func IsInlineLevel(node Node) bool {
+	if lever, ok := node.(InlineLever); ok {
+		return lever.IsInlineLevel()
+	}
+
+	comp := node.Style()
+	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
+}

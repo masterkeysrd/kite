@@ -43,8 +43,8 @@ func (e *element) TagName() string { return e.tagName }
 // ID returns the element's identifier.
 func (e *element) ID() string { return e.id }
 
-// SetID sets the element's identifier. Registry maintenance follows
-// ADR-0036 §10: when the node is disconnected only the stored id field is
+// SetID sets the element's identifier. Registry maintenance
+// when the node is disconnected only the stored id field is
 // updated; the identity registry is touched only when the node is connected.
 func (e *element) SetID(id string) {
 	if e.id == id {

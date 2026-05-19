@@ -12,19 +12,6 @@ type mockTarget struct {
 	event.Target
 }
 
-func TestInlineRenderObject(t *testing.T) {
-	target := &mockTarget{}
-	inline := NewInline("logical", target)
-
-	if inline.ComputedStyle().Display != style.DisplayInline {
-		t.Errorf("expected DisplayInline, got %v", inline.ComputedStyle().Display)
-	}
-
-	if inline.LogicalNode() != "logical" {
-		t.Errorf("expected logical node 'logical', got %v", inline.LogicalNode())
-	}
-}
-
 func TestTextRenderObject(t *testing.T) {
 	target := &mockTarget{}
 	text := NewText("logical", target)
@@ -39,7 +26,7 @@ func TestTextRenderObject(t *testing.T) {
 
 	// Verify it has no children
 	count := 0
-	for _ = range text.LayoutChildren() {
+	for range text.LayoutChildren() {
 		count++
 	}
 	if count != 0 {
@@ -53,7 +40,7 @@ func TestBaseRender_MarkDirty_Bubbles(t *testing.T) {
 	parent.InsertChild(child, nil)
 
 	// Reset parent flags
-	parent.ClearDirtyRecursive(DirtyLayout | DirtyStyle | DirtyPaint | ChildNeedsLayout | ChildNeedsStyle | ChildNeedsPaint | DirtyStructure)
+	parent.ClearDirtyRecursive(DirtyLayout | DirtyStyle | DirtyPaint | ChildNeedsLayout | ChildNeedsStyle | ChildNeedsPaint)
 
 	if parent.Flags() != Clean {
 		t.Errorf("expected parent flags to be Clean, got %v", parent.Flags())

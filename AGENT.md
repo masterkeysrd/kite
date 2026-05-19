@@ -12,23 +12,28 @@ This document provides guidelines and architectural context for AI assistants an
 ## 🏛 Architectural Rules
 
 1.  **Strict Package Isolation:**
-    *   The `/dom` package models the logical tree only. It **must not** contain layout algorithms, computed styles, or drawing logic. 
+    *   The `/dom` package models the logical tree only. It **must not** contain layout algorithms, computed styles, or drawing logic. Interactivity state (`Focusable()`, `Disabled()`) belongs strictly to the DOM.
     *   The `/style` package has **no dependencies** on other Kitex packages. Keep it isolated.
-    *   State bridging happens via `/render` objects. DOM nodes optionally point to a `render.Object` (`ADR-0002`, `ADR-0003`), but they do not own the rendering lifecycle.
-2.  **Element Identity & Adoption (ADR-0036):**
+    *   State bridging happens via `/render` objects. DOM nodes point to a `render.Object`, but they do not own the rendering lifecycle; they only carry structural synchronization flags (`NeedsSync`, `ChildNeedsSync`).
+2.  **Synchronize Phase (Pre-Layout):**
+    *   The engine performs an explicit Sync Phase at the start of every frame.
+    *   It walks the logical DOM tree and projects it into the render tree.
+    *   Structural changes (insertions/removals) in the DOM trigger synchronization flags that propagate to the document root.
+    *   The engine creates/removes `render.Box` or `render.Text` objects on the fly during this phase. There is no `render.Block` or `render.Flex`—the engine uses a unified `render.Box` which delegates to the appropriate algorithm at layout time based on `ComputedStyle.Display`.
+3.  **Element Identity & Adoption:**
     *   Every `dom.Element` carries an `outer` back-pointer. This pointer ensures that when widgets wrap standard elements, functions like `event.Target()`, `GetElementByID()`, and `RenderObject.Node()` always return the outermost, user-visible wrapper.
     *   Do not reset the `outer` pointer to `nil` on detach. The identity must remain stable.
-3.  **Styling Paradigm:**
+4.  **Styling Paradigm:**
     *   Always use the `Optional[T]` wrapper (e.g., `style.Some(val)`) when defining properties in `style.Style`. This distinguishes between a field that is explicitly unset versus a zero-value.
     *   The bridge to the rendering layer is `style.Computed`, which contains raw values (no optionals) after the resolver applies inheritance.
-4.  **Event Bubbling:**
+5.  **Event Bubbling:**
     *   Events must strictly follow the Capture -> Target -> Bubble sequence. 
     *   Avoid introducing "IntentEvents" (a deprecated concept from v1). Rely on the `Synthesizer` to convert raw inputs into semantic events.
-5.  **Inline Layout (LayoutNG):**
+6.  **Inline Layout (LayoutNG):**
     *   Inline formatting contexts (IFC) must use a flat representation of `InlineItem`s rather than a recursive tree walk during line breaking.
     *   Text nodes must be collapsed and shaped before layout.
     *   `inline-block` elements are treated as atomic inlines that run their own block layout internally.
-6.  **Flex Layout (LayoutNG):**
+7.  **Flex Layout (LayoutNG):**
     *   Flex layout utilizes a two-pass approach: a measure pass to determine flex base sizes and a layout pass to resolve flexible lengths and alignment.
     *   The algorithm must use logical geometry (`MainSize`, `CrossSize`) to remain agnostic of the `flex-direction`.
     *   To maintain performance, the resolution loop must utilize the "freeze and restart" strategy for items hitting their min/max constraints, ensuring $O(N)$ or near-$O(N)$ complexity.

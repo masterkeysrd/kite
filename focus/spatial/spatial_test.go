@@ -127,7 +127,6 @@ func (o *spatialObj) IsDirtyStyle() bool                      { return false }
 func (o *spatialObj) IsDirtyLayout() bool                     { return false }
 func (o *spatialObj) IsDirtyPaint() bool                      { return false }
 func (o *spatialObj) IsDirtyScroll() bool                     { return false }
-func (o *spatialObj) IsDirtyStructure() bool                  { return false }
 func (o *spatialObj) Focusable() bool                         { return o.focusable }
 func (o *spatialObj) SetFocusable(v bool)                     { o.focusable = v }
 func (o *spatialObj) Disabled() bool                          { return o.disabled }

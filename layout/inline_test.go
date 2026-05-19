@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"image/color"
 	"strings"
 	"testing"
 
@@ -645,7 +646,7 @@ func TestInlineLayout_VerticalAlignment(t *testing.T) {
 	itemStyle.Display = style.DisplayInlineFlex
 	itemStyle.Width = style.Cells(10)
 	itemStyle.Height = style.Cells(3)
-	
+
 	inlineFlex := &mockNode{style: &itemStyle}
 
 	textStyle := style.DefaultStyle()
@@ -700,5 +701,173 @@ func TestInlineLayout_VerticalAlignment(t *testing.T) {
 	beforeTextOffset := lineFrag.Children[0].Offset.Y
 	if beforeTextOffset != 1 {
 		t.Errorf("expected 'Before' text Y offset 1 (centered), got %d", beforeTextOffset)
+	}
+}
+
+func BenchmarkComplexInlineLayout_100k(b *testing.B) {
+	const count = 100000
+
+	styles := []*style.Computed{
+		{Display: style.DisplayInline, Foreground: color.RGBA{R: 255, A: 255}},
+		{Display: style.DisplayInline, Bold: true},
+		{Display: style.DisplayInline, Italic: true},
+		{Display: style.DisplayInlineBlock, Width: style.Cells(2), Height: style.Cells(1), Background: color.RGBA{G: 255, A: 255}},
+	}
+
+	var firstChild Node
+	var prev *mockNode
+
+	for i := range count {
+		s := styles[i%len(styles)]
+		var curr *mockNode
+		if s.Display == style.DisplayInline {
+			mtn := &mockTextNode{
+				mockNode: mockNode{style: s},
+				data:     "text ",
+			}
+			curr = &mtn.mockNode
+		} else {
+			curr = &mockNode{style: s}
+		}
+
+		if firstChild == nil {
+			firstChild = curr
+		} else {
+			prev.nextSibling = curr
+		}
+		prev = curr
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(100),
+		},
+		firstChild: firstChild,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100000}).ToConstraintSpace()
+
+	for b.Loop() {
+		// Clear cache to force full layout pass
+		parent.cachedFragment = nil
+		algo := &BlockAlgorithm{Node: parent, Space: space}
+		algo.Layout()
+	}
+}
+
+func BenchmarkComplexInlineLayout_Nested_100k(b *testing.B) {
+	const count = 100000
+
+	// Each iteration adds 5 nodes (1 outer, 1 inner, 3 text)
+	const nodesPerIter = 5
+	const iterations = count / nodesPerIter
+
+	styles := []*style.Computed{
+		{Display: style.DisplayInline, Foreground: color.RGBA{R: 255, A: 255}},
+		{Display: style.DisplayInline, Bold: true},
+		{Display: style.DisplayInline, Italic: true},
+	}
+
+	var firstChild Node
+	var prev *mockNode
+
+	for range iterations {
+		// Outer span
+		outer := &mockNode{style: styles[0]}
+
+		// Child 1: text
+		t1 := &mockTextNode{
+			mockNode: mockNode{style: styles[1]},
+			data:     "outer ",
+		}
+		outer.firstChild = &t1.mockNode
+
+		// Child 2: inner span
+		inner := &mockNode{style: styles[2]}
+		t1.nextSibling = inner
+
+		// Child 3: inner text
+		t2 := &mockTextNode{
+			mockNode: mockNode{style: styles[0]},
+			data:     "inner ",
+		}
+		inner.firstChild = &t2.mockNode
+
+		// Child 4: outer trailing text
+		t3 := &mockTextNode{
+			mockNode: mockNode{style: styles[1]},
+			data:     "trailing ",
+		}
+		inner.nextSibling = &t3.mockNode
+
+		if firstChild == nil {
+			firstChild = outer
+		} else {
+			prev.nextSibling = outer
+		}
+		prev = outer
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(100),
+		},
+		firstChild: firstChild,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100000}).ToConstraintSpace()
+
+	for b.Loop() {
+		parent.cachedFragment = nil
+		algo := &BlockAlgorithm{Node: parent, Space: space}
+		algo.Layout()
+	}
+}
+
+func BenchmarkComplexInlineLayout_DistinctStyles_100k(b *testing.B) {
+	const count = 100000
+
+	var firstChild Node
+	var prev *mockNode
+
+	for i := range count {
+		// Create a distinct style for every node
+		s := &style.Computed{
+			Display:    style.DisplayInline,
+			Foreground: color.RGBA{R: uint8(i % 256), G: uint8((i / 256) % 256), B: uint8((i / 65536) % 256), A: 255},
+			Bold:       i%2 == 0,
+			Italic:     i%3 == 0,
+		}
+
+		mtn := &mockTextNode{
+			mockNode: mockNode{style: s},
+			data:     "text ",
+		}
+		curr := &mtn.mockNode
+
+		if firstChild == nil {
+			firstChild = curr
+		} else {
+			prev.nextSibling = curr
+		}
+		prev = curr
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(100),
+		},
+		firstChild: firstChild,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100000}).ToConstraintSpace()
+
+	for b.Loop() {
+		parent.cachedFragment = nil
+		algo := &BlockAlgorithm{Node: parent, Space: space}
+		algo.Layout()
 	}
 }

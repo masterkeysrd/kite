@@ -13,17 +13,19 @@ var _ Node = (*baseNode)(nil)
 type baseNode struct {
 	event.Target
 
-	name          string
-	kind          Kind
-	self          Node
-	parent        Node
-	next          Node
-	prev          Node
-	firstChild    Node
-	lastChild     Node
-	ownerDocument Document
-	renderObject  render.Object
-	connected     bool
+	name           string
+	kind           Kind
+	self           Node
+	parent         Node
+	next           Node
+	prev           Node
+	firstChild     Node
+	lastChild      Node
+	ownerDocument  Document
+	renderObject   render.Object
+	connected      bool
+	needsSync      bool
+	childNeedsSync bool
 }
 
 // asBase returns the underlying *baseNode for any Node produced by this package.
@@ -60,6 +62,29 @@ func (b *baseNode) OwnerDocument() Document          { return b.ownerDocument }
 func (b *baseNode) IsConnected() bool                { return b.connected }
 func (b *baseNode) RenderObject() render.Object      { return b.renderObject }
 func (b *baseNode) SetRenderObject(ro render.Object) { b.renderObject = ro }
+
+func (b *baseNode) NeedsSync() bool      { return b.needsSync }
+func (b *baseNode) ChildNeedsSync() bool { return b.childNeedsSync }
+
+func (b *baseNode) MarkNeedsSync() {
+	if b.needsSync {
+		return
+	}
+	b.needsSync = true
+	// Propagate ChildNeedsSync up.
+	for p := b.parent; p != nil; p = p.Parent() {
+		pb := asBase(p)
+		if pb.childNeedsSync {
+			break
+		}
+		pb.childNeedsSync = true
+	}
+}
+
+func (b *baseNode) ClearSyncFlags() {
+	b.needsSync = false
+	b.childNeedsSync = false
+}
 
 func (b *baseNode) Unwrap() Node { return nil }
 
@@ -238,7 +263,5 @@ func (b *baseNode) CloneNode(deep bool) Node {
 }
 
 func (b *baseNode) notifyStructureChange() {
-	if ro := b.renderObject; ro != nil {
-		ro.MarkChildrenDirty()
-	}
+	b.self.MarkNeedsSync()
 }

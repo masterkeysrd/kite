@@ -6,8 +6,10 @@ import (
 	"image/color"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/backend/uv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
@@ -28,10 +30,21 @@ func main() {
 
 	var b backend.Backend
 	var err error
-	b, err = uv.New()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initialize UV backend: %v\n", err)
-		os.Exit(1)
+	if os.Getenv("USE_MOCK_BACKEND") == "1" {
+		b = mock.New(80, 24)
+	} else {
+		b, err = uv.New()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to initialize UV backend: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if os.Getenv("AUTO_CLOSE") == "1" {
+		go func() {
+			<-time.After(5 * time.Second)
+			os.Exit(0)
+		}()
 	}
 
 	opts := engine.Options{
@@ -144,7 +157,7 @@ func main() {
 	}
 	for i := 1; i <= 3; i++ {
 		item := element.NewBox(doc).Style(style.Style{
-			Background: style.Some[color.Color](colors[i-1]),
+			Background: style.Some(colors[i-1]),
 			Padding:    style.Some(style.Edges(0, 1)),
 		})
 		item.AddChild(element.NewText(doc, fmt.Sprintf("Reverse Item %d", i)))

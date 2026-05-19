@@ -14,20 +14,14 @@ type BlockAlgorithm struct {
 	Space ConstraintSpace
 }
 
-func (a *BlockAlgorithm) isInlineLevel(node Node) bool {
-	if _, ok := node.LogicalNode().(textSource); ok {
-		return true
-	}
-	comp := node.Style()
-	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
-}
-
 // Layout executes the block layout algorithm and returns an immutable Fragment.
 func (a *BlockAlgorithm) Layout() *Fragment {
 	// 1. Cache Check: Return cached fragment if constraints match and the node is clean.
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
+
+	// fmt.Printf("DEBUG: Layout node kind=%v\n", a.Node.Style().Display)
 
 	comp := a.Node.Style()
 	border := comp.Border.Width
@@ -81,7 +75,8 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 
 	child, ok := nextChild()
 	for ok {
-		if a.isInlineLevel(child) {
+		// fmt.Printf("DEBUG: Child isInline=%v logical=%T\n", a.isInlineLevel(child), child.LogicalNode())
+		if IsInlineLevel(child) {
 			// Sequence of inline children: group into Anonymous Block (IFC).
 			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)
 			inlineBuilder.collect(child)
@@ -93,7 +88,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 					ok = false
 					break
 				}
-				if a.isInlineLevel(peek) {
+				if IsInlineLevel(peek) {
 					inlineBuilder.collect(peek)
 				} else {
 					child = peek
@@ -235,7 +230,7 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 
 	child, ok := nextChild()
 	for ok {
-		if a.isInlineLevel(child) {
+		if IsInlineLevel(child) {
 			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)
 			inlineBuilder.collect(child)
 
@@ -246,7 +241,7 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 					ok = false
 					break
 				}
-				if a.isInlineLevel(peek) {
+				if IsInlineLevel(peek) {
 					inlineBuilder.collect(peek)
 				} else {
 					child = peek

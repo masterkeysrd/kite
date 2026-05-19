@@ -69,7 +69,6 @@ func (s *stubObject) IsDirtyStyle() bool               { return false }
 func (s *stubObject) IsDirtyLayout() bool              { return false }
 func (s *stubObject) IsDirtyPaint() bool               { return false }
 func (s *stubObject) IsDirtyScroll() bool              { return false }
-func (s *stubObject) IsDirtyStructure() bool           { return false }
 func (s *stubObject) Focusable() bool                  { return false }
 func (s *stubObject) SetFocusable(bool)                {}
 func (s *stubObject) Disabled() bool                   { return false }

@@ -23,7 +23,7 @@ const (
 // It carries parent/sibling links, owner-document reference, and an optional
 // back-reference to the render object created for this node by the engine.
 // DOM nodes do not own dirty flags, layout state, or computed style — those
-// live on render.Object (see ADR-0002, ADR-0003).
+// live on render.Object.
 type Node interface {
 	event.EventTarget
 
@@ -53,7 +53,7 @@ type Node interface {
 	// IsConnected reports whether this node is reachable from the Document
 	// root. The document itself is always connected. The value is toggled by
 	// the attach/detach walks run inside AppendChild, InsertBefore,
-	// RemoveChild, and ReplaceChild (see ADR-0036).
+	// RemoveChild, and ReplaceChild.
 	IsConnected() bool
 
 	// RenderObject returns the render.Object associated with this node, or nil
@@ -61,7 +61,7 @@ type Node interface {
 	RenderObject() render.Object
 
 	// SetRenderObject attaches or detaches the render object for this node.
-	// Called by the engine during the attachment phase (Task 04).
+	// Called by the engine during the attachment phase.
 	SetRenderObject(render.Object)
 
 	// AppendChild adds child as the last child of this node and returns child.
@@ -106,6 +106,19 @@ type Node interface {
 	// includes clones of all descendant nodes; otherwise the clone has no children. The returned
 	// node is detached (no parent).
 	CloneNode(deep bool) Node
+
+	// NeedsSync reports whether this node's children need to be synchronized with the render tree.
+	NeedsSync() bool
+
+	// ChildNeedsSync reports whether one of this node's descendants needs synchronization.
+	ChildNeedsSync() bool
+
+	// MarkNeedsSync marks this node as needing synchronization and propagates the
+	// ChildNeedsSync flag up to the document root.
+	MarkNeedsSync()
+
+	// ClearSyncFlags clears both NeedsSync and ChildNeedsSync flags on this node.
+	ClearSyncFlags()
 }
 
 // Element extends Node with identity (tag name, id).
@@ -145,7 +158,7 @@ type TextNode interface {
 // The attach walk fires OnConnected in pre-order (parent before children).
 // The detach walk fires OnDisconnected in post-order (children before parent).
 // Both callbacks run synchronously inside the mutation call that triggered the
-// walk, before the mutation returns to the caller (see ADR-0036).
+// walk, before the mutation returns to the caller.
 //
 // Self- and descendant-mutations are permitted inside either callback.
 // Ancestor-mutations are forbidden and panic in development builds.
@@ -185,7 +198,7 @@ type Document interface {
 	// FindAnchor returns the Element registered under name in the anchor
 	// registry, or nil if no anchor with that name is known. The anchor
 	// registry is separate from the ID registry so that anchor names and
-	// element IDs do not shadow each other (ADR-0003 / Task 03).
+	// element IDs do not shadow each other.
 	FindAnchor(name string) Element
 
 	// RegisterAnchor adds el to the anchor registry under name. Called by

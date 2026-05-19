@@ -28,7 +28,7 @@ const (
 // can swap a single corner without redefining the entire glyph set.
 //
 // This supports the tee-junction pattern required by CardHeader / CardFooter
-// (ADR-0018): set, e.g., OverrideBL / OverrideBR to "├" / "┤" while keeping
+// OverrideBL / OverrideBR to "├" / "┤" while keeping
 // the rest of the rounded glyph set intact.
 type BorderGlyphs struct {
 	// Base glyphs (active when the corresponding Override is unset).

@@ -10,7 +10,7 @@
 package text
 
 // BreakClass describes the line-break opportunity BEFORE a grapheme cluster.
-// Values mirror the simplified UAX #14 subset specified by ADR-0023.
+// Values mirror the simplified UAX.
 type BreakClass int
 
 const (

@@ -57,3 +57,58 @@ type Computed struct {
 	OverflowX Overflow
 	OverflowY Overflow
 }
+
+// AffectsLayout returns true if the change between c and other requires a re-layout.
+func (c *Computed) AffectsLayout(other *Computed) bool {
+	if c == other {
+		return false
+	}
+	if other == nil {
+		return true
+	}
+	return c.Display != other.Display ||
+		c.FlexDirection != other.FlexDirection ||
+		c.FlexWrap != other.FlexWrap ||
+		c.JustifyContent != other.JustifyContent ||
+		c.AlignItems != other.AlignItems ||
+		c.AlignContent != other.AlignContent ||
+		c.AlignSelf != other.AlignSelf ||
+		c.Gap != other.Gap ||
+		c.Flex != other.Flex ||
+		c.Order != other.Order ||
+		c.Width != other.Width ||
+		c.Height != other.Height ||
+		c.MinWidth != other.MinWidth ||
+		c.MaxWidth != other.MaxWidth ||
+		c.MinHeight != other.MinHeight ||
+		c.MaxHeight != other.MaxHeight ||
+		c.Padding != other.Padding ||
+		c.Margin != other.Margin ||
+		c.Border != other.Border ||
+		c.TextAlign != other.TextAlign ||
+		c.TextWrap != other.TextWrap ||
+		c.TextOverflow != other.TextOverflow ||
+		c.WhiteSpace != other.WhiteSpace ||
+		c.WordBreak != other.WordBreak ||
+		c.OverflowWrap != other.OverflowWrap ||
+		c.OverflowX != other.OverflowX ||
+		c.OverflowY != other.OverflowY
+}
+
+// AffectsPaint returns true if the change between c and other requires a repaint
+// (assuming AffectsLayout returned false).
+func (c *Computed) AffectsPaint(other *Computed) bool {
+	if c == other {
+		return false
+	}
+	if other == nil {
+		return true
+	}
+	return c.Foreground != other.Foreground ||
+		c.Background != other.Background ||
+		c.Bold != other.Bold ||
+		c.Italic != other.Italic ||
+		c.Underline != other.Underline ||
+		c.Strikethrough != other.Strikethrough ||
+		c.Reverse != other.Reverse
+}

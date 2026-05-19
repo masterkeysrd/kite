@@ -28,16 +28,12 @@ const (
 	// DirtyScroll together with DirtyPaint.
 	DirtyScroll DirtyFlag = 1 << 3
 
-	// DirtyStructure means children were added, removed, or reordered.
-	// MarkDirty(DirtyStructure) also sets DirtyLayout on the same object.
-	DirtyStructure DirtyFlag = 1 << 4
-
 	// --- Descendant relay flags ----------------------------------------------
 
 	// ChildNeedsStyle means some descendant has DirtyStyle set.
 	ChildNeedsStyle DirtyFlag = 1 << 5
 
-	// ChildNeedsLayout means some descendant has DirtyLayout or DirtyStructure.
+	// ChildNeedsLayout means some descendant has DirtyLayout.
 	ChildNeedsLayout DirtyFlag = 1 << 6
 
 	// ChildNeedsPaint means some descendant has DirtyPaint or DirtyScroll.

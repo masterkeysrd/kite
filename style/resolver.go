@@ -52,7 +52,7 @@ const (
 // This function is the single source of truth; the resolver's Resolve method
 // implements the same set in the fast-path overlay loop.
 //
-// Inheritable properties (per ADR-0006):
+// Inheritable properties:
 // Foreground, Background, Bold, Italic, Underline, Strikethrough,
 // TextWrap, TextOverflow, WhiteSpace, WordBreak, OverflowWrap.
 func Inheritable() map[Property]bool {
@@ -90,7 +90,7 @@ func DefaultStyle() Computed {
 		AlignSelf:      AlignStart,   // defers to parent AlignItems
 		Gap:            GapValue{},   // no inter-child gap
 		Flex:           FlexItemValue{Grow: 0, Shrink: 1, Basis: Auto},
-		Order:          0,            // default order
+		Order:          0, // default order
 
 		// Box model ------------------------------------------------------------
 		Width:     Auto,              // width determined by content / parent
@@ -224,7 +224,7 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 		}
 	}
 
-	// Full resolve — four-layer application (ADR-0006, Task 06 §2):
+	// Full resolve — four-layer application:
 	//   1. Root DefaultStyle baseline.
 	//   2. Element-type defaults (e.g. Span → Display:Inline).
 	//   3. Inheritable fields from parent Computed.
@@ -254,7 +254,7 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 	// Layer 4: element's own author-set style — Optional fields only when IsSet.
 	c = elem.RawStyle().Apply(c)
 
-	// Computed-value resolution notes (ADR-0006 §"computed-value resolution"):
+	// Computed-value resolution notes:
 	//   TerminalDefault colours remain symbolic; the backend resolves them at
 	//   paint time. Percent dimensions remain symbolic; layout resolves them
 	//   against the parent's concrete size. Cells dimensions pass through as-is.
@@ -292,21 +292,21 @@ func ResolveTree(r *Resolver, root StyleNode) {
 // that carry style work. parent is the Computed of node's already-resolved
 // parent; nil is passed for the root.
 func resolveSubtree(r *Resolver, node StyleNode, parent *Computed) {
-	var computed *Computed
-	if node.IsDirtyStyle() {
-		computed = r.Resolve(node, parent)
+	oldComputed := node.ComputedStyle()
+	computed := r.Resolve(node, parent)
+
+	// Update node if style changed (either directly or via inheritance)
+	if node.IsDirtyStyle() || computed != oldComputed {
 		node.SetComputedStyle(computed)
 		node.ClearDirtyStyle()
-	} else {
-		// Node is not dirty, but we still need its computed style to pass
-		// down as the parent for any dirty children below. Resolve hits the
-		// cache (zero alloc) when the parent pointer is unchanged.
-		computed = r.Resolve(node, parent)
 	}
 
-	// Descend into children that carry style work.
+	// Descend into children. If this node's computed style changed, we MUST
+	// visit all children to propagate inheritance.
+	force := (computed != oldComputed)
+
 	for c := node.StyleFirstChild(); c != nil; c = c.StyleNextSibling() {
-		if c.IsDirtyStyle() || c.HasDirtyStyleChild() {
+		if force || c.IsDirtyStyle() || c.HasDirtyStyleChild() {
 			resolveSubtree(r, c, computed)
 		}
 	}

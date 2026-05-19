@@ -292,22 +292,32 @@ func TestElement_CloneNode(t *testing.T) {
 	})
 }
 
-func TestElement_MarkChildrenDirty_OnMutation(t *testing.T) {
+func TestElement_NeedsSync_OnMutation(t *testing.T) {
 	doc := dom.NewDocument()
 	parent := doc.CreateElement("div", nil)
-	ro := &fakeRO{}
-	parent.SetRenderObject(ro)
+	doc.AppendChild(parent)
+	doc.ClearSyncFlags()
+	parent.ClearSyncFlags()
 
 	child := doc.CreateElement("span", nil)
 	parent.AppendChild(child)
 
-	if ro.calls == 0 {
-		t.Error("MarkChildrenDirty should be called on AppendChild")
+	if !parent.NeedsSync() {
+		t.Errorf("NeedsSync should be true on AppendChild")
+	}
+	if !doc.ChildNeedsSync() {
+		t.Errorf("ChildNeedsSync should be true on document after child mutation")
 	}
 
-	before := ro.calls
+	parent.ClearSyncFlags()
+	doc.ClearSyncFlags()
+
 	parent.RemoveChild(child)
-	if ro.calls <= before {
-		t.Error("MarkChildrenDirty should be called on RemoveChild")
+
+	if !parent.NeedsSync() {
+		t.Errorf("NeedsSync should be true on RemoveChild")
+	}
+	if !doc.ChildNeedsSync() {
+		t.Errorf("ChildNeedsSync should be true on document after child removal")
 	}
 }

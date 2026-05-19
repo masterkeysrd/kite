@@ -8,6 +8,19 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+// HostNode is the interface that logical nodes must implement to host a render object.
+// This is typically implemented by dom.Node.
+type HostNode interface {
+	RenderObject() Object
+	SetRenderObject(Object)
+}
+
+// RenderObjectHook is an optional interface that logical nodes can implement
+// to be notified when their render object is created or replaced.
+type RenderObjectHook interface {
+	OnRenderObjectCreated(ro Object)
+}
+
 // Object is the interface for all renderable objects that sit in the render tree.
 type Object interface {
 	// EventTarget returns the event target associated with this render object.

@@ -5,7 +5,7 @@
 // signal the node's own render object. Nodes with no render attachment (e.g.
 // fragments) do not participate in rendering.
 //
-// # Adoption and connection (ADR-0036)
+// # Adoption and connection
 //
 // Every element carries a self back-pointer set by the DOM during the
 // attach walk so that event.Target(), GetElementByID(), and
