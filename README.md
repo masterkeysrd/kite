@@ -1,4 +1,4 @@
-# Kite (v2)
+# Kite
 
 Kite is a modern, DOM-like terminal UI framework for Go. It brings web-like development paradigms—such as a logical DOM tree, CSS-style flexbox layout, and a capture/target/bubble event model—to the terminal environment. 
 
@@ -6,11 +6,12 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-like deve
 
 Kite is built with a clean separation of concerns, divided into specialized packages that form the rendering pipeline:
 
-*   **DOM (`/dom`)**: The logical node tree representing the user interface. It contains core entities like `Document`, `Element`, and `TextNode`. It implements strict lifecycle hooks (Connected/Disconnected) and identity registration.
+*   **DOM (`/dom`)**: The logical node tree representing the user interface. It contains core entities like `Document`, `Element`, and `TextNode`. It implements strict lifecycle hooks (Connected/Disconnected), identity registration, and semantic state (e.g., Focus, Disabled).
 *   **Style (`/style`)**: A CSS-like styling engine using an `Optional[T]` pattern to allow sparse style definitions. It supports flexbox, box model dimensions, and terminal-specific text formatting.
-*   **Layout (`/layout`)**: The engine responsible for computing the geometry of the DOM tree based on content and styles.
-*   **Paint (`/paint`) & Backend (`/backend`)**: The drawing layer. The `paint` package interfaces with a framebuffer, while `backend` decouples the engine from the actual terminal output (using Charmbracelet's `ultraviolet` or a mock backend for tests).
-*   **Render (`/render`)**: The core engine that bridges the DOM, Layout, and Style. DOM nodes hold references to `render.Object` instances, which maintain dirty flags, layout state, and computed styles.
+*   **Layout (`/layout`)**: The high-performance, LayoutNG-inspired engine responsible for computing geometry. It takes computed styles and constraints, and returns immutable `Fragment` trees.
+*   **Paint (`/paint`) & Backend (`/backend`)**: The drawing layer. The `paint` package interfaces with a framebuffer to draw absolute coordinates with clipping, while `backend` decouples the engine from the actual terminal output (using Charmbracelet's `ultraviolet` or a mock backend for tests).
+*   **Render (`/render`)**: The visual bridge. It holds a unified `render.Box` or `render.Text` tree that perfectly mirrors the DOM, carrying lifecycle dirty-flags (`NeedsSync`, `DirtyStyle`, `DirtyLayout`) without doing actual math.
+*   **Engine (`/engine`)**: The central nervous system. It orchestrates the 6-phase pipeline (Task Draining -> Sync -> Style -> Layout -> Paint -> Commit) at 60FPS on the main thread, while managing concurrent asynchronous Jobs.
 *   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks).
 
 ## 🚀 Getting Started

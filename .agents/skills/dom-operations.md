@@ -12,7 +12,14 @@ metadata:
 When working within the `dom` package or manipulating the Kite document structure, you must adhere to the following strict rules:
 
 ## 1. The Logical Tree Only
-The `dom` package models the logical node tree. It does **not** handle layout geometry, computed styles, or drawing. DOM nodes (`dom.Node`, `dom.Element`) may carry a reference to a `render.Object` (`SetRenderObject`), but they do not execute rendering logic.
+The `dom` package models the logical node tree. It does **not** handle layout geometry, computed styles, or drawing. 
+* DOM nodes (`dom.Node`, `dom.Element`) may carry a reference to a `render.Object` (`SetRenderObject`), but they do not execute rendering logic.
+* **Semantic State:** The DOM owns interactive semantics. Properties like `Focusable()` and `Disabled()` belong to `dom.Element` or specific `dom.Focusable` interfaces, not to `render.Object`.
+
+## 2. Synchronization Flags
+The DOM manages structural lifecycle signals. Do not manually create or swap `render.Object`s inside elements.
+* If you call `AppendChild()` or `RemoveChild()`, the DOM element must flag itself as `NeedsSync = true` and bubble `ChildNeedsSync = true` up to the root.
+* The engine will pull this flag during the `Sync Phase` to create, prune, and rewire the render objects automatically.
 
 ## 2. Adoption and Element Identity (ADR-0036)
 When a widget embeds a raw `*dom.element`, it must be properly "adopted".

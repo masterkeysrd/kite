@@ -20,6 +20,7 @@ The `style.Style` struct uses an `Optional[T]` wrapper for every field. This all
 * **`style.Style`**: Represents the developer-authored, sparse configuration.
 * **`style.Computed`**: Represents the fully resolved styles. It does not use `Optional[T]`. 
 * The engine resolves `Style` into `Computed` using `Style.Apply(base Computed)`, which is called by the style resolver after applying inheritance.
+* **Invalidation:** Changing `style.Style` triggers `DirtyStyle`. The engine will calculate the new `style.Computed` and perform a diff against the old `Computed` to determine if `DirtyLayout` or `DirtyPaint` needs to be flagged. Never force `DirtyLayout` directly when just applying styles.
 
 ## 3. Flexbox Layout Engine
 Kite layout relies heavily on Flexbox primitives. Use these standard fields:

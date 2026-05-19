@@ -39,11 +39,12 @@ Text layout is executed via a specialized inline pipeline to maintain high perfo
 * **Line Box Construction:** Builds physical text fragments and orders them visually (handling Bidirectional text via UAX#9). Uses a flat list structure rather than deep nested boxes where possible for memory locality.
 * Text shapes should be heavily cached (word-level or paragraph-level) to avoid hitting the shaper repeatedly for static text.
 
-## 6. RenderObject Caching Bridge
+## 6. RenderObject Unified Caching Bridge
 The `render.Object` sits between the logical DOM and the layout engine.
 * It is responsible for storing dirty flags.
 * It caches the previous `ConstraintSpace` and the resulting `ImmutableFragment`.
-* **Rule**: When `layout.Compute()` is called, if the dirty flag is false and the incoming constraints match the cached constraints, return the cached fragment immediately to halt the layout walk for that subtree.
+* **Unified Box:** There are only two render types: `render.Box` and `render.Text`. The engine does not swap objects if `Display` changes. The `layout` engine dynamic selects `BlockAlgorithm` or `FlexAlgorithm` based on the Box's `ComputedStyle.Display`.
+* **Rule**: When `layout.Compute()` is called, if the dirty flag is false and the incoming constraints match the cached constraints, return the cached fragment immediately.
 
 ## 7. Separation of Layout and Paint
 * Layout calculates the physical sizes and bounds (creating the Immutable Fragment Tree). 
