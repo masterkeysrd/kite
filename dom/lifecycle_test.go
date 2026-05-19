@@ -287,14 +287,36 @@ func TestElement_Move_ObservesDisconnectThenConnect(t *testing.T) {
 
 // --- cross-document append --------------------------------------------------
 
-func TestElement_CrossDocumentAppend_PanicsInDev(t *testing.T) {
+func TestElement_CrossDocumentAppend_SucceedsForDetached(t *testing.T) {
 	doc1 := NewDocument()
 	doc2 := NewDocument()
 	foreign := doc2.CreateElement("div", nil)
+	child := doc2.CreateElement("span", nil)
+	foreign.AppendChild(child)
+
+	if foreign.OwnerDocument() != doc2 || child.OwnerDocument() != doc2 {
+		t.Fatal("nodes must initially belong to doc2")
+	}
+
+	doc1.AppendChild(foreign)
+
+	if foreign.OwnerDocument() != doc1 {
+		t.Errorf("foreign node must be adopted by doc1, got %v", foreign.OwnerDocument())
+	}
+	if child.OwnerDocument() != doc1 {
+		t.Errorf("child node must be adopted by doc1, got %v", child.OwnerDocument())
+	}
+}
+
+func TestElement_CrossDocumentAppend_PanicsForConnected(t *testing.T) {
+	doc1 := NewDocument()
+	doc2 := NewDocument()
+	foreign := doc2.CreateElement("div", nil)
+	doc2.AppendChild(foreign)
 
 	defer func() {
 		if r := recover(); r == nil {
-			t.Error("cross-document append must panic")
+			t.Error("cross-document append of connected node must panic")
 		}
 	}()
 	doc1.AppendChild(foreign)

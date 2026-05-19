@@ -7,10 +7,16 @@
 //
 // # Adoption and connection
 //
-// Every element carries a self back-pointer set by the DOM during the
-// attach walk so that event.Target(), GetElementByID(), and
-// RenderObject.Node() all return the outermost user-visible wrapper even
-// when a widget embeds a native element.
+// Implicit Document Adoption: When a detached node (or subtree) created by one
+// Document is appended to or inserted into another Document, it is implicitly
+// adopted by the destination document. All nodes in the subtree have their
+// OwnerDocument updated recursively. Attempting to append or insert a node
+// that is already connected to another document tree will panic.
+//
+// Element Identity Adoption: Every element carries a self back-pointer set by
+// the DOM during the attach walk so that event.Target(), GetElementByID(), and
+// RenderObject.Node() all return the outermost user-visible wrapper even when
+// a widget embeds a native element.
 //
 // A node is "connected" when it is reachable from the Document root.
 // IsConnected() returns this state in O(1). The attach walk (pre-order) sets

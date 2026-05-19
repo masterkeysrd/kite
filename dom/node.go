@@ -43,6 +43,16 @@ func asBase(n Node) *baseNode {
 	return asBase(n.Unwrap())
 }
 
+func (b *baseNode) adopt(newDoc Document) {
+	if b.ownerDocument == newDoc {
+		return
+	}
+	b.ownerDocument = newDoc
+	for n := b.firstChild; n != nil; n = n.NextSibling() {
+		asBase(n).adopt(newDoc)
+	}
+}
+
 func (b *baseNode) Kind() Kind { return b.kind }
 
 func (b *baseNode) NodeName() string { return b.name }
@@ -120,7 +130,10 @@ func (b *baseNode) InsertBefore(newChild, ref Node) Node {
 
 	// Cross-document check.
 	if newChild.OwnerDocument() != b.ownerDocument {
-		panic("dom: cross-document insertion")
+		if newChild.IsConnected() {
+			panic("dom: cross-document insertion of connected nodes is forbidden")
+		}
+		asBase(newChild).adopt(b.ownerDocument)
 	}
 
 	// Remove from old parent if any.
