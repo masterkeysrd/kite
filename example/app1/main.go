@@ -165,6 +165,33 @@ func main() {
 	}
 	inner.AppendChild(flexSection)
 
+	// Table Test Section
+	tableSection := element.NewBox(doc).Style(style.Style{
+		Margin:     style.Some(style.Edges(1, 0)),
+		Padding:    style.Some(style.Edges(1)),
+		Background: style.Some[color.Color](color.RGBA{R: 20, G: 60, B: 20, A: 255}),
+	})
+	tableSection.AppendChild(element.NewText(doc, "Grid Layout (Table):"))
+	table := element.NewTable(doc).Style(style.Style{
+		Width: style.Some(style.Percent(100)),
+		Border: style.Some(style.Border{
+			Width: style.Edges(1),
+			Style: style.EdgeAll(style.BorderSingle),
+		}),
+	})
+
+	row1 := element.NewTableRow(doc)
+	row1.AddChild(element.NewTableCell(doc).AddChild(element.NewText(doc, "Header 1")).Style(style.Style{Width: style.Some(style.Percent(30))}))
+	row1.AddChild(element.NewTableCell(doc).AddChild(element.NewText(doc, "Header 2")).Style(style.Style{Width: style.Some(style.Percent(70))}))
+
+	row2 := element.NewTableRow(doc)
+	row2.AddChild(element.NewTableCell(doc).AddChild(element.NewText(doc, "Row 1, Cell 1")))
+	row2.AddChild(element.NewTableCell(doc).AddChild(element.NewText(doc, "Row 1, Cell 2")))
+
+	table.AddChild(row1).AddChild(row2)
+	tableSection.AppendChild(table)
+	inner.AppendChild(tableSection)
+
 	// Add inner to root
 	root.AppendChild(inner)
 

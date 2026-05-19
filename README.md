@@ -86,9 +86,17 @@ func main() {
 	list := element.NewUnorderedList(doc)
 	list.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Item 1")))
 	list.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Item 2")))
-	
 	container.AppendChild(list)
 	
+	// Create a table
+	table := element.NewTable(doc)
+	row := element.NewTableRow(doc)
+	cell1 := element.NewTableCell(doc).AddChild(element.NewText(doc, "Cell 1"))
+	cell2 := element.NewTableCell(doc).AddChild(element.NewText(doc, "Cell 2"))
+	row.AddChild(cell1).AddChild(cell2)
+	table.AppendChild(row)
+	container.AppendChild(table)
+
 	text := element.NewText(doc, "Hello, Kite!")
 	container.AppendChild(text)
 	

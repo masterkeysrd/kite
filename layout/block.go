@@ -141,8 +141,10 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 			childSpaceBuilder.SetIsFixedInlineSize(true)
 			childSpaceBuilder.space.AvailableSize.Width = int(float32(contentWidth) * childStyle.Width.PercentValue() / 100.0)
 		} else if childStyle.Width.Kind() == style.KindAuto {
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
+			if childStyle.Display != style.DisplayTable {
+				childSpaceBuilder.SetIsFixedInlineSize(true)
+				childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
+			}
 		}
 
 		if childStyle.Height.Kind() == style.KindCells {

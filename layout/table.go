@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"iter"
 	"math"
 
 	"github.com/masterkeysrd/kite/style"
@@ -26,7 +27,8 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	parentDecorY := border.Top + border.Bottom + padding.Top + padding.Bottom
 
 	// Pass 1: Grid Sizing
-	grid := buildTableGrid(a.Node)
+	rows := collectTableRows(a.Node)
+	grid := buildTableGrid(rows)
 	colMinMax := computeColumnMinMax(grid)
 
 	// Resolve the table's inline size
@@ -68,14 +70,9 @@ func (a *TableAlgorithm) Layout() *Fragment {
 
 	// Pass 2: Layout Rows
 	contentWidth := distributableWidth
-	children := a.Node.LayoutChildren()
 	rowIdx := 0
 
-	for rowNode := range children {
-		if rowNode.Style().Display != style.DisplayTableRow {
-			continue // Skip non-row children (fault tolerance in future)
-		}
-
+	for _, rowNode := range rows {
 		childMargin := rowNode.Style().Margin
 		childAvailWidth := max(0, contentWidth-childMargin.Left-childMargin.Right)
 		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-parentDecorY)
@@ -126,7 +123,8 @@ func (a *TableAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		return sizes
 	}
 
-	grid := buildTableGrid(a.Node)
+	rows := collectTableRows(a.Node)
+	grid := buildTableGrid(rows)
 	colMinMax := computeColumnMinMax(grid)
 
 	var tableMinMax MinMaxSizes
@@ -150,6 +148,65 @@ type TableRowAlgorithm struct {
 	Space        ConstraintSpace
 	ColumnWidths []int
 	RowData      *tableRowGrid
+}
+
+// anonymousTableRow represents a virtual layout row created to wrap contiguous runs of non-row content inside a table.
+type anonymousTableRow struct {
+	parent      Node
+	children    []Node
+	cachedSpace ConstraintSpace
+}
+
+var _ Node = (*anonymousTableRow)(nil)
+
+func (a *anonymousTableRow) Style() *style.Computed {
+	// Anonymous rows inherit styles from their parent table and have DisplayTableRow.
+	s := *a.parent.Style()
+	s.Display = style.DisplayTableRow
+	s.Margin = style.EdgeValues[int]{}
+	s.Padding = style.EdgeValues[int]{}
+	s.Border = style.Border{}
+	s.Width = style.Auto
+	s.Height = style.Auto
+	return &s
+}
+
+func (a *anonymousTableRow) LayoutChildren() iter.Seq[Node] {
+	return func(yield func(Node) bool) {
+		for _, child := range a.children {
+			if !yield(child) {
+				return
+			}
+		}
+	}
+}
+
+func (a *anonymousTableRow) LogicalNode() any    { return nil }
+func (a *anonymousTableRow) IsDirtyLayout() bool { return true }
+func (a *anonymousTableRow) ClearDirtyLayout()   {}
+func (a *anonymousTableRow) Fragment() *Fragment { return nil }
+
+func (a *anonymousTableRow) CachedLayout(space ConstraintSpace) *Fragment {
+	return nil
+}
+
+func (a *anonymousTableRow) Layout() *Fragment {
+	// Handled directly by TableRowAlgorithm invocation in TableAlgorithm.Layout()
+	return nil
+}
+
+func (a *anonymousTableRow) SetCachedLayout(space ConstraintSpace, frag *Fragment) {
+	a.cachedSpace = space
+}
+
+func (a *anonymousTableRow) CachedMinMaxSizes() (MinMaxSizes, bool) {
+	return MinMaxSizes{}, false
+}
+
+func (a *anonymousTableRow) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
+
+func (a *anonymousTableRow) ComputeMinMaxSizes() MinMaxSizes {
+	return MinMaxSizes{}
 }
 
 func (a *TableRowAlgorithm) Layout() *Fragment {
@@ -244,7 +301,32 @@ type tableGrid struct {
 	NumCols int
 }
 
-func buildTableGrid(tableNode Node) tableGrid {
+func collectTableRows(tableNode Node) []Node {
+	var rows []Node
+	var anon *anonymousTableRow
+
+	children := tableNode.LayoutChildren()
+	for child := range children {
+		if child.Style().Display == style.DisplayTableRow {
+			if anon != nil {
+				rows = append(rows, anon)
+				anon = nil
+			}
+			rows = append(rows, child)
+		} else {
+			if anon == nil {
+				anon = &anonymousTableRow{parent: tableNode}
+			}
+			anon.children = append(anon.children, child)
+		}
+	}
+	if anon != nil {
+		rows = append(rows, anon)
+	}
+	return rows
+}
+
+func buildTableGrid(rows []Node) tableGrid {
 	var grid tableGrid
 	occupied := make(map[int]map[int]bool) // row -> col -> true
 
@@ -263,12 +345,7 @@ func buildTableGrid(tableNode Node) tableGrid {
 	}
 
 	rowIdx := 0
-	children := tableNode.LayoutChildren()
-	for rowNode := range children {
-		if rowNode.Style().Display != style.DisplayTableRow {
-			continue
-		}
-
+	for _, rowNode := range rows {
 		row := &tableRowGrid{}
 		colIdx := 0
 		cellChildren := rowNode.LayoutChildren()
