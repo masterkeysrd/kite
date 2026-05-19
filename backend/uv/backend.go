@@ -200,7 +200,7 @@ func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
 	// UV's own diffing will handle efficient updates.
 	for y := 0; y < bounds.Size.Height; y++ {
 		for x := 0; x < bounds.Size.Width; {
-			c := fb.Get(bounds.Origin.X+x, bounds.Origin.Y+y)
+			c := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
 			uvCell := paintCellToUV(c)
 			b.screen.SetCell(x, y, uvCell)
 			x += max(1, uvCell.Width)

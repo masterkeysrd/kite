@@ -55,9 +55,9 @@ func (fb *FrameBuffer) Set(x, y int, c Cell) {
 	fb.growDirty(x, y)
 }
 
-// Get returns the cell at absolute position (x, y). If the position is out of
+// CellAt returns the cell at absolute position (x, y). If the position is out of
 // bounds an empty Cell is returned.
-func (fb *FrameBuffer) Get(x, y int) Cell {
+func (fb *FrameBuffer) CellAt(x, y int) Cell {
 	if !fb.bounds.Contains(layout.Point{X: x, Y: y}) {
 		return Cell{}
 	}
@@ -134,4 +134,13 @@ func (cs *clippedSurface) Bounds() layout.Rect { return cs.bounds }
 // cs's bounds and r.
 func (cs *clippedSurface) Clip(r layout.Rect) Surface {
 	return &clippedSurface{fb: cs.fb, bounds: cs.bounds.Intersect(r)}
+}
+
+// CellAt returns the cell at absolute position (x, y) if it lies within the
+// clip rect and the global framebuffer bounds.
+func (cs *clippedSurface) CellAt(x, y int) Cell {
+	if !cs.bounds.Contains(layout.Point{X: x, Y: y}) {
+		return Cell{}
+	}
+	return cs.fb.CellAt(x, y)
 }

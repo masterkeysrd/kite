@@ -12,6 +12,10 @@ import (
 // Implementations must be safe to call from the main goroutine only; no
 // concurrent access is expected.
 type Surface interface {
+	// CellAt returns the cell at absolute position (x, y). If the position
+	// is out of the surface's bounds, an empty Cell is returned.
+	CellAt(x, y int) Cell
+
 	// Set writes cell c into the absolute position (x, y). Calls outside
 	// the surface's bounds are silently ignored.
 	Set(x, y int, c Cell)
@@ -39,6 +43,8 @@ const (
 	AttrUnderline
 	// AttrInverse swaps the foreground and background colors.
 	AttrInverse
+	// FlagIsBorder indicates that the cell contains a structural border.
+	FlagIsBorder
 )
 
 // Cell represents the content and styling of a single terminal cell.
