@@ -2,6 +2,7 @@ package layout
 
 import (
 	"iter"
+	"sort"
 
 	"github.com/masterkeysrd/kite/style"
 )
@@ -500,12 +501,17 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 			Node:   child,
 			Grow:   childStyle.Flex.Grow,
 			Shrink: childStyle.Flex.Shrink,
-			// TODO: Order
+			Order:  childStyle.Order,
 		}
 		items = append(items, item)
 
 		child, ok = nextChild()
 	}
+
+	// Sort by order
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Order < items[j].Order
+	})
 
 	// Handle reverse directions
 	if geom.direction == style.FlexRowReverse || geom.direction == style.FlexColumnReverse {
@@ -683,6 +689,8 @@ func (a *FlexAlgorithm) layoutLines(builder *BoxFragmentBuilder, lines []*flexLi
 		containerMainSize = geom.MainSize(containerSize) - (border.Top + border.Bottom + padding.Top + padding.Bottom)
 	}
 
+	isReverse := geom.direction == style.FlexRowReverse || geom.direction == style.FlexColumnReverse
+
 	currentCrossOffset := geom.CrossAxis(Point{X: border.Left + padding.Left, Y: border.Top + padding.Top})
 
 	for _, line := range lines {
@@ -701,9 +709,17 @@ func (a *FlexAlgorithm) layoutLines(builder *BoxFragmentBuilder, lines []*flexLi
 
 		switch comp.JustifyContent {
 		case style.JustifyStart:
-			startMainOffset = 0
+			if isReverse {
+				startMainOffset = remainingMain
+			} else {
+				startMainOffset = 0
+			}
 		case style.JustifyEnd:
-			startMainOffset = remainingMain
+			if isReverse {
+				startMainOffset = 0
+			} else {
+				startMainOffset = remainingMain
+			}
 		case style.JustifyCenter:
 			startMainOffset = remainingMain / 2
 		case style.JustifyBetween:

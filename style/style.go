@@ -36,6 +36,8 @@ type Style struct {
 	Gap Optional[GapValue]
 	// Flex sets the grow, shrink, and basis for a flex item.
 	Flex Optional[FlexItemValue]
+	// Order sets the order of a flex item.
+	Order Optional[int]
 
 	// --- Box model ------------------------------------------------------------
 
@@ -131,6 +133,9 @@ func (s Style) Apply(base Computed) Computed {
 	if s.Flex.IsSet() {
 		base.Flex = s.Flex.Value()
 	}
+	if s.Order.IsSet() {
+		base.Order = s.Order.Value()
+	}
 	if s.Width.IsSet() {
 		base.Width = s.Width.Value()
 	}
@@ -224,6 +229,7 @@ func (s Style) Merge(override Style) Style {
 		AlignSelf:      s.AlignSelf.Merge(override.AlignSelf),
 		Gap:            s.Gap.Merge(override.Gap),
 		Flex:           s.Flex.Merge(override.Flex),
+		Order:          s.Order.Merge(override.Order),
 
 		Width:     s.Width.Merge(override.Width),
 		Height:    s.Height.Merge(override.Height),

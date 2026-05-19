@@ -3,6 +3,7 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -92,6 +93,7 @@ func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
 	if ro := b.RenderObject(); ro != nil {
 		ro.SetRawStyle(s)
+		ro.MarkDirty(render.DirtyStyle | render.DirtyLayout | render.DirtyPaint)
 	}
 	return b.self
 }
@@ -133,6 +135,13 @@ func (b *elementBase[Self]) OnEvent(typ event.EventType, fn event.Listener) *Sel
 // EventListeners returns the event listener registrations for this element.
 // Used by the engine's event-target resolver to wire up dispatch.
 func (b *elementBase[Self]) EventListeners() []PendingListener { return b.listeners }
+
+// AddChild adds child as the last child of this element and returns the element itself
+// for fluent chaining.
+func (b *elementBase[Self]) AddChild(child dom.Node) *Self {
+	b.Element.AppendChild(child)
+	return b.self
+}
 
 // --- Internal helpers --------------------------------------------------------
 

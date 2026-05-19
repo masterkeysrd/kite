@@ -279,3 +279,64 @@ func TestResolveTree_SkipsAfterClean(t *testing.T) {
 		t.Error("second ResolveTree with no dirty marks should be a no-op")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// TestResolver_FlexAndOrder
+// ---------------------------------------------------------------------------
+
+func TestResolver_FlexAndOrder(t *testing.T) {
+	r := style.NewResolver()
+
+	// 1. Default values
+	node1 := &fakeNode{dirtyStyle: true}
+	got1 := r.Resolve(node1, nil)
+	if got1.Order != 0 {
+		t.Errorf("Order = %v, want 0", got1.Order)
+	}
+	if got1.Flex.Grow != 0 {
+		t.Errorf("Flex.Grow = %v, want 0", got1.Flex.Grow)
+	}
+
+	// 2. Explicit values
+	node2 := &fakeNode{
+		dirtyStyle: true,
+		rawStyle: style.Style{
+			Order: style.Some(5),
+			Flex:  style.Some(style.Flex(2, 3)),
+			Gap:   style.Some(style.Gap(1, 2)),
+		},
+	}
+	got2 := r.Resolve(node2, nil)
+	if got2.Order != 5 {
+		t.Errorf("Order = %v, want 5", got2.Order)
+	}
+	if got2.Flex.Grow != 2 {
+		t.Errorf("Flex.Grow = %v, want 2", got2.Flex.Grow)
+	}
+	if got2.Flex.Shrink != 3 {
+		t.Errorf("Flex.Shrink = %v, want 3", got2.Flex.Shrink)
+	}
+	if got2.Gap.Row != 1 || got2.Gap.Column != 2 {
+		t.Errorf("Gap = %+v, want {Row: 1, Column: 2}", got2.Gap)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestResolver_BackgroundNotInherited
+// ---------------------------------------------------------------------------
+
+func TestResolver_BackgroundNotInherited(t *testing.T) {
+	r := style.NewResolver()
+
+	parentBG := color.RGBA{R: 100, G: 100, B: 100, A: 255}
+	parentComputed := &style.Computed{
+		Background: parentBG,
+	}
+
+	child := &fakeNode{dirtyStyle: true}
+	got := r.Resolve(child, parentComputed)
+
+	if got.Background == parentBG {
+		t.Errorf("Background should not be inherited")
+	}
+}

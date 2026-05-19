@@ -20,6 +20,7 @@ const (
 	PropAlignSelf               //nolint:revive
 	PropGap                     //nolint:revive
 	PropFlex                    //nolint:revive
+	PropOrder                   //nolint:revive
 	PropWidth                   //nolint:revive
 	PropHeight                  //nolint:revive
 	PropMinWidth                //nolint:revive
@@ -57,7 +58,6 @@ const (
 func Inheritable() map[Property]bool {
 	return map[Property]bool{
 		PropForeground:    true,
-		PropBackground:    true,
 		PropBold:          true,
 		PropItalic:        true,
 		PropUnderline:     true,
@@ -90,6 +90,7 @@ func DefaultStyle() Computed {
 		AlignSelf:      AlignStart,   // defers to parent AlignItems
 		Gap:            GapValue{},   // no inter-child gap
 		Flex:           FlexItemValue{Grow: 0, Shrink: 1, Basis: Auto},
+		Order:          0,            // default order
 
 		// Box model ------------------------------------------------------------
 		Width:     Auto,              // width determined by content / parent
@@ -239,7 +240,6 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 	// Layer 3: overlay inheritable fields from parent (mirrors Inheritable()).
 	if parent != nil {
 		c.Foreground = parent.Foreground
-		c.Background = parent.Background
 		c.Bold = parent.Bold
 		c.Italic = parent.Italic
 		c.Underline = parent.Underline

@@ -17,6 +17,7 @@ type Computed struct {
 	AlignSelf      Align
 	Gap            GapValue
 	Flex           FlexItemValue
+	Order          int
 
 	// --- Box model ------------------------------------------------------------
 

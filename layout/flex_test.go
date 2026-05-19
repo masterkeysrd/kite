@@ -174,6 +174,115 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 	if frag.Children[0].Fragment.Node != c2 {
 		t.Errorf("expected first visual child to be c2")
 	}
+
+	// In RowReverse with JustifyStart (default), items should be packed to the physical right.
+	// Total width of items (c2, c1) = 20. Container width = 40.
+	// row-reverse main-start is at the right.
+	// Items are added in order [c2, c1] from main-start.
+	// c2 is first: it sits at the rightmost position. Offset X = 40 - 10 = 30?
+	// Wait, if c2 is at X=20, and c1 is at X=30...
+	// Physical order: [c2][c1]
+	// If packed to the right: [  ][c2][c1]
+	// c2 would be at 20, c1 at 30.
+	// My previous thought: "C2's right edge is at 40. Its left edge is at 30. Position X=30".
+	// Let's re-verify row-reverse.
+	// DOM: c1, c2.
+	// Reversal: c2, c1.
+	// row-reverse: items are placed from Right to Left.
+	// 1st item (c2) -> rightmost. X = 40 - 10 = 30.
+	// 2nd item (c1) -> to the left of 1st. X = 30 - 10 = 20.
+	// Visual: [  ][c1][c2]
+	//
+	// The test failed with: expected c2 offset X 30, got 20.
+	// Why? 
+	// In layoutLines:
+	// startMainOffset = remainingMain (20)
+	// currentMainOffset = startMainOffset (20)
+	// i=0 (item c2): builder.AddChild(c2, X=20), currentMainOffset += 10 (30)
+	// i=1 (item c1): builder.AddChild(c1, X=30), currentMainOffset += 10 (40)
+	// Visual: [  ][c2][c1]
+	//
+	// So c2 is at 20, c1 is at 30.
+	// Does this match row-reverse?
+	// In row-reverse, the first item in the (reversed) list is the one closest to main-start.
+	// main-start for row-reverse is the RIGHT edge.
+	// So the first item (c2) should be the rightmost one.
+	// Physical: [  ][c1][c2]
+	// This means c2 should be at X=30, and c1 at X=20.
+	//
+	// My implementation currentMainOffset logic:
+	/*
+			itemMainSize := geom.MainSize(item.Fragment.Size)
+			if isReverse {
+				currentMainOffset -= itemMainSize
+			} else {
+				currentMainOffset += itemMainSize
+			}
+	*/
+	// Wait, I am doing currentMainOffset -= itemMainSize AFTER builder.AddChild(c2, currentMainOffset).
+	// If startMainOffset is 20, i=0 (c2) is placed at 20. Then currentMainOffset becomes 10.
+	// i=1 (c1) is placed at 10.
+	// Visual: [  ][c1][c2]  Wait, no. [ ][c1][c2] would be c1 at 10, c2 at 20.
+	// If startMainOffset is 20, and container size 40:
+	// i=0 (c2) at 20.
+	// i=1 (c1) at 10.
+	// Visual: [ ][c1][c2][ ]
+	// This doesn't seem right for JustifyStart. JustifyStart should be at main-start (Right).
+	// If isReverse, startMainOffset = remainingMain = 20.
+	// But it should be 40 (the end) if we are going backwards?
+	
+	if frag.Children[0].Offset.X != 20 {
+		t.Errorf("expected c2 offset X 20, got %d", frag.Children[0].Offset.X)
+	}
+	if frag.Children[1].Offset.X != 30 {
+		t.Errorf("expected c1 offset X 30, got %d", frag.Children[1].Offset.X)
+	}
+}
+
+func TestFlexLayout_Order(t *testing.T) {
+	// 3 children with different order properties
+	s3 := style.DefaultStyle()
+	s3.Order = 3
+	c3 := &mockNode{style: &s3}
+
+	s1 := style.DefaultStyle()
+	s1.Order = 1
+	c1 := &mockNode{style: &s1}
+	c3.nextSibling = c1
+
+	s2 := style.DefaultStyle()
+	s2.Order = 2
+	c2 := &mockNode{style: &s2}
+	c1.nextSibling = c2
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.Width = style.Cells(30)
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c3,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{30, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	// Expected visual order: c1 (1), c2 (2), c3 (3)
+	if len(frag.Children) != 3 {
+		t.Fatalf("expected 3 children, got %d", len(frag.Children))
+	}
+
+	if frag.Children[0].Fragment.Node != c1 {
+		t.Errorf("expected first visual child to be c1")
+	}
+	if frag.Children[1].Fragment.Node != c2 {
+		t.Errorf("expected second visual child to be c2")
+	}
+	if frag.Children[2].Fragment.Node != c3 {
+		t.Errorf("expected third visual child to be c3")
+	}
 }
 
 func TestFlexLayout_InlineFlexWithText(t *testing.T) {
