@@ -199,19 +199,29 @@ func (r *testRender) ClearDirty(render.DirtyFlag)          {}
 func (r *testRender) MarkChildrenDirty()                   {}
 func (r *testRender) ClearDirtyRecursive(render.DirtyFlag) {}
 func (r *testRender) IsDetached() bool                     { return false }
-func (r *testRender) RawStyle() style.Style                { return style.Style{} }
-func (r *testRender) SetRawStyle(style.Style)              {}
-func (r *testRender) ElementDefaultStyle() style.Style     { return style.Style{} }
-func (r *testRender) IsDirtyStyle() bool                   { return false }
-func (r *testRender) HasDirtyStyleChild() bool             { return false }
-func (r *testRender) ClearDirtyStyle()                     {}
-func (r *testRender) ClearChildNeedsStyle()                {}
-func (r *testRender) StyleParent() style.StyleNode         { return r.Parent() }
-func (r *testRender) StyleFirstChild() style.StyleNode     { return r.FirstChild() }
-func (r *testRender) StyleNextSibling() style.StyleNode    { return r.NextSibling() }
-func (r *testRender) Style() *style.Computed               { return r.ComputedStyle() }
+
+func (r *testRender) RawStyle() style.Style              { return style.Style{} }
+func (r *testRender) SetRawStyle(style.Style)            {}
+func (r *testRender) ElementDefaultStyle() style.Style   { return style.Style{} }
+func (r *testRender) SetElementDefaultStyle(style.Style) {}
+func (r *testRender) IsDirtyStyle() bool                 { return false }
+func (r *testRender) HasDirtyStyleChild() bool           { return false }
+func (r *testRender) ClearDirtyStyle()                   {}
+func (r *testRender) ClearChildNeedsStyle()              {}
+func (r *testRender) StyleParent() style.StyleNode       { return r.Parent() }
+func (r *testRender) StyleFirstChild() style.StyleNode   { return r.FirstChild() }
+func (r *testRender) StyleNextSibling() style.StyleNode  { return r.NextSibling() }
+
+// layout.Node implementation
+func (r *testRender) Style() *style.Computed { return r.ComputedStyle() }
 func (r *testRender) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {}
+	return func(yield func(layout.Node) bool) {
+		for _, c := range r.node.children {
+			if !yield(c.render) {
+				return
+			}
+		}
+	}
 }
 func (r *testRender) IsDirtyLayout() bool                                      { return false }
 func (r *testRender) ClearDirtyLayout()                                        {}

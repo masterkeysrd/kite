@@ -43,16 +43,17 @@ func (f *fakeRO) InsertChild(child, before render.Object) {}
 func (f *fakeRO) RemoveChild(child render.Object)         {}
 
 // StyleNode implementation
-func (f *fakeRO) RawStyle() style.Style             { return style.Style{} }
-func (f *fakeRO) SetRawStyle(style.Style)           {}
-func (f *fakeRO) ElementDefaultStyle() style.Style  { return style.Style{} }
-func (f *fakeRO) IsDirtyStyle() bool                { return false }
-func (f *fakeRO) HasDirtyStyleChild() bool          { return false }
-func (f *fakeRO) ClearDirtyStyle()                  {}
-func (f *fakeRO) ClearChildNeedsStyle()             {}
-func (f *fakeRO) StyleParent() style.StyleNode      { return nil }
-func (f *fakeRO) StyleFirstChild() style.StyleNode  { return nil }
-func (f *fakeRO) StyleNextSibling() style.StyleNode { return nil }
+func (f *fakeRO) RawStyle() style.Style              { return style.Style{} }
+func (f *fakeRO) SetRawStyle(style.Style)            {}
+func (f *fakeRO) ElementDefaultStyle() style.Style   { return style.Style{} }
+func (f *fakeRO) SetElementDefaultStyle(style.Style) {}
+func (f *fakeRO) IsDirtyStyle() bool                 { return false }
+func (f *fakeRO) HasDirtyStyleChild() bool           { return false }
+func (f *fakeRO) ClearDirtyStyle()                   {}
+func (f *fakeRO) ClearChildNeedsStyle()              {}
+func (f *fakeRO) StyleParent() style.StyleNode       { return nil }
+func (f *fakeRO) StyleFirstChild() style.StyleNode   { return nil }
+func (f *fakeRO) StyleNextSibling() style.StyleNode  { return nil }
 
 // layout.Node implementation
 func (f *fakeRO) LayoutChildren() iter.Seq[layout.Node] {

@@ -123,6 +123,20 @@ func main() {
 	paragraph.AppendChild(element.NewText(doc, " working together in a single flow."))
 	inner.AppendChild(paragraph)
 
+	// List Test Section
+	listSection := element.NewBox(doc).Style(style.Style{
+		Margin:     style.Some(style.Edges(1, 0)),
+		Background: style.Some[color.Color](color.RGBA{R: 40, G: 40, B: 60, A: 255}),
+		Padding:    style.Some(style.Edges(1)),
+	})
+	listSection.AppendChild(element.NewText(doc, "Available Features:"))
+	ul := element.NewUnorderedList(doc)
+	ul.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Full LayoutNG engine")))
+	ul.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Interactive DOM components")))
+	ul.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Flexible styling system")))
+	listSection.AppendChild(ul)
+	inner.AppendChild(listSection)
+
 	// Flexbox Test Section
 	flexSection := element.NewBox(doc).Style(style.Style{
 		Display:       style.Some(style.DisplayFlex),

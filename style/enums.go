@@ -174,8 +174,10 @@ const (
 type ListStyleType uint8
 
 const (
+	// ListStyleInherit inherits the marker from the parent.
+	ListStyleInherit ListStyleType = iota
 	// ListStyleNone renders no marker.
-	ListStyleNone ListStyleType = iota
+	ListStyleNone
 	// ListStyleDisc renders a solid bullet (•).
 	ListStyleDisc
 	// ListStyleCircle renders a hollow circle (○).

@@ -51,6 +51,7 @@ type Object interface {
 	RawStyle() style.Style
 	SetRawStyle(style.Style)
 	ElementDefaultStyle() style.Style
+	SetElementDefaultStyle(style.Style)
 	IsDirtyStyle() bool
 	HasDirtyStyleChild() bool
 	ClearDirtyStyle()

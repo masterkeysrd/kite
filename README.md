@@ -67,6 +67,7 @@ package main
 
 import (
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -78,10 +79,17 @@ func main() {
 	// (Note: usually initialized by the engine)
 	var doc dom.Document 
 	
-	container := doc.CreateElement("div")
+	container := element.NewBox(doc)
 	container.SetID("main-container")
 	
-	text := doc.CreateTextNode("Hello, Kite!")
+	// Create a list
+	list := element.NewUnorderedList(doc)
+	list.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Item 1")))
+	list.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Item 2")))
+	
+	container.AppendChild(list)
+	
+	text := element.NewText(doc, "Hello, Kite!")
 	container.AppendChild(text)
 	
 	// Apply styles (Sparse assignment via Optional[T])

@@ -211,6 +211,7 @@ func (r *spatialRender) IsDetached() bool                       { return false }
 func (r *spatialRender) RawStyle() style.Style                  { return style.Style{} }
 func (r *spatialRender) SetRawStyle(style.Style)                {}
 func (r *spatialRender) ElementDefaultStyle() style.Style       { return style.Style{} }
+func (r *spatialRender) SetElementDefaultStyle(style.Style)     {}
 func (r *spatialRender) IsDirtyStyle() bool                     { return false }
 func (r *spatialRender) HasDirtyStyleChild() bool               { return false }
 func (r *spatialRender) ClearDirtyStyle()                       {}
@@ -218,9 +219,17 @@ func (r *spatialRender) ClearChildNeedsStyle()                  {}
 func (r *spatialRender) StyleParent() style.StyleNode           { return r.Parent() }
 func (r *spatialRender) StyleFirstChild() style.StyleNode       { return r.FirstChild() }
 func (r *spatialRender) StyleNextSibling() style.StyleNode      { return r.NextSibling() }
-func (r *spatialRender) Style() *style.Computed                 { return r.ComputedStyle() }
+
+// layout.Node implementation
+func (r *spatialRender) Style() *style.Computed { return r.ComputedStyle() }
 func (r *spatialRender) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {}
+	return func(yield func(layout.Node) bool) {
+		for _, c := range r.node.children {
+			if !yield(c.render) {
+				return
+			}
+		}
+	}
 }
 func (r *spatialRender) IsDirtyLayout() bool { return false }
 func (r *spatialRender) ClearDirtyLayout()   {}

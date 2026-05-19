@@ -45,6 +45,7 @@ const (
 	PropOverflowWrap            //nolint:revive
 	PropOverflowX               //nolint:revive
 	PropOverflowY               //nolint:revive
+	PropListStyleType           //nolint:revive
 )
 
 // Inheritable returns the set of properties that are inherited from a parent
@@ -54,7 +55,8 @@ const (
 //
 // Inheritable properties:
 // Foreground, Background, Bold, Italic, Underline, Strikethrough,
-// TextWrap, TextOverflow, WhiteSpace, WordBreak, OverflowWrap.
+// TextWrap, TextOverflow, WhiteSpace, WordBreak, OverflowWrap,
+// ListStyleType.
 func Inheritable() map[Property]bool {
 	return map[Property]bool{
 		PropForeground:    true,
@@ -67,6 +69,7 @@ func Inheritable() map[Property]bool {
 		PropWhiteSpace:    true,
 		PropWordBreak:     true,
 		PropOverflowWrap:  true,
+		PropListStyleType: true,
 	}
 }
 
@@ -81,14 +84,15 @@ func Inheritable() map[Property]bool {
 func DefaultStyle() Computed {
 	return Computed{
 		// Display / flex -------------------------------------------------------
-		Display:        DisplayBlock, // block-level box by default
-		FlexDirection:  FlexRow,      // main axis is left → right
-		FlexWrap:       FlexNoWrap,   // single-line by default
-		JustifyContent: JustifyStart, // pack toward main-start
-		AlignItems:     AlignStretch, // stretch items by default (CSS parity)
-		AlignContent:   AlignStretch, // stretch lines by default
-		AlignSelf:      AlignStart,   // defers to parent AlignItems
-		Gap:            GapValue{},   // no inter-child gap
+		Display:        DisplayBlock,     // block-level box by default
+		ListStyleType:  ListStyleInherit, // inherit marker by default
+		FlexDirection:  FlexRow,          // main axis is left → right
+		FlexWrap:       FlexNoWrap,       // single-line by default
+		JustifyContent: JustifyStart,     // pack toward main-start
+		AlignItems:     AlignStretch,     // stretch items by default (CSS parity)
+		AlignContent:   AlignStretch,     // stretch lines by default
+		AlignSelf:      AlignStart,       // defers to parent AlignItems
+		Gap:            GapValue{},       // no inter-child gap
 		Flex:           FlexItemValue{Grow: 0, Shrink: 1, Basis: Auto},
 		Order:          0, // default order
 
@@ -249,6 +253,9 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 		c.WhiteSpace = parent.WhiteSpace
 		c.WordBreak = parent.WordBreak
 		c.OverflowWrap = parent.OverflowWrap
+		if c.ListStyleType == ListStyleInherit {
+			c.ListStyleType = parent.ListStyleType
+		}
 	}
 
 	// Layer 4: element's own author-set style — Optional fields only when IsSet.

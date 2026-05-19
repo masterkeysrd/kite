@@ -52,6 +52,9 @@ type elementBase[Self any] struct {
 	// class is the string classification tag; no selector engine is implied.
 	class string
 
+	// defaultStyle holds the element-type default style.
+	defaultStyle style.Style
+
 	// disabled and hidden are intrinsic boolean state flags.
 	disabled bool
 	hidden   bool
@@ -78,6 +81,9 @@ func (b *elementBase[Self]) Unwrap() dom.Node { return b.Element }
 // GetStyle returns the author-set style for this element.
 func (b *elementBase[Self]) GetStyle() style.Style { return b.rawStyle }
 
+// ElementDefaultStyle returns the element-type default style.
+func (b *elementBase[Self]) ElementDefaultStyle() style.Style { return b.defaultStyle }
+
 // IsDisabled reports whether the element is disabled.
 func (b *elementBase[Self]) IsDisabled() bool { return b.disabled }
 
@@ -92,7 +98,7 @@ func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
 	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
+		ro.SetRawStyle(s)
 	}
 	return b.self
 }
@@ -166,10 +172,11 @@ func (b *elementBase[Self]) OnRenderObjectCreated(ro render.Object) {
 	// interfaces queried by the focus manager.
 }
 
-// initBase initialises b with the given DOM element and self-pointer.
+// initBase initialises b with the given DOM element, self-pointer and default style.
 // Must be called exactly once, at the end of each element's constructor,
 // before any modifier methods run.
-func (b *elementBase[Self]) initBase(el dom.Element, self *Self) {
+func (b *elementBase[Self]) initBase(el dom.Element, self *Self, defaultStyle style.Style) {
 	b.Element = el
 	b.self = self
+	b.defaultStyle = defaultStyle
 }
