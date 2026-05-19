@@ -56,6 +56,31 @@ type Node interface {
 	SetCachedMinMaxSizes(sizes MinMaxSizes)
 }
 
+type TableCellLever interface {
+	ColSpan() int
+	RowSpan() int
+}
+
+func getColSpan(node Node) int {
+	if lever, ok := node.LogicalNode().(TableCellLever); ok {
+		span := lever.ColSpan()
+		if span > 0 {
+			return span
+		}
+	}
+	return 1
+}
+
+func getRowSpan(node Node) int {
+	if lever, ok := node.LogicalNode().(TableCellLever); ok {
+		span := lever.RowSpan()
+		if span > 0 {
+			return span
+		}
+	}
+	return 1
+}
+
 type InlineLever interface {
 	IsInlineLevel() bool
 }

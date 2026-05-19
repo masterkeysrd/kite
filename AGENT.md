@@ -45,6 +45,10 @@ This document provides guidelines and architectural context for AI assistants an
     *   `ListAlgorithm` implements the `DisplayListItem` layout using a specialized two-column row layout.
     *   The marker is synthesized as a virtual, transient text fragment directly during layout (based on `ListStyleType`) to avoid creating phantom nodes in the render tree.
     *   Ordinal calculation for numbered lists uses an $O(N)$ sibling walk of the logical tree.
+10. **Table Layout:**
+    *   Table layout utilizes a two-pass approach (`TableAlgorithm`): a measurement pass to determine intrinsic grid column sizing (accounting for `ColSpan` and `RowSpan`), followed by a layout pass to resolve rows and place cells.
+    *   Cells act as independent block formatting contexts constrained by the rigid widths dictated by the parent table.
+    *   Table routing is strictly driven by `style.DisplayTable`, `style.DisplayTableRow`, and `style.DisplayTableCell`. No specialized render nodes exist.
 
 ## 🧑‍💻 Coding Conventions
 

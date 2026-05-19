@@ -15,6 +15,8 @@
 //     wrapping them into line boxes.
 //   - List Formatting Context (LFC): Formats list items with virtual markers using a
 //     two-column row layout.
+//   - Table Formatting Context: Lays out tables using a two-pass algorithm to compute
+//     intrinsic column widths, handling `ColSpan` and `RowSpan`, before resolving rows and cells.
 //
 // The layout process follows a LayoutNG-inspired immutable fragment tree model.
 package layout

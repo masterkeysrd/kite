@@ -16,5 +16,5 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 |---------|-------------|--------|---------------|
 | TSK-001 | Implement List Layout Algorithm (Virtual Markers) | Done | `tasks/TSK-001-feature-list-layout.md` |
 | TSK-002 | Implement List and ListItem DOM Components | Done | `tasks/TSK-002-feature-list-components.md` |
-| TSK-003 | Implement Table Layout Algorithm | Pending | `tasks/TSK-003-table-layout-algorithm.md` |
+| TSK-003 | Implement Table Layout Algorithm | Done | `tasks/TSK-003-table-layout-algorithm.md` |
 | TSK-004 | Implement Table DOM Components and Fault Tolerance | Pending | `tasks/TSK-004-table-components-fault-tolerance.md` |

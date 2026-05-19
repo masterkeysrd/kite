@@ -97,3 +97,21 @@ The List Formatting Context (LFC) implements the layout for `display: list-item`
    - **Column 2**: Contains the actual child content of the list item, laid out using standard Block layout rules.
 3. **Ordinal Calculation**: For numbered lists (`ListStyleDecimal`), the algorithm computes the ordinal by walking the previous logical siblings of the node to count consecutive `display: list-item` elements.
 4. **Content Wrapping**: Multi-line content in Column 2 is constrained to the remaining available inline space, ensuring that text wraps cleanly adjacent to the marker rather than underneath it.
+
+### Table Algorithm (`table.go`)
+
+The Table Formatting Context (`DisplayTable`) implements a rigorous two-pass layout algorithm to resolve intrinsic grid column dimensions and handle complex cell spanning (`ColSpan`, `RowSpan`).
+
+#### Detailed Flow
+
+##### Pass 1: Grid Sizing & Measurement
+1. **Grid Construction**: The algorithm walks the table rows and cells to build a logical 2D matrix, resolving the placement of cells based on their sequence and any overlapping columns/rows dictated by `ColSpan` and `RowSpan`.
+2. **Column Sizing**: It computes the intrinsic minimum and maximum widths (`MinMaxSizes`) for every column based on the content of single-span cells.
+3. **Span Distribution**: For cells spanning multiple columns, their extra required width is distributed proportionally among the spanned columns.
+4. **Width Resolution**: The table determines its final total width based on the `ConstraintSpace` (e.g., shrinking to fit content, or stretching to a percentage). Excess available width is then distributed proportionally or evenly back into the column widths.
+
+##### Pass 2: Row & Cell Layout
+1. **Row Invocation**: The `TableAlgorithm` iterates over its `DisplayTableRow` children, invoking the `TableRowAlgorithm`. It explicitly passes down the array of resolved, fixed column widths.
+2. **Cell Constraint Enforcement**: The `TableRowAlgorithm` acts as a horizontal BFC. It loops over its `DisplayTableCell` children, creating a rigid `ConstraintSpace` for each cell based on the sum of the widths of the columns it spans.
+3. **Cell Layout**: Cells operate internally as standard Block contexts, laying out their children strictly within the fixed boundaries mandated by the row.
+4. **Row Height**: The row sets its height to the tallest cell within it. The table aggregates these row heights to determine its final physical dimensions.

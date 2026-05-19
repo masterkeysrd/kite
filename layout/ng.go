@@ -122,6 +122,13 @@ func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
 	switch node.Style().Display {
 	case style.DisplayFlex, style.DisplayInlineFlex:
 		return &FlexAlgorithm{Node: node, Space: space}
+	case style.DisplayTable:
+		return &TableAlgorithm{Node: node, Space: space}
+	case style.DisplayTableRow:
+		return &TableRowAlgorithm{Node: node, Space: space}
+	case style.DisplayTableCell:
+		// Cells just act as BFCs with rigid constraints passed by the row.
+		return &BlockAlgorithm{Node: node, Space: space}
 	case style.DisplayListItem:
 		return &ListAlgorithm{Node: node, Space: space}
 	default:

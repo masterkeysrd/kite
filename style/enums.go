@@ -21,6 +21,12 @@ const (
 	DisplayNone
 	// DisplayListItem renders the element as a list item with a marker.
 	DisplayListItem
+	// DisplayTable renders the element as a block-level table.
+	DisplayTable
+	// DisplayTableRow renders the element as a table row.
+	DisplayTableRow
+	// DisplayTableCell renders the element as a table cell.
+	DisplayTableCell
 )
 
 // FlexDirection defines the main axis of a flex container.
