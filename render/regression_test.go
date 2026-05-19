@@ -8,14 +8,20 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+type stubNode struct {
+	style style.Style
+}
+
+func (n *stubNode) RawStyle() style.Style { return n.style }
+
 func TestRegression_InheritancePropagation(t *testing.T) {
 	view := NewRenderView()
 	view.SetViewportSize(layout.Size{Width: 80, Height: 24})
 
-	parent := NewBlock(nil, nil)
-	parent.SetRawStyle(style.Style{
+	pNode := &stubNode{style: style.Style{
 		Foreground: style.Some[color.Color](color.White),
-	})
+	}}
+	parent := NewBlock(pNode, nil)
 	view.InsertChild(parent, nil)
 
 	child := NewBlock(nil, nil)
@@ -31,9 +37,10 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 
 	// Change parent foreground
 	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	parent.SetRawStyle(style.Style{
+	pNode.style = style.Style{
 		Foreground: style.Some[color.Color](red),
-	})
+	}
+	parent.MarkDirty(DirtyStyle)
 
 	// Resolve again
 	style.ResolveTree(resolver, view)
@@ -47,24 +54,24 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	view := NewRenderView()
 	view.SetViewportSize(layout.Size{Width: 80, Height: 24})
 
-	flex := NewBox(nil, nil)
-	flex.SetRawStyle(style.Style{
+	fNode := &stubNode{style: style.Style{
 		Display: style.Some(style.DisplayFlex),
 		Width:   style.Some(style.Percent(100)),
 		Height:  style.Some(style.Percent(100)),
-	})
+	}}
+	flex := NewBox(fNode, nil)
 	view.InsertChild(flex, nil)
 
-	child1 := NewBlock(nil, nil)
-	child1.SetRawStyle(style.Style{
+	c1Node := &stubNode{style: style.Style{
 		Flex: style.Some(style.Flex(1, 1, style.Auto)),
-	})
+	}}
+	child1 := NewBlock(c1Node, nil)
 	flex.InsertChild(child1, nil)
 
-	child2 := NewBlock(nil, nil)
-	child2.SetRawStyle(style.Style{
+	c2Node := &stubNode{style: style.Style{
 		Flex: style.Some(style.Flex(1, 1, style.Auto)),
-	})
+	}}
+	child2 := NewBlock(c2Node, nil)
 	flex.InsertChild(child2, nil)
 
 	resolver := style.NewResolver()
@@ -104,12 +111,12 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 	block := NewBlock(nil, nil)
 	view.InsertChild(block, nil)
 
-	child1 := NewBlock(nil, nil)
-	child1.SetRawStyle(style.Style{Height: style.Some(style.Cells(1))})
+	c1Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
+	child1 := NewBlock(c1Node, nil)
 	block.InsertChild(child1, nil)
 
-	child2 := NewBlock(nil, nil)
-	child2.SetRawStyle(style.Style{Height: style.Some(style.Cells(1))})
+	c2Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
+	child2 := NewBlock(c2Node, nil)
 	block.InsertChild(child2, nil)
 
 	style.ResolveTree(style.NewResolver(), view)

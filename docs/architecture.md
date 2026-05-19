@@ -44,7 +44,7 @@ The framework operates via a central nervous system called the **Engine (`/engin
 
 ### 3.4. Render Pipeline (`/render`)
 - **Responsibility:** The visual bridge between the logical DOM and physical layout.
-- **Stateless Styling:** Render objects act as pure proxies for author styles (`RawStyle()`) and element defaults (`ElementDefaultStyle()`), querying their underlying logical DOM node directly. They do not store sparse styles, avoiding state duplication.
+- **Stateless Styling:** Render objects act as pure proxies for author styles (`RawStyle()`) and element defaults (`DefaultStyle()`), querying their underlying logical DOM node directly. They do not store sparse styles, avoiding state duplication.
 - **Node Mirroring:** It strictly mirrors the DOM structure using a unified `render.Box` or `render.Text` (no explicit block/flex types here; the engine delegates algorithms at layout time based on `ComputedStyle.Display`).
 - **Dirty Tracking:** Carries lifecycle synchronization flags (`NeedsSync`, `DirtyStyle`, `DirtyLayout`) without doing actual math calculations itself.
 

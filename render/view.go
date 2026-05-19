@@ -25,8 +25,6 @@ type BaseRender struct {
 	logicalNode   any
 	eventTarget   event.EventTarget
 	computedStyle *style.Computed
-	rawStyle      style.Style
-	elementStyle  style.Style
 }
 
 // Init sets the self-pointer and logical identity for the BaseRender.
@@ -126,17 +124,18 @@ func (b *BaseRender) SetComputedStyle(c *style.Computed) {
 	b.computedStyle = c
 }
 
-func (b *BaseRender) RawStyle() style.Style { return b.rawStyle }
-func (b *BaseRender) SetRawStyle(s style.Style) {
-	b.rawStyle = s
-	b.MarkDirty(DirtyStyle)
+func (b *BaseRender) RawStyle() style.Style {
+	if s, ok := b.logicalNode.(interface{ RawStyle() style.Style }); ok {
+		return s.RawStyle()
+	}
+	return style.Style{}
 }
 
-func (b *BaseRender) ElementDefaultStyle() style.Style { return b.elementStyle }
-
-func (b *BaseRender) SetElementDefaultStyle(s style.Style) {
-	b.elementStyle = s
-	b.MarkDirty(DirtyStyle)
+func (b *BaseRender) DefaultStyle() style.Style {
+	if s, ok := b.logicalNode.(interface{ DefaultStyle() style.Style }); ok {
+		return s.DefaultStyle()
+	}
+	return style.Style{}
 }
 
 func (b *BaseRender) IsDirtyStyle() bool                { return b.Flags()&DirtyStyle != 0 }

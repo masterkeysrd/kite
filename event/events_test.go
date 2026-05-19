@@ -58,7 +58,7 @@ func (s *stubObject) MarkDetached()                    {}
 func (s *stubObject) IsDetached() bool                 { return false }
 func (s *stubObject) MarkChildrenDirty()               {}
 func (s *stubObject) RawStyle() style.Style            { return style.Style{} }
-func (s *stubObject) SetRawStyle(style.Style)          {}
+func (s *stubObject) DefaultStyle() style.Style        { return style.Style{} }
 func (s *stubObject) ComputedStyle() *style.Computed   { return nil }
 func (s *stubObject) SetComputedStyle(*style.Computed) {}
 func (s *stubObject) Flags() render.DirtyFlag          { return 0 }

@@ -15,7 +15,7 @@ func TestListComponents_Defaults(t *testing.T) {
 	if ul.TagName() != "ul" {
 		t.Errorf("expected tag ul, got %s", ul.TagName())
 	}
-	ulDef := ul.ElementDefaultStyle()
+	ulDef := ul.DefaultStyle()
 	if ulDef.Display.Value() != style.DisplayBlock {
 		t.Errorf("UL default display should be Block")
 	}
@@ -30,7 +30,7 @@ func TestListComponents_Defaults(t *testing.T) {
 	if ol.TagName() != "ol" {
 		t.Errorf("expected tag ol, got %s", ol.TagName())
 	}
-	olDef := ol.ElementDefaultStyle()
+	olDef := ol.DefaultStyle()
 	if olDef.Display.Value() != style.DisplayBlock {
 		t.Errorf("OL default display should be Block")
 	}
@@ -45,7 +45,7 @@ func TestListComponents_Defaults(t *testing.T) {
 	if li.TagName() != "li" {
 		t.Errorf("expected tag li, got %s", li.TagName())
 	}
-	liDef := li.ElementDefaultStyle()
+	liDef := li.DefaultStyle()
 	if liDef.Display.Value() != style.DisplayListItem {
 		t.Errorf("LI default display should be ListItem")
 	}

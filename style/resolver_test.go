@@ -24,7 +24,7 @@ type fakeNode struct {
 }
 
 func (n *fakeNode) RawStyle() style.Style              { return n.rawStyle }
-func (n *fakeNode) ElementDefaultStyle() style.Style   { return n.elementDefaultStyle }
+func (n *fakeNode) DefaultStyle() style.Style          { return n.elementDefaultStyle }
 func (n *fakeNode) ComputedStyle() *style.Computed     { return n.computedStyle }
 func (n *fakeNode) SetComputedStyle(c *style.Computed) { n.computedStyle = c; n.visited = true }
 func (n *fakeNode) IsDirtyStyle() bool                 { return n.dirtyStyle }

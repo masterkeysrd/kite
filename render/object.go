@@ -49,9 +49,7 @@ type Object interface {
 
 	// StyleNode implementation (Task 06)
 	RawStyle() style.Style
-	SetRawStyle(style.Style)
-	ElementDefaultStyle() style.Style
-	SetElementDefaultStyle(style.Style)
+	DefaultStyle() style.Style
 	IsDirtyStyle() bool
 	HasDirtyStyleChild() bool
 	ClearDirtyStyle()

@@ -91,7 +91,7 @@ func TestResolver_ElementDefaults_OverriddenByExplicitStyle(t *testing.T) {
 
 func TestResolver_ElementDefaults_ZeroStyleIsNoop(t *testing.T) {
 	t.Parallel()
-	// A zero ElementDefaultStyle must not change any property from the baseline.
+	// A zero DefaultStyle must not change any property from the baseline.
 	r := style.NewResolver()
 
 	want := style.DefaultStyle()

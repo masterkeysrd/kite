@@ -144,12 +144,12 @@ type StyleNode interface {
 	// the full-resolve path only; cache hits bypass this.
 	RawStyle() Style
 
-	// ElementDefaultStyle returns the element-type default style that the
+	// DefaultStyle returns the element-type default style that the
 	// resolver applies after the root DefaultStyle baseline and before parent
 	// inheritance. Native elements return a sparse Style with only the
 	// properties they override (e.g. Span returns Display:Inline; Box returns
 	// an empty Style). A zero Style is valid and means "no element defaults".
-	ElementDefaultStyle() Style
+	DefaultStyle() Style
 
 	// ComputedStyle returns the previously resolved style, or nil if the
 	// style phase has not yet visited this node.
@@ -239,7 +239,7 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 
 	// Layer 2: element-type defaults (applied before inheritance so that
 	// parent colours can still override a Span's display default).
-	c = elem.ElementDefaultStyle().Apply(c)
+	c = elem.DefaultStyle().Apply(c)
 
 	// Layer 3: overlay inheritable fields from parent (mirrors Inheritable()).
 	if parent != nil {

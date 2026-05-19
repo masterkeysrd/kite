@@ -13,8 +13,8 @@ import (
 type Element interface {
 	dom.Element
 
-	// GetStyle returns the author-set style for this element.
-	GetStyle() style.Style
+	// RawStyle returns the author-set style for this element.
+	RawStyle() style.Style
 
 	// IsDisabled reports whether the element is in the disabled state.
 	IsDisabled() bool
@@ -78,11 +78,11 @@ type PendingListener struct {
 // Unwrap returns the underlying [dom.Node].
 func (b *elementBase[Self]) Unwrap() dom.Node { return b.Element }
 
-// GetStyle returns the author-set style for this element.
-func (b *elementBase[Self]) GetStyle() style.Style { return b.rawStyle }
+// RawStyle returns the author-set style for this element.
+func (b *elementBase[Self]) RawStyle() style.Style { return b.rawStyle }
 
-// ElementDefaultStyle returns the element-type default style.
-func (b *elementBase[Self]) ElementDefaultStyle() style.Style { return b.defaultStyle }
+// DefaultStyle returns the element-type default style.
+func (b *elementBase[Self]) DefaultStyle() style.Style { return b.defaultStyle }
 
 // IsDisabled reports whether the element is disabled.
 func (b *elementBase[Self]) IsDisabled() bool { return b.disabled }
@@ -98,7 +98,7 @@ func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
 	if ro := b.RenderObject(); ro != nil {
-		ro.SetRawStyle(s)
+		ro.MarkDirty(render.DirtyStyle)
 	}
 	return b.self
 }

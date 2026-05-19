@@ -613,16 +613,6 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 		ro = render.NewBox(n, n)
 	}
 
-	// Pull author-set style if available.
-	if s, ok := n.(interface{ GetStyle() style.Style }); ok {
-		ro.SetRawStyle(s.GetStyle())
-	}
-
-	// Pull element-type default style if available.
-	if s, ok := n.(interface{ ElementDefaultStyle() style.Style }); ok {
-		ro.SetElementDefaultStyle(s.ElementDefaultStyle())
-	}
-
 	// Notify logical node of creation.
 	if h, ok := n.(render.RenderObjectHook); ok {
 		h.OnRenderObjectCreated(ro)

@@ -20,7 +20,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-004 | Implement Table DOM Components and Fault Tolerance | Done | `tasks/TSK-004-table-components-fault-tolerance.md` |
 | TSK-005 | Implement Implicit DOM Adoption | Done | `tasks/TSK-005-dom-implicit-adoption.md` |
 | TSK-006 | Implement Declarative API for Elements | Done | `tasks/TSK-006-declarative-element-api.md` |
-| TSK-007 | Move Styling State to Logical DOM | Pending | `tasks/TSK-007-dom-owned-styles.md` |
+| TSK-007 | Move Styling State to Logical DOM | Done | `tasks/TSK-007-dom-owned-styles.md` |
 | TSK-008 | Table Section Grouping (thead, tbody, tfoot) | Pending | `tasks/TSK-008-table-grouping.md` |
 | TSK-009 | Border Rendering Engine and Fluent API | Pending | `tasks/TSK-009-border-rendering-devx.md` |
 | TSK-010 | Screen-Space Border Intersection Resolver | Pending | `tasks/TSK-010-border-post-processor.md` |
