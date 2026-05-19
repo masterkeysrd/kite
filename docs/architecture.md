@@ -61,4 +61,5 @@ The framework operates via a central nervous system called the **Engine (`/engin
 ### 3.7. Paint & Backend (`/paint` & `/backend`)
 - **Responsibility:** Terminal output decoupling and drawing.
 - **Paint:** Interfaces with a logical framebuffer. Handles operations like clipping, filling cells, and applying formatted text.
+- **Border Post-Processing:** To automatically form correct Unicode junctions (e.g., `┼`, `├`) without manual coordinate math in layout, the `PaintEngine` runs a global $O(W \times H)$ post-processing pass over the framebuffer. Every cell explicitly tagged as a border is resolved against its cardinal neighbors. Junction merging for overlapping borders of varying weights is handled via a strict "Heaviest Style Wins" precedence rule (using an explicit `BorderStyle` enum stored per-cell).
 - **Backend:** Decouples Kite from the actual terminal emulator. Implementations include an `ultraviolet` backend for real terminals and a `mock` backend for test environments.
