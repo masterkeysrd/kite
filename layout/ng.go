@@ -124,6 +124,8 @@ func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
 		return &FlexAlgorithm{Node: node, Space: space}
 	case style.DisplayTable:
 		return &TableAlgorithm{Node: node, Space: space}
+	case style.DisplayTableHeaderGroup, style.DisplayTableRowGroup, style.DisplayTableFooterGroup:
+		return &TableSectionAlgorithm{Node: node, Space: space}
 	case style.DisplayTableRow:
 		return &TableRowAlgorithm{Node: node, Space: space}
 	case style.DisplayTableCell:

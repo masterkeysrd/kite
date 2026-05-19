@@ -53,12 +53,20 @@ func TestRegression_TableFaultToleranceAndInvalidation(t *testing.T) {
 		t.Fatalf("expected updated table width to be 11, got %d", updatedWidth)
 	}
 
-	// Ensure the malformed table actually created an anonymous row in the fragment tree
+	// Ensure the malformed table actually created an anonymous body group in the fragment tree
 	if len(tableFrag2.Children) != 1 {
-		t.Fatalf("expected 1 child fragment (the anonymous row), got %d", len(tableFrag2.Children))
+		t.Fatalf("expected 1 child fragment (the anonymous section), got %d", len(tableFrag2.Children))
 	}
 
-	rowFrag := tableFrag2.Children[0].Fragment
+	sectionFrag := tableFrag2.Children[0].Fragment
+	if sectionFrag == nil {
+		t.Fatal("expected a valid section fragment")
+	}
+	if len(sectionFrag.Children) != 1 {
+		t.Fatalf("expected 1 row fragment inside the section, got %d", len(sectionFrag.Children))
+	}
+
+	rowFrag := sectionFrag.Children[0].Fragment
 	if rowFrag == nil {
 		t.Fatal("expected a valid row fragment")
 	}

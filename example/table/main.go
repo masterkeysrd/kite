@@ -77,6 +77,50 @@ func main() {
 				Color: style.EdgeAll[color.Color](color.RGBA{R: 255, G: 100, B: 100, A: 255}),
 			}),
 		}),
+
+		// Table 3: Grouped Table (thead, tbody, tfoot)
+		element.Box("Grouped Table (thead, tbody, tfoot)").Style(style.Style{Margin: style.Some(style.Edges(1, 0))}),
+		element.Table(
+			element.THead(
+				element.TR(
+					element.TD("Header Col 1").Style(style.Style{Width: style.Some(style.Cells(15))}),
+					element.TD("Header Col 2").Style(style.Style{Width: style.Some(style.Cells(20))}),
+				),
+			).Style(style.Style{
+				Border: style.Some(style.Border{
+					Width: style.Edges(0, 0, 1, 0),
+					Style: style.EdgeAll(style.BorderSingle),
+				}),
+			}),
+			element.TBody(
+				element.TR(
+					element.TD("Body Row 1, C1"),
+					element.TD("Body Row 1, C2"),
+				),
+				element.TR(
+					element.TD("Body Row 2, C1"),
+					element.TD("Body Row 2, C2"),
+				),
+			),
+			element.TFoot(
+				element.TR(
+					element.TD("Footer 1"),
+					element.TD("Footer 2"),
+				),
+			).Style(style.Style{
+				Border: style.Some(style.Border{
+					Width: style.Edges(1, 0, 0, 0),
+					Style: style.EdgeAll(style.BorderSingle),
+				}),
+			}),
+		).Style(style.Style{
+			Width: style.Some(style.Percent(100)),
+			Border: style.Some(style.Border{
+				Width: style.Edges(1),
+				Style: style.EdgeAll(style.BorderSingle),
+				Color: style.EdgeAll[color.Color](color.RGBA{R: 100, G: 255, B: 100, A: 255}),
+			}),
+		}),
 	).Style(style.Style{
 		Display:       style.Some(style.DisplayFlex),
 		FlexDirection: style.Some(style.FlexColumn),

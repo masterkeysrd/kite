@@ -26,5 +26,5 @@
 //   - UL (UnorderedList): A list with bullet markers (<ul>).
 //   - OL (OrderedList): A numbered list (<ol>).
 //   - LI (ListItem): An individual item within a list (<li>).
-//   - Table, TR, TD: Components for building grid-based layouts.
+//   - Table, THead, TBody, TFoot, TR, TD: Components for building grid-based layouts.
 package element

@@ -21,7 +21,8 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-005 | Implement Implicit DOM Adoption | Done | `tasks/TSK-005-dom-implicit-adoption.md` |
 | TSK-006 | Implement Declarative API for Elements | Done | `tasks/TSK-006-declarative-element-api.md` |
 | TSK-007 | Move Styling State to Logical DOM | Done | `tasks/TSK-007-dom-owned-styles.md` |
-| TSK-008 | Table Section Grouping (thead, tbody, tfoot) | Pending | `tasks/TSK-008-table-grouping.md` |
+| TSK-008 | Table Section Grouping (thead, tbody, tfoot) | Done | `tasks/TSK-008-table-grouping.md` |
 | TSK-009 | Border Rendering Engine and Fluent API | Pending | `tasks/TSK-009-border-rendering-devx.md` |
 | TSK-010 | Screen-Space Border Intersection Resolver | Pending | `tasks/TSK-010-border-post-processor.md` |
 | TSK-012 | Table Layout Builder Pattern | Pending | `tasks/TSK-012-table-layout-builder.md` |
+| TSK-013 | Flex Layout Builder Refactor | Pending | `tasks/TSK-013-flex-layout-builder.md` |

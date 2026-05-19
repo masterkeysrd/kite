@@ -29,6 +29,90 @@ func Table(children ...any) *TableElement {
 	return t
 }
 
+// TableHeaderElement represents a table header group element.
+type TableHeaderElement struct {
+	elementBase[TableHeaderElement]
+}
+
+var _ Element = (*TableHeaderElement)(nil)
+
+// NewTableHeader creates a new table header group element.
+func NewTableHeader(doc dom.Document) *TableHeaderElement {
+	th := &TableHeaderElement{}
+	th.initBase(doc.CreateElement("thead", th), th, style.Style{
+		Display: style.Some(style.DisplayTableHeaderGroup),
+	})
+	return th
+}
+
+// THead creates a new table header group element with the given children.
+func THead(children ...any) *TableHeaderElement {
+	th := NewTableHeader(orphanDocument)
+	processChildren(th, children)
+	return th
+}
+
+// TableHeader is an alias for THead.
+func TableHeader(children ...any) *TableHeaderElement {
+	return THead(children...)
+}
+
+// TableBodyElement represents a table body group element.
+type TableBodyElement struct {
+	elementBase[TableBodyElement]
+}
+
+var _ Element = (*TableBodyElement)(nil)
+
+// NewTableBody creates a new table body group element.
+func NewTableBody(doc dom.Document) *TableBodyElement {
+	tb := &TableBodyElement{}
+	tb.initBase(doc.CreateElement("tbody", tb), tb, style.Style{
+		Display: style.Some(style.DisplayTableRowGroup),
+	})
+	return tb
+}
+
+// TBody creates a new table body group element with the given children.
+func TBody(children ...any) *TableBodyElement {
+	tb := NewTableBody(orphanDocument)
+	processChildren(tb, children)
+	return tb
+}
+
+// TableBody is an alias for TBody.
+func TableBody(children ...any) *TableBodyElement {
+	return TBody(children...)
+}
+
+// TableFooterElement represents a table footer group element.
+type TableFooterElement struct {
+	elementBase[TableFooterElement]
+}
+
+var _ Element = (*TableFooterElement)(nil)
+
+// NewTableFooter creates a new table footer group element.
+func NewTableFooter(doc dom.Document) *TableFooterElement {
+	tf := &TableFooterElement{}
+	tf.initBase(doc.CreateElement("tfoot", tf), tf, style.Style{
+		Display: style.Some(style.DisplayTableFooterGroup),
+	})
+	return tf
+}
+
+// TFoot creates a new table footer group element with the given children.
+func TFoot(children ...any) *TableFooterElement {
+	tf := NewTableFooter(orphanDocument)
+	processChildren(tf, children)
+	return tf
+}
+
+// TableFooter is an alias for TFoot.
+func TableFooter(children ...any) *TableFooterElement {
+	return TFoot(children...)
+}
+
 // TableRowElement represents a table row element.
 type TableRowElement struct {
 	elementBase[TableRowElement]

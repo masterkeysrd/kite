@@ -23,6 +23,12 @@ const (
 	DisplayListItem
 	// DisplayTable renders the element as a block-level table.
 	DisplayTable
+	// DisplayTableHeaderGroup renders the element as a table header group.
+	DisplayTableHeaderGroup
+	// DisplayTableRowGroup renders the element as a table row group.
+	DisplayTableRowGroup
+	// DisplayTableFooterGroup renders the element as a table footer group.
+	DisplayTableFooterGroup
 	// DisplayTableRow renders the element as a table row.
 	DisplayTableRow
 	// DisplayTableCell renders the element as a table cell.

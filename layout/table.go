@@ -27,8 +27,9 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	parentDecorY := border.Top + border.Bottom + padding.Top + padding.Bottom
 
 	// Pass 1: Grid Sizing
-	rows := collectTableRows(a.Node)
-	grid := buildTableGrid(rows)
+	sections := collectTableSections(a.Node)
+	allRows := flattenTableRows(sections)
+	grid := buildTableGrid(allRows)
 	colMinMax := computeColumnMinMax(grid)
 
 	// Resolve the table's inline size
@@ -68,12 +69,12 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	builder := NewBoxFragmentBuilder(a.Node, a.Space)
 	builder.SetInlineSize(resolvedInlineSize)
 
-	// Pass 2: Layout Rows
+	// Pass 2: Layout Sections
 	contentWidth := distributableWidth
 	rowIdx := 0
 
-	for _, rowNode := range rows {
-		childMargin := rowNode.Style().Margin
+	for _, sectionNode := range sections {
+		childMargin := sectionNode.Style().Margin
 		childAvailWidth := max(0, contentWidth-childMargin.Left-childMargin.Right)
 		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-parentDecorY)
 
@@ -82,13 +83,27 @@ func (a *TableAlgorithm) Layout() *Fragment {
 		childSpaceBuilder.SetIsFixedInlineSize(true)
 
 		childSpace := childSpaceBuilder.ToConstraintSpace()
-		childAlgo := NewAlgorithm(rowNode, childSpace)
+		childAlgo := NewAlgorithm(sectionNode, childSpace)
 
-		if rowAlgo, ok := childAlgo.(*TableRowAlgorithm); ok {
+		numRows := 0
+		for range sectionNode.LayoutChildren() {
+			numRows++
+		}
+
+		if sectionAlgo, ok := childAlgo.(*TableSectionAlgorithm); ok {
+			sectionAlgo.ColumnWidths = colWidths
+			if rowIdx+numRows <= len(grid.Rows) {
+				sectionAlgo.RowsData = grid.Rows[rowIdx : rowIdx+numRows]
+			}
+			rowIdx += numRows
+		} else if rowAlgo, ok := childAlgo.(*TableRowAlgorithm); ok {
+			// This case handles if collectTableSections somehow returned a direct row
+			// although normally they should be wrapped in an anonymous section.
 			rowAlgo.ColumnWidths = colWidths
 			if rowIdx < len(grid.Rows) {
 				rowAlgo.RowData = grid.Rows[rowIdx]
 			}
+			rowIdx++
 		}
 
 		childFrag := childAlgo.Layout()
@@ -98,7 +113,6 @@ func (a *TableAlgorithm) Layout() *Fragment {
 		}
 		builder.AddChild(childFrag, offset)
 		builder.AdvanceBlockOffset(childMargin.Top + childFrag.Size.Height + childMargin.Bottom)
-		rowIdx++
 	}
 
 	builder.AdvanceBlockOffset(border.Bottom + padding.Bottom)
@@ -123,8 +137,9 @@ func (a *TableAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		return sizes
 	}
 
-	rows := collectTableRows(a.Node)
-	grid := buildTableGrid(rows)
+	sections := collectTableSections(a.Node)
+	allRows := flattenTableRows(sections)
+	grid := buildTableGrid(allRows)
 	colMinMax := computeColumnMinMax(grid)
 
 	var tableMinMax MinMaxSizes
@@ -142,12 +157,141 @@ func (a *TableAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	return tableMinMax
 }
 
+// TableSectionAlgorithm implements the layout for table header, body, and footer groups.
+type TableSectionAlgorithm struct {
+	Node         Node
+	Space        ConstraintSpace
+	ColumnWidths []int
+	RowsData     []*tableRowGrid
+}
+
+func (a *TableSectionAlgorithm) Layout() *Fragment {
+	if cached := a.Node.CachedLayout(a.Space); cached != nil {
+		return cached
+	}
+
+	comp := a.Node.Style()
+	border := comp.Border.Width
+	padding := comp.Padding
+	insetX := border.Left + padding.Left
+	parentDecorY := border.Top + border.Bottom + padding.Top + padding.Bottom
+
+	builder := NewBoxFragmentBuilder(a.Node, a.Space)
+	if a.Space.IsFixedInlineSize {
+		builder.SetInlineSize(a.Space.AvailableSize.Width)
+	}
+
+	rowIdx := 0
+	for rowNode := range a.Node.LayoutChildren() {
+		childMargin := rowNode.Style().Margin
+		childAvailWidth := max(0, a.Space.AvailableSize.Width-childMargin.Left-childMargin.Right-border.Left-border.Right-padding.Left-padding.Right)
+		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-parentDecorY)
+
+		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
+		childSpaceBuilder.SetPercentageResolutionSize(Size{Width: a.Space.AvailableSize.Width, Height: childAvailHeight})
+		childSpaceBuilder.SetIsFixedInlineSize(true)
+
+		childSpace := childSpaceBuilder.ToConstraintSpace()
+		childAlgo := NewAlgorithm(rowNode, childSpace)
+
+		if rowAlgo, ok := childAlgo.(*TableRowAlgorithm); ok {
+			rowAlgo.ColumnWidths = a.ColumnWidths
+			if rowIdx < len(a.RowsData) {
+				rowAlgo.RowData = a.RowsData[rowIdx]
+			}
+		}
+
+		childFrag := childAlgo.Layout()
+		offset := Point{
+			X: insetX + childMargin.Left,
+			Y: builder.CurrentBlockOffset() + childMargin.Top,
+		}
+		builder.AddChild(childFrag, offset)
+		builder.AdvanceBlockOffset(childMargin.Top + childFrag.Size.Height + childMargin.Bottom)
+		rowIdx++
+	}
+
+	builder.AdvanceBlockOffset(border.Bottom + padding.Bottom)
+
+	if a.Space.IsFixedBlockSize {
+		builder.SetBlockSize(a.Space.AvailableSize.Height)
+	} else {
+		builder.SetBlockSize(builder.CurrentBlockOffset())
+	}
+
+	frag := builder.ToFragment()
+	a.Node.SetCachedLayout(a.Space, frag)
+	return frag
+}
+
+func (a *TableSectionAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+	return MinMaxSizes{} // Table level handles sizing
+}
+
 // TableRowAlgorithm implements the DisplayTableRow layout.
 type TableRowAlgorithm struct {
 	Node         Node
 	Space        ConstraintSpace
 	ColumnWidths []int
 	RowData      *tableRowGrid
+}
+
+// anonymousTableSection represents a virtual layout group created to wrap direct table row children.
+type anonymousTableSection struct {
+	parent      Node
+	children    []Node
+	display     style.Display
+	cachedSpace ConstraintSpace
+}
+
+var _ Node = (*anonymousTableSection)(nil)
+
+func (a *anonymousTableSection) Style() *style.Computed {
+	s := *a.parent.Style()
+	s.Display = a.display
+	s.Margin = style.EdgeValues[int]{}
+	s.Padding = style.EdgeValues[int]{}
+	s.Border = style.Border{}
+	s.Width = style.Auto
+	s.Height = style.Auto
+	return &s
+}
+
+func (a *anonymousTableSection) LayoutChildren() iter.Seq[Node] {
+	return func(yield func(Node) bool) {
+		for _, child := range a.children {
+			if !yield(child) {
+				return
+			}
+		}
+	}
+}
+
+func (a *anonymousTableSection) LogicalNode() any    { return nil }
+func (a *anonymousTableSection) IsDirtyLayout() bool { return true }
+func (a *anonymousTableSection) ClearDirtyLayout()   {}
+func (a *anonymousTableSection) Fragment() *Fragment { return nil }
+
+func (a *anonymousTableSection) CachedLayout(space ConstraintSpace) *Fragment {
+	return nil
+}
+
+func (a *anonymousTableSection) Layout() *Fragment {
+	return nil
+}
+
+func (a *anonymousTableSection) SetCachedLayout(space ConstraintSpace, frag *Fragment) {
+	a.cachedSpace = space
+}
+
+func (a *anonymousTableSection) CachedMinMaxSizes() (MinMaxSizes, bool) {
+	return MinMaxSizes{}, false
+}
+
+func (a *anonymousTableSection) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
+
+func (a *anonymousTableSection) ComputeMinMaxSizes() MinMaxSizes {
+	return MinMaxSizes{}
 }
 
 // anonymousTableRow represents a virtual layout row created to wrap contiguous runs of non-row content inside a table.
@@ -301,27 +445,70 @@ type tableGrid struct {
 	NumCols int
 }
 
-func collectTableRows(tableNode Node) []Node {
-	var rows []Node
-	var anon *anonymousTableRow
+func collectTableSections(tableNode Node) []Node {
+	var headers, bodies, footers []Node
+	var currentAnonBody *anonymousTableSection
 
-	children := tableNode.LayoutChildren()
-	for child := range children {
-		if child.Style().Display == style.DisplayTableRow {
-			if anon != nil {
-				rows = append(rows, anon)
-				anon = nil
-			}
-			rows = append(rows, child)
-		} else {
-			if anon == nil {
-				anon = &anonymousTableRow{parent: tableNode}
-			}
-			anon.children = append(anon.children, child)
+	flushAnon := func() {
+		if currentAnonBody != nil {
+			bodies = append(bodies, currentAnonBody)
+			currentAnonBody = nil
 		}
 	}
-	if anon != nil {
-		rows = append(rows, anon)
+
+	for child := range tableNode.LayoutChildren() {
+		display := child.Style().Display
+		switch display {
+		case style.DisplayTableHeaderGroup:
+			flushAnon()
+			headers = append(headers, child)
+		case style.DisplayTableFooterGroup:
+			flushAnon()
+			footers = append(footers, child)
+		case style.DisplayTableRowGroup:
+			flushAnon()
+			bodies = append(bodies, child)
+		case style.DisplayTableRow:
+			if currentAnonBody == nil {
+				currentAnonBody = &anonymousTableSection{
+					parent:  tableNode,
+					display: style.DisplayTableRowGroup,
+				}
+			}
+			currentAnonBody.children = append(currentAnonBody.children, child)
+		default:
+			// Non-table-row child at table level.
+			// Wrap in anonymous row, then in anonymous body.
+			if currentAnonBody == nil {
+				currentAnonBody = &anonymousTableSection{
+					parent:  tableNode,
+					display: style.DisplayTableRowGroup,
+				}
+			}
+			var anonRow *anonymousTableRow
+			if len(currentAnonBody.children) > 0 {
+				if last, ok := currentAnonBody.children[len(currentAnonBody.children)-1].(*anonymousTableRow); ok {
+					anonRow = last
+				}
+			}
+			if anonRow == nil {
+				anonRow = &anonymousTableRow{parent: currentAnonBody}
+				currentAnonBody.children = append(currentAnonBody.children, anonRow)
+			}
+			anonRow.children = append(anonRow.children, child)
+		}
+	}
+	flushAnon()
+
+	return append(append(headers, bodies...), footers...)
+}
+
+func flattenTableRows(sections []Node) []Node {
+	var rows []Node
+	for _, section := range sections {
+		for row := range section.LayoutChildren() {
+			rows = append(rows, row)
+		}
 	}
 	return rows
 }
