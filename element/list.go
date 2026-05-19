@@ -5,16 +5,16 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-// UnorderedList represents a list of items where the order does not matter (<ul>).
-type UnorderedList struct {
-	elementBase[UnorderedList]
+// UnorderedListElement represents a list of items where the order does not matter (<ul>).
+type UnorderedListElement struct {
+	elementBase[UnorderedListElement]
 }
 
-var _ Element = (*UnorderedList)(nil)
+var _ Element = (*UnorderedListElement)(nil)
 
 // NewUnorderedList creates a new unordered list.
-func NewUnorderedList(doc dom.Document) *UnorderedList {
-	u := &UnorderedList{}
+func NewUnorderedList(doc dom.Document) *UnorderedListElement {
+	u := &UnorderedListElement{}
 	u.initBase(doc.CreateElement("ul", u), u, style.Style{
 		Display:       style.Some(style.DisplayBlock),
 		ListStyleType: style.Some(style.ListStyleDisc),
@@ -23,16 +23,23 @@ func NewUnorderedList(doc dom.Document) *UnorderedList {
 	return u
 }
 
-// OrderedList represents a list of items where the order matters (<ol>).
-type OrderedList struct {
-	elementBase[OrderedList]
+// UL creates a new unordered list with the given children.
+func UL(children ...any) *UnorderedListElement {
+	u := NewUnorderedList(orphanDocument)
+	processChildren(u, children)
+	return u
 }
 
-var _ Element = (*OrderedList)(nil)
+// OrderedListElement represents a list of items where the order matters (<ol>).
+type OrderedListElement struct {
+	elementBase[OrderedListElement]
+}
+
+var _ Element = (*OrderedListElement)(nil)
 
 // NewOrderedList creates a new ordered list.
-func NewOrderedList(doc dom.Document) *OrderedList {
-	o := &OrderedList{}
+func NewOrderedList(doc dom.Document) *OrderedListElement {
+	o := &OrderedListElement{}
 	o.initBase(doc.CreateElement("ol", o), o, style.Style{
 		Display:       style.Some(style.DisplayBlock),
 		ListStyleType: style.Some(style.ListStyleDecimal),
@@ -41,18 +48,32 @@ func NewOrderedList(doc dom.Document) *OrderedList {
 	return o
 }
 
-// ListItem represents an item in a list (<li>).
-type ListItem struct {
-	elementBase[ListItem]
+// OL creates a new ordered list with the given children.
+func OL(children ...any) *OrderedListElement {
+	o := NewOrderedList(orphanDocument)
+	processChildren(o, children)
+	return o
 }
 
-var _ Element = (*ListItem)(nil)
+// ListItemElement represents an item in a list (<li>).
+type ListItemElement struct {
+	elementBase[ListItemElement]
+}
+
+var _ Element = (*ListItemElement)(nil)
 
 // NewListItem creates a new list item.
-func NewListItem(doc dom.Document) *ListItem {
-	l := &ListItem{}
+func NewListItem(doc dom.Document) *ListItemElement {
+	l := &ListItemElement{}
 	l.initBase(doc.CreateElement("li", l), l, style.Style{
 		Display: style.Some(style.DisplayListItem),
 	})
+	return l
+}
+
+// LI creates a new list item with the given children.
+func LI(children ...any) *ListItemElement {
+	l := NewListItem(orphanDocument)
+	processChildren(l, children)
 	return l
 }

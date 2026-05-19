@@ -5,18 +5,25 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-// Span represents an inline container element (like a HTML <span>).
-type Span struct {
-	elementBase[Span]
+// SpanElement represents an inline container element (like a HTML <span>).
+type SpanElement struct {
+	elementBase[SpanElement]
 }
 
-var _ Element = (*Span)(nil)
+var _ Element = (*SpanElement)(nil)
 
 // NewSpan creates a new inline span container.
-func NewSpan(doc dom.Document) *Span {
-	s := &Span{}
+func NewSpan(doc dom.Document) *SpanElement {
+	s := &SpanElement{}
 	s.initBase(doc.CreateElement("span", s), s, style.Style{
 		Display: style.Some(style.DisplayInline),
 	})
+	return s
+}
+
+// Span creates a new inline span container with the given children.
+func Span(children ...any) *SpanElement {
+	s := NewSpan(orphanDocument)
+	processChildren(s, children)
 	return s
 }

@@ -2,13 +2,10 @@ package element
 
 import (
 	"testing"
-
-	"github.com/masterkeysrd/kite/dom"
 )
 
 func TestTableCell_Span(t *testing.T) {
-	doc := dom.NewDocument()
-	td := NewTableCell(doc)
+	td := TD()
 
 	if td.ColSpan() != 1 {
 		t.Errorf("expected default ColSpan 1, got %d", td.ColSpan())

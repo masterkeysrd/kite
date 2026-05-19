@@ -6,50 +6,64 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-// Table represents a table element.
-type Table struct {
-	elementBase[Table]
+// TableElement represents a table element.
+type TableElement struct {
+	elementBase[TableElement]
 }
 
-var _ Element = (*Table)(nil)
+var _ Element = (*TableElement)(nil)
 
 // NewTable creates a new table element.
-func NewTable(doc dom.Document) *Table {
-	t := &Table{}
+func NewTable(doc dom.Document) *TableElement {
+	t := &TableElement{}
 	t.initBase(doc.CreateElement("table", t), t, style.Style{
 		Display: style.Some(style.DisplayTable),
 	})
 	return t
 }
 
-// TableRow represents a table row element.
-type TableRow struct {
-	elementBase[TableRow]
+// Table creates a new table element with the given children.
+func Table(children ...any) *TableElement {
+	t := NewTable(orphanDocument)
+	processChildren(t, children)
+	return t
 }
 
-var _ Element = (*TableRow)(nil)
+// TableRowElement represents a table row element.
+type TableRowElement struct {
+	elementBase[TableRowElement]
+}
+
+var _ Element = (*TableRowElement)(nil)
 
 // NewTableRow creates a new table row element.
-func NewTableRow(doc dom.Document) *TableRow {
-	tr := &TableRow{}
+func NewTableRow(doc dom.Document) *TableRowElement {
+	tr := &TableRowElement{}
 	tr.initBase(doc.CreateElement("tr", tr), tr, style.Style{
 		Display: style.Some(style.DisplayTableRow),
 	})
 	return tr
 }
 
-// TableCell represents a table cell element.
-type TableCell struct {
-	elementBase[TableCell]
+// TR creates a new table row element with the given children.
+func TR(children ...any) *TableRowElement {
+	tr := NewTableRow(orphanDocument)
+	processChildren(tr, children)
+	return tr
+}
+
+// TableCellElement represents a table cell element.
+type TableCellElement struct {
+	elementBase[TableCellElement]
 	colSpan int
 	rowSpan int
 }
 
-var _ Element = (*TableCell)(nil)
+var _ Element = (*TableCellElement)(nil)
 
 // NewTableCell creates a new table cell element.
-func NewTableCell(doc dom.Document) *TableCell {
-	td := &TableCell{
+func NewTableCell(doc dom.Document) *TableCellElement {
+	td := &TableCellElement{
 		colSpan: 1,
 		rowSpan: 1,
 	}
@@ -59,8 +73,15 @@ func NewTableCell(doc dom.Document) *TableCell {
 	return td
 }
 
+// TD creates a new table cell element with the given children.
+func TD(children ...any) *TableCellElement {
+	td := NewTableCell(orphanDocument)
+	processChildren(td, children)
+	return td
+}
+
 // SetColSpan sets the number of columns the cell should span.
-func (td *TableCell) SetColSpan(span int) *TableCell {
+func (td *TableCellElement) SetColSpan(span int) *TableCellElement {
 	if span < 1 {
 		span = 1
 	}
@@ -72,12 +93,12 @@ func (td *TableCell) SetColSpan(span int) *TableCell {
 }
 
 // ColSpan returns the number of columns the cell spans.
-func (td *TableCell) ColSpan() int {
+func (td *TableCellElement) ColSpan() int {
 	return td.colSpan
 }
 
 // SetRowSpan sets the number of rows the cell should span.
-func (td *TableCell) SetRowSpan(span int) *TableCell {
+func (td *TableCellElement) SetRowSpan(span int) *TableCellElement {
 	if span < 1 {
 		span = 1
 	}
@@ -89,6 +110,6 @@ func (td *TableCell) SetRowSpan(span int) *TableCell {
 }
 
 // RowSpan returns the number of rows the cell spans.
-func (td *TableCell) RowSpan() int {
+func (td *TableCellElement) RowSpan() int {
 	return td.rowSpan
 }

@@ -10,12 +10,8 @@ import (
 )
 
 func TestListComponents_Defaults(t *testing.T) {
-	be := mock.New(80, 24)
-	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
-
-	// 1. UnorderedList
-	ul := element.NewUnorderedList(doc)
+	// Using declarative API
+	ul := element.UL()
 	if ul.TagName() != "ul" {
 		t.Errorf("expected tag ul, got %s", ul.TagName())
 	}
@@ -30,8 +26,7 @@ func TestListComponents_Defaults(t *testing.T) {
 		t.Errorf("UL default Padding.Left should be 2")
 	}
 
-	// 2. OrderedList
-	ol := element.NewOrderedList(doc)
+	ol := element.OL()
 	if ol.TagName() != "ol" {
 		t.Errorf("expected tag ol, got %s", ol.TagName())
 	}
@@ -46,8 +41,7 @@ func TestListComponents_Defaults(t *testing.T) {
 		t.Errorf("OL default Padding.Left should be 3")
 	}
 
-	// 3. ListItem
-	li := element.NewListItem(doc)
+	li := element.LI()
 	if li.TagName() != "li" {
 		t.Errorf("expected tag li, got %s", li.TagName())
 	}
@@ -60,15 +54,11 @@ func TestListComponents_Defaults(t *testing.T) {
 func TestListComponents_Inheritance(t *testing.T) {
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
 
-	ol := element.NewOrderedList(doc)
-	li1 := element.NewListItem(doc)
-	li2 := element.NewListItem(doc)
-
-	ol.AppendChild(li1)
-	ol.AppendChild(li2)
-	doc.AppendChild(ol)
+	li1 := element.LI()
+	li2 := element.LI()
+	ol := element.OL(li1, li2)
+	eng.Mount(ol)
 
 	// Resolve styles
 	eng.Frame()
@@ -97,17 +87,13 @@ func TestListComponents_Inheritance(t *testing.T) {
 func TestListComponents_NestedInheritance(t *testing.T) {
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
 
-	ul := element.NewUnorderedList(doc)
-	li := element.NewListItem(doc)
-	innerOl := element.NewOrderedList(doc)
-	innerLi := element.NewListItem(doc)
-
-	ul.AppendChild(li)
-	li.AppendChild(innerOl)
-	innerOl.AppendChild(innerLi)
-	doc.AppendChild(ul)
+	innerLi := element.LI()
+	li := element.LI(
+		element.OL(innerLi),
+	)
+	ul := element.UL(li)
+	eng.Mount(ul)
 
 	eng.Frame()
 

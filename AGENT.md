@@ -52,7 +52,11 @@ This document provides guidelines and architectural context for AI assistants an
 
 ## 🧑‍💻 Coding Conventions
 
-1.  **Continuous Documentation Maintenance:**
+1.  **Declarative UI API:**
+    *   **Always** use the declarative functional constructors in the `element` package (e.g., `element.Box()`, `element.UL()`, `element.Span()`) when constructing UI trees.
+    *   Avoid using manual `NewBox(doc)` or `AppendChild` calls unless you are implementing a new custom element type or low-level DOM logic.
+    *   Leverage variadic children and automatic string boxing for concise UI code.
+2.  **Continuous Documentation Maintenance:**
     *   **Always** keep `README.md` and `AGENT.md` up-to-date. If you introduce new packages, modify core architectural patterns, or change significant dependencies, you must update these files to reflect the new state of the project.
 2.  **Modern Go Features:** 
     *   Utilize Go 1.24+ standard library features.

@@ -60,52 +60,41 @@ github.com/masterkeysrd/kite
 
 ## 💻 Usage Example
 
-While Kite operates under the hood with a full render loop, manually constructing a UI looks similar to web DOM manipulation:
+Kite provides a declarative, SwiftUI-inspired API for constructing UI trees. Thanks to **Implicit DOM Adoption**, you can build complex structures without threading a document reference:
 
 ```go
 package main
 
 import (
-	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
 )
 
 func main() {
-    // A concrete backend/render loop setup is required to draw this tree
-    // However, the DOM structure is built like this:
-	
-	// Create a document and a root element
-	// (Note: usually initialized by the engine)
-	var doc dom.Document 
-	
-	container := element.NewBox(doc)
-	container.SetID("main-container")
-	
-	// Create a list
-	list := element.NewUnorderedList(doc)
-	list.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Item 1")))
-	list.AddChild(element.NewListItem(doc).AddChild(element.NewText(doc, "Item 2")))
-	container.AppendChild(list)
-	
-	// Create a table
-	table := element.NewTable(doc)
-	row := element.NewTableRow(doc)
-	cell1 := element.NewTableCell(doc).AddChild(element.NewText(doc, "Cell 1"))
-	cell2 := element.NewTableCell(doc).AddChild(element.NewText(doc, "Cell 2"))
-	row.AddChild(cell1).AddChild(cell2)
-	table.AppendChild(row)
-	container.AppendChild(table)
+	// Build a UI tree declaratively
+	ui := element.Box(
+		element.Box(
+			"Welcome to Kite!",
+		).Style(style.Style{
+			Padding: style.Some(style.EdgeValues[int]{Top: 1, Bottom: 1}),
+		}),
 
-	text := element.NewText(doc, "Hello, Kite!")
-	container.AppendChild(text)
-	
-	// Apply styles (Sparse assignment via Optional[T])
-	myStyle := style.Style{
-		Display:       style.Some(style.DisplayFlex),
-		FlexDirection: style.Some(style.FlexColumn),
-	}
-	
-	_ = myStyle
+		element.UL(
+			element.LI("High Performance (60FPS)"),
+			element.LI("Declarative Syntax"),
+			element.LI("Flexbox Layout"),
+		),
+
+		element.Table(
+			element.TR(
+				element.TD("Cell 1"),
+				element.TD("Cell 2"),
+			),
+		),
+	)
+
+	// In a real application, you would mount this to the engine:
+	// eng.Mount(ui)
+	_ = ui
 }
 ```

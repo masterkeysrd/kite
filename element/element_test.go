@@ -8,21 +8,50 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 )
 
+func TestDeclarativeAPI(t *testing.T) {
+	// Test case 1: Box("Hello", Span("World"))
+	box := element.Box("Hello", element.Span("World"))
+
+	if box.NodeName() != "box" {
+		t.Errorf("expected box, got %s", box.NodeName())
+	}
+
+	// First child should be text "Hello"
+	child1 := box.FirstChild()
+	if child1 == nil || child1.NodeName() != "#text" || child1.TextContent() != "Hello" {
+		t.Errorf("expected first child to be text 'Hello', got %v", child1)
+	}
+
+	// Second child should be span "World"
+	child2 := child1.NextSibling()
+	if child2 == nil || child2.NodeName() != "span" {
+		t.Errorf("expected second child to be span, got %v", child2)
+	}
+	if child2.TextContent() != "World" {
+		t.Errorf("expected span text to be 'World', got %q", child2.TextContent())
+	}
+
+	// Test case 2: Flattening slices
+	box2 := element.Box([]any{"a", "b"})
+	if box2.FirstChild().TextContent() != "a" {
+		t.Errorf("expected 'a'")
+	}
+	if box2.FirstChild().NextSibling().TextContent() != "b" {
+		t.Errorf("expected 'b'")
+	}
+}
+
 func TestInlineTreeConstruction(t *testing.T) {
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
 
-	// Create a hierarchy: Box > Span > Text
-
-	// Create a hierarchy: Box > Span > Text
-	box := element.NewBox(doc)
-	span := element.NewSpan(doc)
-	text := element.NewText(doc, "Hello")
-
-	box.AppendChild(span)
-	span.AppendChild(text)
-	doc.AppendChild(box)
+	// Using declarative API
+	box := element.Box(
+		element.Span(
+			element.Text("Hello"),
+		),
+	)
+	eng.Mount(box)
 
 	// Trigger sync phase
 	eng.Frame()
@@ -33,11 +62,13 @@ func TestInlineTreeConstruction(t *testing.T) {
 		t.Fatal("Box render object not created")
 	}
 
+	span := box.FirstChild()
 	spanRO := span.RenderObject()
 	if spanRO == nil {
 		t.Fatal("Span render object not created")
 	}
 
+	text := span.FirstChild()
 	textRO := text.RenderObject()
 	if textRO == nil {
 		t.Fatal("Text render object not created")
@@ -55,25 +86,19 @@ func TestInlineTreeConstruction(t *testing.T) {
 func TestMixedTreeConstruction(t *testing.T) {
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
 
-	// Box
-
-	// Box
-	//  - Span
-	//  - Box (nested)
-	box := element.NewBox(doc)
-	span := element.NewSpan(doc)
-	nestedBox := element.NewBox(doc)
-
-	box.AppendChild(span)
-	box.AppendChild(nestedBox)
-	doc.AppendChild(box)
+	box := element.Box(
+		element.Span(),
+		element.Box(),
+	)
+	eng.Mount(box)
 
 	eng.Frame()
 
 	boxRO := box.RenderObject()
+	span := box.FirstChild()
 	spanRO := span.RenderObject()
+	nestedBox := span.NextSibling()
 	nestedBoxRO := nestedBox.RenderObject()
 
 	if boxRO.FirstChild() != spanRO {

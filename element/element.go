@@ -180,3 +180,29 @@ func (b *elementBase[Self]) initBase(el dom.Element, self *Self, defaultStyle st
 	b.self = self
 	b.defaultStyle = defaultStyle
 }
+
+var orphanDocument = dom.NewDocument()
+
+func processChildren(parent dom.Element, children []any) {
+	for _, child := range children {
+		if child == nil {
+			continue
+		}
+
+		switch v := child.(type) {
+		case string:
+			parent.AppendChild(NewText(orphanDocument, v))
+		case dom.Node:
+			parent.AppendChild(v)
+		case []any:
+			processChildren(parent, v)
+		case []dom.Node:
+			for _, n := range v {
+				parent.AppendChild(n)
+			}
+		case style.Style:
+			// Special case: if parent is one of our elements, it has Style method.
+			// Given the objective, let's focus on children first.
+		}
+	}
+}
