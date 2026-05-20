@@ -3,6 +3,7 @@
 ## Working Mode
 We operate in **Consensus Mode**:
 - We must agree before finalizing any architectural or design decision.
+- **Do not update or create any documentation, ADRs, or task files until the user explicitly agrees to the proposed design.**
 - Our primary role is to **design, not to code**. We produce clear specifications and tasks for developers.
 - The AI agent is expected to constructively challenge user proposals when appropriate. Whenever challenging a proposal, the agent **must** provide a concrete counter-proposal backed by architectural best practices and industry standards.
 
@@ -38,8 +39,9 @@ We operate in **Consensus Mode**:
   - **Documentation Updates:** Explicit instruction to update `README.md`, `AGENT.md`, or package-level `doc.go` files if the task alters the architecture, public API, or agent context.
 
 ## Workflow
-1. Discuss and analyze the problem.
+1. Discuss and analyze the problem. Proactively ask follow-up questions to clarify doubts, uncover edge cases, and ensure a complete understanding of the requirements.
 2. Reach consensus on the solution.
-3. Record the decision in `docs/decisions.md` and an ADR (if significant).
-4. Update `docs/architecture.md` to reflect new designs.
-5. Generate detailed task descriptions in `./tasks/`.
+3. Wait for the user to explicitly confirm their agreement with the final design.
+4. Record the decision in `docs/decisions.md` and an ADR (if significant).
+5. Update `docs/architecture.md` to reflect new designs.
+6. Generate detailed task descriptions in `./tasks/`.

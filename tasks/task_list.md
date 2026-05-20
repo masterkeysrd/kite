@@ -27,3 +27,10 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-012 | Table Layout Builder Pattern | Done | `tasks/TSK-012-table-layout-builder.md` |
 | TSK-013 | Flex Layout Builder Refactor | Done | `tasks/TSK-013-flex-layout-builder.md` |
 | TSK-014 | Global Border Style Metadata | Done | `tasks/TSK-014-border-style-metadata.md` |
+| TSK-015 | Cursor Package and Engine Integration | Done | `tasks/TSK-015-cursor-package.md` |
+| TSK-016 | Custom Render Object Hook | Pending | `tasks/TSK-016-custom-render-object.md` |
+| TSK-017 | Logical Text Controller | Pending | `tasks/TSK-017-logical-text-controller.md` |
+| TSK-018 | Input and TextArea Components | Pending | `tasks/TSK-018-input-textarea-components.md` |
+| TSK-019 | Document Overlay API and Render Root | Pending | `tasks/TSK-019-document-overlay-api.md` |
+| TSK-020 | Element Bounding Client Rect | Pending | `tasks/TSK-020-element-bounding-client-rect.md` |
+| TSK-021 | Overlay and Dialog Components | Pending | `tasks/TSK-021-overlay-and-dialog-components.md` |

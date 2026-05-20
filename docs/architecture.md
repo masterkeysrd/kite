@@ -23,6 +23,7 @@ The framework operates via a central nervous system called the **Engine (`/engin
 ## 3. Subsystems
 
 ### 3.1. DOM (Logical Tree)
+- **Hardware Cursor:** The logical DOM does not handle physical terminal cursor calculations. The engine queries the `cursor.Provider` interface on the render object of the currently focused node to set the terminal cursor position automatically.
 - **Responsibility:** Maintains the structural tree and interactivity states (`Focusable`, `Disabled`).
 - **Core Entities:** `Document`, `Element`, `TextNode`.
 - **Adoption & Identity:** Uses a self back-pointer (`outer`) set during the attach walk. Ensures `event.Target()` and `GetElementByID()` return the outermost user-visible wrapper (useful for custom widgets).
@@ -43,6 +44,7 @@ The framework operates via a central nervous system called the **Engine (`/engin
   - **Inline Formatting Context (IFC):** Lays out text and atomic inlines horizontally, wrapping them into line boxes. Uses a flat representation of `InlineItem`s.
 
 ### 3.4. Render Pipeline (`/render`)
+- **Replaced Elements:** Elements like inputs are implemented via custom render objects (e.g., `render.Input`) injected during the Sync phase via a `CustomObjectProvider` hook. These objects manage their own layout and text measurement independently of standard document flow.
 - **Responsibility:** The visual bridge between the logical DOM and physical layout.
 - **Stateless Styling:** Render objects act as pure proxies for author styles (`RawStyle()`) and element defaults (`DefaultStyle()`), querying their underlying logical DOM node directly. They do not store sparse styles, avoiding state duplication.
 - **Node Mirroring:** It strictly mirrors the DOM structure using a unified `render.Box` or `render.Text` (no explicit block/flex types here; the engine delegates algorithms at layout time based on `ComputedStyle.Display`).
