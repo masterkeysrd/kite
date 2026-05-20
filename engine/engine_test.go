@@ -9,6 +9,7 @@ import (
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/layout"
@@ -418,5 +419,76 @@ func TestEngine_ChildDirtyLayout_TriggersParentRelayout(t *testing.T) {
 
 	if b.BeginFrameCalls != 1 {
 		t.Errorf("BeginFrameCalls = %d, want 1 (child was dirty)", b.BeginFrameCalls)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Custom Render Object tests
+// ---------------------------------------------------------------------------
+
+type customNode struct {
+	dom.Element
+	created bool
+}
+
+func (c *customNode) CreateRenderObject() render.Object {
+	c.created = true
+	return render.NewBox(c, c)
+}
+
+func (c *customNode) Unwrap() dom.Node {
+	return c.Element
+}
+
+func TestEngine_CustomRenderObject(t *testing.T) {
+	e, _ := newTestEngine(t)
+	defer e.Stop()
+
+	doc := e.Document()
+	cn := &customNode{}
+	cn.Element = dom.NewElement(doc, "custom", cn)
+	doc.AppendChild(cn)
+
+	e.Frame()
+
+	if !cn.created {
+		t.Error("CustomObjectProvider.CreateRenderObject was not called")
+	}
+
+	if cn.RenderObject() == nil {
+		t.Error("custom node has no render object")
+	}
+}
+
+type wrappedNode struct {
+	dom.Element
+	inner dom.Node
+}
+
+func (w *wrappedNode) Unwrap() dom.Node {
+	return w.inner
+}
+
+func TestEngine_CustomRenderObject_Wrapped(t *testing.T) {
+	e, _ := newTestEngine(t)
+	defer e.Stop()
+
+	doc := e.Document()
+	cn := &customNode{}
+	cn.Element = dom.NewElement(doc, "inner", cn)
+
+	wn := &wrappedNode{inner: cn}
+	wn.Element = dom.NewElement(doc, "wrapper", wn)
+
+	doc.AppendChild(wn)
+
+	e.Frame()
+
+	if !cn.created {
+		t.Error("CustomObjectProvider.CreateRenderObject was not called on inner node")
+	}
+
+	if wn.RenderObject() == nil {
+		t.Error("wrapped node has no render object")
 	}
 }

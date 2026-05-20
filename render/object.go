@@ -21,6 +21,12 @@ type RenderObjectHook interface {
 	OnRenderObjectCreated(ro Object)
 }
 
+// CustomObjectProvider is an interface that logical nodes can implement
+// to provide a custom render object instead of the default render.Box.
+type CustomObjectProvider interface {
+	CreateRenderObject() Object
+}
+
 // Object is the interface for all renderable objects that sit in the render tree.
 type Object interface {
 	// EventTarget returns the event target associated with this render object.

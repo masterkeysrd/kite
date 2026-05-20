@@ -1,5 +1,9 @@
 package dom
 
+import (
+	"github.com/masterkeysrd/kite/render"
+)
+
 // textNode is the concrete, unexported implementation of TextNode.
 type textNode struct {
 	baseNode
@@ -44,3 +48,8 @@ func (t *textNode) SetData(data string) {
 
 // asBase returns the underlying *baseNode.
 func (t *textNode) asBase() *baseNode { return &t.baseNode }
+
+// CreateRenderObject implements render.CustomObjectProvider.
+func (t *textNode) CreateRenderObject() render.Object {
+	return render.NewText(t.self, t.self)
+}

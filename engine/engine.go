@@ -659,10 +659,10 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 // It also recursively creates render objects for any existing children.
 func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	var ro render.Object
-	switch n.Kind() {
-	case dom.KindText:
-		ro = render.NewText(n, n)
-	default:
+	if cp := unwrapProvider(n); cp != nil {
+		ro = cp.CreateRenderObject()
+	} else {
+		// Fallback for nodes that don't implement CustomObjectProvider.
 		ro = render.NewBox(n, n)
 	}
 
@@ -900,4 +900,14 @@ func (e *Engine) shouldRunFrame() bool {
 	}
 	// Check for dirty render tree.
 	return e.renderView.Flags() != 0
+}
+
+func unwrapProvider(n dom.Node) render.CustomObjectProvider {
+	if n == nil {
+		return nil
+	}
+	if cp, ok := n.(render.CustomObjectProvider); ok {
+		return cp
+	}
+	return unwrapProvider(n.Unwrap())
 }

@@ -20,6 +20,7 @@ This document provides guidelines and architectural context for AI assistants an
     *   It walks the logical DOM tree and projects it into the render tree.
     *   Structural changes (insertions/removals) in the DOM trigger synchronization flags that propagate to the document root.
     *   The engine creates/removes `render.Box` or `render.Text` objects on the fly during this phase. There is no `render.Block` or `render.Flex`—the engine uses a unified `render.Box` which delegates to the appropriate algorithm at layout time based on `ComputedStyle.Display`.
+    *   **Custom Render Objects:** Logical nodes can implement `render.CustomObjectProvider` to override the default creation logic and provide specialized render objects (e.g., for replaced elements like inputs).
 3.  **Element Identity & Adoption:**
     *   Every `dom.Element` carries an `outer` back-pointer. This pointer ensures that when widgets wrap standard elements, functions like `event.Target()`, `GetElementByID()`, and `RenderObject.Node()` always return the outermost, user-visible wrapper.
     *   Do not reset the `outer` pointer to `nil` on detach. The identity must remain stable.
