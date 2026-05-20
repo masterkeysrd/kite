@@ -16,6 +16,7 @@ Unlike traditional layout engines that mutate the state of logical DOM nodes or 
 *   **`ConstraintSpace`**: The input parameters for a layout operation. It defines the available size (width/height) and specifies whether those dimensions are fixed or flexible (e.g., shrink-to-fit).
 *   **`Fragment`**: The physical, read-only output. It contains a `layout.Size` and a slice of `FragmentLink`s (children fragments and their X/Y offsets).
 *   **`BoxFragmentBuilder`**: A mutable builder used by algorithms to accumulate inline size, block size, and child fragments. Calling `builder.ToFragment()` seals it into an immutable `Fragment`.
+*   **`FlexLineBuilder`**: A specialized builder for the flex algorithm that manages item collection, line breaking, space distribution, and alignment state.
 *   **`MinMaxSizes`**: Represents the intrinsic minimum (shrink-wrapped) and maximum (fully expanded) sizes of a node before flex or percentage rules are applied.
 
 ## The Layout Flow
@@ -46,9 +47,9 @@ The Block Formatting Context (BFC) algorithm implements standard vertical stacki
 5. **Height Resolution**: After all children are laid out, the Block algorithm determines its own final block size (height). If the height is explicitly set, it uses that; otherwise, it shrink-wraps to the bottom edge of the last child (plus padding and borders).
 6. **Margin Collapsing**: *(Note: Terminal UI margin collapsing rules are simpler than web CSS, often just resolving explicit cell gaps).*
 
-### Flex Algorithm (`flex.go`)
+### Flex Algorithm (`flex.go`, `flex_builder.go`)
 
-The Flex Formatting Context handles 1D layouts with advanced alignment, wrapping, and distribution of space. It is designed to be agnostic of the `FlexDirection` (Row vs. Column) by operating on **Main** and **Cross** axes using a geometry abstraction (`flexGeometry`).
+The Flex Formatting Context handles 1D layouts with advanced alignment, wrapping, and distribution of space. It is designed to be agnostic of the `FlexDirection` (Row vs. Column) by operating on **Main** and **Cross** axes using a geometry abstraction (`flexGeometry`). All mutable state for the algorithm is encapsulated in the `FlexLineBuilder`.
 
 #### Detailed Flow
 The flex algorithm is heavily optimized to avoid exponential ($O(n^2)$) layout times by strictly caching intermediate results across its two-pass system.
@@ -57,19 +58,19 @@ The flex algorithm is heavily optimized to avoid exponential ($O(n^2)$) layout t
 1. **Item Collection**: All flex children are gathered. If `display: inline` children are found alongside blocks, they are bundled into an `AnonymousBlock` to participate as a single flex item.
 2. **Order Sorting**: Items are reordered based on their CSS `order` property.
 3. **Base Size Calculation**: The intrinsic `MinMaxSizes` of each item are measured. The item's `BaseSize` and `HypotheticalMainSize` (its size before any growing or shrinking) are calculated based on the available main-axis space.
-4. **Line Breaking**: If `flex-wrap` is enabled, the algorithm accumulates items into logical `flexLine` groupings. When the sum of `HypotheticalMainSize`s exceeds the available main space, a new line is started.
+4. **Line Breaking**: Using `FlexLineBuilder.ComputeLines()`, the algorithm accumulates items into logical `FlexLine` groupings. When the sum of `HypotheticalMainSize`s exceeds the available main space, a new line is started (if `flex-wrap` is enabled).
 
 ##### Pass 2: Flexible Length Resolution
-For each logical line, the engine must distribute the remaining free space (or shrink items if they overflow):
+For each logical line, the `FlexLineBuilder` distributes the remaining free space (or shrinks items if they overflow) using `ResolveFlexibleLengths()`:
 1. **Determine Free Space**: `Available Space - Sum(HypotheticalMainSize)`.
 2. **Freeze Inflexible Items**: Items with `flex-grow: 0` (when there's extra space) or `flex-shrink: 0` (when overflowing) are "frozen" at their hypothetical sizes.
 3. **Distribute Space**: The remaining space is distributed proportionally among the unfrozen items based on their `flex-grow` or `flex-shrink` factors.
-4. **Min/Max Clamping Loop**: If a stretched/shrunk item hits its `min-width` or `max-width`, it is clamped, marked as "frozen", and the algorithm loops again to redistribute the leftover space among the remaining unfrozen items.
+4. **Min/Max Clamping Loop (Freeze and Restart)**: If a stretched/shrunk item hits its `min-width` or `max-width`, it is clamped, marked as "frozen", and the algorithm loops again to redistribute the leftover space among the remaining unfrozen items.
 
 ##### Final Layout & Alignment
 1. **Forced Child Layout**: Every child is laid out again. This time, the parent builds a `ConstraintSpace` with strict, fixed dimensions based on the resolved flexible sizes. The child *must* obey these constraints, returning its final immutable `Fragment`.
-2. **Main-Axis Alignment**: Using `justify-content` (Start, End, Center, Space-Between, etc.), the algorithm calculates the exact `X` (or `Y` for columns) coordinate for each item on the line.
-3. **Cross-Axis Alignment**: Using `align-items` and `align-self`, the algorithm calculates the perpendicular coordinate for each item, shifting them up/down (or left/right) within the height/width of their specific `flexLine`.
+2. **Main-Axis Alignment**: Using `FlexLineBuilder.AlignLine()`, the algorithm calculates the exact `X` (or `Y` for columns) coordinate for each item on the line based on `justify-content`.
+3. **Cross-Axis Alignment**: Using `FlexLineBuilder.AlignCrossAxis()`, the algorithm handles `align-content` (for multiple lines) and `align-items`/`align-self`, calculating the perpendicular coordinate for each item.
 
 ### Inline Algorithm (`inline.go`)
 

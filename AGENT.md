@@ -34,7 +34,8 @@ This document provides guidelines and architectural context for AI assistants an
     *   Text nodes must be collapsed and shaped before layout.
     *   `inline-block` elements are treated as atomic inlines that run their own block layout internally.
 7.  **Flex Layout (LayoutNG):**
-    *   Flex layout utilizes a two-pass approach: a measure pass to determine flex base sizes and a layout pass to resolve flexible lengths and alignment.
+    *   Flex layout utilizes a two-pass approach (`FlexAlgorithm`): a measure pass to determine flex base sizes and a layout pass to resolve flexible lengths and alignment.
+    *   All mutable state for the algorithm lives in `FlexLineBuilder` (`flex_builder.go`), which handles item collection, line chunking, flexible length resolution (freeze and restart), and axis alignment.
     *   The algorithm must use logical geometry (`MainSize`, `CrossSize`) to remain agnostic of the `flex-direction`.
     *   To maintain performance, the resolution loop must utilize the "freeze and restart" strategy for items hitting their min/max constraints, ensuring $O(N)$ or near-$O(N)$ complexity.
 8.  **Focus Management:**
