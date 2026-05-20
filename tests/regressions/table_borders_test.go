@@ -13,15 +13,15 @@ func TestTableBorders(t *testing.T) {
 	b := mock.New(40, 10)
 	eng := engine.New(b, engine.Options{})
 
-	// Table with borders on every cell
+	// Table with borders on every cell, no manual margins
 	root := element.Box(
 		element.Table(
 			element.TR(
-				element.TD("A").Style(style.Style{Border: style.SingleBorder().Some(), Margin: style.Some(style.Edges(0, -1, -1, 0))}),
-				element.TD("B").Style(style.Style{Border: style.SingleBorder().Some(), Margin: style.Some(style.Edges(0, 0, -1, 0))}),
+				element.TD("A").Style(style.Style{Border: style.SingleBorder().Some()}),
+				element.TD("B").Style(style.Style{Border: style.SingleBorder().Some()}),
 			),
 			element.TR(
-				element.TD("C").Style(style.Style{Border: style.SingleBorder().Some(), Margin: style.Some(style.Edges(0, -1, 0, 0))}),
+				element.TD("C").Style(style.Style{Border: style.SingleBorder().Some()}),
 				element.TD("D").Style(style.Style{Border: style.SingleBorder().Some()}),
 			),
 		).Style(style.Style{

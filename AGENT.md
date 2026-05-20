@@ -47,8 +47,16 @@ This document provides guidelines and architectural context for AI assistants an
     *   Ordinal calculation for numbered lists uses an $O(N)$ sibling walk of the logical tree.
 10. **Table Layout:**
     *   Table layout utilizes a two-pass approach (`TableAlgorithm`): a measurement pass to determine intrinsic grid column sizing (accounting for `ColSpan` and `RowSpan`), followed by a layout pass to resolve rows and place cells.
+    *   All mutable state for the two passes lives in `TableFragmentBuilder` (`table_builder.go`), which handles section grouping, the `tableGrid` (including per-junction border-overlap flags), column min/max sizing, `DistributeSpan`, `ResolveWidths`, `AdjustRowOffset`, and `GetCellShift`.
     *   Cells act as independent block formatting contexts constrained by the rigid widths dictated by the parent table.
     *   Table routing is strictly driven by `style.DisplayTable`, `style.DisplayTableRow`, and `style.DisplayTableCell`. No specialized render nodes exist.
+    *   **Implicit Border Collapse** — Kite tables always use border-collapse semantics. The coordinate rules are:
+        *   Cells are placed at `(X=0, Y=0)` within the row (the `BoxFragmentBuilder`'s automatic `border.Top` inset is reset to `0`). This makes cell borders physically overlap with row borders at the same terminal pixel, allowing the paint engine's junction resolver to merge them.
+        *   `GetCellShift` returns `1` when a cell's left border and the previous cell's right border both exist, shifting the new cell left by 1 so both borders share one terminal column.
+        *   For **spanning cells** (`ColSpan > 1`), each `ColJunctionOverlap[j] == true` inside the span reduces `cellWidth` by 1 (the junction column does not exist inside a spanning cell).
+        *   `AdjustRowOffset` returns `-1` when consecutive rows both have touching borders, collapsing them onto a single shared terminal row.
+        *   The table width and distributable column budget are adjusted only for *actual* overlapping junctions (tracked in `tableGrid.ColJunctionOverlap`, `LeftEdgeHasOverlap`, `RightEdgeHasOverlap`), never unconditionally.
+        *   When `LeftEdgeHasOverlap` is true, sections are placed at `X = padding.Left` (no left-border gap) and `childAvailWidth` is expanded so column 0 can share the table's left border column.
 
 ## 🧑‍💻 Coding Conventions
 

@@ -98,20 +98,57 @@ The List Formatting Context (LFC) implements the layout for `display: list-item`
 3. **Ordinal Calculation**: For numbered lists (`ListStyleDecimal`), the algorithm computes the ordinal by walking the previous logical siblings of the node to count consecutive `display: list-item` elements.
 4. **Content Wrapping**: Multi-line content in Column 2 is constrained to the remaining available inline space, ensuring that text wraps cleanly adjacent to the marker rather than underneath it.
 
-### Table Algorithm (`table.go`)
+### Table Algorithm (`table.go`, `table_builder.go`)
 
-The Table Formatting Context (`DisplayTable`) implements a rigorous two-pass layout algorithm to resolve intrinsic grid column dimensions and handle complex cell spanning (`ColSpan`, `RowSpan`).
+The Table Formatting Context (`DisplayTable`) implements a rigorous two-pass layout algorithm to resolve intrinsic grid column dimensions and handle complex cell spanning (`ColSpan`, `RowSpan`). All mutable state for the two-pass process is managed by a dedicated `TableFragmentBuilder`.
+
+#### `TableFragmentBuilder` (`table_builder.go`)
+
+The `TableFragmentBuilder` is the central state-management object for a single table layout run. It is created by `TableAlgorithm` and threaded through to `TableSectionAlgorithm` and `TableRowAlgorithm`. Its responsibilities are:
+
+1. **Section Grouping**: Collects `thead`, `tbody`, and `tfoot` children via `AddHeaderChild`, `AddBodyChild`, and `AddFooterChild`. Direct row or non-row children are wrapped into anonymous section and row nodes automatically.
+2. **Grid Construction** (`BuildGrid`): Builds a logical 2D grid (`tableGrid`) by walking all rows and cells. The grid records each cell's `ColStart`, `ColSpan`, and `RowSpan`, resolving overlapping cells due to `RowSpan`. It also pre-computes per-column-junction border-overlap flags (see below).
+3. **Column Sizing** (`DistributeSpan`): Populates `colMinMax []MinMaxSizes` — one entry per column. Single-span cells are measured first, then multi-span cells distribute any excess width proportionally across the spanned columns.
+4. **Width Resolution** (`ResolveWidths`): Resolves the final per-column pixel widths (`colWidths`) given the table's total resolved inline size. The distributable budget is widened by the number of *actual* collapsed junctions (not all junctions unconditionally).
+5. **Implicit Border-Collapse Math**: Provides `AdjustRowOffset` and `GetCellShift` to `TableSectionAlgorithm` and `TableRowAlgorithm` so they can apply the `-1` coordinate adjustments for overlapping borders.
+
+#### Border-Collapse Coordinate Model
+
+Kite uses **implicit border collapse** for table elements. The key rules are:
+
+**Horizontal (X-axis) — cell-to-cell:**
+- Cells are placed at `X = 0` within the row (no left-border inset). This ensures that a cell's left border physically overlaps with the row's own left border at the same terminal column, allowing the paint engine's junction resolver to merge them.
+- When a cell at column `j` has a right border **and** the cell at column `j+1` has a left border, `GetCellShift` returns `1`. The calling row algorithm subtracts this from the next cell's X offset, causing the two borders to share the same terminal column.
+- For **spanning cells** (`ColSpan > 1`), each internal collapsed junction within the span is subtracted from the cell's total width (`cellWidth--` for each `ColJunctionOverlap[j] == true` in the span range). The junction column does not exist inside a spanning cell.
+
+**Vertical (Y-axis) — row-to-row:**
+- Cells are placed at `Y = 0` within the row (the `BoxFragmentBuilder`'s automatic `border.Top` inset is explicitly reset to `0`). This ensures that a cell's top border shares the same terminal row as the row's own top border.
+- The row's block size is set to `maxCellHeight` only (no extra `border.Bottom` added). The row's bottom border is therefore drawn at `Y = maxCellHeight - 1`, coinciding exactly with the cells' bottom borders.
+- When the previous row has a bottom border **and** the next row has a top border, `AdjustRowOffset` returns `-1`. The section algorithm subtracts this from the next row's Y offset, making the two rows share that single border terminal row.
+- `TableFragmentBuilder` is initialized with `lastRowBorderBottom = table.border.Edges.Top` so the very first row also collapses against the table's own top border when applicable.
+
+**Table-edge overlaps (X-axis):**
+- `tableGrid.ColJunctionOverlap[j]` is `true` when any row has both a right-bordered cell ending at column `j` and a left-bordered cell starting at column `j+1`.
+- `tableGrid.LeftEdgeHasOverlap` / `RightEdgeHasOverlap` are `true` when the table's own left/right border intersects with the first/last column's cell borders.
+- These flags drive two things:
+  1. **Table width**: `tableMinMax` is reduced by 1 for each actual overlap (not unconditionally for every junction).
+  2. **Section placement**: when `LeftEdgeHasOverlap` is true, sections are placed at `X = padding.Left` (instead of `X = border.Left + padding.Left`), and `childAvailWidth` is expanded by `border.Left` (and `border.Right` for `RightEdgeHasOverlap`), so that column 0's left border shares the table's left border column.
 
 #### Detailed Flow
 
 ##### Pass 1: Grid Sizing & Measurement
-1. **Grid Construction**: The algorithm walks the table rows and cells to build a logical 2D matrix, resolving the placement of cells based on their sequence and any overlapping columns/rows dictated by `ColSpan` and `RowSpan`.
-2. **Column Sizing**: It computes the intrinsic minimum and maximum widths (`MinMaxSizes`) for every column based on the content of single-span cells.
-3. **Span Distribution**: For cells spanning multiple columns, their extra required width is distributed proportionally among the spanned columns.
-4. **Width Resolution**: The table determines its final total width based on the `ConstraintSpace` (e.g., shrinking to fit content, or stretching to a percentage). Excess available width is then distributed proportionally or evenly back into the column widths.
+1. **Section Grouping**: `TableAlgorithm` walks its children and calls the appropriate `builder.Add*Child` method to populate the three section buckets (header, bodies, footer). Anonymous wrappers are created for stray rows or cells.
+2. **Grid Construction** (`BuildGrid`): Flattens all rows from all sections and builds `tableGrid`, including `ColJunctionOverlap`, `LeftEdgeHasOverlap`, and `RightEdgeHasOverlap`.
+3. **Column Sizing**: Single-span cells are measured first (`IntrinsicMinMaxSizes`), then multi-span cells run `DistributeSpan` to push any excess width into the spanned columns.
+4. **Table Width Resolution**: `tableMinMax` sums the per-column min/max values, then subtracts 1 for each genuinely collapsed border (junctions and table edges). `parentDecorX` (table borders + padding) is added back.
+5. **Column Width Distribution** (`ResolveWidths`): The distributable pixel budget is `resolvedInlineSize - parentDecorX + overlaps_added_back`. This is distributed proportionally to max-content sizes, then evenly for any remainder.
 
 ##### Pass 2: Row & Cell Layout
-1. **Row Invocation**: The `TableAlgorithm` iterates over its `DisplayTableRow` children, invoking the `TableRowAlgorithm`. It explicitly passes down the array of resolved, fixed column widths.
-2. **Cell Constraint Enforcement**: The `TableRowAlgorithm` acts as a horizontal BFC. It loops over its `DisplayTableCell` children, creating a rigid `ConstraintSpace` for each cell based on the sum of the widths of the columns it spans.
-3. **Cell Layout**: Cells operate internally as standard Block contexts, laying out their children strictly within the fixed boundaries mandated by the row.
-4. **Row Height**: The row sets its height to the tallest cell within it. The table aggregates these row heights to determine its final physical dimensions.
+1. **Section Invocation**: For each section (in header → body → footer order), `TableAlgorithm` builds a `ConstraintSpace` whose width is `childAvailWidthBase` (accounting for edge overlaps) and passes it to `TableSectionAlgorithm`, along with the relevant slice of `tableGrid.Rows` and the resolved `colWidths`.
+2. **Row Invocation**: `TableSectionAlgorithm` iterates over its rows, calling `TableRowAlgorithm` for each. Before placing each row, it calls `builder.AdjustRowOffset` to apply the `-1` vertical collapse shift where row borders overlap.
+3. **Cell Layout**: `TableRowAlgorithm` resets its builder's `currentBlockOffset` to `0` (overriding the automatic border inset), then iterates over the row's cells from `tableGrid`. For each cell it:
+   a. Sums `colWidths` across the spanned columns, then subtracts 1 for each internal collapsed junction.
+   b. Calls `builder.GetCellShift` to obtain the horizontal `-1` collapse shift.
+   c. Lays the cell out as a standard `BlockAlgorithm` within a fixed-width `ConstraintSpace`.
+   d. Places the cell at the adjusted `(X, 0)` offset.
+4. **Row Height**: The row's height is set to `maxCellHeight + padding.Bottom` (no extra `border.Bottom`). The table aggregates row heights via `AdjustRowOffset` to arrive at its final block size.

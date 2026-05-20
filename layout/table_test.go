@@ -250,3 +250,181 @@ func TestTableLayout_StretchAndShrink(t *testing.T) {
 		t.Errorf("expected Percent table to stretch to 100, got %d", frag2.Size.Width)
 	}
 }
+
+func TestTableLayout_BorderOverlap(t *testing.T) {
+	linkSiblings := func(nodes ...Node) Node {
+		for i := 0; i < len(nodes)-1; i++ {
+			switch n := nodes[i].(type) {
+			case *mockTableCellNode:
+				n.nextSibling = nodes[i+1]
+			case *mockNode:
+				n.nextSibling = nodes[i+1]
+			}
+		}
+		if len(nodes) > 0 {
+			return nodes[0]
+		}
+		return nil
+	}
+
+	cellStyleBordered := &style.Computed{
+		Display: style.DisplayTableCell,
+		Width:   style.Cells(10),
+		Height:  style.Cells(1),
+		Border: style.Border{
+			Edges: style.EdgeAll(true),
+		},
+	}
+
+	// Two bordered cells side by side.
+	// Expected behavior: The second cell's X coordinate is offset by -1.
+	c1 := &mockTableCellNode{mockNode: mockNode{style: cellStyleBordered}}
+	c2 := &mockTableCellNode{mockNode: mockNode{style: cellStyleBordered}}
+
+	row1 := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayTableRow,
+			Border: style.Border{
+				Edges: style.EdgeAll(true),
+			},
+		},
+		firstChild: linkSiblings(c1, c2),
+	}
+
+	row2 := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayTableRow,
+			Border: style.Border{
+				Edges: style.EdgeAll(true),
+			},
+		},
+		firstChild: linkSiblings(&mockTableCellNode{mockNode: mockNode{style: cellStyleBordered}}),
+	}
+
+	table := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayTable,
+			Width:   style.Auto,
+		},
+		firstChild: linkSiblings(row1, row2),
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	frag := (&TableAlgorithm{Node: table, Space: space}).Layout()
+
+	// Anonymous section
+	tbodyFrag := frag.Children[0].Fragment
+
+	// Row 1
+	row1Frag := tbodyFrag.Children[0]
+	if row1Frag.Offset.Y != 0 {
+		t.Errorf("expected row1 Y offset 0, got %d", row1Frag.Offset.Y)
+	}
+
+	cell1 := row1Frag.Fragment.Children[0]
+	cell2 := row1Frag.Fragment.Children[1]
+
+	// With border collapse, cells start at X=0 within the row (no inset).
+	// Cell1's left border overlaps the row's left border at X=0.
+	if cell1.Offset.X != 0 {
+		t.Errorf("expected cell1 X offset 0, got %d", cell1.Offset.X)
+	}
+
+	// Cell2 shifts left by 1 because cell1's right border and cell2's left
+	// border occupy the same terminal column (border collapse).
+	if cell2.Offset.X != 9 {
+		t.Errorf("expected cell2 X offset 9, got %d", cell2.Offset.X)
+	}
+
+	// Row 2
+	row2Frag := tbodyFrag.Children[1]
+	// With border-collapse, the row height equals maxCellHeight (borders are at
+	// the cell's top/bottom edges, not added separately). Row1 cell height = 2
+	// (border.top + border.bottom, no content). Row1 height = 2.
+	// Row2.top border shares Row1.bottom border → AdjustRowOffset returns -1.
+	// Row2.Y = 2 + (-1) = 1.
+	if row2Frag.Offset.Y != 1 {
+		t.Errorf("expected row2 Y offset 1 due to border-collapse overlap, got %d", row2Frag.Offset.Y)
+	}
+}
+
+// TestTableLayout_ColSpanBorderCollapse verifies that a spanning cell's width
+// is reduced by the number of internal collapsed junctions within its span.
+// Without the fix the cell would be 1 cell too wide (junction overlap not
+// subtracted), causing its right border to overflow past the table edge.
+func TestTableLayout_ColSpanBorderCollapse(t *testing.T) {
+	linkSiblings := func(nodes ...Node) Node {
+		for i := 0; i < len(nodes)-1; i++ {
+			switch n := nodes[i].(type) {
+			case *mockTableCellNode:
+				n.nextSibling = nodes[i+1]
+			case *mockNode:
+				n.nextSibling = nodes[i+1]
+			}
+		}
+		if len(nodes) > 0 {
+			return nodes[0]
+		}
+		return nil
+	}
+
+	// Bordered cells in the first row establish the ColJunctionOverlap.
+	borderedCell := &style.Computed{
+		Display: style.DisplayTableCell,
+		Width:   style.Cells(10),
+		Border:  style.Border{Edges: style.EdgeAll(true)},
+	}
+	spanningCell := &style.Computed{
+		Display: style.DisplayTableCell,
+		Border:  style.Border{Edges: style.EdgeAll(true)},
+	}
+
+	c11 := &mockTableCellNode{mockNode: mockNode{style: borderedCell}}
+	c12 := &mockTableCellNode{mockNode: mockNode{style: borderedCell}}
+	row1 := &mockNode{
+		style:      &style.Computed{Display: style.DisplayTableRow},
+		firstChild: linkSiblings(c11, c12),
+	}
+
+	// Row 2: single cell spanning both columns.
+	c21 := &mockTableCellNode{
+		mockNode: mockNode{style: spanningCell},
+		colSpan:  2,
+	}
+	row2 := &mockNode{
+		style:      &style.Computed{Display: style.DisplayTableRow},
+		firstChild: linkSiblings(c21),
+	}
+
+	table := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayTable,
+			Width:   style.Auto,
+		},
+		firstChild: linkSiblings(row1, row2),
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	frag := (&TableAlgorithm{Node: table, Space: space}).Layout()
+
+	// Table width: col0(10) + col1(10) - 1(junction) = 19.
+	if frag.Size.Width != 19 {
+		t.Fatalf("expected table width 19, got %d", frag.Size.Width)
+	}
+
+	// The spanning cell in row2 must fit exactly within the table:
+	// width = colWidths[0]+colWidths[1] - 1(junction) = table.width = 19.
+	tbodyFrag := frag.Children[0].Fragment
+	row2Frag := tbodyFrag.Children[1].Fragment
+	if len(row2Frag.Children) != 1 {
+		t.Fatalf("expected 1 child in row2, got %d", len(row2Frag.Children))
+	}
+	spanFrag := row2Frag.Children[0].Fragment
+	if spanFrag.Size.Width != 19 {
+		t.Errorf("spanning cell width expected 19 (colWidths sum minus junction), got %d", spanFrag.Size.Width)
+	}
+	// Spanning cell must start at X=0 (no shift since colStart=0).
+	if row2Frag.Children[0].Offset.X != 0 {
+		t.Errorf("spanning cell X offset expected 0, got %d", row2Frag.Children[0].Offset.X)
+	}
+}

@@ -17,6 +17,37 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var styles = map[string]style.Style{
+	"title": {
+		Width:  style.Some(style.Percent(100)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
+	},
+	"table": {
+		Width:  style.Some(style.Percent(100)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Some(),
+	},
+	"th": {
+		Width:  style.Some(style.Percent(50)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
+	},
+	"tr": {
+		Width:  style.Some(style.Percent(50)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
+	},
+	"name_cell": {
+		Width:  style.Some(style.Cells(15)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
+	},
+	"role_cell": {
+		Width:  style.Some(style.Cells(20)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
+	},
+	"cell": {
+		Width:  style.Some(style.Percent(100)),
+		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
+	},
+}
+
 func main() {
 	f, err := os.Create("table_test.log")
 	if err != nil {
@@ -41,19 +72,21 @@ func main() {
 	// Build UI declaratively
 	ui := element.Box(
 		// Table 1: Well-formed
-		element.Box("Well-formed Table").Style(style.Style{Margin: style.Some(style.Edges(1, 0))}),
+		element.Box("Well-formed Table").Style(styles["title"]),
 		element.Table(
 			element.TR(
-				element.TD("Name").Style(style.Style{Width: style.Some(style.Cells(15))}),
-				element.TD("Role").Style(style.Style{Width: style.Some(style.Cells(20))}),
-			),
+				element.TD("Name").Style(styles["name_cell"]),
+				element.TD("Role").Style(styles["role_cell"]),
+			).Style(styles["tr"]),
 			element.TR(
-				element.TD("Alice"),
-				element.TD("Developer"),
-			),
+				element.TD("Alice").Style(styles["cell"]),
+				element.TD("Developer").Style(styles["cell"]),
+			).Style(styles["tr"]),
 			element.TR(
-				element.TD("Total Users: 1 (Spanning)").SetColSpan(2),
-			),
+				element.TD("Total Users: 1 (Spanning)").
+					Style(styles["cell"]).
+					SetColSpan(2),
+			).Style(styles["tr"]),
 		).Style(style.Style{
 			Width:  style.Some(style.Percent(100)),
 			Border: style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255}).Some(),

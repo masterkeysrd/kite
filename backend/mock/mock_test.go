@@ -45,7 +45,7 @@ func TestBackend_Mock_RecordsBeginEndFrame(t *testing.T) {
 
 	// The stored frame's surface must contain the cell we wrote.
 	fr := b.LastFrame()
-	got := fr.Surface.Get(5, 3)
+	got := fr.Surface.CellAt(5, 3)
 	if got.Content != "X" {
 		t.Errorf("stored frame cell at (5,3) = %q, want \"X\"", got.Content)
 	}
