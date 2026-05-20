@@ -66,6 +66,11 @@ This document provides guidelines and architectural context for AI assistants an
     *   Every node in the UA subtree has its `self` back-pointer set to the host element (`setOuterRecursive`) so `event.Target()` and identity queries always collapse to the host (reuses ADR-0036).
     *   UA nodes must never implement `dom.Focusable`. `focus.Manager` uses the public `Children()` iterator and therefore inherently skips UA nodes — no focus-engine changes are needed.
     *   `dom.IsUANode(n)` reports `true` for any node stamped by `AttachUARoot`. O(1) via the `inUASubtree` flag on `baseNode`.
+12. **Paint — Overflow Clipping (ADR-011):**
+    *   `paint/engine.go::paintFragment` checks `ComputedStyle.OverflowX` / `OverflowY` after painting a fragment's own background and border. If either axis is non-`Visible`, it calls `surface.Clip(contentBoxRect)` and passes the returned sub-surface to the child recursion.
+    *   A fragment's own background fill and border decoration are always painted onto the **unclipped** parent surface — a node's overflow property never clips its own border-box.
+    *   For asymmetric overflow (one axis `Visible`, the other clipped), the clip rect spans the full surface extent on the `Visible` axis so that axis remains truly unconstrained.
+    *   **`resolveBorders` invariant:** `PaintEngine.resolveBorders` is called exactly once, on the **root** `Surface`, after the full fragment tree has been painted. It must never be called on a clipped sub-surface, because the junction resolver must see the complete set of border cells across the entire viewport.
 
 ## 🧑‍💻 Coding Conventions
 

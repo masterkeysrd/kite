@@ -7,6 +7,12 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+// overflowClips reports whether the given Overflow value requires clipping
+// descendant content. Visible does not clip; all other values do.
+func overflowClips(o style.Overflow) bool {
+	return o != style.OverflowVisible
+}
+
 // PaintEngine handles the paint phase of the pipeline.
 type PaintEngine struct{}
 
@@ -16,11 +22,17 @@ func NewPaintEngine() *PaintEngine {
 }
 
 // Paint draws the immutable fragment tree onto the surface.
+//
+// resolveBorders is invoked exactly once on the root surface after the full
+// fragment tree has been painted. It must never be called on a clipped
+// sub-surface because the junction resolver must see the complete set of
+// border cells across the entire viewport.
 func (p *PaintEngine) Paint(frag *layout.Fragment, surface Surface) {
 	if frag == nil {
 		return
 	}
 	p.paintFragment(frag, layout.Point{}, surface)
+	// resolveBorders runs once on the root surface. See invariant note above.
 	p.resolveBorders(surface)
 }
 
@@ -157,14 +169,84 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 		}
 	}
 
-	// 3. Recurse children (children are painted over parent).
+	// 3. Compute child clip surface based on this fragment's overflow style.
+	//
+	// The fragment's own background and border (painted above) always use the
+	// unclipped surface so a node's own border-box decoration is never eaten by
+	// its own overflow. Children — including their backgrounds, borders, and
+	// recursive descendants — paint on the potentially-clipped child surface.
+	//
+	// resolveBorders must only ever be called on the root surface (see
+	// Paint()). The clip surfaces created here are transient and never passed
+	// to resolveBorders.
+	childSurface := p.computeChildSurface(frag, origin, surface)
+
+	// 4. Recurse children (children are painted over parent).
 	for _, childLink := range frag.Children {
 		childOrigin := layout.Point{
 			X: origin.X + childLink.Offset.X,
 			Y: origin.Y + childLink.Offset.Y,
 		}
-		p.paintFragment(childLink.Fragment, childOrigin, surface)
+		p.paintFragment(childLink.Fragment, childOrigin, childSurface)
 	}
+}
+
+// computeChildSurface returns the Surface that children of frag should paint
+// onto. If neither overflow axis requires clipping, the parent surface is
+// returned unchanged (zero-cost fast path). Otherwise a clipped sub-surface
+// whose clip rect equals the fragment's content box (inset by border + padding)
+// is returned; the axes whose overflow value is Visible remain unclipped by
+// spanning the full border-box extent on that axis.
+func (p *PaintEngine) computeChildSurface(frag *layout.Fragment, origin layout.Point, surface Surface) Surface {
+	if frag == nil || frag.Node == nil || frag.Node.Style() == nil {
+		return surface
+	}
+
+	s := frag.Node.Style()
+	clipX := overflowClips(s.OverflowX)
+	clipY := overflowClips(s.OverflowY)
+
+	if !clipX && !clipY {
+		// Fast path: nothing to clip.
+		return surface
+	}
+
+	// Compute border widths (each edge is either 0 or 1).
+	bw := s.Border.Widths()
+	pad := s.Padding
+
+	// Content-box insets from the fragment's border-box origin:
+	//   inset = border + padding on each side.
+	insetLeft := bw.Left + pad.Left
+	insetTop := bw.Top + pad.Top
+	insetRight := bw.Right + pad.Right
+	insetBottom := bw.Bottom + pad.Bottom
+
+	// Build the clip rect. For each axis that clips, use the content-box
+	// inset (border + padding). For each axis that is Visible, extend to the
+	// full surface bounds so that the Clip() call does not accidentally
+	// constrain the unclipped axis.
+	surfaceBounds := surface.Bounds()
+
+	var clipRect layout.Rect
+
+	if clipX {
+		clipRect.Origin.X = origin.X + insetLeft
+		clipRect.Size.Width = max(0, frag.Size.Width-insetLeft-insetRight)
+	} else {
+		clipRect.Origin.X = surfaceBounds.Origin.X
+		clipRect.Size.Width = surfaceBounds.Size.Width
+	}
+
+	if clipY {
+		clipRect.Origin.Y = origin.Y + insetTop
+		clipRect.Size.Height = max(0, frag.Size.Height-insetTop-insetBottom)
+	} else {
+		clipRect.Origin.Y = surfaceBounds.Origin.Y
+		clipRect.Size.Height = surfaceBounds.Size.Height
+	}
+
+	return surface.Clip(clipRect)
 }
 
 func (p *PaintEngine) getInheritedStyle(frag *layout.Fragment) (fg, bg color.Color) {

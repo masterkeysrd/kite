@@ -6,7 +6,7 @@ metadata:
   description: TaskSmith workspace configuration.
 spec:
   projects: ["."]
-  defaultProvider: genai
+  defaultProvider: anthropic
 ---
 
 # TaskSmith Workspace
