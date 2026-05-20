@@ -30,7 +30,14 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-015 | Cursor Package and Engine Integration | Done | `tasks/TSK-015-cursor-package.md` |
 | TSK-016 | Custom Render Object Hook | Done | `tasks/TSK-016-custom-render-object-hook.md` |
 | TSK-017 | Logical Text Controller | Done | `tasks/TSK-017-logical-text-controller.md` |
-| TSK-018 | Input and TextArea Components | Pending | `tasks/TSK-018-input-textarea-components.md` |
+| TSK-018 | UA Shadow Subtree Primitive (supersedes prior Input/TextArea task) | Pending | `tasks/TSK-018-ua-shadow-subtree-primitive.md` |
 | TSK-019 | Document Overlay API and Render Root | Pending | `tasks/TSK-019-document-overlay-api.md` |
 | TSK-020 | Element Bounding Client Rect | Pending | `tasks/TSK-020-element-bounding-client-rect.md` |
 | TSK-021 | Overlay and Dialog Components | Pending | `tasks/TSK-021-overlay-and-dialog-components.md` |
+| TSK-022 | Intrinsic Style Layer | Pending | `tasks/TSK-022-intrinsic-style-layer.md` |
+| TSK-023 | cursor.FromTextFragment Helper | Pending | `tasks/TSK-023-cursor-from-text-fragment.md` |
+| TSK-024 | Refactor `<input>` onto UA Shadow Subtree | Pending | `tasks/TSK-024-input-on-ua-subtree.md` |
+| TSK-025 | Refactor `<textarea>` onto UA Shadow Subtree | Pending | `tasks/TSK-025-textarea-on-ua-subtree.md` |
+| TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Pending | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
+| TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Pending | `tasks/TSK-027-paint-overflow-clipping.md` |
+| TSK-028 | Generic Scroll Offset on DOM Elements | Pending | `tasks/TSK-028-generic-scroll-offset.md` |
