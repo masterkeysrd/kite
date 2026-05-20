@@ -48,6 +48,7 @@ go test -bench=. ./...
 github.com/masterkeysrd/kite
 ├── backend/    # Terminal decoupling, mock, and ultraviolet implementations
 ├── dom/        # Logical node tree, Element, Document, and TextNode
+├── editor/     # Text editing buffers and Unicode-safe string mutation
 ├── event/      # Event dispatching, synthetic events, and keystroke helpers
 ├── focus/      # Focus management and spatial navigation
 ├── key/        # Key codes and modifiers
