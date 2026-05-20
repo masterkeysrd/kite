@@ -210,6 +210,7 @@ func (r *spatialRender) ClearDirtyRecursive(_ render.DirtyFlag) {}
 func (r *spatialRender) IsDetached() bool                       { return false }
 func (r *spatialRender) RawStyle() style.Style                  { return style.Style{} }
 func (r *spatialRender) DefaultStyle() style.Style              { return style.Style{} }
+func (r *spatialRender) IntrinsicStyle() style.Style            { return style.Style{} }
 func (r *spatialRender) IsDirtyStyle() bool                     { return false }
 func (r *spatialRender) HasDirtyStyleChild() bool               { return false }
 func (r *spatialRender) ClearDirtyStyle()                       {}

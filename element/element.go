@@ -55,6 +55,12 @@ type elementBase[Self any] struct {
 	// defaultStyle holds the element-type default style.
 	defaultStyle style.Style
 
+	// intrinsicStyle holds the UA-mandated forced style for this element.
+	// Properties set here cannot be overridden by the author. Replaced and
+	// compound elements set this in their constructor. Default: empty Style{}.
+	// See ADR-010.
+	intrinsicStyle style.Style
+
 	// disabled and hidden are intrinsic boolean state flags.
 	disabled bool
 	hidden   bool
@@ -83,6 +89,13 @@ func (b *elementBase[Self]) RawStyle() style.Style { return b.rawStyle }
 
 // DefaultStyle returns the element-type default style.
 func (b *elementBase[Self]) DefaultStyle() style.Style { return b.defaultStyle }
+
+// IntrinsicStyle returns the UA-mandated forced style for this element.
+// Properties set here have the highest cascade precedence; authors cannot
+// override them via Style(). Most elements return an empty Style{}. Replaced
+// and compound elements return a sparse Style with UA-forced properties
+// (e.g. Display:InlineBlock, OverflowX:Clip). See ADR-010.
+func (b *elementBase[Self]) IntrinsicStyle() style.Style { return b.intrinsicStyle }
 
 // IsDisabled reports whether the element is disabled.
 func (b *elementBase[Self]) IsDisabled() bool { return b.disabled }
@@ -174,11 +187,16 @@ func (b *elementBase[Self]) OnRenderObjectCreated(ro render.Object) {
 
 // initBase initialises b with the given DOM element, self-pointer and default style.
 // Must be called exactly once, at the end of each element's constructor,
-// before any modifier methods run.
-func (b *elementBase[Self]) initBase(el dom.Element, self *Self, defaultStyle style.Style) {
+// before any modifier methods run. The optional intrinsicStyle parameter
+// sets the UA-mandated forced style (ADR-010); pass style.Style{} or omit
+// when no UA properties need to be forced.
+func (b *elementBase[Self]) initBase(el dom.Element, self *Self, defaultStyle style.Style, intrinsicStyle ...style.Style) {
 	b.Element = el
 	b.self = self
 	b.defaultStyle = defaultStyle
+	if len(intrinsicStyle) > 0 {
+		b.intrinsicStyle = intrinsicStyle[0]
+	}
 }
 
 var orphanDocument = dom.NewDocument()

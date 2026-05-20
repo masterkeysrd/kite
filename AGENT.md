@@ -27,6 +27,8 @@ This document provides guidelines and architectural context for AI assistants an
 4.  **Styling Paradigm:**
     *   Always use the `Optional[T]` wrapper (e.g., `style.Some(val)`) when defining properties in `style.Style`. This distinguishes between a field that is explicitly unset versus a zero-value.
     *   The bridge to the rendering layer is `style.Computed`, which contains raw values (no optionals) after the resolver applies inheritance.
+    *   The `style.Resolver` applies four cascade layers in order (weakest → strongest): inherited values, element-type defaults (`DefaultStyle()`), author styles (`RawStyle()`), UA-intrinsic styles (`IntrinsicStyle()`). See ADR-010.
+    *   **UA-mandated styles must live on the element via `IntrinsicStyle()`. They must not be hard-coded in render objects.** Replaced and compound elements (e.g. `<input>`, `<textarea>`) override `IntrinsicStyle()` to return a sparse `style.Style` with properties such as `Display: InlineBlock` or `OverflowX: Clip` that authors cannot override.
 5.  **Event Bubbling:**
     *   Events must strictly follow the Capture -> Target -> Bubble sequence. 
     *   Avoid introducing "IntentEvents" (a deprecated concept from v1). Rely on the `Synthesizer` to convert raw inputs into semantic events.
@@ -96,3 +98,4 @@ This document provides guidelines and architectural context for AI assistants an
 2.  **Mocking:** Use the `backend/mock` package for testing the Render and Paint pipelines without requiring a physical TTY or terminal emulator.
 3.  **Benchmarks:** Any changes to `/layout`, `/style` resolving, or `/paint` logic must be accompanied by `testing.B` benchmarks, as performance is critical in a 60FPS UI loop.
 4.  **No Panics:** Ensure test assertions do not result in raw panics. Handled disconnected/nil states gracefully in DOM manipulation tests.
+5.  **Always run tests with a timeout:** Use `go test -timeout 30s ./...` (or a per-package equivalent) so that a deadlock or hung goroutine causes a clean failure instead of blocking the terminal indefinitely. Never invoke `go test` without `-timeout`.

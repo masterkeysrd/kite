@@ -16,6 +16,7 @@ type mockNode struct {
 
 func (n *mockNode) RawStyle() Style              { return n.raw }
 func (n *mockNode) DefaultStyle() Style          { return n.defaults }
+func (n *mockNode) IntrinsicStyle() Style        { return Style{} }
 func (n *mockNode) ComputedStyle() *Computed     { return n.computed }
 func (n *mockNode) SetComputedStyle(c *Computed) { n.computed = c }
 func (n *mockNode) IsDirtyStyle() bool           { return true }

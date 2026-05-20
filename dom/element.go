@@ -2,6 +2,8 @@ package dom
 
 import (
 	"iter"
+
+	"github.com/masterkeysrd/kite/style"
 )
 
 // element is the concrete, unexported implementation of Element.
@@ -85,6 +87,12 @@ func (e *element) ReplaceWith(nodes ...Node) Element {
 func (e *element) Children() iter.Seq[Node] {
 	return e.ChildNodes()
 }
+
+// IntrinsicStyle returns the UA-mandated sparse style for this element.
+// The base element implementation returns an empty style.Style{}, meaning no
+// UA properties are forced. Replaced and compound elements override this
+// method to enforce UA-mandatory properties (ADR-010).
+func (e *element) IntrinsicStyle() style.Style { return style.Style{} }
 
 // AttachUARoot attaches root as the closed UA shadow subtree for this host.
 // See Element.AttachUARoot for the full contract.

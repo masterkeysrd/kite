@@ -202,6 +202,7 @@ func (r *testRender) IsDetached() bool                     { return false }
 
 func (r *testRender) RawStyle() style.Style             { return style.Style{} }
 func (r *testRender) DefaultStyle() style.Style         { return style.Style{} }
+func (r *testRender) IntrinsicStyle() style.Style       { return style.Style{} }
 func (r *testRender) IsDirtyStyle() bool                { return false }
 func (r *testRender) HasDirtyStyleChild() bool          { return false }
 func (r *testRender) ClearDirtyStyle()                  {}

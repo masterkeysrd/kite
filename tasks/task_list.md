@@ -2,7 +2,7 @@
 
 This document tracks the status of all generated developer tasks for Kite (v2). 
 
-## Rules for Developers
+## Rules
 1. **Status Progression:** Tasks move from `Pending` -> `In Progress` -> `Done`.
 2. **Start Work:** When you begin a task, change its status below to **`In Progress`**. Do not start a task unless it is currently `Pending`.
 3. **Completion:** You may **only** change a status to **`Done`** after the Lead Designer (the User) has explicitly confirmed the task is completed and verified. Do not mark a task as done prematurely.
@@ -34,10 +34,10 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-019 | Document Overlay API and Render Root | Pending | `tasks/TSK-019-document-overlay-api.md` |
 | TSK-020 | Element Bounding Client Rect | Pending | `tasks/TSK-020-element-bounding-client-rect.md` |
 | TSK-021 | Overlay and Dialog Components | Pending | `tasks/TSK-021-overlay-and-dialog-components.md` |
-| TSK-022 | Intrinsic Style Layer | Pending | `tasks/TSK-022-intrinsic-style-layer.md` |
+| TSK-022 | Intrinsic Style Layer | Done | `tasks/TSK-022-intrinsic-style-layer.md` |
 | TSK-023 | cursor.FromTextFragment Helper | Pending | `tasks/TSK-023-cursor-from-text-fragment.md` |
 | TSK-024 | Refactor `<input>` onto UA Shadow Subtree | Pending | `tasks/TSK-024-input-on-ua-subtree.md` |
 | TSK-025 | Refactor `<textarea>` onto UA Shadow Subtree | Pending | `tasks/TSK-025-textarea-on-ua-subtree.md` |
 | TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Pending | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
-| TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Pending | `tasks/TSK-027-paint-overflow-clipping.md` |
+| TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Done | `tasks/TSK-027-paint-overflow-clipping.md` |
 | TSK-028 | Generic Scroll Offset on DOM Elements | Pending | `tasks/TSK-028-generic-scroll-offset.md` |

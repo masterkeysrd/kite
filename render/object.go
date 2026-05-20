@@ -56,6 +56,7 @@ type Object interface {
 	// StyleNode implementation (Task 06)
 	RawStyle() style.Style
 	DefaultStyle() style.Style
+	IntrinsicStyle() style.Style
 	IsDirtyStyle() bool
 	HasDirtyStyleChild() bool
 	ClearDirtyStyle()

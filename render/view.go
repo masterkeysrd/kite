@@ -138,6 +138,13 @@ func (b *BaseRender) DefaultStyle() style.Style {
 	return style.Style{}
 }
 
+func (b *BaseRender) IntrinsicStyle() style.Style {
+	if s, ok := b.logicalNode.(interface{ IntrinsicStyle() style.Style }); ok {
+		return s.IntrinsicStyle()
+	}
+	return style.Style{}
+}
+
 func (b *BaseRender) IsDirtyStyle() bool                { return b.Flags()&DirtyStyle != 0 }
 func (b *BaseRender) HasDirtyStyleChild() bool          { return b.Flags()&ChildNeedsStyle != 0 }
 func (b *BaseRender) ClearDirtyStyle()                  { b.ClearDirty(DirtyStyle) }

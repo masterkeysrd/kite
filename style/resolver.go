@@ -163,6 +163,13 @@ type StyleNode interface {
 	// an empty Style). A zero Style is valid and means "no element defaults".
 	DefaultStyle() Style
 
+	// IntrinsicStyle returns the UA-mandated sparse style for this node.
+	// Properties set here have the highest cascade precedence and cannot be
+	// overridden by the author's RawStyle. Most nodes return an empty Style{};
+	// replaced and compound elements return a sparse Style with UA-forced
+	// properties (e.g. Display:InlineBlock, OverflowX:Clip). See ADR-010.
+	IntrinsicStyle() Style
+
 	// ComputedStyle returns the previously resolved style, or nil if the
 	// style phase has not yet visited this node.
 	ComputedStyle() *Computed
@@ -240,11 +247,12 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 		}
 	}
 
-	// Full resolve — four-layer application:
+	// Full resolve — five-layer application:
 	//   1. Root DefaultStyle baseline.
-	//   2. Element-type defaults (e.g. Span → Display:Inline).
-	//   3. Inheritable fields from parent Computed.
-	//   4. Element's own author-set style.
+	//   2. Element-type defaults (e.g. Span → Display:Inline).     [OriginUADefault]
+	//   3. Inheritable fields from parent Computed.                 [OriginInherited]
+	//   4. Element's own author-set style.                         [OriginAuthor]
+	//   5. UA-mandated intrinsic style (highest precedence).       [OriginUserAgent]
 
 	// Layer 1: root baseline.
 	c := *r.defaults
@@ -274,6 +282,12 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 
 	// Layer 4: element's own author-set style — Optional fields only when IsSet.
 	c = elem.RawStyle().Apply(c)
+
+	// Layer 5: UA-mandated intrinsic style — highest precedence; authors cannot
+	// override. Only applied when the element has intrinsic properties set
+	// (sparse: most elements return an empty Style{} and Apply is a no-op).
+	// Tagged as OriginUserAgent in the cascade-origin model (ADR-010).
+	c = elem.IntrinsicStyle().Apply(c) // _ = OriginUserAgent
 
 	// Computed-value resolution notes:
 	//   TerminalDefault colours remain symbolic; the backend resolves them at

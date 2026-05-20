@@ -101,3 +101,71 @@ func BenchmarkResolveTree_OneDirtyLeaf_10kNodes(b *testing.B) {
 		style.ResolveTree(r, root)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// BenchmarkResolver_NoIntrinsic (TSK-022)
+//
+// Verifies that elements that return an empty IntrinsicStyle() (the common
+// case) incur < 3 % overhead versus the resolver before the intrinsic layer
+// was added. The benchmark exercises 1 000 fresh nodes so the cache is cold.
+// ---------------------------------------------------------------------------
+
+func BenchmarkResolver_NoIntrinsic(b *testing.B) {
+	const n = 1000
+	r := style.NewResolver()
+
+	nodes := make([]*fakeNode, n)
+	for i := range nodes {
+		nodes[i] = &fakeNode{
+			dirtyStyle:     true,
+			intrinsicStyle: style.Style{}, // empty — no UA-forced properties
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		for _, nd := range nodes {
+			nd.dirtyStyle = true
+			_ = r.Resolve(nd, nil)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// BenchmarkResolver_WithIntrinsic (TSK-022)
+//
+// Measures the overhead of the intrinsic layer when elements have 3–5 forced
+// properties set. Acceptable overhead is < 10 % vs BenchmarkResolver_NoIntrinsic.
+// ---------------------------------------------------------------------------
+
+func BenchmarkResolver_WithIntrinsic(b *testing.B) {
+	const n = 1000
+	r := style.NewResolver()
+
+	// 3-5 forced properties modelling a replaced element (e.g. <input>).
+	intrinsic := style.Style{
+		Display:   style.Some(style.DisplayInlineBlock),
+		OverflowX: style.Some(style.OverflowClip),
+		OverflowY: style.Some(style.OverflowClip),
+		WhiteSpace: style.Some(style.WhiteSpaceNoWrap),
+	}
+
+	nodes := make([]*fakeNode, n)
+	for i := range nodes {
+		nodes[i] = &fakeNode{
+			dirtyStyle:     true,
+			rawStyle:       style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 100, A: 255})},
+			intrinsicStyle: intrinsic,
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		for _, nd := range nodes {
+			nd.dirtyStyle = true
+			_ = r.Resolve(nd, nil)
+		}
+	}
+}

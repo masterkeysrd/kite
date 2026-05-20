@@ -14,6 +14,7 @@ import (
 type fakeNode struct {
 	rawStyle            style.Style
 	elementDefaultStyle style.Style // optional per-element-type default
+	intrinsicStyle      style.Style // optional UA-forced intrinsic style
 	computedStyle       *style.Computed
 	dirtyStyle          bool
 	dirtyChild          bool
@@ -25,6 +26,7 @@ type fakeNode struct {
 
 func (n *fakeNode) RawStyle() style.Style              { return n.rawStyle }
 func (n *fakeNode) DefaultStyle() style.Style          { return n.elementDefaultStyle }
+func (n *fakeNode) IntrinsicStyle() style.Style        { return n.intrinsicStyle }
 func (n *fakeNode) ComputedStyle() *style.Computed     { return n.computedStyle }
 func (n *fakeNode) SetComputedStyle(c *style.Computed) { n.computedStyle = c; n.visited = true }
 func (n *fakeNode) IsDirtyStyle() bool                 { return n.dirtyStyle }
@@ -345,5 +347,128 @@ func TestResolver_BackgroundNotInherited(t *testing.T) {
 
 	if got.Background == parentBG {
 		t.Errorf("Background should not be inherited")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TSK-022 — Intrinsic Style Layer unit tests (ADR-010)
+// ---------------------------------------------------------------------------
+
+// TestIntrinsicStyle_WinsOverAuthor verifies that a property set via
+// IntrinsicStyle() overrides the same property set by the author's RawStyle.
+// (intrinsic wins — test 4.1 bullet 1)
+func TestIntrinsicStyle_WinsOverAuthor(t *testing.T) {
+	r := style.NewResolver()
+
+	// Author wants Block; UA forces InlineBlock.
+	node := &fakeNode{
+		dirtyStyle:     true,
+		rawStyle:       style.Style{Display: style.Some(style.DisplayBlock)},
+		intrinsicStyle: style.Style{Display: style.Some(style.DisplayInlineBlock)},
+	}
+
+	got := r.Resolve(node, nil)
+	if got.Display != style.DisplayInlineBlock {
+		t.Errorf("Display = %v, want DisplayInlineBlock (intrinsic must win over author)", got.Display)
+	}
+}
+
+// TestIntrinsicStyle_EmptyDoesNotNullifyAuthor verifies that an empty
+// IntrinsicStyle() does not nullify a property set by the author.
+// (test 4.1 bullet 2)
+func TestIntrinsicStyle_EmptyDoesNotNullifyAuthor(t *testing.T) {
+	r := style.NewResolver()
+
+	red := style.TerminalDefault // any non-zero color marker
+	node := &fakeNode{
+		dirtyStyle:     true,
+		rawStyle:       style.Style{Foreground: style.Some(red)},
+		intrinsicStyle: style.Style{}, // empty — does not force Foreground
+	}
+
+	got := r.Resolve(node, nil)
+	if got.Foreground != red {
+		t.Errorf("Foreground = %v, want %v (empty intrinsic must not nullify author)", got.Foreground, red)
+	}
+}
+
+// TestIntrinsicStyle_InheritablePropertyCascadesToChild verifies that an
+// inheritable property set via IntrinsicStyle() on the parent cascades into a
+// child that has no explicit value for it.
+// (test 4.1 bullet 3)
+func TestIntrinsicStyle_InheritablePropertyCascadesToChild(t *testing.T) {
+	r := style.NewResolver()
+
+	// Parent forces WhiteSpace:PreWrap via intrinsic style.
+	parent := &fakeNode{
+		dirtyStyle:     true,
+		intrinsicStyle: style.Style{WhiteSpace: style.Some(style.WhiteSpacePreWrap)},
+	}
+	parentComputed := r.Resolve(parent, nil)
+
+	// Child has no explicit WhiteSpace — should inherit from parent.
+	child := &fakeNode{dirtyStyle: true}
+	got := r.Resolve(child, parentComputed)
+
+	if got.WhiteSpace != style.WhiteSpacePreWrap {
+		t.Errorf("WhiteSpace = %v, want WhiteSpacePreWrap (inherited from parent's intrinsic)", got.WhiteSpace)
+	}
+}
+
+// TestIntrinsicStyle_LayerOrder verifies the full cascade precedence:
+// DefaultStyle < RawStyle < IntrinsicStyle, each winning over the layer below.
+// (test 4.1 bullet 4)
+func TestIntrinsicStyle_LayerOrder(t *testing.T) {
+	r := style.NewResolver()
+
+	// DefaultStyle provides FlexRow; RawStyle overrides to FlexColumn;
+	// IntrinsicStyle overrides to FlexRow again (UA forces it).
+	node := &fakeNode{
+		dirtyStyle:          true,
+		elementDefaultStyle: style.Style{FlexDirection: style.Some(style.FlexRow)},
+		rawStyle:            style.Style{FlexDirection: style.Some(style.FlexColumn)},
+		intrinsicStyle:      style.Style{FlexDirection: style.Some(style.FlexRow)},
+	}
+
+	got := r.Resolve(node, nil)
+	if got.FlexDirection != style.FlexRow {
+		t.Errorf("FlexDirection = %v, want FlexRow (intrinsic must override author)", got.FlexDirection)
+	}
+
+	// Also verify that RawStyle wins over DefaultStyle when intrinsic is empty.
+	node2 := &fakeNode{
+		dirtyStyle:          true,
+		elementDefaultStyle: style.Style{FlexDirection: style.Some(style.FlexRow)},
+		rawStyle:            style.Style{FlexDirection: style.Some(style.FlexColumn)},
+		intrinsicStyle:      style.Style{}, // empty
+	}
+	got2 := r.Resolve(node2, nil)
+	if got2.FlexDirection != style.FlexColumn {
+		t.Errorf("FlexDirection = %v, want FlexColumn (rawStyle must override defaultStyle)", got2.FlexDirection)
+	}
+}
+
+// TestIntrinsicStyle_NoIntrinsicRegressionGuard verifies that elements that do
+// not implement IntrinsicStyle (return empty Style{}) see no behavioral change.
+// (test 4.1 bullet 5)
+func TestIntrinsicStyle_NoIntrinsicRegressionGuard(t *testing.T) {
+	r := style.NewResolver()
+
+	// Plain node with no intrinsic style — behaviour must be identical to
+	// before the intrinsic layer was introduced.
+	node := &fakeNode{
+		dirtyStyle: true,
+		rawStyle: style.Style{
+			Display: style.Some(style.DisplayFlex),
+			Width:   style.Some(style.Cells(20)),
+		},
+	}
+
+	got := r.Resolve(node, nil)
+	if got.Display != style.DisplayFlex {
+		t.Errorf("Display = %v, want DisplayFlex", got.Display)
+	}
+	if got.Width != style.Cells(20) {
+		t.Errorf("Width = %v, want Cells(20)", got.Width)
 	}
 }

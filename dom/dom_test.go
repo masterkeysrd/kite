@@ -45,6 +45,7 @@ func (f *fakeRO) RemoveChild(child render.Object)         {}
 // StyleNode implementation
 func (f *fakeRO) RawStyle() style.Style             { return style.Style{} }
 func (f *fakeRO) DefaultStyle() style.Style         { return style.Style{} }
+func (f *fakeRO) IntrinsicStyle() style.Style       { return style.Style{} }
 func (f *fakeRO) IsDirtyStyle() bool                { return false }
 func (f *fakeRO) HasDirtyStyleChild() bool          { return false }
 func (f *fakeRO) ClearDirtyStyle()                  {}
