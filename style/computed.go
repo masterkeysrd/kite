@@ -1,10 +1,6 @@
 package style
 
-import (
-	"image/color"
-
-	"github.com/masterkeysrd/kite/cursor"
-)
+import "image/color"
 
 // Computed is the fully-resolved style produced by the style resolver (Task 06).
 // Every field has a concrete value; there are no [Optional] wrappers. The
@@ -64,7 +60,7 @@ type Computed struct {
 
 	// --- Cursor ---------------------------------------------------------------
 
-	CursorShape cursor.Shape
+	CursorShape CursorShape
 	CursorColor color.Color
 }
 

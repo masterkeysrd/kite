@@ -3,8 +3,6 @@ package style
 import (
 	"image/color"
 	"testing"
-
-	"github.com/masterkeysrd/kite/cursor"
 )
 
 type mockNode struct {
@@ -37,7 +35,7 @@ func TestCursorInheritance(t *testing.T) {
 
 	parent := &mockNode{
 		raw: Style{
-			CursorShape: Some(cursor.ShapeBarSteady),
+			CursorShape: Some(CursorShapeBarSteady),
 			CursorColor: Some[color.Color](color.RGBA{R: 255, G: 0, B: 0, A: 255}),
 		},
 	}
@@ -48,14 +46,14 @@ func TestCursorInheritance(t *testing.T) {
 	parentComputed := resolver.Resolve(parent, nil)
 	parent.SetComputedStyle(parentComputed)
 
-	if parentComputed.CursorShape != cursor.ShapeBarSteady {
-		t.Errorf("parent: expected ShapeBarSteady, got %v", parentComputed.CursorShape)
+	if parentComputed.CursorShape != CursorShapeBarSteady {
+		t.Errorf("parent: expected CursorShapeBarSteady, got %v", parentComputed.CursorShape)
 	}
 
 	childComputed := resolver.Resolve(child, parentComputed)
 
-	if childComputed.CursorShape != cursor.ShapeBarSteady {
-		t.Errorf("child: expected inherited ShapeBarSteady, got %v", childComputed.CursorShape)
+	if childComputed.CursorShape != CursorShapeBarSteady {
+		t.Errorf("child: expected inherited CursorShapeBarSteady, got %v", childComputed.CursorShape)
 	}
 	if childComputed.CursorColor != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
 		t.Errorf("child: expected inherited red color, got %v", childComputed.CursorColor)
@@ -67,20 +65,20 @@ func TestCursorOverride(t *testing.T) {
 
 	parent := &mockNode{
 		raw: Style{
-			CursorShape: Some(cursor.ShapeBarSteady),
+			CursorShape: Some(CursorShapeBarSteady),
 		},
 	}
 	child := &mockNode{
 		parent: parent,
 		raw: Style{
-			CursorShape: Some(cursor.ShapeUnderlineBlink),
+			CursorShape: Some(CursorShapeUnderlineBlink),
 		},
 	}
 
 	parentComputed := resolver.Resolve(parent, nil)
 	childComputed := resolver.Resolve(child, parentComputed)
 
-	if childComputed.CursorShape != cursor.ShapeUnderlineBlink {
-		t.Errorf("child: expected overridden ShapeUnderlineBlink, got %v", childComputed.CursorShape)
+	if childComputed.CursorShape != CursorShapeUnderlineBlink {
+		t.Errorf("child: expected overridden CursorShapeUnderlineBlink, got %v", childComputed.CursorShape)
 	}
 }

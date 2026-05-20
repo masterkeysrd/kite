@@ -1,10 +1,6 @@
 package style
 
-import (
-	"image/color"
-
-	"github.com/masterkeysrd/kite/cursor"
-)
+import "image/color"
 
 // ---------------------------------------------------------------------------
 // Property — enumeration of all style properties
@@ -137,7 +133,7 @@ func DefaultStyle() Computed {
 		OverflowY: OverflowVisible,
 
 		// Cursor ---------------------------------------------------------------
-		CursorShape: cursor.ShapeBlockBlink,
+		CursorShape: CursorShapeBlockBlink,
 		CursorColor: TerminalDefault,
 	}
 }

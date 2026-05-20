@@ -1,10 +1,6 @@
 package style
 
-import (
-	"image/color"
-
-	"github.com/masterkeysrd/kite/cursor"
-)
+import "image/color"
 
 // Style is a sparse set of visual and layout properties for a kitex element.
 // Every field is [Optional] so that callers can compose styles without
@@ -108,7 +104,7 @@ type Style struct {
 	// --- Cursor ---------------------------------------------------------------
 
 	// CursorShape sets the terminal hardware cursor shape when this element is focused.
-	CursorShape Optional[cursor.Shape]
+	CursorShape Optional[CursorShape]
 	// CursorColor sets the terminal hardware cursor color.
 	CursorColor Optional[color.Color]
 }

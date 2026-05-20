@@ -74,6 +74,10 @@ This document provides guidelines and architectural context for AI assistants an
     *   For asymmetric overflow (one axis `Visible`, the other clipped), the clip rect spans the full surface extent on the `Visible` axis so that axis remains truly unconstrained.
     *   **`resolveBorders` invariant:** `PaintEngine.resolveBorders` is called exactly once, on the **root** `Surface`, after the full fragment tree has been painted. It must never be called on a clipped sub-surface, because the junction resolver must see the complete set of border cells across the entire viewport.
 
+## 📋 Task Workflow
+
+When the agent is assigned a task from `./tasks/task_list.md`, it **must** update that file's status row to **`In Progress`** as the very first action — before reading the task's Markdown file, before exploring the codebase, and before writing any code. Failing to do this is a workflow violation regardless of how well the implementation turns out.
+
 ## 🧑‍💻 Coding Conventions
 
 1.  **Declarative UI API:**
