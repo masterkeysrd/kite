@@ -1,6 +1,10 @@
 package style
 
-import "image/color"
+import (
+	"image/color"
+
+	"github.com/masterkeysrd/kite/cursor"
+)
 
 // Style is a sparse set of visual and layout properties for a kitex element.
 // Every field is [Optional] so that callers can compose styles without
@@ -100,6 +104,13 @@ type Style struct {
 	OverflowX Optional[Overflow]
 	// OverflowY controls how content that overflows on the vertical axis is handled.
 	OverflowY Optional[Overflow]
+
+	// --- Cursor ---------------------------------------------------------------
+
+	// CursorShape sets the terminal hardware cursor shape when this element is focused.
+	CursorShape Optional[cursor.Shape]
+	// CursorColor sets the terminal hardware cursor color.
+	CursorColor Optional[color.Color]
 }
 
 // Apply returns a copy of base with every set field in s overlaid on top.
@@ -188,6 +199,12 @@ func (s Style) Apply(base Computed) Computed {
 	}
 	if s.Reverse.IsSet() {
 		base.Reverse = s.Reverse.Value()
+	}
+	if s.CursorShape.IsSet() {
+		base.CursorShape = s.CursorShape.Value()
+	}
+	if s.CursorColor.IsSet() {
+		base.CursorColor = s.CursorColor.Value()
 	}
 	if s.TextAlign.IsSet() {
 		base.TextAlign = s.TextAlign.Value()

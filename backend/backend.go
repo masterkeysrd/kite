@@ -1,6 +1,9 @@
 package backend
 
 import (
+	"image/color"
+
+	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/paint"
@@ -47,6 +50,18 @@ type Backend interface {
 
 	// Size returns the current dimensions of the backend's output area.
 	Size() layout.Size
+
+	// ShowCursor sets the cursor visibility.
+	ShowCursor(bool)
+
+	// SetCursorPos sets the cursor position.
+	SetCursorPos(x, y int)
+
+	// SetCursorShape sets the cursor visual shape.
+	SetCursorShape(cursor.Shape)
+
+	// SetCursorColor sets the terminal hardware cursor color.
+	SetCursorColor(color.Color)
 }
 
 // MouseSupport describes the level of mouse event support available from the

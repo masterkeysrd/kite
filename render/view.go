@@ -348,10 +348,3 @@ func Unlink(obj Object) {
 	}
 	obj.Parent().RemoveChild(obj)
 }
-
-// Attach sets the back-pointer from a logical element to its render object.
-func Attach(logical any, ro Object) {
-	if host, ok := logical.(HostNode); ok {
-		host.SetRenderObject(ro)
-	}
-}

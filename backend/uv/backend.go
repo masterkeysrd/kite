@@ -1,6 +1,7 @@
 package uv
 
 import (
+	"image/color"
 	"log/slog"
 	"os"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/paint"
@@ -173,6 +175,44 @@ func (b *Backend) Resize(size layout.Size) {
 
 // Size returns the current terminal size.
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
+
+func (b *Backend) ShowCursor(v bool) {
+	if v {
+		b.screen.ShowCursor()
+	} else {
+		b.screen.HideCursor()
+	}
+}
+
+func (b *Backend) SetCursorPos(x, y int) {
+	b.screen.SetCursorPosition(x, y)
+}
+
+func (b *Backend) SetCursorColor(c color.Color) {
+	b.screen.SetCursorColor(c)
+}
+
+func (b *Backend) SetCursorShape(s cursor.Shape) {
+	var shape uv.CursorShape
+	var blink bool
+	switch s {
+	case cursor.ShapeBlockBlink:
+		shape, blink = uv.CursorBlock, true
+	case cursor.ShapeBlockSteady:
+		shape, blink = uv.CursorBlock, false
+	case cursor.ShapeBarBlink:
+		shape, blink = uv.CursorBar, true
+	case cursor.ShapeBarSteady:
+		shape, blink = uv.CursorBar, false
+	case cursor.ShapeUnderlineBlink:
+		shape, blink = uv.CursorUnderline, true
+	case cursor.ShapeUnderlineSteady:
+		shape, blink = uv.CursorUnderline, false
+	default:
+		shape, blink = uv.CursorBlock, true
+	}
+	b.screen.SetCursorStyle(shape, blink)
+}
 
 func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()

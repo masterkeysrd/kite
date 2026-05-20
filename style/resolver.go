@@ -1,6 +1,10 @@
 package style
 
-import "image/color"
+import (
+	"image/color"
+
+	"github.com/masterkeysrd/kite/cursor"
+)
 
 // ---------------------------------------------------------------------------
 // Property — enumeration of all style properties
@@ -46,6 +50,8 @@ const (
 	PropOverflowX               //nolint:revive
 	PropOverflowY               //nolint:revive
 	PropListStyleType           //nolint:revive
+	PropCursorShape             //nolint:revive
+	PropCursorColor             //nolint:revive
 )
 
 // Inheritable returns the set of properties that are inherited from a parent
@@ -70,6 +76,8 @@ func Inheritable() map[Property]bool {
 		PropWordBreak:     true,
 		PropOverflowWrap:  true,
 		PropListStyleType: true,
+		PropCursorShape:   true,
+		PropCursorColor:   true,
 	}
 }
 
@@ -127,6 +135,10 @@ func DefaultStyle() Computed {
 		// Overflow / scroll ----------------------------------------------------
 		OverflowX: OverflowVisible,
 		OverflowY: OverflowVisible,
+
+		// Cursor ---------------------------------------------------------------
+		CursorShape: cursor.ShapeBlockBlink,
+		CursorColor: TerminalDefault,
 	}
 }
 
@@ -256,6 +268,8 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 		if c.ListStyleType == ListStyleInherit {
 			c.ListStyleType = parent.ListStyleType
 		}
+		c.CursorShape = parent.CursorShape
+		c.CursorColor = parent.CursorColor
 	}
 
 	// Layer 4: element's own author-set style — Optional fields only when IsSet.

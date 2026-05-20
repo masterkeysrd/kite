@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
@@ -491,8 +492,60 @@ func (e *Engine) Frame() {
 		e.frameVersion++
 	}
 
+	e.updateHardwareCursor()
+
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
+}
+
+func (e *Engine) updateHardwareCursor() {
+	focused := e.focusManager.Current()
+	if focused == nil {
+		e.backend.ShowCursor(false)
+		return
+	}
+
+	ro := focused.RenderObject()
+	if ro == nil {
+		e.backend.ShowCursor(false)
+		return
+	}
+
+	provider, ok := ro.(cursor.Provider)
+	if !ok {
+		e.backend.ShowCursor(false)
+		return
+	}
+
+	state := provider.CursorState()
+	if !state.Visible {
+		e.backend.ShowCursor(false)
+		return
+	}
+
+	// Translate local X, Y to absolute screen coordinates using layout.AbsoluteBounds.
+	// Since ro is a render.Object, and render.Object implements layout.Node,
+	// and layout.AbsoluteBounds takes layout.Node, this is direct.
+	root := e.renderView.Fragment()
+	bounds, found := layout.AbsoluteBounds(root, ro)
+	if !found {
+		e.backend.ShowCursor(false)
+		return
+	}
+
+	absX := bounds.Origin.X + state.X
+	absY := bounds.Origin.Y + state.Y
+
+	e.backend.SetCursorPos(absX, absY)
+	e.backend.SetCursorShape(state.Shape)
+
+	// Check if style specifies a custom cursor color.
+	comp := ro.Style()
+	if comp != nil && comp.CursorColor != nil && comp.CursorColor != style.TerminalDefault {
+		e.backend.SetCursorColor(comp.CursorColor)
+	}
+
+	e.backend.ShowCursor(true)
 }
 
 // drainWorkerResults drains all available completed job callbacks from the

@@ -1,7 +1,10 @@
 package mock
 
 import (
+	"image/color"
+
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/paint"
@@ -41,7 +44,18 @@ type Backend struct {
 	// Frames records all completed frames (EndFrame called successfully).
 	Frames []FrameRecord
 
+	// Cursor is the most recent cursor state set via the backend methods.
+	Cursor CursorRecord
+
 	current *paint.FrameBuffer
+}
+
+// CursorRecord captures one call to the cursor-management methods.
+type CursorRecord struct {
+	Visible bool
+	X, Y    int
+	Shape   cursor.Shape
+	Color   color.Color
 }
 
 // New creates a recording Backend for a terminal of the given dimensions.
@@ -106,6 +120,11 @@ func (b *Backend) Resize(size layout.Size) {
 
 // Size returns the simulated dimensions.
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
+
+func (b *Backend) ShowCursor(v bool)             { b.Cursor.Visible = v }
+func (b *Backend) SetCursorPos(x, y int)         { b.Cursor.X, b.Cursor.Y = x, y }
+func (b *Backend) SetCursorColor(c color.Color)  { b.Cursor.Color = c }
+func (b *Backend) SetCursorShape(s cursor.Shape) { b.Cursor.Shape = s }
 
 // LastFrame returns the most recently completed frame, or a zero FrameRecord
 // if no frames have been completed yet.

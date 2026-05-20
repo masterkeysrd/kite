@@ -1,6 +1,10 @@
 package style
 
-import "image/color"
+import (
+	"image/color"
+
+	"github.com/masterkeysrd/kite/cursor"
+)
 
 // Computed is the fully-resolved style produced by the style resolver (Task 06).
 // Every field has a concrete value; there are no [Optional] wrappers. The
@@ -57,6 +61,11 @@ type Computed struct {
 
 	OverflowX Overflow
 	OverflowY Overflow
+
+	// --- Cursor ---------------------------------------------------------------
+
+	CursorShape cursor.Shape
+	CursorColor color.Color
 }
 
 // AffectsLayout returns true if the change between c and other requires a re-layout.
@@ -94,7 +103,9 @@ func (c *Computed) AffectsLayout(other *Computed) bool {
 		c.WordBreak != other.WordBreak ||
 		c.OverflowWrap != other.OverflowWrap ||
 		c.OverflowX != other.OverflowX ||
-		c.OverflowY != other.OverflowY
+		c.OverflowY != other.OverflowY ||
+		c.CursorShape != other.CursorShape ||
+		c.CursorColor != other.CursorColor
 }
 
 // AffectsPaint returns true if the change between c and other requires a repaint
