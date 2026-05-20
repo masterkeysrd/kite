@@ -601,7 +601,7 @@ func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
 	if n.NeedsSync() {
 		e.diffChildren(n, ro)
 	} else if n.ChildNeedsSync() {
-		for child := range n.ChildNodes() {
+		for child := range dom.LayoutChildren(n) {
 			if childRO := child.RenderObject(); childRO != nil {
 				e.syncRenderTree(child, childRO)
 			}
@@ -619,7 +619,7 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 	}
 
 	var lastRO render.Object
-	for child := range n.ChildNodes() {
+	for child := range dom.LayoutChildren(n) {
 		childRO := child.RenderObject()
 		if childRO == nil {
 			childRO = e.createRenderObject(child)
@@ -671,7 +671,8 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 		h.OnRenderObjectCreated(ro)
 	}
 
-	// Recursively build render subtree for existing DOM children.
+	// Recursively build render subtree for existing DOM children
+	// (using LayoutChildren so UA subtrees are included).
 	e.diffChildren(n, ro)
 
 	return ro

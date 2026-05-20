@@ -9,6 +9,7 @@ type element struct {
 	baseNode
 	tagName string
 	id      string
+	uaRoot  Node // closed UA shadow subtree root; nil by default (ADR-009)
 }
 
 // Compile-time assertion.
@@ -83,4 +84,38 @@ func (e *element) ReplaceWith(nodes ...Node) Element {
 // Deprecated: use ChildNodes() and filter by kind.
 func (e *element) Children() iter.Seq[Node] {
 	return e.ChildNodes()
+}
+
+// AttachUARoot attaches root as the closed UA shadow subtree for this host.
+// See Element.AttachUARoot for the full contract.
+func (e *element) AttachUARoot(root Node) {
+	if e.uaRoot != nil {
+		panic("dom: AttachUARoot called more than once on the same element")
+	}
+	if root == nil {
+		return
+	}
+	e.uaRoot = root
+	// Propagate the host's self pointer onto every node in the UA subtree.
+	// This ensures event.Target() and identity queries collapse to the host.
+	host := e.self
+	setOuterRecursive(root, host)
+	// Mark the host so the engine syncs the new subtree on the next frame.
+	e.self.MarkNeedsSync()
+}
+
+// setOuterRecursive walks the subtree rooted at n and sets the self/outer
+// back-pointer of every node to outer. This implements the ADR-0036 identity
+// propagation required for UA shadow subtrees (ADR-009).
+func setOuterRecursive(n Node, outer Node) {
+	if n == nil {
+		return
+	}
+	if b := asBase(n); b != nil {
+		b.self = outer
+		b.inUASubtree = true
+	}
+	for child := range n.ChildNodes() {
+		setOuterRecursive(child, outer)
+	}
 }

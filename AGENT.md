@@ -59,6 +59,13 @@ This document provides guidelines and architectural context for AI assistants an
         *   `AdjustRowOffset` returns `-1` when consecutive rows both have touching borders, collapsing them onto a single shared terminal row.
         *   The table width and distributable column budget are adjusted only for *actual* overlapping junctions (tracked in `tableGrid.ColJunctionOverlap`, `LeftEdgeHasOverlap`, `RightEdgeHasOverlap`), never unconditionally.
         *   When `LeftEdgeHasOverlap` is true, sections are placed at `X = padding.Left` (no left-border gap) and `childAvailWidth` is expanded so column 0 can share the table's left border column.
+11. **UA Shadow Subtree (ADR-009):**
+    *   Host elements (replaced or compound widgets) attach a closed UA shadow subtree via `Element.AttachUARoot(root)` in their constructor.
+    *   **Public traversal APIs must never expose UA-subtree nodes.** `ChildNodes()`, `FirstChild()`, `LastChild()`, `Children()`, and `GetElementByID()` are always UA-invisible; author code has no path to reach UA internals.
+    *   **Engine phases use `dom.LayoutChildren(n)`** (not `n.ChildNodes()`) to walk the union of public children and UA root's children. This iterator is the single authoritative walker for Sync, Style, Layout, and Paint; it must never be used in author-facing code.
+    *   Every node in the UA subtree has its `self` back-pointer set to the host element (`setOuterRecursive`) so `event.Target()` and identity queries always collapse to the host (reuses ADR-0036).
+    *   UA nodes must never implement `dom.Focusable`. `focus.Manager` uses the public `Children()` iterator and therefore inherently skips UA nodes — no focus-engine changes are needed.
+    *   `dom.IsUANode(n)` reports `true` for any node stamped by `AttachUARoot`. O(1) via the `inUASubtree` flag on `baseNode`.
 
 ## 🧑‍💻 Coding Conventions
 

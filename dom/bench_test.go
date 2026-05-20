@@ -51,3 +51,44 @@ func BenchmarkElement_RemoveChild_Middle(b *testing.B) {
 		parent.InsertBefore(middle, after)
 	}
 }
+
+// BenchmarkLayoutChildren_NoUA verifies that LayoutChildren for a node without
+// a UA subtree imposes negligible overhead vs plain ChildNodes. The iterator
+// must degrade to a pure ChildNodes walk (zero allocation fast path).
+func BenchmarkLayoutChildren_NoUA(b *testing.B) {
+	const n = 100
+	doc := dom.NewDocument()
+	parent := doc.CreateElement("div", nil)
+	for range n {
+		parent.AppendChild(doc.CreateElement("span", nil))
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		for range dom.LayoutChildren(parent) {
+		}
+	}
+}
+
+// BenchmarkLayoutChildren_WithUA verifies that LayoutChildren for a node with
+// a small UA subtree (1–3 nodes) has acceptable overhead.
+func BenchmarkLayoutChildren_WithUA(b *testing.B) {
+	doc := dom.NewDocument()
+	parent := doc.CreateElement("x-host", nil)
+	// Add a few public children.
+	for range 5 {
+		parent.AppendChild(doc.CreateElement("span", nil))
+	}
+	// Attach a small UA subtree of 3 nodes.
+	uaRoot := doc.CreateElement("div", nil)
+	for range 3 {
+		uaRoot.AppendChild(doc.CreateElement("span", nil))
+	}
+	parent.AttachUARoot(uaRoot)
+
+	b.ReportAllocs()
+	for b.Loop() {
+		for range dom.LayoutChildren(parent) {
+		}
+	}
+}

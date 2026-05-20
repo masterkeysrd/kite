@@ -26,6 +26,7 @@ type baseNode struct {
 	connected      bool
 	needsSync      bool
 	childNeedsSync bool
+	inUASubtree    bool // true when this node is part of a UA shadow subtree (ADR-009)
 }
 
 // asBase returns the underlying *baseNode for any Node produced by this package.

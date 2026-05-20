@@ -138,6 +138,22 @@ type Element interface {
 	// element. The new nodes are appended in the order they are given. If this
 	// element has no parent, the call is a no-op and this element is returned.
 	ReplaceWith(nodes ...Node) Element
+
+	// AttachUARoot attaches root as the host element's closed UA shadow subtree.
+	// The UA subtree is invisible to all public traversal APIs (Children(),
+	// FirstChild(), LastChild(), ChildNodes(), GetElementByID()) but is walked
+	// by the engine during Sync, Style, Layout, and Paint phases via
+	// dom.LayoutChildren().
+	//
+	// AttachUARoot recursively sets the outer back-pointer on every node in
+	// root's subtree to this host element, so event.Target() and similar
+	// identity queries collapse to the host (ADR-0036). It also marks the host
+	// as NeedsSync so the engine picks up the new subtree on the next Sync pass.
+	//
+	// AttachUARoot must be called eagerly in the host's constructor, before the
+	// host is connected to a document. The ua root must be created against the
+	// same Document as the host. Calling AttachUARoot more than once panics.
+	AttachUARoot(root Node)
 }
 
 // TextNode is a leaf node that carries character data. It has no children.

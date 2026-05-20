@@ -26,6 +26,7 @@ const (
 	EventFocusIn   EventType = "focusin"
 	EventFocusOut  EventType = "focusout"
 	EventResize    EventType = "resize"
+	EventChange    EventType = "change"
 	EventPaste     EventType = "paste"
 	EventCopy      EventType = "copy"
 	EventCut       EventType = "cut"
@@ -290,6 +291,20 @@ func NewPasteEvent(text string) *PasteEvent {
 	return &PasteEvent{
 		BaseEvent: BaseEvent{typ: EventPaste, bubbles: false},
 		Text:      text,
+	}
+}
+
+// ChangeEvent is dispatched when the value of an input or textarea changes.
+type ChangeEvent struct {
+	BaseEvent
+	Value string
+}
+
+// NewChange creates a ChangeEvent.
+func NewChange(value string) *ChangeEvent {
+	return &ChangeEvent{
+		BaseEvent: BaseEvent{typ: EventChange, bubbles: true},
+		Value:     value,
 	}
 }
 

@@ -29,4 +29,26 @@
 // OnDisconnected callbacks synchronously inside the mutation call that
 // triggered the walk. Self- and descendant-mutations inside a callback are
 // permitted; ancestor-mutations panic.
+//
+// # UA Shadow Subtree (ADR-009)
+//
+// Host elements that need private internal DOM structure (replaced elements
+// such as <input>, <textarea>, or compound widgets like <checkbox>) can attach
+// a closed UA shadow subtree via Element.AttachUARoot(root).
+//
+// Key invariants:
+//   - Public traversal APIs (ChildNodes, FirstChild, LastChild, Children,
+//     GetElementByID) never expose UA-subtree nodes. Author code has no
+//     documented path to reach UA internals.
+//   - Engine-internal phases (Sync, Style, Layout, Paint) use
+//     dom.LayoutChildren(n) which yields the public child list followed by the
+//     UA root's children. This function is the single authoritative walker for
+//     all engine phases; it must never be called from author code.
+//   - Every node inside the UA subtree has its outer back-pointer set to the
+//     host element (ADR-0036), so event.Target() and identity queries collapse
+//     to the host regardless of which UA node triggered a hit-test.
+//   - UA nodes never satisfy dom.Focusable; focus.Manager uses the public
+//     Children() iterator and therefore sees no UA nodes.
+//   - dom.IsUANode(n) reports whether n belongs to a UA subtree. Engine and
+//     focus code may use this predicate for additional guard checks.
 package dom
