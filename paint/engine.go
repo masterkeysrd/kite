@@ -29,31 +29,33 @@ func (p *PaintEngine) resolveBorders(surface Surface) {
 	for y := bounds.Origin.Y; y < bounds.Origin.Y+bounds.Size.Height; y++ {
 		for x := bounds.Origin.X; x < bounds.Origin.X+bounds.Size.Width; x++ {
 			c := surface.CellAt(x, y)
-			if c.Attrs&FlagIsBorder == 0 {
+			if c.BorderStyle == BorderNone {
 				continue
 			}
 
 			// Check cardinal neighbors
-			up := surface.CellAt(x, y-1).Attrs&FlagIsBorder != 0
-			down := surface.CellAt(x, y+1).Attrs&FlagIsBorder != 0
-			left := surface.CellAt(x-1, y).Attrs&FlagIsBorder != 0
-			right := surface.CellAt(x+1, y).Attrs&FlagIsBorder != 0
+			up := surface.CellAt(x, y-1).BorderStyle
+			down := surface.CellAt(x, y+1).BorderStyle
+			left := surface.CellAt(x-1, y).BorderStyle
+			right := surface.CellAt(x+1, y).BorderStyle
 
 			mask := 0
-			if up {
+			if up != BorderNone {
 				mask |= 8
 			}
-			if down {
+			if down != BorderNone {
 				mask |= 4
 			}
-			if left {
+			if left != BorderNone {
 				mask |= 2
 			}
-			if right {
+			if right != BorderNone {
 				mask |= 1
 			}
 
-			newContent := p.getJunctionGlyph(c.Content, mask)
+			// Find dominant style (Heaviest Style Wins)
+			dominantStyle := max(right, max(left, max(down, max(up, c.BorderStyle))))
+			newContent := p.getJunctionGlyph(dominantStyle, mask)
 			if newContent != "" && newContent != c.Content {
 				c.Content = newContent
 				surface.Set(x, y, c)
@@ -62,23 +64,9 @@ func (p *PaintEngine) resolveBorders(surface Surface) {
 	}
 }
 
-func (p *PaintEngine) getJunctionGlyph(current string, mask int) string {
-	// Identify the style based on current content
-	style := "single"
-	switch current {
-	case "═", "║", "╔", "╗", "╚", "╝", "╩", "╦", "╠", "╣", "╬":
-		style = "double"
-	case "━", "┃", "┏", "┓", "┗", "┛", "┻", "┳", "┣", "┫", "╋":
-		style = "thick"
-	case "-", "|", "+":
-		style = "ascii"
-	}
-
-	// Rounded uses single-line junctions, so we don't need a separate style
-	// for them except for the corners themselves, but we are REPLACING them.
-
+func (p *PaintEngine) getJunctionGlyph(style BorderStyle, mask int) string {
 	switch style {
-	case "double":
+	case BorderDouble:
 		glyphs := [16]string{
 			0: "", 1: "═", 2: "═", 3: "═",
 			4: "║", 5: "╔", 6: "╗", 7: "╦",
@@ -86,7 +74,7 @@ func (p *PaintEngine) getJunctionGlyph(current string, mask int) string {
 			12: "║", 13: "╠", 14: "╣", 15: "╬",
 		}
 		return glyphs[mask]
-	case "thick":
+	case BorderThick:
 		glyphs := [16]string{
 			0: "", 1: "━", 2: "━", 3: "━",
 			4: "┃", 5: "┏", 6: "┓", 7: "┳",
@@ -94,7 +82,7 @@ func (p *PaintEngine) getJunctionGlyph(current string, mask int) string {
 			12: "┃", 13: "┣", 14: "┫", 15: "╋",
 		}
 		return glyphs[mask]
-	case "ascii":
+	case BorderAscii:
 		glyphs := [16]string{
 			0: "", 1: "-", 2: "-", 3: "-",
 			4: "|", 5: "+", 6: "+", 7: "+",
@@ -102,25 +90,29 @@ func (p *PaintEngine) getJunctionGlyph(current string, mask int) string {
 			12: "|", 13: "+", 14: "+", 15: "+",
 		}
 		return glyphs[mask]
-	default: // single & rounded
+	case BorderRounded:
+		// Rounded uses single-line junctions for non-corners
+		if mask == 5 {
+			return "╭"
+		}
+		if mask == 6 {
+			return "╮"
+		}
+		if mask == 9 {
+			return "╰"
+		}
+		if mask == 10 {
+			return "╯"
+		}
+		fallthrough
+	default: // BorderSingle
 		glyphs := [16]string{
 			0: "", 1: "─", 2: "─", 3: "─",
 			4: "│", 5: "┌", 6: "┐", 7: "┬",
 			8: "│", 9: "└", 10: "┘", 11: "┴",
 			12: "│", 13: "├", 14: "┤", 15: "┼",
 		}
-		// If it's a corner and it was originally rounded, we might want to preserve it
-		// if it's still a simple corner.
-		res := glyphs[mask]
-		if current == "╭" || current == "╮" || current == "╰" || current == "╯" {
-			// Only keep rounded if it's still just a corner
-			if (mask == 5 && current == "╭") || (mask == 6 && current == "╮") ||
-				(mask == 9 && current == "╰") || (mask == 10 && current == "╯") {
-				return current
-			}
-			// Otherwise it will fall through to using the straight junction (┬, ┴, etc.)
-		}
-		return res
+		return glyphs[mask]
 	}
 }
 
@@ -248,45 +240,68 @@ func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, border style.Bo
 		return style.BorderGlyphsMap[s]
 	}
 
+	mapStyle := func(s style.BorderStyle) BorderStyle {
+		switch s {
+		case style.BorderNone:
+			return BorderNone
+		case style.BorderSingle:
+			return BorderSingle
+		case style.BorderDouble:
+			return BorderDouble
+		case style.BorderRounded:
+			return BorderRounded
+		case style.BorderThick:
+			return BorderThick
+		case style.BorderASCII:
+			return BorderAscii
+		default:
+			return BorderSingle
+		}
+	}
+
 	// Draw Edges
 	if border.Edges.Top {
 		glyphs := getGlyphs(border.Styles.Top)
+		bs := mapStyle(border.Styles.Top)
 		c := border.Colors.Top
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		for i := 0; i < width; i++ {
-			surface.Set(x+i, y, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		for i := range width {
+			surface.Set(x+i, y, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 		}
 	}
 	if border.Edges.Bottom {
 		glyphs := getGlyphs(border.Styles.Bottom)
+		bs := mapStyle(border.Styles.Bottom)
 		c := border.Colors.Bottom
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		for i := 0; i < width; i++ {
-			surface.Set(x+i, y+height-1, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		for i := range width {
+			surface.Set(x+i, y+height-1, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 		}
 	}
 	if border.Edges.Left {
 		glyphs := getGlyphs(border.Styles.Left)
+		bs := mapStyle(border.Styles.Left)
 		c := border.Colors.Left
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		for i := 0; i < height; i++ {
-			surface.Set(x, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		for i := range height {
+			surface.Set(x, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 		}
 	}
 	if border.Edges.Right {
 		glyphs := getGlyphs(border.Styles.Right)
+		bs := mapStyle(border.Styles.Right)
 		c := border.Colors.Right
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		for i := 0; i < height; i++ {
-			surface.Set(x+width-1, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		for i := range height {
+			surface.Set(x+width-1, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 		}
 	}
 
@@ -297,11 +312,12 @@ func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, border style.Bo
 		if glyph == "" {
 			glyph = getGlyphs(border.Styles.Top).TL
 		}
+		bs := mapStyle(border.Styles.Top)
 		c := border.Colors.Top
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		surface.Set(x, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		surface.Set(x, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 	}
 	// Top-Right
 	if border.Edges.Top && border.Edges.Right {
@@ -309,11 +325,12 @@ func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, border style.Bo
 		if glyph == "" {
 			glyph = getGlyphs(border.Styles.Top).TR
 		}
+		bs := mapStyle(border.Styles.Top)
 		c := border.Colors.Top
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		surface.Set(x+width-1, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		surface.Set(x+width-1, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 	}
 	// Bottom-Left
 	if border.Edges.Bottom && border.Edges.Left {
@@ -321,11 +338,12 @@ func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, border style.Bo
 		if glyph == "" {
 			glyph = getGlyphs(border.Styles.Bottom).BL
 		}
+		bs := mapStyle(border.Styles.Bottom)
 		c := border.Colors.Bottom
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		surface.Set(x, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		surface.Set(x, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 	}
 	// Bottom-Right
 	if border.Edges.Bottom && border.Edges.Right {
@@ -333,10 +351,11 @@ func (p *PaintEngine) drawBorder(r layout.Rect, surface Surface, border style.Bo
 		if glyph == "" {
 			glyph = getGlyphs(border.Styles.Bottom).BR
 		}
+		bs := mapStyle(border.Styles.Bottom)
 		c := border.Colors.Bottom
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		surface.Set(x+width-1, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg, Attrs: FlagIsBorder})
+		surface.Set(x+width-1, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 	}
 }

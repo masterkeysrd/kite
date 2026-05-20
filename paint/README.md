@@ -28,7 +28,7 @@ For every `FragmentLink` (which joins a parent to a child), the engine takes the
 #### 2. Layered Drawing
 For every fragment, the paint engine draws layers in a specific order (similar to the CSS stacking context):
 1.  **Background:** Fills the fragment's bounding box with the `ComputedStyle.Background` color.
-2.  **Borders:** Draws box-drawing characters (lines, rounded corners) around the perimeter based on `ComputedStyle.Border`. Every cell drawn as a border is marked with the `FlagIsBorder` attribute.
+2.  **Borders:** Draws box-drawing characters (lines, rounded corners) around the perimeter based on `ComputedStyle.Border`. Every cell drawn as a border is tagged with its `BorderStyle` metadata (e.g., Single, Double, Thick).
 3.  **Content (Text):** If the fragment represents a text node, it writes the shaped runes into the buffer, applying text colors and decorators.
 
 #### 3. Clipping & Overflow
@@ -38,7 +38,11 @@ If overflow is hidden or scrollable, the paint engine pushes a new **Clip Rect**
 ### Phase 2: Screen-Space Border Resolution
 After the entire fragment tree has been painted, the `PaintEngine` performs a global post-processing pass over the `FrameBuffer`. 
 
-This pass scans every cell marked with `FlagIsBorder`. For each border cell, it inspects its four cardinal neighbors (up, down, left, right). If a neighbor also has `FlagIsBorder`, they are considered connected. The engine then replaces the original border character with the correct Unicode box-drawing junction (e.g., `┬`, `┴`, `┼`, `╬`) that matches the style of the current cell.
+This pass scans every cell with a non-none `BorderStyle`. For each border cell, it inspects its four cardinal neighbors (up, down, left, right). If a neighbor also has a border, they are considered connected. 
+
+The engine uses a **"Heaviest Style Wins"** precedence rule: it determines the dominant style among the center cell and its neighbors (e.g., `Thick` > `Double` > `Single`). The engine then replaces the original border character with the correct Unicode box-drawing junction (e.g., `┬`, `┴`, `┼`, `╬`) matching that dominant style.
+
+This approach ensures that if a thick-bordered card intersects a single-line sidebar, the resulting junction uses the thick style, maintaining visual hierarchy.
 
 This two-phase approach allows disparate elements—like a sidebar and a header, or adjacent table cells—to seamlessly "snap" together with perfect junctions without requiring manual configuration or awareness of their neighbors during the layout phase.
 

@@ -43,8 +43,24 @@ const (
 	AttrUnderline
 	// AttrInverse swaps the foreground and background colors.
 	AttrInverse
-	// FlagIsBorder indicates that the cell contains a structural border.
-	FlagIsBorder
+)
+
+// BorderStyle selects the pre-defined glyph set for a border.
+type BorderStyle uint8
+
+const (
+	// BorderNone draws no border.
+	BorderNone BorderStyle = 0
+	// BorderAscii draws an ASCII border.
+	BorderAscii BorderStyle = 1
+	// BorderRounded draws a rounded border.
+	BorderRounded BorderStyle = 2
+	// BorderSingle draws a single-line border.
+	BorderSingle BorderStyle = 3
+	// BorderDouble draws a double-line border.
+	BorderDouble BorderStyle = 4
+	// BorderThick draws a heavy-line border.
+	BorderThick BorderStyle = 5
 )
 
 // Cell represents the content and styling of a single terminal cell.
@@ -63,4 +79,6 @@ type Cell struct {
 	BG color.Color
 	// Attrs is the bitmask of text attributes applied to this cell.
 	Attrs CellAttrs
+	// BorderStyle indicates the type of border glyph in this cell.
+	BorderStyle BorderStyle
 }

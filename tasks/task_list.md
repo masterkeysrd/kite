@@ -26,4 +26,4 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-010 | Screen-Space Border Intersection Resolver | Done | `tasks/TSK-010-border-post-processor.md` |
 | TSK-012 | Table Layout Builder Pattern | Done | `tasks/TSK-012-table-layout-builder.md` |
 | TSK-013 | Flex Layout Builder Refactor | Done | `tasks/TSK-013-flex-layout-builder.md` |
-| TSK-014 | Global Border Style Metadata | Pending | `tasks/TSK-014-border-style-metadata.md` |
+| TSK-014 | Global Border Style Metadata | Done | `tasks/TSK-014-border-style-metadata.md` |
