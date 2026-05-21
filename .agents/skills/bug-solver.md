@@ -23,6 +23,7 @@ When assigned a bug-related task, follow these steps in order:
 ### 2. Regression Testing (Reproduction)
 *   **Goal**: Create a failing test case that mirrors the user's reported scenario.
 *   **Action**: Write a high-level integration or regression test (typically in `tests/regressions/`) that fails in the current codebase.
+    *   **Tip**: Use `devtools/testenv` to ergonomically simulate the user's interaction (typing, clicking) in a headless environment. See the `kite-testing` skill for details.
 *   **Verification**: Run the test to confirm it fails with the expected symptom. This serves as your "Red" state in TDD.
 
 ### 3. Unit Testing

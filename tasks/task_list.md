@@ -40,9 +40,9 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-025 | Implement `<textarea>` onto UA Shadow Subtree | Done | `tasks/TSK-025-textarea-on-ua-subtree.md` |
 | TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Pending | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
 | TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Done | `tasks/TSK-027-paint-overflow-clipping.md` |
-| TSK-028 | Generic Scroll Offset on DOM Elements | In Progress | `tasks/TSK-028-generic-scroll-offset.md` |
-| TSK-029 | Unified Text Control Base | In Progress | `tasks/TSK-029-unified-text-control-base.md` |
-| TSK-030 | Implement Headless Test Environment (`testenv`) | Pending | `tasks/TSK-030-headless-testenv.md` |
+| TSK-028 | Generic Scroll Offset on DOM Elements | Done | `tasks/TSK-028-generic-scroll-offset.md` |
+| TSK-029 | Unified Text Control Base | Done | `tasks/TSK-029-unified-text-control-base.md` |
+| TSK-030 | Implement Headless Test Environment (`testenv`) | Done | `tasks/TSK-030-headless-testenv.md` |
 | TSK-031 | Implement Golden Testing & Visual Dumps | Pending | `tasks/TSK-031-golden-testing.md` |
 | TSK-032 | Implement Web-Based DOM Inspector (SSE) | Pending | `tasks/TSK-032-web-inspector.md` |
 | TSK-033 | Implement Terminal X-Ray Mode | Pending | `tasks/TSK-033-xray-mode.md` |

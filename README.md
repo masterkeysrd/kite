@@ -99,3 +99,29 @@ func main() {
 	_ = ui
 }
 ```
+
+## 🧪 Headless Testing
+
+Kite provides a headless testing environment via the `devtools/testenv` package. This allows you to simulate user input and assert on the DOM state without a physical terminal.
+
+```go
+func TestMyApp(t *testing.T) {
+    env := testenv.Default(80, 24)
+    defer env.Close()
+
+    // Mount declaratively
+    env.Mount(element.Input("").WithID("my-input"))
+
+    env.Flush() // Initial render
+    env.Type("hello")
+    env.Flush() // Process typing
+
+    input := env.GetNodeByID("my-input").(*element.InputElement)
+    if input.Value() != "hello" {
+        t.Errorf("expected 'hello', got %q", input.Value())
+    }
+
+    // Visual Regression Testing (Golden Files)
+    env.MatchGolden(t, "input-state")
+}
+```

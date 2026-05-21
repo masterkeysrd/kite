@@ -1,12 +1,24 @@
 package testenv
 
 import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"image/color"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/paint"
 )
+
+var update = flag.Bool("update", false, "update golden files")
 
 // Environment provides ergonomic tools for testing Kite components headless.
 type Environment struct {
@@ -126,7 +138,245 @@ func (e *Environment) ScrollTo(el dom.Element, x, y int) {
 	el.ScrollTo(x, y)
 }
 
-// ScrollBy shifts the scroll offset of an element.
-func (e *Environment) ScrollBy(el dom.Element, dx, dy int) {
-	el.ScrollBy(dx, dy)
+// MatchGolden compares the current framebuffer against a stored snapshot.
+func (e *Environment) MatchGolden(t *testing.T, filename string) {
+	t.Helper()
+
+	actual, expected, goldenPath, actualPath, err := e.matchGolden(filename)
+	if err != nil {
+		t.Fatalf("MatchGolden failed: %v", err)
+	}
+
+	if expected == nil {
+		// New golden file created or updated
+		t.Logf("golden file %s created/updated", goldenPath)
+		return
+	}
+
+	if string(actual) != string(expected) {
+		t.Errorf("framebuffer does not match golden file %s", goldenPath)
+		t.Errorf("actual output written to %s", actualPath)
+	}
+}
+
+func (e *Environment) matchGolden(filename string) (actual, expected []byte, goldenPath, actualPath string, err error) {
+	frame := e.Backend.LastFrame()
+	if frame.Surface == nil {
+		return nil, nil, "", "", fmt.Errorf("no frame has been painted")
+	}
+
+	fb := frame.Surface
+	bounds := fb.Bounds()
+	width := bounds.Size.Width
+	height := bounds.Size.Height
+
+	type goldenCell struct {
+		Content string `json:"c"`
+		FG      string `json:"fg,omitempty"`
+		BG      string `json:"bg,omitempty"`
+		Attrs   uint8  `json:"a,omitempty"`
+	}
+
+	type goldenFrame struct {
+		Width  int            `json:"width"`
+		Height int            `json:"height"`
+		Cells  [][]goldenCell `json:"cells"`
+	}
+
+	gf := goldenFrame{
+		Width:  width,
+		Height: height,
+		Cells:  make([][]goldenCell, height),
+	}
+
+	for y := range height {
+		gf.Cells[y] = make([]goldenCell, width)
+		for x := range width {
+			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
+			gf.Cells[y][x] = goldenCell{
+				Content: cell.Content,
+				FG:      colorToHex(cell.FG),
+				BG:      colorToHex(cell.BG),
+				Attrs:   uint8(cell.Attrs),
+			}
+		}
+	}
+
+	actual, err = json.MarshalIndent(gf, "", "  ")
+	if err != nil {
+		return nil, nil, "", "", fmt.Errorf("failed to marshal actual frame: %w", err)
+	}
+
+	goldenPath = filepath.Join("testdata", filename+".golden")
+	actualPath = filepath.Join("testdata", filename+".actual")
+
+	_, statErr := os.Stat(goldenPath)
+	if *update || os.IsNotExist(statErr) {
+		err := os.MkdirAll(filepath.Dir(goldenPath), 0755)
+		if err != nil {
+			return nil, nil, "", "", fmt.Errorf("failed to create testdata dir: %w", err)
+		}
+		err = os.WriteFile(goldenPath, actual, 0644)
+		if err != nil {
+			return nil, nil, "", "", fmt.Errorf("failed to write golden file: %w", err)
+		}
+		return actual, nil, goldenPath, actualPath, nil
+	}
+
+	expected, err = os.ReadFile(goldenPath)
+	if err != nil {
+		return nil, nil, "", "", fmt.Errorf("failed to read golden file: %w", err)
+	}
+
+	if string(actual) != string(expected) {
+		_ = os.WriteFile(actualPath, actual, 0644)
+	}
+
+	return actual, expected, goldenPath, actualPath, nil
+}
+
+func colorToHex(c color.Color) string {
+	if c == nil {
+		return ""
+	}
+	r, g, b, _ := c.RGBA()
+	return fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+}
+
+// DumpANSI translates the current FrameBuffer into a raw string of ANSI escape codes.
+func (e *Environment) DumpANSI() string {
+	frame := e.Backend.LastFrame()
+	if frame.Surface == nil {
+		return ""
+	}
+
+	fb := frame.Surface
+	bounds := fb.Bounds()
+	var sb strings.Builder
+
+	for y := 0; y < bounds.Size.Height; y++ {
+		for x := 0; x < bounds.Size.Width; x++ {
+			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
+			// ANSI Escape codes
+			if cell.FG != nil {
+				r, g, b, _ := cell.FG.RGBA()
+				fmt.Fprintf(&sb, "\x1b[38;2;%d;%d;%dm", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+			}
+			if cell.BG != nil {
+				r, g, b, _ := cell.BG.RGBA()
+				fmt.Fprintf(&sb, "\x1b[48;2;%d;%d;%dm", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+			}
+			if cell.Attrs&paint.AttrBold != 0 {
+				sb.WriteString("\x1b[1m")
+			}
+			if cell.Attrs&paint.AttrItalic != 0 {
+				sb.WriteString("\x1b[3m")
+			}
+			if cell.Attrs&paint.AttrUnderline != 0 {
+				sb.WriteString("\x1b[4m")
+			}
+			if cell.Attrs&paint.AttrInverse != 0 {
+				sb.WriteString("\x1b[7m")
+			}
+
+			content := cell.Content
+			if content == "" {
+				content = " "
+			}
+			sb.WriteString(content)
+			sb.WriteString("\x1b[0m")
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// DumpHTML translates the current FrameBuffer into a standalone HTML file.
+func (e *Environment) DumpHTML() string {
+	frame := e.Backend.LastFrame()
+	if frame.Surface == nil {
+		return ""
+	}
+
+	fb := frame.Surface
+	bounds := fb.Bounds()
+	var sb strings.Builder
+
+	sb.WriteString("<!DOCTYPE html>\n<html>\n<head>\n<style>\n")
+	sb.WriteString("body { background: #000; color: #fff; font-family: monospace; white-space: pre; line-height: 1; }\n")
+	sb.WriteString(".cell { display: inline-block; width: 1ch; }\n")
+	sb.WriteString("</style>\n</head>\n<body>\n")
+
+	for y := 0; y < bounds.Size.Height; y++ {
+		for x := 0; x < bounds.Size.Width; x++ {
+			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
+			style := ""
+			if cell.FG != nil {
+				style += fmt.Sprintf("color: %s; ", colorToHex(cell.FG))
+			}
+			if cell.BG != nil {
+				style += fmt.Sprintf("background-color: %s; ", colorToHex(cell.BG))
+			}
+			if cell.Attrs&paint.AttrBold != 0 {
+				style += "font-weight: bold; "
+			}
+			if cell.Attrs&paint.AttrItalic != 0 {
+				style += "font-style: italic; "
+			}
+			if cell.Attrs&paint.AttrUnderline != 0 {
+				style += "text-decoration: underline; "
+			}
+			// Inverse is hard in HTML without knowing original colors, but we can swap them if both are set
+			if cell.Attrs&paint.AttrInverse != 0 {
+				// Simplified inverse
+				style += "filter: invert(100%); "
+			}
+
+			content := cell.Content
+			if content == "" {
+				content = " "
+			}
+			// Escape HTML entities
+			content = strings.ReplaceAll(content, "&", "&amp;")
+			content = strings.ReplaceAll(content, "<", "&lt;")
+			content = strings.ReplaceAll(content, ">", "&gt;")
+
+			if style != "" {
+				fmt.Fprintf(&sb, "<span style=\"%s\">%s</span>", strings.TrimSpace(style), content)
+			} else {
+				sb.WriteString(content)
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("</body>\n</html>")
+	return sb.String()
+}
+
+// DumpText translates the current FrameBuffer into a plain text representation.
+func (e *Environment) DumpText() string {
+	frame := e.Backend.LastFrame()
+	if frame.Surface == nil {
+		return ""
+	}
+
+	fb := frame.Surface
+	bounds := fb.Bounds()
+	var sb strings.Builder
+
+	for y := 0; y < bounds.Size.Height; y++ {
+		for x := 0; x < bounds.Size.Width; x++ {
+			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
+			content := cell.Content
+			if content == "" {
+				content = " "
+			}
+			sb.WriteString(content)
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }
