@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/masterkeysrd/kite/backend/uv"
+	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
@@ -154,6 +155,9 @@ func main() {
 	// ── engine run ───────────────────────────────────────────────────────────
 	eng.Mount(root)
 	updateStatus() // Initial status
+
+	// Start inspector
+	inspector.Attach(eng, "127.0.0.1:8085", inspector.Options{})
 
 	// Exit handlers
 	root.AddEventListener(event.EventKeyDown, func(e event.Event) {

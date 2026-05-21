@@ -140,7 +140,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 
 ## 📋 Task Workflow
 
-When the agent is assigned a task from `./tasks/task_list.md`, it **must** update that file's status row to **`In Progress`** as the very first action — before reading the task's Markdown file, before exploring the codebase, and before writing any code. Failing to do this is a workflow violation regardless of how well the implementation turns out.
+When the agent is assigned a task `./tasks/task_list.md`, it **must** update that file's status row to **`In Progress`** as the very first action — before reading the task's Markdown file, before exploring the codebase, and before writing any code. Failing to do this is a workflow violation regardless of how well the implementation turns out.
 
 At the **end** of every task the agent must also:
 
@@ -255,5 +255,3 @@ This source map summarises the repository packages, their responsibilities, and 
 - `README.md`, `WORKSPACE.md`, `go.mod`, `go.sum`: project-level metadata and module configuration.
 
 ---
-
-    

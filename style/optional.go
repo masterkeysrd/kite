@@ -1,5 +1,9 @@
 package style
 
+import (
+	"encoding/json"
+)
+
 // Optional wraps a value of type T to distinguish "unset" from the zero
 // value. Every field of [Style] is Optional so that callers can compose styles
 // without clobbering fields they did not intend to set.
@@ -54,4 +58,23 @@ func (o Optional[T]) Merge(other Optional[T]) Optional[T] {
 		return other
 	}
 	return o
+}
+
+func (o Optional[T]) MarshalJSON() ([]byte, error) {
+	if !o.set {
+		return []byte("null"), nil
+	}
+	return json.Marshal(o.value)
+}
+
+func (o *Optional[T]) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		o.set = false
+		return nil
+	}
+	if err := json.Unmarshal(data, &o.value); err != nil {
+		return err
+	}
+	o.set = true
+	return nil
 }

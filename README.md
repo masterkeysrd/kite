@@ -125,3 +125,24 @@ func TestMyApp(t *testing.T) {
     env.MatchGolden(t, "input-state")
 }
 ```
+
+## 🛠 Developer Tools
+
+### Web-Based DOM Inspector
+
+Kite includes a powerful, web-based DOM inspector that allows you to debug your application's logical tree, computed styles, and layout box model in real-time.
+
+To enable the inspector in your application:
+
+```go
+import "github.com/masterkeysrd/kite/devtools/inspector"
+
+// ... after creating your engine
+inspector.Attach(eng, "127.0.0.1:8080", inspector.Options{})
+```
+
+The inspector will automatically open your default browser. It features:
+- **Live DOM Tree**: Explore the hierarchy with attribute summaries.
+- **Style Layers**: Inspect Computed, Author, Intrinsic, and Default styles.
+- **Box Model**: Visual representation of margins, borders, and padding.
+- **Properties**: Detailed node metadata and full text content.

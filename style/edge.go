@@ -4,7 +4,10 @@ package style
 // right, bottom, and left. It is used for padding, margin, and per-side border
 // properties.
 type EdgeValues[T any] struct {
-	Top, Right, Bottom, Left T
+	Top    T `json:"top"`
+	Right  T `json:"right"`
+	Bottom T `json:"bottom"`
+	Left   T `json:"left"`
 }
 
 // EdgeAll returns an [EdgeValues] where all four sides are set to v.

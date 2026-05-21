@@ -1,6 +1,7 @@
 package style_test
 
 import (
+	"encoding/json"
 	"image/color"
 	"testing"
 
@@ -82,6 +83,56 @@ func TestOptional_SetUnset(t *testing.T) {
 	if o.Value() != "" {
 		t.Fatalf("Value() after Unset should be zero, got %q", o.Value())
 	}
+}
+
+func TestOptional_JSON(t *testing.T) {
+	t.Parallel()
+
+	t.Run("marshal unset", func(t *testing.T) {
+		var o style.Optional[int]
+		data, err := json.Marshal(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != "null" {
+			t.Fatalf("got %q want null", string(data))
+		}
+	})
+
+	t.Run("marshal set", func(t *testing.T) {
+		o := style.Some(42)
+		data, err := json.Marshal(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != "42" {
+			t.Fatalf("got %q want 42", string(data))
+		}
+	})
+
+	t.Run("unmarshal null", func(t *testing.T) {
+		var o style.Optional[int]
+		o.Set(123)
+		if err := json.Unmarshal([]byte("null"), &o); err != nil {
+			t.Fatal(err)
+		}
+		if o.IsSet() {
+			t.Fatal("should be unset after unmarshaling null")
+		}
+	})
+
+	t.Run("unmarshal value", func(t *testing.T) {
+		var o style.Optional[int]
+		if err := json.Unmarshal([]byte("42"), &o); err != nil {
+			t.Fatal(err)
+		}
+		if !o.IsSet() {
+			t.Fatal("should be set after unmarshaling value")
+		}
+		if o.Value() != 42 {
+			t.Fatalf("got %d want 42", o.Value())
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------

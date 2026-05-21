@@ -85,13 +85,13 @@ func (g BorderGlyphs) EffectiveBR() string {
 // In a terminal UI, borders always occupy exactly one cell if present.
 type Border struct {
 	// Edges defines which sides of the box have a border visible.
-	Edges EdgeValues[bool]
+	Edges EdgeValues[bool] `json:"edges"`
 	// Styles selects the glyph set for each side.
-	Styles EdgeValues[BorderStyle]
+	Styles EdgeValues[BorderStyle] `json:"styles"`
 	// Colors sets the foreground color for each side's border.
-	Colors EdgeValues[color.Color]
+	Colors EdgeValues[color.Color] `json:"colors"`
 	// Glyphs provides per-corner override characters.
-	Glyphs BorderGlyphs
+	Glyphs BorderGlyphs `json:"glyphs"`
 }
 
 // SingleBorder returns a standard single-line border on all sides.

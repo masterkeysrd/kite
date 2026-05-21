@@ -155,6 +155,11 @@ func (inp *InputElement) Value() string {
 	return inp.buf.Value()
 }
 
+// TextContent returns the current text value of the input, satisfying the dom.Node interface.
+func (inp *InputElement) TextContent() string {
+	return inp.buf.Value()
+}
+
 // SetValue replaces the buffer content with v, repositioning the cursor to
 // the end of the new value.
 func (inp *InputElement) SetValue(v string) *InputElement {

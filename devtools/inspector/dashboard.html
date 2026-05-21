@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Kite DOM Inspector</title>
+    <style>
+        :root {
+            --bg-tree: #f9f9f9;
+            --bg-details: #ffffff;
+            --border-color: #ddd;
+            --tag-color: #881391;
+            --attr-name: #994500;
+            --attr-value: #1a1aa6;
+            --tab-bg: #f1f1f1;
+            --tab-active: #ffffff;
+            --accent: #d0e0ff;
+            --text-main: #333;
+            --text-muted: #777;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; display: flex; height: 100vh; margin: 0; color: var(--text-main); overflow: hidden; }
+        
+        #tree { flex: 0 0 35%; overflow: auto; border-right: 1px solid var(--border-color); padding: 20px; background: var(--bg-tree); }
+        #details { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-details); }
+        
+        .node { margin-left: 15px; margin-top: 4px; }
+        .node-header { cursor: pointer; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; white-space: nowrap; transition: background 0.1s; }
+        .node-header:hover { background: #eee; }
+        .node-header.selected { background: var(--accent) !important; font-weight: bold; }
+        
+        .toggle { cursor: pointer; display: inline-block; width: 14px; text-align: center; margin-right: 4px; font-family: monospace; font-size: 10px; color: var(--text-muted); }
+        .tag-name { color: var(--tag-color); font-weight: 600; }
+        
+        .badge { font-size: 10px; padding: 1px 4px; border-radius: 3px; margin-left: 5px; font-weight: normal; }
+        .badge-id { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; }
+        .badge-class { background: #e3f2fd; color: #0d47a1; border: 1px solid #bbdefb; }
+        .badge-disabled { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .text-preview { color: var(--text-muted); margin-left: 8px; font-style: italic; overflow: hidden; text-overflow: ellipsis; max-width: 200px; font-size: 12px; }
+
+        pre { background: #f8f8f8; padding: 10px; border-radius: 4px; font-size: 11px; margin: 0; line-height: 1.4; border: 1px solid var(--border-color); }
+        h3 { border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-top: 0; font-weight: 500; }
+        
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 1px solid var(--border-color); background: var(--tab-bg); }
+        .tab { padding: 10px 20px; cursor: pointer; border-right: 1px solid var(--border-color); font-size: 13px; color: #555; transition: background 0.2s; }
+        .tab:hover { background: #e7e7e7; }
+        .tab.active { background: var(--tab-active); border-bottom: 1px solid var(--tab-active); margin-bottom: -1px; font-weight: 600; color: var(--text-main); }
+        
+        #details-content { flex: 1; padding: 0; overflow: auto; display: flex; flex-direction: column; }
+        .tab-panel { display: none; padding: 20px; flex-direction: column; gap: 15px; }
+        .tab-panel.active { display: flex; }
+
+        /* Box Model Visualizer */
+        .box-model-wrapper { display: flex; justify-content: center; margin: 10px 0; }
+        .box-model {
+            display: grid;
+            grid-template-columns: repeat(3, auto);
+            gap: 2px;
+            text-align: center;
+            font-size: 10px;
+            font-family: monospace;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            width: fit-content;
+        }
+        .bm-layer { padding: 12px; border: 1px dashed #999; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .bm-margin { background: #f9cc9d; border-color: #f59121; }
+        .bm-border { background: #fdedc1; border-color: #f7ca4b; }
+        .bm-padding { background: #c2cf8a; border-color: #849144; }
+        .bm-content { background: #8cb6c0; border-color: #4a788c; padding: 8px 16px; font-weight: bold; border-style: solid; }
+        .bm-label { color: rgba(0,0,0,0.5); font-size: 9px; text-transform: uppercase; margin-bottom: 2px; }
+
+        .section-header { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 5px; background: #eee; padding: 4px 8px; border-radius: 4px; }
+        .style-section { margin-bottom: 15px; }
+
+        /* Table */
+        .props-table { border-collapse: collapse; width: 100%; font-size: 12px; border: 1px solid var(--border-color); }
+        .props-table th, .props-table td { padding: 6px 10px; border: 1px solid var(--border-color); text-align: left; }
+        .props-table th { background: #f5f5f5; width: 30%; font-weight: 600; }
+        .props-table tr:nth-child(even) { background: #fafafa; }
+        .prop-name { color: #555; font-family: monospace; }
+        .prop-value { font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div id="tree">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 20px;">
+            <h3 style="margin:0; border:none; padding:0;">DOM Tree</h3>
+            <button onclick="downloadDump()" style="font-size:11px; cursor:pointer; padding:4px 8px; background:#fff; border:1px solid #ccc; border-radius:4px;">Download Dump</button>
+        </div>
+        <div id="tree-content"></div>
+    </div>
+    <div id="details">
+        <div class="tabs">
+            <div class="tab active" onclick="showTab(event, 'tab-computed')">Computed</div>
+            <div class="tab" onclick="showTab(event, 'tab-styles')">Styles</div>
+            <div class="tab" onclick="showTab(event, 'tab-fragments')">Fragments</div>
+            <div class="tab" onclick="showTab(event, 'tab-properties')">Properties</div>
+        </div>
+        <div id="details-content">
+            <div id="tab-computed" class="tab-panel active">
+                <div class="box-model-wrapper" id="bm-computed-top"></div>
+                <table class="props-table" id="computed-table">
+                    <thead><tr><th>Property</th><th>Value</th></tr></thead>
+                    <tbody id="computed-table-body"></tbody>
+                </table>
+            </div>
+            
+            <div id="tab-fragments" class="tab-panel">
+                <div id="fragment-tree-content"></div>
+            </div>
+
+            <div id="tab-styles" class="tab-panel">
+                <div class="style-section">
+                    <div class="section-header">[ Element Styles ]</div>
+                    <pre id="pre-raw"></pre>
+                </div>
+                <div class="style-section">
+                    <div class="section-header">[ Intrinsic Styles ]</div>
+                    <pre id="pre-intrinsic"></pre>
+                </div>
+                <div class="style-section">
+                    <div class="section-header">[ Default Styles ]</div>
+                    <pre id="pre-default"></pre>
+                </div>
+                <div class="section-header">Layout Box Model</div>
+                <div class="box-model-wrapper" id="bm-styles-bottom"></div>
+            </div>
+
+            <div id="tab-properties" class="tab-panel">
+                <table class="props-table">
+                    <tbody id="properties-table-body"></tbody>
+                </table>
+                <div class="section-header">Raw Node Data</div>
+                <pre id="pre-node"></pre>
+            </div>
+        </div>
+    </div>
+    <script>
+        const treeContent = document.getElementById('tree-content');
+        let selectedNode = null;
+        let selectedId = null;
+
+        const evtSource = new EventSource("/stream");
+        evtSource.onmessage = (event) => {
+            const payload = JSON.parse(event.data);
+            const data = payload.dom;
+            
+            renderTree(data, treeContent);
+            if (payload.fragments) {
+                renderFragmentTree(payload.fragments, document.getElementById('fragment-tree-content'));
+            }
+
+            if (selectedId) {
+                const newNode = findNodeById(data, selectedId);
+                if (newNode) {
+                    selectedNode = newNode;
+                    updateDetails();
+                }
+            }
+        };
+
+        function renderFragmentTree(node, container) {
+            container.innerHTML = '';
+            container.appendChild(createFragmentElement(node));
+        }
+
+        function createFragmentElement(node) {
+            const div = document.createElement('div');
+            div.className = 'node';
+            
+            const header = document.createElement('div');
+            header.className = 'node-header';
+            
+            const toggle = document.createElement('span');
+            toggle.className = 'toggle';
+            toggle.textContent = (node.children && node.children.length > 0) ? '▼' : ' ';
+            header.appendChild(toggle);
+
+            const label = document.createElement('span');
+            label.className = 'tag-name';
+            label.style.color = '#2e7d32';
+            label.textContent = 'Fragment(' + node.name + ')';
+            header.appendChild(label);
+
+            const info = document.createElement('span');
+            info.style.color = 'var(--text-muted)';
+            info.style.marginLeft = '8px';
+            info.style.fontSize = '11px';
+            info.textContent = `offset=${node.offset.X},${node.offset.Y} size=${node.size.Width}x${node.size.Height}`;
+            header.appendChild(info);
+
+            if (node.breakToken) {
+                const bt = document.createElement('span');
+                bt.className = 'badge';
+                bt.style.background = '#e1f5fe';
+                bt.style.color = '#01579b';
+                bt.textContent = 'BreakToken(idx:' + node.breakToken.childIndex + ')';
+                header.appendChild(bt);
+            }
+            
+            div.appendChild(header);
+
+            if (node.clusters && node.clusters.length > 0) {
+                const clusterContainer = document.createElement('div');
+                clusterContainer.style.marginLeft = '25px';
+                clusterContainer.style.fontSize = '10px';
+                clusterContainer.style.color = '#666';
+                clusterContainer.style.fontFamily = 'monospace';
+                clusterContainer.style.background = '#f0f0f0';
+                clusterContainer.style.padding = '2px 6px';
+                clusterContainer.style.borderRadius = '3px';
+                clusterContainer.style.display = 'inline-block';
+                
+                let clusterText = 'Clusters: ';
+                node.clusters.forEach((c, idx) => {
+                    const disp = c.text === ' ' ? '␣' : c.text;
+                    clusterText += `[${disp} w:${c.width} b:${c.breakClass}]`;
+                    if (idx < node.clusters.length - 1) clusterText += ' ';
+                });
+                clusterContainer.textContent = clusterText;
+                div.appendChild(clusterContainer);
+            }
+
+            if (node.children && node.children.length > 0) {
+                const childrenContainer = document.createElement('div');
+                node.children.forEach(child => {
+                    childrenContainer.appendChild(createFragmentElement(child));
+                });
+                div.appendChild(childrenContainer);
+
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    const isHidden = childrenContainer.style.display === 'none';
+                    childrenContainer.style.display = isHidden ? 'block' : 'none';
+                    toggle.textContent = isHidden ? '▼' : '▶';
+                };
+            }
+            return div;
+        }
+
+        function findNodeById(node, id) {
+            if (nodeUniqueId(node) === id) return node;
+            if (node.children) {
+                for (const child of node.children) {
+                    const found = findNodeById(child, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function renderTree(node, container) {
+            const scrollTop = container.scrollTop;
+            container.innerHTML = '';
+            container.appendChild(createNodeElement(node));
+            container.scrollTop = scrollTop;
+        }
+
+        function createNodeElement(node) {
+            const div = document.createElement('div');
+            div.className = 'node';
+            
+            const header = document.createElement('div');
+            header.className = 'node-header';
+            const id = nodeUniqueId(node);
+            if (selectedId === id) header.classList.add('selected');
+
+            const toggle = document.createElement('span');
+            toggle.className = 'toggle';
+            toggle.textContent = (node.children && node.children.length > 0) ? '▼' : ' ';
+            header.appendChild(toggle);
+
+            const label = document.createElement('span');
+            label.className = 'tag-name';
+            label.textContent = node.name;
+            header.appendChild(label);
+
+            let attrs = [];
+            if (node.id) attrs.push('id=' + node.id);
+            if (node.class) attrs.push('class=' + node.class);
+            
+            if (attrs.length > 0) {
+                const attrSpan = document.createElement('span');
+                attrSpan.style.color = 'var(--text-muted)';
+                attrSpan.style.marginLeft = '5px';
+                attrSpan.style.fontSize = '11px';
+                attrSpan.textContent = '[' + attrs.join(', ') + ']';
+                header.appendChild(attrSpan);
+            }
+
+            if (node.disabled) {
+                const b = document.createElement('span');
+                b.className = 'badge badge-disabled';
+                b.textContent = 'disabled';
+                header.appendChild(b);
+            }
+
+            header.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.node-header').forEach(h => h.classList.remove('selected'));
+                header.classList.add('selected');
+                selectedId = id;
+                selectedNode = node;
+                updateDetails();
+            };
+            
+            div.appendChild(header);
+
+            if (node.children && node.children.length > 0) {
+                const childrenContainer = document.createElement('div');
+                node.children.forEach(child => {
+                    childrenContainer.appendChild(createNodeElement(child));
+                });
+                div.appendChild(childrenContainer);
+
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    const isHidden = childrenContainer.style.display === 'none';
+                    childrenContainer.style.display = isHidden ? 'block' : 'none';
+                    toggle.textContent = isHidden ? '▼' : '▶';
+                };
+            }
+            return div;
+        }
+
+        function nodeUniqueId(node) {
+            return node.kind + ':' + node.name + ':' + (node.id || '') + ':' + (node.rect.Origin.X + ',' + node.rect.Origin.Y);
+        }
+
+        function updateDetails() {
+            if (!selectedNode) return;
+            
+            // Update Computed Table
+            const tbody = document.getElementById('computed-table-body');
+            tbody.innerHTML = '';
+            if (selectedNode.computed) {
+                const sortedKeys = Object.keys(selectedNode.computed).sort();
+                for (const key of sortedKeys) {
+                    const val = selectedNode.computed[key];
+                    if (val === null || typeof val === 'undefined') continue;
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td class="prop-name">${key}</td><td class="prop-value">${JSON.stringify(val)}</td>`;
+                    tbody.appendChild(tr);
+                }
+            }
+
+            // Update Style sections
+            document.getElementById('pre-raw').textContent = JSON.stringify(selectedNode.raw || {}, null, 2);
+            document.getElementById('pre-intrinsic').textContent = JSON.stringify(selectedNode.intrinsic || {}, null, 2);
+            document.getElementById('pre-default').textContent = JSON.stringify(selectedNode.default || {}, null, 2);
+            
+            // Update Properties Table
+            const pbody = document.getElementById('properties-table-body');
+            pbody.innerHTML = `
+                <tr><th>Kind</th><td>${selectedNode.kind}</td></tr>
+                <tr><th>Name</th><td>${selectedNode.name}</td></tr>
+                <tr><th>ID</th><td>${selectedNode.id || '-'}</td></tr>
+                <tr><th>Class</th><td>${selectedNode.class || '-'}</td></tr>
+                <tr><th>Rect</th><td>${selectedNode.rect.Origin.X},${selectedNode.rect.Origin.Y} ${selectedNode.rect.Size.Width} x ${selectedNode.rect.Size.Height}</td></tr>
+                <tr><th>Scroll</th><td>${selectedNode.scrollX || 0}, ${selectedNode.scrollY || 0}</td></tr>
+                <tr><th>Disabled</th><td>${selectedNode.disabled ? 'true' : 'false'}</td></tr>
+                <tr><th>Text Content</th><td><pre style="border:none; background:transparent; padding:0; white-space:pre-wrap;">${selectedNode.textContent || ''}</pre></td></tr>
+            `;
+
+            const nodeData = {...selectedNode};
+            delete nodeData.children;
+            delete nodeData.computed;
+            delete nodeData.raw;
+            delete nodeData.intrinsic;
+            delete nodeData.default;
+            document.getElementById('pre-node').textContent = JSON.stringify(nodeData, null, 2);
+
+            renderBoxModel(selectedNode.computed, 'bm-computed-top');
+            renderBoxModel(selectedNode.computed, 'bm-styles-bottom');
+        }
+
+        function renderBoxModel(computed, containerId) {
+            const container = document.getElementById(containerId);
+            if (!computed) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const m = computed.margin || {top:0,right:0,bottom:0,left:0};
+            const b = computed.border || {edges:{top:false,right:false,bottom:false,left:false}};
+            const bw = {
+                top: b.edges?.top ? 1 : 0,
+                right: b.edges?.right ? 1 : 0,
+                bottom: b.edges?.bottom ? 1 : 0,
+                left: b.edges?.left ? 1 : 0
+            };
+            const p = computed.padding || {top:0,right:0,bottom:0,left:0};
+            
+            container.innerHTML = `
+                <div class="box-model">
+                <div class="bm-layer bm-margin">
+                    <div class="bm-label">margin</div>
+                    <div>${m.top}</div>
+                    <div style="display:flex; gap:15px; align-items:center">
+                        <div>${m.left}</div>
+                        <div class="bm-layer bm-border">
+                            <div class="bm-label">border</div>
+                            <div>${bw.top}</div>
+                            <div style="display:flex; gap:15px; align-items:center">
+                                <div>${bw.left}</div>
+                                <div class="bm-layer bm-padding">
+                                    <div class="bm-label">padding</div>
+                                    <div>${p.top}</div>
+                                    <div style="display:flex; gap:15px; align-items:center">
+                                        <div>${p.left}</div>
+                                        <div class="bm-layer bm-content">
+                                            ${selectedNode.rect.Size.Width} x ${selectedNode.rect.Size.Height}
+                                        </div>
+                                        <div>${p.right}</div>
+                                    </div>
+                                    <div>${p.bottom}</div>
+                                </div>
+                                <div>${bw.right}</div>
+                            </div>
+                            <div>${bw.bottom}</div>
+                        </div>
+                        <div>${m.right}</div>
+                    </div>
+                    <div>${m.bottom}</div>
+                </div>
+                </div>
+            `;
+        }
+
+        function showTab(event, tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function downloadDump() {
+            window.location.href = '/dump';
+        }
+    </script>
+</body>
+</html>

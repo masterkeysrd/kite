@@ -8,60 +8,60 @@ import "image/color"
 type Computed struct {
 	// --- Flex / display -------------------------------------------------------
 
-	Display        Display
-	ListStyleType  ListStyleType
-	FlexDirection  FlexDirection
-	FlexWrap       FlexWrap
-	JustifyContent Justify
-	AlignItems     Align
-	AlignContent   Align
-	AlignSelf      Align
-	Gap            GapValue
-	Flex           FlexItemValue
-	Order          int
+	Display        Display       `json:"display"`
+	ListStyleType  ListStyleType `json:"listStyleType"`
+	FlexDirection  FlexDirection `json:"flexDirection"`
+	FlexWrap       FlexWrap      `json:"flexWrap"`
+	JustifyContent Justify       `json:"justifyContent"`
+	AlignItems     Align         `json:"alignItems"`
+	AlignContent   Align         `json:"alignContent"`
+	AlignSelf      Align         `json:"alignSelf"`
+	Gap            GapValue      `json:"gap"`
+	Flex           FlexItemValue `json:"flex"`
+	Order          int           `json:"order"`
 
 	// --- Box model ------------------------------------------------------------
 
-	Width     Dimension
-	Height    Dimension
-	MinWidth  Dimension
-	MaxWidth  Dimension
-	MinHeight Dimension
-	MaxHeight Dimension
-	Padding   EdgeValues[int]
-	Margin    EdgeValues[int]
-	Border    Border
+	Width     Dimension       `json:"width"`
+	Height    Dimension       `json:"height"`
+	MinWidth  Dimension       `json:"minWidth"`
+	MaxWidth  Dimension       `json:"maxWidth"`
+	MinHeight Dimension       `json:"minHeight"`
+	MaxHeight Dimension       `json:"maxHeight"`
+	Padding   EdgeValues[int] `json:"padding"`
+	Margin    EdgeValues[int] `json:"margin"`
+	Border    Border          `json:"border"`
 
 	// --- Color / visual -------------------------------------------------------
 
 	// Foreground is never nil after resolution; it may be [TerminalDefault].
-	Foreground color.Color
+	Foreground color.Color `json:"foreground"`
 	// Background is never nil after resolution; it may be color.Transparent.
-	Background    color.Color
-	Bold          bool
-	Italic        bool
-	Underline     bool
-	Strikethrough bool
-	Reverse       bool
+	Background    color.Color `json:"background"`
+	Bold          bool        `json:"bold"`
+	Italic        bool        `json:"italic"`
+	Underline     bool        `json:"underline"`
+	Strikethrough bool        `json:"strikethrough"`
+	Reverse       bool        `json:"reverse"`
 
 	// --- Text -----------------------------------------------------------------
 
-	TextAlign    TextAlign
-	TextWrap     TextWrap
-	TextOverflow TextOverflow
-	WhiteSpace   WhiteSpace
-	WordBreak    WordBreak
-	OverflowWrap OverflowWrap
+	TextAlign    TextAlign    `json:"textAlign"`
+	TextWrap     TextWrap     `json:"textWrap"`
+	TextOverflow TextOverflow `json:"textOverflow"`
+	WhiteSpace   WhiteSpace   `json:"whiteSpace"`
+	WordBreak    WordBreak    `json:"wordBreak"`
+	OverflowWrap OverflowWrap `json:"overflowWrap"`
 
 	// --- Overflow / scroll ----------------------------------------------------
 
-	OverflowX Overflow
-	OverflowY Overflow
+	OverflowX Overflow `json:"overflowX"`
+	OverflowY Overflow `json:"overflowY"`
 
 	// --- Cursor ---------------------------------------------------------------
 
-	CursorShape CursorShape
-	CursorColor color.Color
+	CursorShape CursorShape `json:"cursorShape"`
+	CursorColor color.Color `json:"cursorColor"`
 }
 
 // AffectsLayout returns true if the change between c and other requires a re-layout.

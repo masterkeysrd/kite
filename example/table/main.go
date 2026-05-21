@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/backend/uv"
+	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
@@ -147,6 +148,9 @@ func main() {
 	})
 
 	eng.Mount(ui)
+
+	// Start inspector
+	inspector.Attach(eng, "127.0.0.1:8084", inspector.Options{})
 
 	// Context for cancellation
 	ctx, cancel := context.WithCancel(context.Background())

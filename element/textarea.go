@@ -107,6 +107,11 @@ func (txa *TextAreaElement) Value() string {
 	return txa.buf.Value()
 }
 
+// TextContent returns the current text value of the textarea, satisfying the dom.Node interface.
+func (txa *TextAreaElement) TextContent() string {
+	return txa.buf.Value()
+}
+
 // SetValue replaces the buffer content.
 func (txa *TextAreaElement) SetValue(v string) *TextAreaElement {
 	txa.buf = editor.NewBuffer(v)

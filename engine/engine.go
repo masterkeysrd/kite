@@ -156,6 +156,9 @@ type Engine struct {
 	// Use this to read freshly-computed cursor positions from CursorState().
 	afterLayoutHooks []func()
 
+	// onFrameRenderedHooks are called after every frame is committed.
+	onFrameRenderedHooks []func()
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -388,6 +391,11 @@ func (e *Engine) OnAfterLayout(fn func()) {
 	e.afterLayoutHooks = append(e.afterLayoutHooks, fn)
 }
 
+// OnFrameRendered registers a hook to be called after every frame is committed.
+func (e *Engine) OnFrameRendered(fn func()) {
+	e.onFrameRenderedHooks = append(e.onFrameRenderedHooks, fn)
+}
+
 // RequestFrameAt schedules a frame wake-up at time t. If t is before
 // time.Now() the frame is scheduled immediately.
 //
@@ -559,6 +567,10 @@ func (e *Engine) Frame() {
 
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
+
+	for _, fn := range e.onFrameRenderedHooks {
+		fn()
+	}
 }
 
 // cursorRecord duplicates the backend-internal state for tracking changes in the engine.
