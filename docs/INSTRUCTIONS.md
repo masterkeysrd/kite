@@ -42,6 +42,12 @@ We operate in **Consensus Mode**:
 1. Discuss and analyze the problem. Proactively ask follow-up questions to clarify doubts, uncover edge cases, and ensure a complete understanding of the requirements.
 2. Reach consensus on the solution.
 3. Wait for the user to explicitly confirm their agreement with the final design.
-4. Record the decision in `docs/decisions.md` and an ADR (if significant).
+4. Record the decision in `docs/decisions.md` and create an ADR in `docs/adrs/` (if significant). Verify these files exist before proceeding.
 5. Update `docs/architecture.md` to reflect new designs.
 6. Generate detailed task descriptions in `./tasks/`.
+
+## Strict Execution Constraints
+To prevent skipped steps and ensure proper documentation, the agent MUST adhere to the following execution rules:
+- **Sequential Enforcement:** Steps 4, 5, and 6 must be executed strictly in order. You must not generate the developer task (Step 6) until the documentation (Steps 4 and 5) has been successfully written to the file system.
+- **Verification Before Progression:** Do not mark a workflow step as `completed` in the `todos` tool until the corresponding file operation (`fs_write` or `fs_edit`) has successfully executed and returned a result.
+- **No Batching Artifacts:** Treat the documentation updates (Decisions, ADR, Architecture) as a prerequisite blocker for the Task generation.

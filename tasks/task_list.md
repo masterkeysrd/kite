@@ -41,3 +41,4 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Pending | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
 | TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Done | `tasks/TSK-027-paint-overflow-clipping.md` |
 | TSK-028 | Generic Scroll Offset on DOM Elements | In Progress | `tasks/TSK-028-generic-scroll-offset.md` |
+| TSK-029 | Unified Text Control Base | In Progress | `tasks/TSK-029-unified-text-control-base.md` |

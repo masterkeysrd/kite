@@ -80,9 +80,72 @@ This document provides guidelines and architectural context for AI assistants an
     *   Paint **clamps on read**: the stored scroll offset is the raw author intent, which paint clamps to the actual content extent at render time.
     *   Mutating scroll marks the render object `DirtyScroll`. Paint clears this flag.
 
+## 🗺️ Concern → File Map
+
+Use this table as the first lookup before grepping. It maps the most common engineering concerns to the authoritative source file(s).
+
+| Concern | Primary File(s) |
+|---|---|
+| **DOM tree structure & node lifecycle** | `dom/node.go`, `dom/element.go`, `dom/interfaces.go` |
+| **DOM document & factory methods** | `dom/document.go` |
+| **UA shadow subtree primitives** | `dom/ua.go` (ADR-009) |
+| **Element scroll state (Scroll/ScrollTo/ScrollBy)** | `dom/scroll_controller.go` (ADR-012) |
+| **`outer` back-pointer / identity (ADR-0036)** | `dom/outer.go` |
+| **Style Optional[T] wrapper** | `style/optional.go` |
+| **Style property declarations** | `style/style.go` |
+| **Computed style (post-resolver values)** | `style/computed.go` |
+| **Style cascade & resolver** | `style/resolver.go`, `style/cascade.go` (ADR-010) |
+| **Border fluent API & metadata** | `style/border.go` |
+| **Render object interfaces & dirty flags** | `render/object.go`, `render/dirty.go` |
+| **Render box / text nodes** | `render/box.go`, `render/text.go` |
+| **Render view (root container)** | `render/view.go` |
+| **Custom render object hook** | `render/block.go` (CustomObjectProvider) |
+| **Layout fragment geometry** | `layout/geometry.go` |
+| **Block layout algorithm** | `layout/block.go` |
+| **Inline layout / IFC** | `layout/inline.go` |
+| **Flex layout algorithm** | `layout/flex.go`, `layout/flex_builder.go` |
+| **List layout (virtual markers)** | `layout/list.go` |
+| **Table layout algorithm** | `layout/table.go`, `layout/table_builder.go` |
+| **Layout entry-point (NG dispatcher)** | `layout/ng.go` |
+| **Paint engine & overflow clipping** | `paint/engine.go` (ADR-011) |
+| **Paint framebuffer & surface** | `paint/framebuffer.go`, `paint/types.go` |
+| **Border intersection resolver** | `paint/engine.go` (`resolveBorders`) |
+| **Event types & interfaces** | `event/events.go` |
+| **Event dispatcher (capture/bubble)** | `event/dispatcher.go` |
+| **Raw-input → semantic event synthesis** | `event/synthesizer.go` |
+| **Focus manager & tab navigation** | `focus/focus.go` |
+| **Spatial (arrow-key) navigation** | `focus/spatial/spatial.go` |
+| **Hardware cursor state & Provider** | `cursor/cursor.go` |
+| **Cursor from IFC fragment** | `cursor/from_text_fragment.go` |
+| **Cursor byte-offset hit-test** | `cursor/offset_at_point.go` |
+| **Editor buffer (text model)** | `editor/buffer.go` |
+| **Engine frame loop** | `engine/engine.go` |
+| **Engine cursor wiring** | `engine/cursor.go` |
+| **Engine job / microtask queue** | `engine/job.go` |
+| **Backend interface** | `backend/backend.go` |
+| **Mock backend (for tests)** | `backend/mock/mock.go` |
+| **Element base & fluent API** | `element/element.go` |
+| **Shared text-control mechanics** | `element/text_control.go` (ADR-013) |
+| **`<input>` element** | `element/input.go` |
+| **`<textarea>` element** | `element/textarea.go` |
+| **`<box>` / `<span>` elements** | `element/box.go`, `element/span.go` |
+| **`<br>` element** | `element/br.go` |
+| **List elements (ul/ol/li)** | `element/list.go` |
+| **Table elements (table/tr/td/…)** | `element/table.go` |
+| **Text element** | `element/text.go` |
+| **Text shaping (grapheme clusters)** | `text/shape.go`, `text/cluster.go` |
+| **Key codes & modifiers** | `key/key.go`, `key/mod.go` |
+| **Regression test suite** | `tests/regressions/` |
+| **ADR documents** | `docs/adrs/` |
+
 ## 📋 Task Workflow
 
 When the agent is assigned a task from `./tasks/task_list.md`, it **must** update that file's status row to **`In Progress`** as the very first action — before reading the task's Markdown file, before exploring the codebase, and before writing any code. Failing to do this is a workflow violation regardless of how well the implementation turns out.
+
+At the **end** of every task the agent must also:
+
+1. **Update the Concern → File Map** in this file if the task introduced a new file, deleted a file, renamed a file, or moved a concern to a different file. Every row in the map must remain accurate after the task completes.
+2. **Keep `README.md` consistent** with any user-visible API or package changes.
 
 ## 🧑‍💻 Coding Conventions
 
@@ -92,13 +155,14 @@ When the agent is assigned a task from `./tasks/task_list.md`, it **must** updat
     *   Leverage variadic children and automatic string boxing for concise UI code.
 2.  **Continuous Documentation Maintenance:**
     *   **Always** keep `README.md` and `AGENT.md` up-to-date. If you introduce new packages, modify core architectural patterns, or change significant dependencies, you must update these files to reflect the new state of the project.
-2.  **Modern Go Features:** 
+3.  **Modern Go Features:** 
     *   Utilize Go 1.24+ standard library features.
     *   Use iterators (`iter.Seq[T]`) for traversing collections, such as `Node.Children()`.
-3.  **Interfaces and Embedding:** 
+4.  **Interfaces and Embedding:** 
     *   Favor small, composable interfaces (e.g., `dom.Node`, `dom.Element`, `dom.TextNode`).
     *   When creating internal implementations, use unexported structs (e.g., `element`) and assert compile-time interface compliance (`var _ Element = (*element)(nil)`).
-4.  **Documentation:** 
+    *   **Stable interface assertions are mandatory for every public interface implementor.** Every concrete type that satisfies a public interface must carry a `var _ InterfaceName = (*ConcreteType)(nil)` guard at package scope — not just the ones that seem tricky. This ensures the compiler catches broken contracts immediately rather than at the call site.
+5.  **Documentation:** 
     *   All packages must contain a `doc.go` file summarizing the package's responsibility.
     *   Reference ADRs (Architecture Decision Records) in docstrings when touching core mechanics (e.g., `ADR-0036` for DOM adoption).
 
@@ -109,3 +173,8 @@ When the agent is assigned a task from `./tasks/task_list.md`, it **must** updat
 3.  **Benchmarks:** Any changes to `/layout`, `/style` resolving, or `/paint` logic must be accompanied by `testing.B` benchmarks, as performance is critical in a 60FPS UI loop.
 4.  **No Panics:** Ensure test assertions do not result in raw panics. Handled disconnected/nil states gracefully in DOM manipulation tests.
 5.  **Always run tests with a timeout:** Use `go test -timeout 30s ./...` (or a per-package equivalent) so that a deadlock or hung goroutine causes a clean failure instead of blocking the terminal indefinitely. Never invoke `go test` without `-timeout`.
+6.  **Regression file headers:** Every file under `tests/regressions/` must begin with a package-level comment that states which component(s) it covers and the originating task or bug. Use this format:
+    ```go
+    // Regression tests for <ComponentName> — covers <TSK-XXX / brief description>.
+    ```
+    This makes it immediately clear which source files are relevant without reading the test bodies.
