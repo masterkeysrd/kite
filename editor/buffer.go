@@ -28,6 +28,20 @@ func (b *Buffer) ByteOffset() int {
 	return b.byteOffset
 }
 
+// SetOffset updates the current cursor position in bytes, clamping to the
+// buffer boundaries [0, len(text)].
+func (b *Buffer) SetOffset(offset int) {
+	if offset < 0 {
+		b.byteOffset = 0
+		return
+	}
+	if offset > len(b.text) {
+		b.byteOffset = len(b.text)
+		return
+	}
+	b.byteOffset = offset
+}
+
 // Insert adds the given string at the current cursor position.
 func (b *Buffer) Insert(s string) {
 	b.text = b.text[:b.byteOffset] + s + b.text[b.byteOffset:]

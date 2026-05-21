@@ -3,6 +3,8 @@ package dom
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -12,6 +14,11 @@ type element struct {
 	tagName string
 	id      string
 	uaRoot  Node // closed UA shadow subtree root; nil by default (ADR-009)
+	scroll  *scrollState
+}
+
+type scrollState struct {
+	X, Y int
 }
 
 // Compile-time assertion.
@@ -110,6 +117,51 @@ func (e *element) AttachUARoot(root Node) {
 	setOuterRecursive(root, host)
 	// Mark the host so the engine syncs the new subtree on the next frame.
 	e.self.MarkNeedsSync()
+}
+
+func (e *element) Scroll() (x, y int) {
+	if e.scroll == nil {
+		return 0, 0
+	}
+	return e.scroll.X, e.scroll.Y
+}
+
+func (e *element) ScrollTo(x, y int) {
+	if e.scroll == nil {
+		e.scroll = &scrollState{}
+	}
+	dx := x - e.scroll.X
+	dy := y - e.scroll.Y
+	if dx == 0 && dy == 0 {
+		return
+	}
+	e.scroll.X = x
+	e.scroll.Y = y
+
+	if ro := e.RenderObject(); ro != nil {
+		ro.MarkDirty(render.DirtyScroll)
+	}
+
+	// Dispatch event.EventScroll.
+	ev := event.NewScrollEvent(x, y, dx, dy)
+
+	// Build the ancestor path for dispatch (root -> target).
+	var path []event.EventTarget
+	for p := e.self; p != nil; p = p.Parent() {
+		path = append(path, p)
+	}
+	// Reverse the path.
+	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+		path[i], path[j] = path[j], path[i]
+	}
+
+	dispatcher := event.NewDispatcher()
+	dispatcher.Dispatch(ev, path)
+}
+
+func (e *element) ScrollBy(dx, dy int) {
+	x, y := e.Scroll()
+	e.ScrollTo(x+dx, y+dy)
 }
 
 // setOuterRecursive walks the subtree rooted at n and sets the self/outer

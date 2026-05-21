@@ -15,6 +15,7 @@ type mockNode struct {
 }
 
 func (m *mockNode) Style() *style.Computed { return m.s }
+func (m *mockNode) LogicalNode() any       { return nil }
 
 func TestPaint_InheritedStyle(t *testing.T) {
 	pe := &PaintEngine{}

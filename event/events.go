@@ -30,6 +30,7 @@ const (
 	EventPaste     EventType = "paste"
 	EventCopy      EventType = "copy"
 	EventCut       EventType = "cut"
+	EventScroll    EventType = "scroll"
 )
 
 // EventPhase represents the current dispatch phase.
@@ -391,6 +392,25 @@ type RawResizeEvent struct {
 }
 
 func (RawResizeEvent) isRawEvent() {}
+
+// ScrollEvent is dispatched when an element's scroll offset changes.
+// ScrollEvent bubbles.
+type ScrollEvent struct {
+	BaseEvent
+	X, Y           int // New absolute offset
+	DeltaX, DeltaY int // Change from previous offset
+}
+
+// NewScrollEvent creates a ScrollEvent with the given offset and delta.
+func NewScrollEvent(x, y, dx, dy int) *ScrollEvent {
+	return &ScrollEvent{
+		BaseEvent: BaseEvent{typ: EventScroll, bubbles: true},
+		X:         x,
+		Y:         y,
+		DeltaX:    dx,
+		DeltaY:    dy,
+	}
+}
 
 // RawBracketedPaste is the backend representation of a bracketed-paste
 // sequence (ESC[200~ … ESC[201~).

@@ -3,8 +3,10 @@ package paint
 import (
 	"image/color"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/text"
 )
 
 // overflowClips reports whether the given Overflow value requires clipping
@@ -159,6 +161,9 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 
 		currentX := origin.X
 		for _, cluster := range frag.Text {
+			if cluster.BreakClass == text.BreakMandatory {
+				continue
+			}
 			surface.Set(currentX, origin.Y, Cell{
 				Content: string(cluster.Bytes),
 				Width:   cluster.CellWidth,
@@ -170,22 +175,39 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 	}
 
 	// 3. Compute child clip surface based on this fragment's overflow style.
-	//
-	// The fragment's own background and border (painted above) always use the
-	// unclipped surface so a node's own border-box decoration is never eaten by
-	// its own overflow. Children — including their backgrounds, borders, and
-	// recursive descendants — paint on the potentially-clipped child surface.
-	//
-	// resolveBorders must only ever be called on the root surface (see
-	// Paint()). The clip surfaces created here are transient and never passed
-	// to resolveBorders.
 	childSurface := p.computeChildSurface(frag, origin, surface)
 
-	// 4. Recurse children (children are painted over parent).
+	// 4. Handle Scroll translation (ADR-012).
+	scrollX, scrollY := 0, 0
+	if frag.Node != nil {
+		if el, ok := frag.Node.LogicalNode().(dom.Element); ok {
+			s := frag.Node.Style()
+			if overflowClips(s.OverflowX) || overflowClips(s.OverflowY) {
+				rawX, rawY := el.Scroll()
+
+				// Clamping: stored scroll offset is raw author intent, we clamp to
+				// actual content extent.
+				bw := s.Border.Widths()
+				contentW := max(0, frag.Size.Width-bw.Left-bw.Right-s.Padding.Left-s.Padding.Right)
+				contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-s.Padding.Top-s.Padding.Bottom)
+
+				extentW, extentH := 0, 0
+				for _, childLink := range frag.Children {
+					extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width)
+					extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height)
+				}
+
+				scrollX = max(0, min(rawX, extentW-contentW))
+				scrollY = max(0, min(rawY, extentH-contentH))
+			}
+		}
+	}
+
+	// 5. Recurse children (children are painted over parent).
 	for _, childLink := range frag.Children {
 		childOrigin := layout.Point{
-			X: origin.X + childLink.Offset.X,
-			Y: origin.Y + childLink.Offset.Y,
+			X: origin.X + childLink.Offset.X - scrollX,
+			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
 		p.paintFragment(childLink.Fragment, childOrigin, childSurface)
 	}

@@ -194,9 +194,14 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	if a.Space.IsFixedBlockSize {
 		builder.SetBlockSize(a.Space.AvailableSize.Height)
 	} else {
-		resolvedHeight := builder.CurrentBlockOffset()
-		if comp.Height.Kind() == style.KindCells {
-			resolvedHeight = max(resolvedHeight, comp.Height.CellsValue())
+		var resolvedHeight int
+		switch comp.Height.Kind() {
+		case style.KindCells:
+			resolvedHeight = comp.Height.CellsValue()
+		case style.KindPercent:
+			resolvedHeight = int(float32(a.Space.PercentageResolutionSize.Height) * comp.Height.PercentValue() / 100.0)
+		default:
+			resolvedHeight = builder.CurrentBlockOffset()
 		}
 		builder.SetBlockSize(resolvedHeight)
 	}

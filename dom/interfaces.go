@@ -20,6 +20,19 @@ const (
 	KindText
 )
 
+func (k Kind) String() string {
+	switch k {
+	case KindDocument:
+		return "Document"
+	case KindElement:
+		return "Element"
+	case KindText:
+		return "Text"
+	default:
+		return "Unknown"
+	}
+}
+
 // Node is the base interface for every node in the logical DOM tree.
 // It carries parent/sibling links, owner-document reference, and an optional
 // back-reference to the render object created for this node by the engine.
@@ -165,6 +178,16 @@ type Element interface {
 	// host is connected to a document. The ua root must be created against the
 	// same Document as the host. Calling AttachUARoot more than once panics.
 	AttachUARoot(root Node)
+
+	// Scroll returns the current raw scroll offset (x, y) in terminal cells.
+	Scroll() (x, y int)
+
+	// ScrollTo sets the raw scroll offset to (x, y) and marks the element
+	// for a paint update (DirtyScroll). Dispatches event.EventScroll.
+	ScrollTo(x, y int)
+
+	// ScrollBy shifts the raw scroll offset by (dx, dy).
+	ScrollBy(dx, dy int)
 }
 
 // TextNode is a leaf node that carries character data. It has no children.

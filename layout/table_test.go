@@ -270,7 +270,7 @@ func TestTableLayout_BorderOverlap(t *testing.T) {
 	cellStyleBordered := &style.Computed{
 		Display: style.DisplayTableCell,
 		Width:   style.Cells(10),
-		Height:  style.Cells(1),
+		Height:  style.Auto,
 		Border: style.Border{
 			Edges: style.EdgeAll(true),
 		},

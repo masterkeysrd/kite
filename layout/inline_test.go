@@ -871,3 +871,113 @@ func BenchmarkComplexInlineLayout_DistinctStyles_100k(b *testing.B) {
 		algo.Layout()
 	}
 }
+
+func TestInlineLayout_MandatoryBreak(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display:    style.DisplayInline,
+				WhiteSpace: style.WhiteSpacePreWrap,
+			},
+		},
+		data: "line1\nline2",
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(20),
+		},
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// Should have exactly two LineBox fragments
+	if len(frag.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(frag.Children))
+	}
+
+	if frag.Children[0].Fragment.Size.Width != 5 { // "line1" (plus newline consumed but 0 width)
+		t.Errorf("expected first line width 5, got %d", frag.Children[0].Fragment.Size.Width)
+	}
+	if frag.Children[1].Fragment.Size.Width != 5 { // "line2"
+		t.Errorf("expected second line width 5, got %d", frag.Children[1].Fragment.Size.Width)
+	}
+}
+
+func TestInlineLayout_TrailingNewline(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display:    style.DisplayInline,
+				WhiteSpace: style.WhiteSpacePreWrap,
+			},
+		},
+		data: "line1\n",
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(20),
+		},
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// Should have exactly two LineBox fragments (one for "line1\n", one empty for after \n)
+	if len(frag.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(frag.Children))
+	}
+
+	if frag.Children[0].Fragment.Size.Width != 5 {
+		t.Errorf("expected first line width 5, got %d", frag.Children[0].Fragment.Size.Width)
+	}
+	if frag.Children[1].Fragment.Size.Width != 0 {
+		t.Errorf("expected second line width 0, got %d", frag.Children[1].Fragment.Size.Width)
+	}
+}
+
+func TestInlineLayout_EmergencyBreak(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display:    style.DisplayInline,
+				WhiteSpace: style.WhiteSpacePreWrap,
+			},
+		},
+		data: "123456789012345",
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(10),
+		},
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{10, 10}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// Should have two LineBox fragments
+	// Line 0: "1234567890" (10 chars)
+	// Line 1: "12345" (5 chars)
+	if len(frag.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(frag.Children))
+	}
+
+	if frag.Children[0].Fragment.Size.Width != 10 {
+		t.Errorf("expected first line width 10, got %d", frag.Children[0].Fragment.Size.Width)
+	}
+	if frag.Children[1].Fragment.Size.Width != 5 {
+		t.Errorf("expected second line width 5, got %d", frag.Children[1].Fragment.Size.Width)
+	}
+}

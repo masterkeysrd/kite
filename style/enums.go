@@ -180,6 +180,8 @@ const (
 	OverflowScroll
 	// OverflowClip clips overflowing content without scrolling.
 	OverflowClip
+	// OverflowAuto enables scrolling when content overflows.
+	OverflowAuto
 )
 
 // ListStyleType defines the appearance of a list item marker.

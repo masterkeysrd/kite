@@ -73,6 +73,12 @@ This document provides guidelines and architectural context for AI assistants an
     *   A fragment's own background fill and border decoration are always painted onto the **unclipped** parent surface — a node's overflow property never clips its own border-box.
     *   For asymmetric overflow (one axis `Visible`, the other clipped), the clip rect spans the full surface extent on the `Visible` axis so that axis remains truly unconstrained.
     *   **`resolveBorders` invariant:** `PaintEngine.resolveBorders` is called exactly once, on the **root** `Surface`, after the full fragment tree has been painted. It must never be called on a clipped sub-surface, because the junction resolver must see the complete set of border cells across the entire viewport.
+13. **Scroll Model (ADR-012):**
+    *   Every `dom.Element` exposes `Scroll()`, `ScrollTo(x, y)`, and `ScrollBy(dx, dy)`.
+    *   Scroll state is held in a lazy `*scrollState` pointer on the element, allocated only when needed.
+    *   Programmatic scroll is valid on any element; however, paint only applies translation if the computed style indicates the element is a scroll container (`overflow: scroll` or `overflow: auto`).
+    *   Paint **clamps on read**: the stored scroll offset is the raw author intent, which paint clamps to the actual content extent at render time.
+    *   Mutating scroll marks the render object `DirtyScroll`. Paint clears this flag.
 
 ## 📋 Task Workflow
 

@@ -187,6 +187,32 @@ func TestBlockLayout_Margins(t *testing.T) {
 	}
 }
 
+func TestBlockLayout_FixedHeightRespected(t *testing.T) {
+	child := &mockNode{
+		style: &style.Computed{
+			Width:  style.Cells(10),
+			Height: style.Cells(10),
+		},
+	}
+	parent := &mockNode{
+		style: &style.Computed{
+			Width:  style.Cells(20),
+			Height: style.Cells(5),
+		},
+		firstChild: child,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// Parent height should be exactly 5, despite child wanting 10
+	if frag.Size.Height != 5 {
+		t.Errorf("expected height 5, got %d", frag.Size.Height)
+	}
+}
+
 func TestBlockLayout_IntrinsicSizeCaching(t *testing.T) {
 	child := &mockNode{
 		style: &style.Computed{
@@ -388,6 +414,7 @@ func TestBlockLayout_EmptyIFC_MinimumLineHeight(t *testing.T) {
 		style: &style.Computed{
 			Display: style.DisplayBlock,
 			Width:   style.Cells(20),
+			Height:  style.Auto,
 		},
 		firstChild: emptyText,
 	}
@@ -423,6 +450,7 @@ func TestBlockLayout_EmptyIFC_WithBorder(t *testing.T) {
 		style: &style.Computed{
 			Display: style.DisplayInlineBlock,
 			Width:   style.Cells(20),
+			Height:  style.Auto,
 			Border:  style.SingleBorder(),
 		},
 		firstChild: emptyText,

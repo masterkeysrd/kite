@@ -40,4 +40,11 @@
 //     white-space:nowrap. The host owns an editor.Buffer and a single internal
 //     UA text node; the IFC shapes and renders the text. Cursor positioning uses
 //     cursor.FromTextFragment (TSK-023). See TSK-024.
+//   - TextArea: A multi-line text-input widget implemented as a UA shadow host
+//     (ADR-009) with intrinsic display:inline-block, overflow-x:clip,
+//     overflow-y:scroll, white-space:pre-wrap, and overflow-wrap:break-word.
+//     The host owns an editor.Buffer and a single internal UA text node; the
+//     IFC handles shaping, wrapping, and mandatory breaks. Cursor positioning
+//     uses cursor.FromTextFragment (TSK-023). Up/Down navigation is
+//     implemented by walking the fragment tree. See TSK-025.
 package element

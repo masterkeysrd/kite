@@ -192,6 +192,8 @@ type LineBreaker struct {
 
 	currentIndex int // current item index
 	clusterIndex int // current cluster index within InlineText
+
+	hadForcedBreakAtEnd bool
 }
 
 func NewLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, verticalAlign style.Align) *LineBreaker {
@@ -205,6 +207,10 @@ func NewLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, ve
 
 func (l *LineBreaker) NextLine() (*LineBox, bool) {
 	if l.currentIndex >= len(l.items) {
+		if l.hadForcedBreakAtEnd {
+			l.hadForcedBreakAtEnd = false
+			return &LineBox{Size: Size{Width: 0, Height: 1}}, true
+		}
 		return nil, false
 	}
 
@@ -296,6 +302,9 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 				}
 
 				if forceBreak {
+					if l.currentIndex >= len(l.items) && l.clusterIndex == 0 {
+						l.hadForcedBreakAtEnd = true
+					}
 					goto lineEnded
 				}
 			} else {
@@ -403,11 +412,6 @@ func (l *LineBreaker) findFittingClusters(item InlineItem, clusters []text.Clust
 	lastBreakWidth := 0
 
 	for i, c := range clusters {
-		if c.BreakClass == text.BreakMandatory && i > 0 {
-			// Mandatory break!
-			return i, currentWidth, true
-		}
-
 		if canWrap && (c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakAnywhere) {
 			lastBreakOp = i
 			lastBreakWidth = currentWidth
@@ -418,7 +422,12 @@ func (l *LineBreaker) findFittingClusters(item InlineItem, clusters []text.Clust
 				return lastBreakOp, lastBreakWidth, false
 			}
 			// No break opportunity found, we must overflow or break-word.
-			// For now, return 0 to trigger emergency break in caller if needed.
+			// If we've already taken some clusters, break here (emergency break).
+			if i > 0 {
+				return i, currentWidth, false
+			}
+			// Even the first cluster doesn't fit — return 0 to trigger
+			// at-least-one-cluster break in caller.
 			return 0, 0, false
 		}
 

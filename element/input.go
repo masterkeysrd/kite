@@ -6,8 +6,10 @@ import (
 	"github.com/masterkeysrd/kite/editor"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/text"
 )
 
 // InputElement is a single-line text-input widget implemented as a UA shadow
@@ -182,6 +184,7 @@ func (inp *InputElement) syncText() {
 	inp.uaText.SetData(inp.buf.Value())
 	if ro := inp.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+		ro.MarkChildrenDirty()
 	}
 }
 
@@ -251,4 +254,367 @@ func (inp *InputElement) handleKeyDown(ev event.Event) {
 			ke.PreventDefault()
 		}
 	}
+}
+
+// --- TextAreaElement ---------------------------------------------------------
+
+// TextAreaElement is a multi-line text-input widget implemented as a UA shadow
+// host (ADR-009).
+//
+// Architecture summary:
+//   - The host gets a plain render.Box; the standard IFC handles shaping,
+//     wrapping (via white-space: pre-wrap), mandatory breaks, and clipping.
+//   - A single synthetic text node is attached via AttachUARoot().
+//   - UA-mandated styles live in IntrinsicStyle(): display:inline-block,
+//     overflow-x:clip, overflow-y:scroll, white-space:pre-wrap,
+//     overflow-wrap:break-word.
+//   - Cursor positioning uses cursor.FromTextFragment (TSK-023).
+//   - Up/Down navigation is implemented by walking the fragment tree.
+type TextAreaElement struct {
+	elementBase[TextAreaElement]
+
+	// buf is the 1-D logical text model.
+	buf *editor.Buffer
+
+	// uaText is the single UA-internal text node whose Data() mirrors buf.Value().
+	// It is never nil after construction.
+	uaText dom.TextNode
+}
+
+// Compile-time interface assertions.
+var (
+	_ Element         = (*TextAreaElement)(nil)
+	_ cursor.Provider = (*TextAreaElement)(nil)
+)
+
+// intrinsicTextAreaStyle is the UA-mandated style for TextAreaElement.
+var intrinsicTextAreaStyle = style.Style{
+	Display:      style.Some(style.DisplayInlineBlock),
+	OverflowX:    style.Some(style.OverflowClip),
+	OverflowY:    style.Some(style.OverflowScroll),
+	WhiteSpace:   style.Some(style.WhiteSpacePreWrap),
+	OverflowWrap: style.Some(style.OverflowWrapBreakWord),
+}
+
+// defaultTextAreaStyle holds the author-overridable defaults for a textarea.
+var defaultTextAreaStyle = style.Style{
+	Width:   style.Some(style.Cells(20)),
+	Height:  style.Some(style.Cells(5)),
+	Padding: style.Some(style.EdgeValues[int]{}),
+}
+
+// NewTextArea creates a new TextAreaElement owned by doc with an optional
+// initial value.
+func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
+	buf := editor.NewBuffer(initialValue)
+
+	// Create the UA text node with the initial buffer value.
+	uaText := doc.CreateTextNode(buf.Value(), nil)
+
+	txa := &TextAreaElement{
+		buf:    buf,
+		uaText: uaText,
+	}
+
+	// Create the host DOM element.
+	el := doc.CreateElement("textarea", txa)
+
+	txa.initBase(el, txa, defaultTextAreaStyle, intrinsicTextAreaStyle)
+
+	// Attach the UA shadow subtree.
+	uaRoot := doc.CreateElement("ua-textarea-root", nil)
+	uaRoot.AppendChild(uaText)
+	el.AttachUARoot(uaRoot)
+
+	// Wire up default key bindings.
+	txa.wireKeyListeners()
+
+	return txa
+}
+
+// TextArea creates a new TextAreaElement using the orphan document.
+func TextArea(initialValue string) *TextAreaElement {
+	return NewTextArea(orphanDocument, initialValue)
+}
+
+// Value returns the current text value.
+func (txa *TextAreaElement) Value() string {
+	return txa.buf.Value()
+}
+
+// SetValue replaces the buffer content.
+func (txa *TextAreaElement) SetValue(v string) *TextAreaElement {
+	txa.buf = editor.NewBuffer(v)
+	txa.syncText()
+	return txa
+}
+
+// Buffer returns the underlying editor.Buffer.
+func (txa *TextAreaElement) Buffer() *editor.Buffer {
+	return txa.buf
+}
+
+// SyncBuffer propagates the current buffer state to the UA text node.
+func (txa *TextAreaElement) SyncBuffer() {
+	txa.syncText()
+}
+
+// --- cursor.Provider ---------------------------------------------------------
+
+// CursorState implements cursor.Provider.
+func (txa *TextAreaElement) CursorState() cursor.State {
+	ro := txa.RenderObject()
+	if ro == nil {
+		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
+	}
+	frag := ro.Fragment()
+	if frag == nil {
+		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
+	}
+	x, y, _ := cursor.FromTextFragment(frag, txa.buf.ByteOffset())
+	return cursor.State{
+		Visible: true,
+		X:       x,
+		Y:       y,
+		Shape:   cursor.ShapeBarBlink,
+	}
+}
+
+// --- dom.Focusable -----------------------------------------------------------
+
+func (txa *TextAreaElement) IsFocusable() bool { return true }
+func (txa *TextAreaElement) Focus()            {}
+func (txa *TextAreaElement) Blur()             {}
+
+// --- style.StyleNode overrides -----------------------------------------------
+
+func (txa *TextAreaElement) IntrinsicStyle() style.Style {
+	return intrinsicTextAreaStyle
+}
+
+// --- internal helpers --------------------------------------------------------
+
+func (txa *TextAreaElement) syncText() {
+	txa.uaText.SetData(txa.buf.Value())
+	if ro := txa.RenderObject(); ro != nil {
+		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+		ro.MarkChildrenDirty()
+	}
+}
+
+func (txa *TextAreaElement) wireKeyListeners() {
+	txa.AddEventListener(event.EventKeyDown, txa.handleKeyDown)
+}
+
+func (txa *TextAreaElement) handleKeyDown(ev event.Event) {
+	ke, ok := ev.(*event.KeyEvent)
+	if !ok {
+		return
+	}
+
+	switch {
+	case ke.MatchString("backspace"):
+		txa.buf.DeletePrevious()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("delete"):
+		txa.buf.DeleteNext()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("left"):
+		txa.buf.MoveLeft()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("right"):
+		txa.buf.MoveRight()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("up"):
+		txa.moveUp()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("down"):
+		txa.moveDown()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("enter"):
+		txa.buf.Insert("\n")
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("home"), ke.MatchString("ctrl+a"):
+		txa.buf.MoveToStart()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("end"), ke.MatchString("ctrl+e"):
+		txa.buf.MoveToEnd()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	case ke.MatchString("ctrl+w"), ke.MatchString("alt+backspace"):
+		txa.buf.DeleteWordPrevious()
+		txa.syncText()
+		txa.scrollCursorIntoView()
+		ke.PreventDefault()
+	default:
+		if ke.Text != "" && (ke.Mod&key.ModCtrl == 0) && (ke.Mod&key.ModAlt == 0) {
+			txa.buf.Insert(ke.Text)
+			txa.syncText()
+			txa.scrollCursorIntoView()
+			ke.PreventDefault()
+		}
+	}
+}
+
+func (txa *TextAreaElement) moveUp() {
+	ro := txa.RenderObject()
+	if ro == nil {
+		return
+	}
+	frag := ro.Fragment()
+	if frag == nil || len(frag.Children) == 0 {
+		return
+	}
+
+	curX, curY, ok := cursor.FromTextFragment(frag, txa.buf.ByteOffset())
+	if !ok {
+		return
+	}
+
+	// Use the Y offset of the first line as the boundary for "Top of buffer".
+	if curY <= frag.Children[0].Offset.Y {
+		txa.buf.MoveToStart()
+		return
+	}
+
+	targetY := curY - 1
+	txa.buf.SetOffset(txa.offsetAtPoint(frag, curX, targetY))
+}
+
+func (txa *TextAreaElement) moveDown() {
+	ro := txa.RenderObject()
+	if ro == nil {
+		return
+	}
+	frag := ro.Fragment()
+	if frag == nil || len(frag.Children) == 0 {
+		return
+	}
+
+	curX, curY, ok := cursor.FromTextFragment(frag, txa.buf.ByteOffset())
+	if !ok {
+		return
+	}
+
+	targetY := curY + 1
+	offset := txa.offsetAtPoint(frag, curX, targetY)
+	txa.buf.SetOffset(offset)
+}
+
+func (txa *TextAreaElement) offsetAtPoint(root *layout.Fragment, targetX, targetY int) int {
+	runningBytes := 0
+	for _, lineLink := range root.Children {
+		lineBox := lineLink.Fragment
+		lineBytes := txa.countLineBytes(lineBox)
+
+		if lineLink.Offset.Y == targetY {
+			return runningBytes + txa.resolveXOffset(lineBox, targetX-lineLink.Offset.X)
+		}
+		runningBytes += lineBytes
+	}
+
+	if targetY >= root.Size.Height {
+		return len(txa.buf.Value())
+	}
+	if targetY < 0 {
+		return 0
+	}
+
+	return txa.buf.ByteOffset()
+}
+
+func (txa *TextAreaElement) countLineBytes(lineBox *layout.Fragment) int {
+	total := 0
+	for _, childLink := range lineBox.Children {
+		for _, c := range childLink.Fragment.Text {
+			total += len(c.Bytes)
+		}
+	}
+	return total
+}
+
+func (txa *TextAreaElement) resolveXOffset(lineBox *layout.Fragment, targetX int) int {
+	bytesSeen := 0
+
+	for _, childLink := range lineBox.Children {
+		child := childLink.Fragment
+		childX := childLink.Offset.X // relative to lineBox
+		xInChild := 0
+
+		if len(child.Text) > 0 {
+			for _, c := range child.Text {
+				// Stop before the mandatory break character (e.g. \n) because its
+				// logical position is on this line, but its visual position
+				// is effectively "after" the line. Offset-wise, the byte
+				// after \n belongs to the next line.
+				if c.BreakClass == text.BreakMandatory {
+					return bytesSeen
+				}
+
+				// If we are already at or past the target visual column, return
+				// the bytes accumulated so far.
+				if childX+xInChild >= targetX {
+					return bytesSeen
+				}
+
+				cw := clusterWidth(c)
+				// If adding this cluster would take us past targetX, stop here.
+				if cw > 0 && childX+xInChild+cw > targetX {
+					return bytesSeen
+				}
+				bytesSeen += len(c.Bytes)
+				xInChild += cw
+			}
+		} else {
+			// Atomic inline: check if we should stop before or after it.
+			if childX+child.Size.Width > targetX {
+				return bytesSeen
+			}
+			if childX+child.Size.Width >= targetX {
+				return bytesSeen
+			}
+		}
+	}
+	return bytesSeen
+}
+
+func clusterWidth(c text.Cluster) int {
+	if c.CellWidth < 0 {
+		return 0
+	}
+	return c.CellWidth
+}
+
+func (txa *TextAreaElement) scrollCursorIntoView() {
+	ro := txa.RenderObject()
+	if ro == nil {
+		return
+	}
+	frag := ro.Fragment()
+	if frag == nil {
+		return
+	}
+	_, y, ok := cursor.FromTextFragment(frag, txa.buf.ByteOffset())
+	if !ok {
+		return
+	}
+
+	txa.ScrollTo(0, y)
 }
