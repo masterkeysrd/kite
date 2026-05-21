@@ -18,6 +18,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -199,6 +200,45 @@ func dispatchKeyDown(inp *element.InputElement, k key.Key) {
 	path := []event.EventTarget{inp}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
+}
+
+func dispatchMouseDownInput(target event.EventTarget, x, y int) {
+	ev := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: x, Y: y}, event.ButtonLeft, 0)
+	ev.Local = layout.Point{X: x, Y: y}
+	path := []event.EventTarget{target}
+	d := event.NewDispatcher()
+	d.Dispatch(ev, path)
+}
+
+// TestInput_MouseDown_SetsCursor verifies that clicking on the input updates
+// the buffer's byte offset.
+func TestInput_MouseDown_SetsCursor(t *testing.T) {
+	b := mock.New(80, 5)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	inp := element.NewInput(eng.Document(), "hello world")
+	root := element.Box(inp)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Click at the start (offset 0)
+	dispatchMouseDownInput(inp, 0, 0)
+	if off := inp.Buffer().ByteOffset(); off != 0 {
+		t.Errorf("Click at (0,0) expected offset 0, got %d", off)
+	}
+
+	// Click on 'e' (offset 1)
+	dispatchMouseDownInput(inp, 1, 0)
+	if off := inp.Buffer().ByteOffset(); off != 1 {
+		t.Errorf("Click at (1,0) expected offset 1, got %d", off)
+	}
+
+	// Click on ' ' (offset 5)
+	dispatchMouseDownInput(inp, 5, 0)
+	if off := inp.Buffer().ByteOffset(); off != 5 {
+		t.Errorf("Click at (5,0) expected offset 5, got %d", off)
+	}
 }
 
 // TestInput_KeyDown_TypesCharacter verifies that a printable character is

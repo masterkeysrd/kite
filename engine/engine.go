@@ -563,7 +563,30 @@ func (e *Engine) updateHardwareCursor() bool {
 					if bounds, clip, found := layout.ScrolledAbsoluteBounds(root, ro); found {
 						scrollX, scrollY := 0, 0
 						if el, ok := focused.(dom.Element); ok {
-							scrollX, scrollY = el.Scroll()
+							rawX, rawY := el.Scroll()
+
+							// ADR-012: Clamp scroll offset to content extent, matching paint.
+							cs := ro.ComputedStyle()
+							bw := cs.Border.Widths()
+							contentW := max(0, ro.Fragment().Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right)
+							contentH := max(0, ro.Fragment().Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom)
+
+							extentW, extentH := 0, 0
+							for _, childLink := range ro.Fragment().Children {
+								extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-bw.Left-cs.Padding.Left)
+								extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-bw.Top-cs.Padding.Top)
+							}
+
+							maxSX := max(0, extentW-contentW)
+							maxSY := max(0, extentH-contentH)
+
+							// Inputs and TextAreas need 1 extra cell of scroll to show the cursor at the end.
+							if el.NodeName() == "input" || el.NodeName() == "textarea" {
+								maxSX++
+							}
+
+							scrollX = max(0, min(rawX, maxSX))
+							scrollY = max(0, min(rawY, maxSY))
 						}
 						cursorPos := layout.Point{
 							X: bounds.Origin.X + state.X - scrollX,
@@ -732,11 +755,13 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 // It also recursively creates render objects for any existing children.
 func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	var ro render.Object
+	target := n.EventTarget()
+
 	if cp := unwrapProvider(n); cp != nil {
 		ro = cp.CreateRenderObject()
 	} else {
 		// Fallback for nodes that don't implement CustomObjectProvider.
-		ro = render.NewBox(n, n)
+		ro = render.NewBox(n, target)
 	}
 
 	// Notify logical node of creation.
@@ -958,7 +983,6 @@ func (e *Engine) ProcessRawEvent(raw event.RawEvent) {
 }
 
 func (e *Engine) processRawEvent(raw event.RawEvent) {
-	e.logger.Info("engine: received raw event", slog.Any("event", raw))
 	evts := e.synthesizer.Process(raw)
 	for _, ev := range evts {
 		switch evt := ev.(type) {
@@ -986,9 +1010,26 @@ func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
 		return
 	}
 	if node, ok := target.(dom.Node); ok {
+		e.setLocalWheelCoords(ev, node)
 		path := nodeAncestorPath(node)
 		scrollables := e.synthesizer.ResolveScrollables(path)
 		e.dispatcher.DispatchWheel(ev, path, scrollables)
+	}
+}
+
+func (e *Engine) setLocalWheelCoords(ev *event.WheelEvent, target dom.Node) {
+	ro := target.RenderObject()
+	if ro == nil {
+		return
+	}
+	root := e.renderView.Fragment()
+	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
+		// ScrolledAbsoluteBounds returns the scrolled border-box.
+		// Local coordinate in event should be relative to this scrolled box.
+		ev.Local = layout.Point{
+			X: ev.Screen.X - bounds.Origin.X,
+			Y: ev.Screen.Y - bounds.Origin.Y,
+		}
 	}
 }
 
@@ -1038,6 +1079,7 @@ func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
 		return
 	}
 	if node, ok := target.(dom.Node); ok {
+		e.setLocalMouseCoords(ev, node)
 		path := nodeAncestorPath(node)
 		e.dispatcher.Dispatch(ev, path)
 
@@ -1125,6 +1167,22 @@ func (e *Engine) handleDefaultKeyAction(ev *event.KeyEvent) {
 			dir = spatial.DirectionRight
 		}
 		spatial.Navigate(e.focusManager, dir)
+	}
+}
+
+func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
+	ro := target.RenderObject()
+	if ro == nil {
+		return
+	}
+	root := e.renderView.Fragment()
+	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
+		// ScrolledAbsoluteBounds returns the scrolled border-box.
+		// Local coordinate in event should be relative to this scrolled box.
+		ev.Local = layout.Point{
+			X: ev.Screen.X - bounds.Origin.X,
+			Y: ev.Screen.Y - bounds.Origin.Y,
+		}
 	}
 }
 

@@ -253,20 +253,28 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 				rawX, rawY := el.Scroll()
 
 				bw := s.Border.Widths()
+				insetLeft := bw.Left + s.Padding.Left
+				insetTop := bw.Top + s.Padding.Top
 				contentW := max(0, frag.Size.Width-bw.Left-bw.Right-s.Padding.Left-s.Padding.Right)
 				contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-s.Padding.Top-s.Padding.Bottom)
 
 				extentW, extentH := 0, 0
 				for _, childLink := range frag.Children {
-					extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width)
-					extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height)
+					extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-insetLeft)
+					extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-insetTop)
 				}
 
 				if isScrollX {
-					scrollX = max(0, min(rawX, extentW-contentW))
+					maxS := max(0, extentW-contentW)
+					// Inputs and TextAreas need 1 extra cell of scroll to show the cursor at the end.
+					if nodeName(frag.Node) == "input" || nodeName(frag.Node) == "textarea" {
+						maxS++
+					}
+					scrollX = max(0, min(rawX, maxS))
 				}
 				if isScrollY {
-					scrollY = max(0, min(rawY, extentH-contentH))
+					maxS := max(0, extentH-contentH)
+					scrollY = max(0, min(rawY, maxS))
 				}
 			}
 		}
@@ -284,4 +292,14 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 	}
 
 	return Rect{}, Rect{}, false
+}
+
+func nodeName(n Node) string {
+	if n == nil || n.LogicalNode() == nil {
+		return ""
+	}
+	if ln, ok := n.LogicalNode().(interface{ NodeName() string }); ok {
+		return ln.NodeName()
+	}
+	return ""
 }

@@ -127,13 +127,14 @@ func (o *testObject) ChildNodes() iter.Seq[dom.Node] {
 		}
 	}
 }
-func (o *testObject) Unwrap() dom.Node        { return nil }
-func (o *testObject) TextContent() string     { return "" }
-func (o *testObject) CloneNode(bool) dom.Node { return nil }
-func (o *testObject) NeedsSync() bool         { return false }
-func (o *testObject) ChildNeedsSync() bool    { return false }
-func (o *testObject) MarkNeedsSync()          {}
-func (o *testObject) ClearSyncFlags()         {}
+func (o *testObject) Unwrap() dom.Node               { return nil }
+func (o *testObject) TextContent() string            { return "" }
+func (o *testObject) CloneNode(bool) dom.Node        { return nil }
+func (o *testObject) NeedsSync() bool                { return false }
+func (o *testObject) ChildNeedsSync() bool           { return false }
+func (o *testObject) MarkNeedsSync()                 {}
+func (o *testObject) ClearSyncFlags()                {}
+func (o *testObject) EventTarget() event.EventTarget { return o }
 
 // --- dom.Focusable and dom.Disableable ---------------------------------------
 

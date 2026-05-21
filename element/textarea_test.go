@@ -9,7 +9,9 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -117,4 +119,97 @@ func dispatchKeyDownTextArea(txa *element.TextAreaElement, k key.Key) {
 	path := []event.EventTarget{txa}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
+}
+
+func dispatchMouseDownTextArea(target event.EventTarget, x, y int) {
+	ev := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: x, Y: y}, event.ButtonLeft, 0)
+	ev.Local = layout.Point{X: x, Y: y}
+	path := []event.EventTarget{target}
+	d := event.NewDispatcher()
+	d.Dispatch(ev, path)
+}
+
+func TestTextArea_MouseDown_SetsCursor(t *testing.T) {
+	b := mock.New(80, 10)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	txa := element.NewTextArea(eng.Document(), "line1\nline2")
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Click on line 1, 'l' (offset 0)
+	dispatchMouseDownTextArea(txa, 0, 0)
+	if off := txa.Buffer().ByteOffset(); off != 0 {
+		t.Errorf("Click at (0,0) expected offset 0, got %d", off)
+	}
+
+	// Click on line 1, 'i' (offset 1)
+	dispatchMouseDownTextArea(txa, 1, 0)
+	if off := txa.Buffer().ByteOffset(); off != 1 {
+		t.Errorf("Click at (1,0) expected offset 1, got %d", off)
+	}
+
+	// Click on line 2, 'l' (offset 6)
+	// 'line1\n' is 6 bytes.
+	dispatchMouseDownTextArea(txa, 0, 1)
+	if off := txa.Buffer().ByteOffset(); off != 6 {
+		t.Errorf("Click at (0,1) expected offset 6, got %d", off)
+	}
+
+	// Click on a third (empty) line - should be clamped to end of buffer
+	dispatchMouseDownTextArea(txa, 0, 2)
+	if off := txa.Buffer().ByteOffset(); off != 11 {
+		t.Errorf("Click at (0,2) expected offset 11, got %d", off)
+	}
+}
+
+func TestTextArea_WheelScroll_DoesNotSnapBack(t *testing.T) {
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+	defer eng.Stop()
+
+	// Create a textarea with enough content to scroll.
+	// Height 5, 10 lines of text.
+	text := "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10"
+	txa := element.NewTextArea(eng.Document(), text)
+	// Put cursor at the start (line 0)
+	txa.Buffer().SetOffset(0)
+	root := element.Box(txa)
+	eng.Mount(root)
+
+	eng.Frame()
+
+	// Precondition: scroll is at 0
+	if _, y := txa.Scroll(); y != 0 {
+		t.Fatalf("Initial scroll.Y should be 0, got %d", y)
+	}
+
+	// Focus the textarea
+	fm := focus.NewManager(eng.Document(), event.NewDispatcher())
+	fm.Focus(txa, 0)
+	eng.Frame()
+
+	// Simulate wheel scroll down (deltaY > 0)
+	// Process wheel event directly on target
+	ev := event.NewWheelEvent(layout.Point{X: 0, Y: 0}, 0, 2, 0)
+	txa.OnWheel(ev)
+
+	// Run another frame.
+	eng.Frame()
+
+	// Check if scroll is still at 2, or if it snapped back to 0.
+	if _, y := txa.Scroll(); y != 2 {
+		t.Errorf("After wheel scroll down, scroll.Y should be 2, got %d (likely snapped back by ScrollCursorIntoView)", y)
+	}
+
+	// Now type a character. This SHOULD trigger ScrollCursorIntoView and snap back to 0
+	// (since cursor is at 0).
+	dispatchKeyDownTextArea(txa, key.Key{Code: 'a', Text: "a"})
+	eng.Frame()
+
+	if _, y := txa.Scroll(); y != 0 {
+		t.Errorf("After typing, scroll.Y should have snapped back to 0 to show cursor, got %d", y)
+	}
 }

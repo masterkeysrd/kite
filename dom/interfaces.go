@@ -133,6 +133,11 @@ type Node interface {
 
 	// ClearSyncFlags clears both NeedsSync and ChildNeedsSync flags on this node.
 	ClearSyncFlags()
+
+	// EventTarget returns the user-visible event target for this node. For
+	// nodes in a UA shadow subtree, this returns the host element; otherwise
+	// it returns the node itself (ADR-0036).
+	EventTarget() event.EventTarget
 }
 
 // Element extends Node with identity (tag name, id).

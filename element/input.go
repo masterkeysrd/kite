@@ -9,7 +9,6 @@ import (
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/text"
 )
 
 // uaInputDiv is the inner UA block element inside the Input host's shadow
@@ -59,6 +58,10 @@ type InputElement struct {
 	// Its render object's fragment has the IFC line-boxes as direct children,
 	// making it the correct root for cursor.FromTextFragment.
 	uaDiv *uaInputDiv
+
+	// needsScrollIntoView is set to true when the cursor moves or text changes,
+	// signaling the engine to enforce cursor visibility after the next layout.
+	needsScrollIntoView bool
 }
 
 // Compile-time interface assertions.
@@ -134,8 +137,8 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	uaRoot.AppendChild(uaInnerDiv) // the *uaInputDiv is the DOM tree node
 	el.AttachUARoot(uaRoot)
 
-	// Wire up default key bindings.
-	inp.wireKeyListeners()
+	// Wire up default key bindings and mouse events.
+	inp.wireEvents()
 
 	return inp
 }
@@ -230,7 +233,9 @@ func (inp *InputElement) CursorState() cursor.State {
 func (inp *InputElement) IsFocusable() bool { return true }
 
 // Focus is a no-op placeholder (focus management is handled by focus.Manager).
-func (inp *InputElement) Focus() {}
+func (inp *InputElement) Focus() {
+	inp.needsScrollIntoView = true
+}
 
 // Blur is a no-op placeholder (focus management is handled by focus.Manager).
 func (inp *InputElement) Blur() {}
@@ -249,6 +254,7 @@ func (inp *InputElement) IntrinsicStyle() style.Style {
 // marks the render object dirty for layout and paint.
 func (inp *InputElement) syncText() {
 	inp.uaText.SetData(inp.buf.Value())
+	inp.needsScrollIntoView = true
 	if ro := inp.uaDiv.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
 	}
@@ -259,6 +265,11 @@ func (inp *InputElement) syncText() {
 }
 
 func (inp *InputElement) ScrollCursorIntoView() {
+	if !inp.needsScrollIntoView {
+		return
+	}
+	inp.needsScrollIntoView = false
+
 	ro := inp.RenderObject()
 	if ro == nil {
 		return
@@ -298,14 +309,16 @@ func (inp *InputElement) ScrollCursorIntoView() {
 		scrollX = cx - contentW + 1
 	}
 
-	// 2. Avoid empty space at the end if the content is wider than the viewport.
-	// The cursor can be at totalWidth (one past the last character).
+	// 2. Clamp to allowed scroll range.
+	maxScrollX := max(0, totalWidth-contentW)
 	if totalWidth >= contentW {
-		if scrollX > totalWidth-contentW+1 {
-			scrollX = totalWidth - contentW + 1
-		}
-	} else {
-		// Content fits entirely, no scroll.
+		maxScrollX++
+	}
+
+	if scrollX > maxScrollX {
+		scrollX = maxScrollX
+	}
+	if scrollX < 0 {
 		scrollX = 0
 	}
 
@@ -314,8 +327,43 @@ func (inp *InputElement) ScrollCursorIntoView() {
 
 // wireKeyListeners registers the default keystroke handlers on the host element.
 // Each handler mutates the buffer and calls syncText.
-func (inp *InputElement) wireKeyListeners() {
+func (inp *InputElement) wireEvents() {
 	inp.AddEventListener(event.EventKeyDown, inp.handleKeyDown)
+	inp.AddEventListener(event.EventMouseDown, inp.handleMouseDown)
+}
+
+func (inp *InputElement) handleMouseDown(ev event.Event) {
+	me, ok := ev.(*event.MouseEvent)
+	if !ok {
+		return
+	}
+	if me.Button != event.ButtonLeft {
+		return
+	}
+
+	ro := inp.RenderObject()
+	if ro == nil || ro.Fragment() == nil {
+		return
+	}
+
+	uaDivRO := inp.uaDiv.RenderObject()
+	if uaDivRO == nil || uaDivRO.Fragment() == nil {
+		return
+	}
+
+	cs := ro.ComputedStyle()
+	bw := cs.Border.Widths()
+	insetLeft := bw.Left + cs.Padding.Left
+	insetTop := bw.Top + cs.Padding.Top
+
+	scrollX, _ := inp.Scroll()
+
+	targetX := me.Local.X - insetLeft + scrollX
+	targetY := me.Local.Y - insetTop
+
+	offset := cursor.ByteOffsetAtPoint(uaDivRO.Fragment(), targetX, targetY)
+	inp.buf.SetOffset(offset)
+	inp.syncText()
 }
 
 // handleKeyDown processes a keydown event and routes it to the appropriate
@@ -412,6 +460,10 @@ type TextAreaElement struct {
 	// doc is the owning document, stored for creating new child nodes in
 	// syncText() without needing to walk the DOM tree.
 	doc dom.Document
+
+	// needsScrollIntoView signals that the cursor visibility should be enforced
+	// after the next layout.
+	needsScrollIntoView bool
 }
 
 // Compile-time interface assertions.
@@ -465,8 +517,8 @@ func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	// Populate the UA subtree with the initial value.
 	txa.rebuildUASubtree()
 
-	// Wire up default key bindings.
-	txa.wireKeyListeners()
+	// Wire up default key bindings and mouse events.
+	txa.wireEvents()
 
 	return txa
 }
@@ -540,8 +592,10 @@ func (txa *TextAreaElement) CursorState() cursor.State {
 // --- dom.Focusable -----------------------------------------------------------
 
 func (txa *TextAreaElement) IsFocusable() bool { return true }
-func (txa *TextAreaElement) Focus()            {}
-func (txa *TextAreaElement) Blur()             {}
+func (txa *TextAreaElement) Focus() {
+	txa.needsScrollIntoView = true
+}
+func (txa *TextAreaElement) Blur() {}
 
 // --- style.StyleNode overrides -----------------------------------------------
 
@@ -552,6 +606,7 @@ func (txa *TextAreaElement) IntrinsicStyle() style.Style {
 // --- internal helpers --------------------------------------------------------
 
 func (txa *TextAreaElement) syncText() {
+	txa.needsScrollIntoView = true
 	txa.rebuildUASubtree()
 	if ro := txa.uaDiv.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
@@ -617,8 +672,47 @@ func splitLines(s string) []string {
 	return lines
 }
 
-func (txa *TextAreaElement) wireKeyListeners() {
+func (txa *TextAreaElement) wireEvents() {
 	txa.AddEventListener(event.EventKeyDown, txa.handleKeyDown)
+	txa.AddEventListener(event.EventMouseDown, txa.handleMouseDown)
+}
+
+func (txa *TextAreaElement) handleMouseDown(ev event.Event) {
+	me, ok := ev.(*event.MouseEvent)
+	if !ok {
+		return
+	}
+	if me.Button != event.ButtonLeft {
+		return
+	}
+
+	ro := txa.RenderObject()
+	if ro == nil || ro.Fragment() == nil {
+		return
+	}
+
+	uaDivFrag := txa.uaDivFragment()
+	if uaDivFrag == nil {
+		return
+	}
+
+	cs := ro.ComputedStyle()
+	bw := cs.Border.Widths()
+	insetLeft := bw.Left + cs.Padding.Left
+	insetTop := bw.Top + cs.Padding.Top
+
+	scrollX, scrollY := txa.Scroll()
+
+	targetX := me.Local.X - insetLeft + scrollX
+	targetY := me.Local.Y - insetTop + scrollY
+
+	offset := cursor.ByteOffsetAtPoint(uaDivFrag, targetX, targetY)
+	// Clamp to buffer length because of the extra trailing <br> in the UA tree.
+	if maxLen := len(txa.buf.Value()); offset > maxLen {
+		offset = maxLen
+	}
+	txa.buf.SetOffset(offset)
+	txa.syncText()
 }
 
 func (txa *TextAreaElement) handleKeyDown(ev event.Event) {
@@ -699,7 +793,11 @@ func (txa *TextAreaElement) moveUp() {
 	}
 
 	targetY := curY - 1
-	txa.buf.SetOffset(txa.offsetAtPoint(uaDivFrag, curX, targetY))
+	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
+	if maxLen := len(txa.buf.Value()); offset > maxLen {
+		offset = maxLen
+	}
+	txa.buf.SetOffset(offset)
 }
 
 func (txa *TextAreaElement) moveDown() {
@@ -718,7 +816,10 @@ func (txa *TextAreaElement) moveDown() {
 	}
 
 	targetY := curY + 1
-	offset := txa.offsetAtPoint(uaDivFrag, curX, targetY)
+	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
+	if maxLen := len(txa.buf.Value()); offset > maxLen {
+		offset = maxLen
+	}
 	txa.buf.SetOffset(offset)
 }
 
@@ -735,91 +836,12 @@ func (txa *TextAreaElement) uaDivFragment() *layout.Fragment {
 	return uaDivRO.Fragment()
 }
 
-func (txa *TextAreaElement) offsetAtPoint(root *layout.Fragment, targetX, targetY int) int {
-	runningBytes := 0
-	for _, lineLink := range root.Children {
-		lineBox := lineLink.Fragment
-		lineBytes := txa.countLineBytes(lineBox)
-
-		if lineLink.Offset.Y == targetY {
-			return runningBytes + txa.resolveXOffset(lineBox, targetX-lineLink.Offset.X)
-		}
-		runningBytes += lineBytes
-	}
-
-	if targetY >= root.Size.Height {
-		return len(txa.buf.Value())
-	}
-	if targetY < 0 {
-		return 0
-	}
-
-	return txa.buf.ByteOffset()
-}
-
-func (txa *TextAreaElement) countLineBytes(lineBox *layout.Fragment) int {
-	total := 0
-	for _, childLink := range lineBox.Children {
-		for _, c := range childLink.Fragment.Text {
-			total += len(c.Bytes)
-		}
-	}
-	return total
-}
-
-func (txa *TextAreaElement) resolveXOffset(lineBox *layout.Fragment, targetX int) int {
-	bytesSeen := 0
-
-	for _, childLink := range lineBox.Children {
-		child := childLink.Fragment
-		childX := childLink.Offset.X // relative to lineBox
-		xInChild := 0
-
-		if len(child.Text) > 0 {
-			for _, c := range child.Text {
-				// Stop before the mandatory break character (e.g. \n) because its
-				// logical position is on this line, but its visual position
-				// is effectively "after" the line. Offset-wise, the byte
-				// after \n belongs to the next line.
-				if c.BreakClass == text.BreakMandatory {
-					return bytesSeen
-				}
-
-				// If we are already at or past the target visual column, return
-				// the bytes accumulated so far.
-				if childX+xInChild >= targetX {
-					return bytesSeen
-				}
-
-				cw := clusterWidth(c)
-				// If adding this cluster would take us past targetX, stop here.
-				if cw > 0 && childX+xInChild+cw > targetX {
-					return bytesSeen
-				}
-				bytesSeen += len(c.Bytes)
-				xInChild += cw
-			}
-		} else {
-			// Atomic inline: check if we should stop before or after it.
-			if childX+child.Size.Width > targetX {
-				return bytesSeen
-			}
-			if childX+child.Size.Width >= targetX {
-				return bytesSeen
-			}
-		}
-	}
-	return bytesSeen
-}
-
-func clusterWidth(c text.Cluster) int {
-	if c.CellWidth < 0 {
-		return 0
-	}
-	return c.CellWidth
-}
-
 func (txa *TextAreaElement) ScrollCursorIntoView() {
+	if !txa.needsScrollIntoView {
+		return
+	}
+	txa.needsScrollIntoView = false
+
 	ro := txa.RenderObject()
 	if ro == nil {
 		return
@@ -860,23 +882,23 @@ func (txa *TextAreaElement) ScrollCursorIntoView() {
 		newY = cy - contentH + 1
 	}
 
-	// 2. Avoid empty space at the end if the content is wider/taller than the viewport.
-	totalWidth := uaDivFrag.Size.Width
-	totalHeight := uaDivFrag.Size.Height
+	// 2. Clamp to allowed scroll range.
+	maxScrollX := max(0, uaDivFrag.Size.Width-contentW)
+	if uaDivFrag.Size.Width >= contentW {
+		maxScrollX++
+	}
+	maxScrollY := max(0, uaDivFrag.Size.Height-contentH)
 
-	if totalWidth >= contentW {
-		if newX > totalWidth-contentW+1 {
-			newX = totalWidth - contentW + 1
-		}
-	} else {
+	if newX > maxScrollX {
+		newX = maxScrollX
+	}
+	if newX < 0 {
 		newX = 0
 	}
-
-	if totalHeight >= contentH {
-		if newY > totalHeight-contentH+1 {
-			newY = totalHeight - contentH + 1
-		}
-	} else {
+	if newY > maxScrollY {
+		newY = maxScrollY
+	}
+	if newY < 0 {
 		newY = 0
 	}
 

@@ -133,13 +133,14 @@ func (o *spatialObj) ChildNodes() iter.Seq[dom.Node] {
 		}
 	}
 }
-func (o *spatialObj) Unwrap() dom.Node        { return nil }
-func (o *spatialObj) TextContent() string     { return "" }
-func (o *spatialObj) CloneNode(bool) dom.Node { return nil }
-func (o *spatialObj) NeedsSync() bool         { return false }
-func (o *spatialObj) ChildNeedsSync() bool    { return false }
-func (o *spatialObj) MarkNeedsSync()          {}
-func (o *spatialObj) ClearSyncFlags()         {}
+func (o *spatialObj) Unwrap() dom.Node               { return nil }
+func (o *spatialObj) TextContent() string            { return "" }
+func (o *spatialObj) CloneNode(bool) dom.Node        { return nil }
+func (o *spatialObj) NeedsSync() bool                { return false }
+func (o *spatialObj) ChildNeedsSync() bool           { return false }
+func (o *spatialObj) MarkNeedsSync()                 {}
+func (o *spatialObj) ClearSyncFlags()                {}
+func (o *spatialObj) EventTarget() event.EventTarget { return o }
 
 // --- dom.Focusable and dom.Disableable ---
 

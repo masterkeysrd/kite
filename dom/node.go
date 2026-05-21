@@ -104,6 +104,13 @@ func (b *baseNode) ClearSyncFlags() {
 	b.childNeedsSync = false
 }
 
+func (b *baseNode) EventTarget() event.EventTarget {
+	if b.outer != nil {
+		return b.outer
+	}
+	return b.self
+}
+
 func (b *baseNode) Unwrap() Node { return nil }
 
 func (b *baseNode) FirstChild() Node { return b.firstChild }
@@ -151,6 +158,10 @@ func (b *baseNode) InsertBefore(newChild, ref Node) Node {
 
 	newBase := asBase(newChild)
 	newBase.parent = b.self
+
+	if b.inUASubtree {
+		setOuterRecursive(newChild, b.outer)
+	}
 
 	if ref == nil {
 		// Link as last child.
