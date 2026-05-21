@@ -145,9 +145,9 @@ func BenchmarkResolver_WithIntrinsic(b *testing.B) {
 
 	// 3-5 forced properties modelling a replaced element (e.g. <input>).
 	intrinsic := style.Style{
-		Display:   style.Some(style.DisplayInlineBlock),
-		OverflowX: style.Some(style.OverflowClip),
-		OverflowY: style.Some(style.OverflowClip),
+		Display:    style.Some(style.DisplayInlineBlock),
+		OverflowX:  style.Some(style.OverflowClip),
+		OverflowY:  style.Some(style.OverflowClip),
 		WhiteSpace: style.Some(style.WhiteSpaceNoWrap),
 	}
 

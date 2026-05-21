@@ -36,7 +36,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-021 | Overlay and Dialog Components | Pending | `tasks/TSK-021-overlay-and-dialog-components.md` |
 | TSK-022 | Intrinsic Style Layer | Done | `tasks/TSK-022-intrinsic-style-layer.md` |
 | TSK-023 | cursor.FromTextFragment Helper | Done | `tasks/TSK-023-cursor-from-text-fragment.md` |
-| TSK-024 | Implement `<input>` onto UA Shadow Subtree | Pending | `tasks/TSK-024-input-on-ua-subtree.md` |
+| TSK-024 | Implement `<input>` onto UA Shadow Subtree | In Progress | `tasks/TSK-025-input-on-ua-subtree.md` |
 | TSK-025 | Implement `<textarea>` onto UA Shadow Subtree | Pending | `tasks/TSK-025-textarea-on-ua-subtree.md` |
 | TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Pending | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
 | TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Done | `tasks/TSK-027-paint-overflow-clipping.md` |

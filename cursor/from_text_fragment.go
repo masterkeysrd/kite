@@ -77,7 +77,7 @@ func FromTextFragment(root *layout.Fragment, byteOffset int) (x, y int, ok bool)
 		if byteOffset < lineEnd || (isLastLine && byteOffset == lineEnd) {
 			// Found the matching line. Now resolve x within this line.
 			cx := resolveX(lineBox, byteOffset-lineStart)
-			return cx, lineIdx, true
+			return lineLink.Offset.X + cx, lineLink.Offset.Y, true
 		}
 
 		runningBytes = lineEnd
@@ -115,31 +115,41 @@ func resolveX(lineBox *layout.Fragment, relOffset int) int {
 	if lineBox == nil {
 		return 0
 	}
-	cellX := 0
 	bytesSeen := 0
 
 	for _, childLink := range lineBox.Children {
 		child := childLink.Fragment
 
-		if len(child.Text) == 0 {
-			// Atomic inline: no bytes, contributes Size.Width cells.
-			cellX += child.Size.Width
-			continue
-		}
-
-		// Text fragment: walk cluster by cluster.
-		for _, c := range child.Text {
-			if bytesSeen >= relOffset {
-				// We have reached the target byte boundary.
-				return cellX
+		if len(child.Text) > 0 {
+			// Text fragment: walk cluster by cluster.
+			xInChild := 0
+			for _, c := range child.Text {
+				if bytesSeen >= relOffset {
+					return childLink.Offset.X + xInChild
+				}
+				bytesSeen += len(c.Bytes)
+				xInChild += clusterWidth(c)
 			}
-			bytesSeen += len(c.Bytes)
-			cellX += clusterWidth(c)
+
+			// Check if target is exactly at the end of this text fragment.
+			if bytesSeen >= relOffset {
+				return childLink.Offset.X + xInChild
+			}
+		} else {
+			// Atomic inline: contributes 0 bytes. We continue to see if a
+			// subsequent text fragment or the trailing case handles this offset.
+			continue
 		}
 	}
 
-	// relOffset is at or past the end of this line — return the trailing position.
-	return cellX
+	// relOffset is past the end of all text fragments, or the line only
+	// contains atomic inlines — return trailing position of the last child.
+	if len(lineBox.Children) > 0 {
+		last := lineBox.Children[len(lineBox.Children)-1]
+		return last.Offset.X + last.Fragment.Size.Width
+	}
+
+	return 0
 }
 
 // clusterWidth returns the display cell width for a single text cluster,

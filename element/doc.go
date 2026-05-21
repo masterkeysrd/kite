@@ -35,4 +35,9 @@
 //   - OL (OrderedList): A numbered list (<ol>).
 //   - LI (ListItem): An individual item within a list (<li>).
 //   - Table, THead, TBody, TFoot, TR, TD: Components for building grid-based layouts.
+//   - Input: A single-line text-input widget implemented as a UA shadow host
+//     (ADR-009) with intrinsic display:inline-block, overflow:clip, and
+//     white-space:nowrap. The host owns an editor.Buffer and a single internal
+//     UA text node; the IFC shapes and renders the text. Cursor positioning uses
+//     cursor.FromTextFragment (TSK-023). See TSK-024.
 package element

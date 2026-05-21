@@ -21,9 +21,17 @@ import (
 var _ backend.Backend = (*Backend)(nil)
 
 // renderRequest is sent from EndFrame to the render goroutine.
+type cursorRecord struct {
+	Visible bool
+	X, Y    int
+	Shape   cursor.Shape
+	Color   color.Color
+}
+
 type renderRequest struct {
 	fb      *paint.FrameBuffer
 	version uint64
+	cursor  cursorRecord
 }
 
 // Backend is the ultraviolet terminal backend for kite/x. It owns a uv.Terminal
@@ -48,6 +56,11 @@ type Backend struct {
 	// renderCh carries frames from the main thread to the render goroutine.
 	renderCh chan renderRequest
 
+	// syncCursorCh is needed to keep the cursor up-to-date in the render goroutine, since the
+	// cursor state is buffered in the main thread and only sent to the render goroutine in
+	// EndFrame. This channel allows cursor updates to be sent immediately, without waiting
+	// for the next EndFrame.
+
 	// renderWG lets Stop wait for the render goroutine to finish.
 	renderWG sync.WaitGroup
 
@@ -56,6 +69,10 @@ type Backend struct {
 
 	// onResize is called when the terminal is resized.
 	onResize func(layout.Size)
+
+	// cursorState is the buffered cursor state to be applied in the next frame.
+	cursorState       cursorRecord
+	lastPaintedCursor cursorRecord
 }
 
 // New creates a UV backend using the default controlling terminal.
@@ -71,6 +88,7 @@ func New() (*Backend, error) {
 	screen.SetMouseEncoding(uv.MouseEncodingSGR)
 	screen.SetMouseMode(uv.MouseModeClick)
 	screen.SetSynchronizedUpdates(os.Getenv("TMUX") == "")
+	screen.EnableBracketedPaste()
 
 	w, h, err := t.GetSize()
 	if err != nil {
@@ -133,7 +151,11 @@ func (b *Backend) EndFrame() error {
 	if b.current == nil {
 		panic("uv.Backend.EndFrame called without a preceding BeginFrame")
 	}
-	req := renderRequest{fb: b.current, version: b.current.Version()}
+	req := renderRequest{
+		fb:      b.current,
+		version: b.current.Version(),
+		cursor:  b.cursorState,
+	}
 	b.current = nil
 	b.renderCh <- req
 	return nil
@@ -177,47 +199,26 @@ func (b *Backend) Resize(size layout.Size) {
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
 
 func (b *Backend) ShowCursor(v bool) {
-	if v {
-		b.screen.ShowCursor()
-	} else {
-		b.screen.HideCursor()
-	}
+	b.cursorState.Visible = v
 }
 
 func (b *Backend) SetCursorPos(x, y int) {
-	b.screen.SetCursorPosition(x, y)
+	b.cursorState.X = x
+	b.cursorState.Y = y
 }
 
 func (b *Backend) SetCursorColor(c color.Color) {
-	b.screen.SetCursorColor(c)
+	b.cursorState.Color = c
 }
 
 func (b *Backend) SetCursorShape(s cursor.Shape) {
-	var shape uv.CursorShape
-	var blink bool
-	switch s {
-	case cursor.ShapeBlockBlink:
-		shape, blink = uv.CursorBlock, true
-	case cursor.ShapeBlockSteady:
-		shape, blink = uv.CursorBlock, false
-	case cursor.ShapeBarBlink:
-		shape, blink = uv.CursorBar, true
-	case cursor.ShapeBarSteady:
-		shape, blink = uv.CursorBar, false
-	case cursor.ShapeUnderlineBlink:
-		shape, blink = uv.CursorUnderline, true
-	case cursor.ShapeUnderlineSteady:
-		shape, blink = uv.CursorUnderline, false
-	default:
-		shape, blink = uv.CursorBlock, true
-	}
-	b.screen.SetCursorStyle(shape, blink)
+	b.cursorState.Shape = s
 }
 
 func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()
 	for req := range b.renderCh {
-		b.renderFrame(req.fb)
+		b.renderFrame(req)
 	}
 }
 
@@ -228,7 +229,8 @@ func (b *Backend) loopEvents() {
 	}
 }
 
-func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
+func (b *Backend) renderFrame(req renderRequest) {
+	fb := req.fb
 	slog.Info("uv: renderFrame started", "width", fb.Bounds().Size.Width, "height", fb.Bounds().Size.Height)
 	bounds := fb.Bounds()
 	if bounds.Size.Width <= 0 || bounds.Size.Height <= 0 {
@@ -236,8 +238,6 @@ func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
 		return
 	}
 
-	// For UV, we iterate the whole requested buffer and set cells.
-	// UV's own diffing will handle efficient updates.
 	for y := 0; y < bounds.Size.Height; y++ {
 		for x := 0; x < bounds.Size.Width; {
 			c := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
@@ -246,12 +246,75 @@ func (b *Backend) renderFrame(fb *paint.FrameBuffer) {
 			x += max(1, uvCell.Width)
 		}
 	}
+
+	// Determine if the cursor state has changed since the last painted frame.
+	// If so, we may need to flush an additional time after updating the cursor
+	// to ensure it appears correctly.
+	cursorChanged := req.cursor != b.lastPaintedCursor
+	if cursorChanged {
+		b.lastPaintedCursor = req.cursor
+
+		if req.cursor.Visible {
+			uvShape, blink := translateCursorShape(req.cursor.Shape)
+			b.screen.SetCursorStyle(uvShape, blink)
+			if req.cursor.Color != nil {
+				b.screen.SetCursorColor(req.cursor.Color)
+			}
+			b.screen.SetCursorPosition(req.cursor.X, req.cursor.Y)
+			b.screen.ShowCursor()
+		} else {
+			b.screen.HideCursor()
+		}
+	}
+
 	b.screen.Render()
-	slog.Info("uv: screen.Render called")
 	if err := b.screen.Flush(); err != nil {
 		slog.Error("uv: flush error", "error", err)
 	} else {
 		slog.Info("uv: screen.Flush called")
+	}
+
+	// THE DOUBLE FLUSH WORKAROUND
+	//
+	// Why is this required?
+	// When the first `screen.Flush()` is called above, it correctly looks at the
+	// internal coordinates and generates the ANSI `MoveTo` command to place the cursor.
+	// However, due to a bug in the `uv` package, it fails to flush that specific command
+	// from the TerminalRenderer's internal memory into the main output buffer, leaving
+	// the cursor trapped at the last painted cell.
+	//
+	// 1. We call an empty `Render()` to reach into the renderer and force it to
+	//    dump its trapped `MoveTo` sequence into the main output buffer.
+	// 2. We call a second `Flush()` to physically write that rescued buffer to the terminal.
+	//
+	// We strictly gate this behind `cursorChanged` so we only pay the performance
+	// penalty of a double I/O write on the exact frames where the user moves the cursor.
+	if cursorChanged && req.cursor.Visible {
+		b.screen.Render()
+		if err := b.screen.Flush(); err != nil {
+			slog.Error("uv: flush error after cursor update", "error", err)
+		} else {
+			slog.Info("uv: screen.Flush called after cursor update")
+		}
+	}
+}
+
+func translateCursorShape(s cursor.Shape) (uv.CursorShape, bool) {
+	switch s {
+	case cursor.ShapeBlockBlink:
+		return uv.CursorBlock, true
+	case cursor.ShapeBlockSteady:
+		return uv.CursorBlock, false
+	case cursor.ShapeBarBlink:
+		return uv.CursorBar, true
+	case cursor.ShapeBarSteady:
+		return uv.CursorBar, false
+	case cursor.ShapeUnderlineBlink:
+		return uv.CursorUnderline, true
+	case cursor.ShapeUnderlineSteady:
+		return uv.CursorUnderline, false
+	default:
+		return uv.CursorBlock, true
 	}
 }
 

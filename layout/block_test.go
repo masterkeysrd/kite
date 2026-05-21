@@ -370,3 +370,76 @@ func TestBlockLayout_FixedBlockSizePercentage(t *testing.T) {
 		t.Errorf("expected child height 10 (50%% of 20), got %d", childFrag.Size.Height)
 	}
 }
+
+// TestBlockLayout_EmptyIFC_MinimumLineHeight verifies that a block element
+// whose only child is an inline text node with empty data (no visible text)
+// still occupies exactly 1 content row. This mirrors the browser rule that an
+// IFC always reserves at least one line-box height, preventing the element
+// from collapsing to zero content height.
+func TestBlockLayout_EmptyIFC_MinimumLineHeight(t *testing.T) {
+	// A text node that produces no clusters — simulates an empty <input> buffer.
+	emptyText := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{Display: style.DisplayInline},
+		},
+		data: "",
+	}
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayBlock,
+			Width:   style.Cells(20),
+		},
+		firstChild: emptyText,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// The block must be exactly 1 row tall (content only, no border/padding).
+	if frag.Size.Height != 1 {
+		t.Errorf("empty IFC: height = %d, want 1 (minimum line-box reserve)", frag.Size.Height)
+	}
+	// A phantom child fragment IS added for the empty IFC for cursor tracking.
+	if len(frag.Children) != 1 {
+		t.Errorf("empty IFC: Children count = %d, want 1", len(frag.Children))
+	}
+}
+
+// TestBlockLayout_EmptyIFC_WithBorder verifies the compound case that most
+// directly caused the visual bug: a bordered single-line input widget with no
+// content must produce height = border.Top(1) + content(1) + border.Bottom(1)
+// = 3 rows, not 2. Without the minimum-line-box reserve the content row was
+// missing, rendering two border lines back-to-back with no gap between them.
+func TestBlockLayout_EmptyIFC_WithBorder(t *testing.T) {
+	emptyText := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{Display: style.DisplayInline},
+		},
+		data: "",
+	}
+	// Bordered inline-block, 20 cells wide — mirrors the InputElement default style.
+	parent := &mockNode{
+		style: &style.Computed{
+			Display: style.DisplayInlineBlock,
+			Width:   style.Cells(20),
+			Border:  style.SingleBorder(),
+		},
+		firstChild: emptyText,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	algo := &BlockAlgorithm{Node: parent, Space: space}
+	frag := algo.Layout()
+
+	// border.Top(1) + content(1) + border.Bottom(1) = 3.
+	// Before the fix this was 2 (border.Top + border.Bottom only).
+	const wantHeight = 3
+	if frag.Size.Height != wantHeight {
+		t.Errorf("empty IFC with border: height = %d, want %d (top-border + content + bottom-border)",
+			frag.Size.Height, wantHeight)
+	}
+	if frag.Size.Width != 20 {
+		t.Errorf("empty IFC with border: width = %d, want 20", frag.Size.Width)
+	}
+}

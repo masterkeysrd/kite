@@ -1,6 +1,8 @@
 package uv
 
 import (
+	"log"
+
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
@@ -81,6 +83,7 @@ func translateEvent(ev uv.Event) event.RawEvent {
 		}
 	}
 
+	log.Printf("unhandled event: %#v", ev)
 	return &event.RawUnknownEvent{
 		Payload: ev,
 	}

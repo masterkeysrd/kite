@@ -246,6 +246,17 @@ func (m *Manager) PopScope() *Scope {
 	return top
 }
 
+// ResetScope clears all scopes except the root, and restores focus to the root's PreviousFocus if possible. This is useful for recovering from unexpected states
+// (e.g. focus trapped in a modal that failed to close).
+func (m *Manager) ResetScope() {
+	if len(m.scopes) == 0 {
+		return
+	}
+	root := m.scopes[0]
+	m.scopes = []*Scope{root}
+	m.setFocus(root.PreviousFocus, ReasonRestore)
+}
+
 // --- Focusable filter --------------------------------------------------------
 
 // IsFocusable reports whether n is a valid focus target within scope.
@@ -274,14 +285,15 @@ func IsFocusable(n dom.Node, scope *Scope) bool {
 		return false
 	}
 
-	// 3. Check Render object and style
-	ro := n.RenderObject()
-	if ro == nil {
-		return false
-	}
-	cs := ro.ComputedStyle()
-	if cs == nil || cs.Display == style.DisplayNone {
-		return false
+	// 3. Check Render object and style if they exist.
+	// If the render object hasn't been created yet (e.g. before the first
+	// frame sync), we allow focus to be set based on logical state alone.
+	// This ensures initial focus can be established at startup.
+	if ro := n.RenderObject(); ro != nil {
+		cs := ro.ComputedStyle()
+		if cs != nil && cs.Display == style.DisplayNone {
+			return false
+		}
 	}
 
 	if scope == nil {

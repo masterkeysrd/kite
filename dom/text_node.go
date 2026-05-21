@@ -51,5 +51,8 @@ func (t *textNode) asBase() *baseNode { return &t.baseNode }
 
 // CreateRenderObject implements render.CustomObjectProvider.
 func (t *textNode) CreateRenderObject() render.Object {
-	return render.NewText(t.self, t.self)
+	// Use the actual text node as the logical node so the layout engine can
+	// call Data() on it. Use t.self as the event target so that UA-subtree
+	// text nodes dispatch events to the host element (ADR-0036, ADR-009).
+	return render.NewText(t, t.self)
 }

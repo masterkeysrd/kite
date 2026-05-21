@@ -144,6 +144,9 @@ type Engine struct {
 	// shutdownTimeout bounds how long Stop waits for pending jobs.
 	shutdownTimeout time.Duration
 
+	// lastCursorState tracks the hardware cursor state from the previous frame.
+	lastCursorState cursorRecord
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -275,6 +278,10 @@ func (e *Engine) Mount(root dom.Element) {
 	if root != nil {
 		e.document.AppendChild(root)
 	}
+
+	// Auto-focus the first focusable element in the new tree, if any, so the
+	// user can start interacting with the UI right away. This mirrors browser behaviour: when a new page loads, the first tab stop is focused so the user can start typing or tabbing immediately without needing to click first. If no candidate exists, focus remains nil.
+	e.focusManager.ResetScope()
 }
 
 // FocusedTarget returns the currently focused event target, or nil.
@@ -285,6 +292,11 @@ func (e *Engine) FocusedTarget() event.EventTarget {
 	}
 	return e.focusManager.Current()
 }
+
+// FocusManager returns the engine's focus.Manager so that tests and
+// application code can drive focus programmatically (e.g. simulate a
+// mousedown-to-focus or query the currently focused node).
+func (e *Engine) FocusManager() *focus.Manager { return e.focusManager }
 
 // HitTest walks the render tree at point (x, y) and returns the topmost
 // event target at that position. It tests overlays (topmost-first) before
@@ -439,6 +451,13 @@ func (e *Engine) Frame() {
 		e.syncRenderTree(e.document, e.renderView)
 	}
 
+	// 1b. Autofocus Phase — if nothing is focused, try to find the first
+	// focusable element. This ensures that the cursor and focus styles are
+	// visible on the very first render without requiring a keystroke.
+	if e.focusManager.Current() == nil {
+		e.focusManager.Next()
+	}
+
 	// 2 & 3. Drain macrotasks (budget-capped), draining microtasks between
 	// each macrotask and at the end.
 	e.drainMacroTasks()
@@ -470,10 +489,16 @@ func (e *Engine) Frame() {
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
 	}
 
+	// Always update the hardware cursor state after layout but before the
+	// potential paint phase. This ensures that if a frame is produced, it
+	// carries the most recent cursor position.
+	cursorChanged := e.updateHardwareCursor()
+
 	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
 
-	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint.
-	if root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint
+	// OR a cursor change (which requires a Flush even if no cells changed).
+	if cursorChanged || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 		surface := e.backend.BeginFrame()
 		e.logger.Info("engine: painting main content")
 		e.paintEngine.Paint(root.Fragment(), surface)
@@ -492,60 +517,63 @@ func (e *Engine) Frame() {
 		e.frameVersion++
 	}
 
-	e.updateHardwareCursor()
-
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
 }
 
-func (e *Engine) updateHardwareCursor() {
+// cursorRecord duplicates the backend-internal state for tracking changes in the engine.
+type cursorRecord struct {
+	Visible bool
+	X, Y    int
+	Shape   cursor.Shape
+}
+
+func (e *Engine) updateHardwareCursor() bool {
+	next := cursorRecord{}
+
 	focused := e.focusManager.Current()
-	if focused == nil {
-		e.backend.ShowCursor(false)
-		return
+	var ro render.Object
+	if focused != nil {
+		e.logger.Info("engine: determining cursor for focused target", slog.Any("target", focused))
+		ro = focused.RenderObject()
+		if ro != nil {
+			provider, ok := ro.(cursor.Provider)
+			if !ok {
+				provider, ok = focused.(cursor.Provider)
+			}
+			if ok {
+				state := provider.CursorState()
+				if state.Visible {
+					root := e.renderView.Fragment()
+					if bounds, found := layout.AbsoluteBounds(root, ro); found {
+						next.Visible = true
+						next.X = bounds.Origin.X + state.X
+						next.Y = bounds.Origin.Y + state.Y
+						next.Shape = state.Shape
+					}
+				}
+			}
+		}
 	}
 
-	ro := focused.RenderObject()
-	if ro == nil {
-		e.backend.ShowCursor(false)
-		return
+	if next != e.lastCursorState {
+		e.lastCursorState = next
+		if next.Visible {
+			e.backend.SetCursorPos(next.X, next.Y)
+			e.backend.SetCursorShape(next.Shape)
+			if ro != nil {
+				comp := ro.Style()
+				if comp != nil && comp.CursorColor != nil && comp.CursorColor != style.TerminalDefault {
+					e.backend.SetCursorColor(comp.CursorColor)
+				}
+			}
+			e.backend.ShowCursor(true)
+		} else {
+			e.backend.ShowCursor(false)
+		}
+		return true
 	}
-
-	provider, ok := ro.(cursor.Provider)
-	if !ok {
-		e.backend.ShowCursor(false)
-		return
-	}
-
-	state := provider.CursorState()
-	if !state.Visible {
-		e.backend.ShowCursor(false)
-		return
-	}
-
-	// Translate local X, Y to absolute screen coordinates using layout.AbsoluteBounds.
-	// Since ro is a render.Object, and render.Object implements layout.Node,
-	// and layout.AbsoluteBounds takes layout.Node, this is direct.
-	root := e.renderView.Fragment()
-	bounds, found := layout.AbsoluteBounds(root, ro)
-	if !found {
-		e.backend.ShowCursor(false)
-		return
-	}
-
-	absX := bounds.Origin.X + state.X
-	absY := bounds.Origin.Y + state.Y
-
-	e.backend.SetCursorPos(absX, absY)
-	e.backend.SetCursorShape(state.Shape)
-
-	// Check if style specifies a custom cursor color.
-	comp := ro.Style()
-	if comp != nil && comp.CursorColor != nil && comp.CursorColor != style.TerminalDefault {
-		e.backend.SetCursorColor(comp.CursorColor)
-	}
-
-	e.backend.ShowCursor(true)
+	return false
 }
 
 // drainWorkerResults drains all available completed job callbacks from the
@@ -822,6 +850,17 @@ func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
 	if node, ok := target.(dom.Node); ok {
 		path := nodeAncestorPath(node)
 		e.dispatcher.Dispatch(ev, path)
+
+		// Move focus to the clicked node if it is focusable and the event
+		// was a mousedown that was not cancelled by a listener. Focus on
+		// mousedown (not click) matches browser behaviour: the element
+		// becomes focused as soon as the button is pressed, so that key
+		// events fired before the button is released already land on the
+		// right target. Listeners may call ev.PreventDefault() on the
+		// mousedown to opt out.
+		if ev.Type() == event.EventMouseDown && !ev.DefaultPrevented() {
+			e.focusManager.Focus(node, focus.ReasonPointer)
+		}
 	}
 }
 
@@ -852,8 +891,15 @@ func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
 	if focused := e.focusManager.Current(); focused != nil {
 		path = nodeAncestorPath(focused)
 	} else {
-		// Fallback: Dispatch to document if nothing is focused
-		path = []event.EventTarget{e.document}
+		// Nothing is focused yet. Auto-focus the first focusable element in
+		// DOM tree order so the very first keystroke lands somewhere useful
+		// (mirrors browser behaviour). If no candidate exists, fall back to
+		// dispatching on the document.
+		if e.focusManager.Next() {
+			path = nodeAncestorPath(e.focusManager.Current())
+		} else {
+			path = []event.EventTarget{e.document}
+		}
 	}
 
 	e.dispatcher.Dispatch(ev, path)

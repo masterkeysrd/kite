@@ -161,12 +161,12 @@ func TestFromTextFragment_TwoLines_HardBreak(t *testing.T) {
 		wantY  int
 		wantOk bool
 	}{
-		{0, 0, 0, true}, // 'h'
-		{1, 1, 0, true}, // 'i'
-		{2, 2, 0, true}, // '\n' — cursor before the break cluster
-		{3, 0, 1, true}, // 'g' on second line
-		{4, 1, 1, true}, // 'o'
-		{5, 2, 1, true}, // trailing on last line
+		{0, 0, 0, true},  // 'h'
+		{1, 1, 0, true},  // 'i'
+		{2, 2, 0, true},  // '\n' — cursor before the break cluster
+		{3, 0, 1, true},  // 'g' on second line
+		{4, 1, 1, true},  // 'o'
+		{5, 2, 1, true},  // trailing on last line
 		{6, 0, 0, false}, // out of range
 	}
 
@@ -292,8 +292,8 @@ func TestFromTextFragment_MultiFragmentLine(t *testing.T) {
 		wantX  int
 	}{
 		{0, 0},
-		{5, 5},  // start of "world"
-		{9, 9},  // last char of "world"
+		{5, 5},   // start of "world"
+		{9, 9},   // last char of "world"
 		{10, 10}, // trailing
 	}
 
@@ -344,6 +344,52 @@ func TestFromTextFragment_TrailingOffset(t *testing.T) {
 	x, y, ok := FromTextFragment(root, 5)
 	if !ok || x != 2 || y != 1 {
 		t.Errorf("trailing offset 5: want (2,1,true), got (%d,%d,%v)", x, y, ok)
+	}
+}
+
+// TestFromTextFragment_RespectsOffsets verifies that the function correctly
+// accounts for physical offsets of line boxes and their child fragments.
+func TestFromTextFragment_RespectsOffsets(t *testing.T) {
+	// Root box with Border: 1, Padding: 1 -> Content starts at X: 2, Y: 1
+	// Line 0: "hi" at X: 2, Y: 1 relative to root
+	//   Child 0: "h" at X: 0 relative to line
+	//   Child 1: "i" at X: 1 relative to line
+	h := textFrag(shapedASCII("h"))
+	i := textFrag(shapedASCII("i"))
+
+	line0 := &layout.Fragment{
+		Size: layout.Size{Width: 2, Height: 1},
+		Children: []layout.FragmentLink{
+			{Offset: layout.Point{X: 0, Y: 0}, Fragment: h},
+			{Offset: layout.Point{X: 1, Y: 0}, Fragment: i},
+		},
+	}
+
+	root := &layout.Fragment{
+		Size: layout.Size{Width: 10, Height: 3},
+		Children: []layout.FragmentLink{
+			{
+				Offset:   layout.Point{X: 2, Y: 1},
+				Fragment: line0,
+			},
+		},
+	}
+
+	tests := []struct {
+		offset int
+		wantX  int
+		wantY  int
+	}{
+		{0, 2, 1}, // 'h' -> should be at 2+0, 1
+		{1, 3, 1}, // 'i' -> should be at 2+1, 1
+		{2, 4, 1}, // trailing -> should be at 2+1+1, 1
+	}
+
+	for _, tc := range tests {
+		x, y, ok := FromTextFragment(root, tc.offset)
+		if !ok || x != tc.wantX || y != tc.wantY {
+			t.Errorf("offset %d: want (%d,%d,true), got (%d,%d,%v)", tc.offset, tc.wantX, tc.wantY, x, y, ok)
+		}
 	}
 }
 

@@ -167,9 +167,9 @@ type testFocusableElement struct {
 }
 
 func (f *testFocusableElement) IsFocusable() bool { return true }
-func (f *testFocusableElement) Focus()             {}
-func (f *testFocusableElement) Blur()              {}
-func (f *testFocusableElement) Unwrap() dom.Node   { return f.Element }
+func (f *testFocusableElement) Focus()            {}
+func (f *testFocusableElement) Blur()             {}
+func (f *testFocusableElement) Unwrap() dom.Node  { return f.Element }
 
 // TestUASubtree_Focus_SkipsUANodes verifies that a focusable element inside a
 // UA subtree is NOT discovered by focus.Manager.Next().

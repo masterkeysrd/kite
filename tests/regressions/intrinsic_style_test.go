@@ -37,7 +37,7 @@ func newIntrinsicClipElement(doc dom.Document, rawStyle style.Style) *intrinsicC
 	return e
 }
 
-func (e *intrinsicClipElement) RawStyle() style.Style { return e.rawStyle }
+func (e *intrinsicClipElement) RawStyle() style.Style     { return e.rawStyle }
 func (e *intrinsicClipElement) DefaultStyle() style.Style { return style.Style{} }
 func (e *intrinsicClipElement) IntrinsicStyle() style.Style {
 	return style.Style{

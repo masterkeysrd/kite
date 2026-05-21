@@ -100,6 +100,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 			items := inlineBuilder.items
 			blockStyle := a.Node.Style()
 			breaker := NewLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
+			linesEmitted := 0
 			for {
 				line, ok := breaker.NextLine()
 				if !ok {
@@ -112,6 +113,21 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 				}
 				builder.AddChild(lineFrag, offset)
 				builder.AdvanceBlockOffset(lineFrag.Size.Height)
+				linesEmitted++
+			}
+			// An IFC with no visible text (e.g. an empty input) still occupies
+			// one content row — just like a browser renders an empty line box.
+			if linesEmitted == 0 {
+				line := &LineBox{
+					Size: Size{Width: 0, Height: 1},
+				}
+				lineFrag := line.ToFragment()
+				offset := Point{
+					X: insetX,
+					Y: builder.CurrentBlockOffset(),
+				}
+				builder.AddChild(lineFrag, offset)
+				builder.AdvanceBlockOffset(1)
 			}
 
 			if !ok {
