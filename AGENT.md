@@ -177,4 +177,83 @@ At the **end** of every task the agent must also:
     ```go
     // Regression tests for <ComponentName> — covers <TSK-XXX / brief description>.
     ```
-    This makes it immediately clear which source files are relevant without reading the test bodies.
+This makes it immediately clear which source files are relevant without reading the test bodies.
+
+
+
+## Source Map
+
+This source map summarises the repository packages, their responsibilities, and key files. It is generated from the repository scan and mirrors `SOURCE_MAP.md`.
+
+### Packages
+
+- **backend** — Path: `backend/`
+    - Description: Defines the `Backend` interface and frame lifecycle hooks; supplies `Surface` for paint engine. (See `backend/doc.go`)
+    - Key files: `backend/doc.go`, `backend.go`, `mock/`, `uv/`
+
+- **cursor** — Path: `cursor/`
+    - Description: Unified hardware cursor abstraction and helpers (`FromTextFragment`) for translating byte offsets to cell coordinates. (See `cursor/doc.go`)
+    - Key files: `cursor/doc.go`, `cursor.go`, `offset_at_point.go`, `from_text_fragment.go`, tests
+
+- **dom** — Path: `dom/`
+    - Description: Logical DOM node tree, lifecycle, adoption, UA shadow subtree, and scroll semantics. (See `dom/doc.go`)
+    - Key files: `dom/doc.go`, `document.go`, `node.go`, `element.go`, `text_node.go`, `outer.go`, `scroll_controller.go`
+
+- **editor** — Path: `editor/`
+    - Description: Text editing and `Buffer` utilities; Unicode-safe mutations and navigation. (See `editor/doc.go`)
+    - Key files: `editor/doc.go`, `buffer.go`, tests
+
+- **element** — Path: `element/`
+    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List) and declarative builders. (See `element/doc.go`)
+    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, tests
+
+- **engine** — Path: `engine/`
+    - Description: Main event loop, frame pipeline (Tasks → Style → Layout → Paint → Sync), task queues, and worker pool. Coordinates other packages. (See `engine/doc.go`)
+    - Key files: `engine/doc.go`, `engine.go`, `clock.go`, `cursor.go`, `job.go`, tests
+
+- **event** — Path: `event/`
+    - Description: Event types, Dispatcher, Synthesizer and key/wheel/scroll semantics. (See `event/doc.go`)
+    - Key files: `event/doc.go`, `dispatcher.go`, `events.go`, `synthesizer.go`, tests
+
+- **example** — Path: `example/`
+    - Description: Example applications and usage demos. Subpackages: `app1`, `flex`, `input`, `list`, `table`, `textarea`.
+
+- **focus** — Path: `focus/`
+    - Description: Focus management, `focus.Manager`, reasons, scope stack, and spatial navigation. (See `focus/doc.go`)
+    - Key files: `focus/doc.go`, `focus.go`, `spatial/`, tests
+
+- **key** — Path: `key/`
+    - Description: Key event representation and helpers (Key struct, matching helpers). (See `key/key.go`)
+    - Key files: `key/key.go`, `mod.go`
+
+- **layout** — Path: `layout/`
+    - Description: Layout algorithms and formatting contexts (Block, Flex, Inline/IFC, List, Table). Produces fragment trees consumed by paint. (See `layout/doc.go`)
+    - Key files: `layout/doc.go`, `flex.go`, `block.go`, `inline.go`, `table.go`, `builders.go`, tests
+
+- **paint** — Path: `paint/`
+    - Description: Paint phase: rasterises layout fragments into terminal cells, clipping and border resolution invariants. (See `paint/doc.go`)
+    - Key files: `paint/doc.go`, `framebuffer.go`, `engine.go` (tests reference), `resolver_test.go`
+
+- **render** — Path: `render/`
+    - Description: Render-object layer bridging DOM with layout/style/paint, tracking dirty state and computed styles. (See `render/doc.go`)
+    - Key files: `render/doc.go`
+
+- **style** — Path: `style/`
+    - Description: Style value types, computed resolution, four-layer cascade and fluent helpers. (See `style/doc.go`)
+    - Key files: `style/doc.go`, resolver and sheet implementations, tests
+
+- **text** — Path: `text/`
+    - Description: Grapheme cluster segmentation, shaping, cell-width measurement, and line-break classification. (See `text/cluster.go`)
+    - Key files: `text/cluster.go`, `text/shaper.go`, `shape.go`, tests
+
+
+### Docs and Project Files
+
+- `docs/`: design docs, ADRs, roadmap and INSTRUCTIONS. Useful for architecture context.
+- `logs/`: runtime logs and request dumps (not source code).
+- `tasks/`: task tracking and design task templates.
+- `README.md`, `WORKSPACE.md`, `go.mod`, `go.sum`: project-level metadata and module configuration.
+
+---
+
+    

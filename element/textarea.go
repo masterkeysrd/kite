@@ -6,11 +6,11 @@ package element
 // Architecture summary:
 //   - The host gets a plain render.Box; the standard IFC handles shaping,
 //     wrapping, and clipping.
-//   - The UA shadow subtree follows the HTML model:
-//     ua-textarea-root → ua-div → [text1, <br>, text2, ..., <br>(trailing)].
-//     Each line of text is a separate TextNode; <br> elements force mandatory
-//     line breaks. A trailing <br> is always present so the textarea has
-//     height even when the last line is empty.
+//   - The UA shadow subtree follows the browser model:
+//     ua-textarea-root → ua-div → [text, <br>, text, ..., <br placeholder>?]
+//     Each '\n' in the buffer is a content BrElement; a placeholder BrElement
+//     (zero bytes) is appended only when the value ends with '\n' or is empty,
+//     so the cursor can sit on the trailing empty line.
 //   - UA-mandated styles live in IntrinsicStyle(): display:inline-block,
 //     overflow-y:scroll, overflow-wrap:break-word.
 //   - Cursor positioning, scroll tracking, mouse hit-testing, and keyboard
@@ -153,16 +153,23 @@ func (txa *TextAreaElement) syncText() {
 }
 
 // rebuildUASubtree rebuilds the ua-div's children to match the current buffer
-// value. It follows the HTML textarea model:
+// value following the browser's textarea DOM model:
 //
-//	ua-div → [text1, <br>, text2, ..., <br>(trailing)]
+//	"abc"    →  text("abc")
+//	"abc\n"  →  text("abc") <br> <br id=placeholder>
+//	"abc\nX" →  text("abc") <br> text("X")
+//	"\n"     →  <br> <br id=placeholder>
+//	""       →  <br id=placeholder>
 //
-// Each line of text is a separate TextNode; <br> elements force mandatory
-// line breaks in the IFC. A trailing <br> is always present so that the
-// textarea has height even when the last line is empty.
+// Rules:
+//   - Each '\n' in the buffer value produces one content <br>.
+//   - A placeholder <br> (zero bytes, no cursor contribution) is appended
+//     when and only when the value ends with '\n', OR the value is empty.
+//     It ensures the textarea has height for the cursor on the empty last line.
+//   - Lines that are empty strings produce no TextNode (only their <br>).
 //
-// All existing children of ua-div are removed before rebuilding. This is a
-// "nuke and rebuild" strategy — it is correct but not optimal.
+// All existing children of ua-div are removed before rebuilding.
+// This is a "nuke and rebuild" strategy — correct but not optimal.
 func (txa *TextAreaElement) rebuildUASubtree() {
 	// Remove all existing children from the ua-div.
 	for {
@@ -173,20 +180,39 @@ func (txa *TextAreaElement) rebuildUASubtree() {
 		txa.uaDiv.RemoveChild(child)
 	}
 
-	// Split the buffer content by \n to get individual lines.
 	value := txa.buf.Value()
-	lines := splitLines(value)
 
-	// Add each line as a TextNode followed by a <br>.
-	// The trailing <br> is always added (even after the last non-empty line),
-	// matching the HTML spec's placeholder break.
-	for _, line := range lines {
+	// Empty buffer: just a placeholder <br> so the textarea has height.
+	if value == "" {
+		txa.uaDiv.AppendChild(NewPlaceholderBr(txa.doc))
+		return
+	}
+
+	// Split by '\n'. Each separator produces a content <br>.
+	// A trailing '\n' produces an extra empty segment at the end.
+	lines := splitLines(value)
+	endsWithNewline := value[len(value)-1] == '\n'
+
+	for i, line := range lines {
+		// Add the text content of this line (skip if empty).
 		if line != "" {
-			textNode := txa.doc.CreateTextNode(line, nil)
-			txa.uaDiv.AppendChild(textNode)
+			txa.uaDiv.AppendChild(txa.doc.CreateTextNode(line, nil))
 		}
-		br := NewBr(txa.doc)
-		txa.uaDiv.AppendChild(br)
+
+		isLastSegment := i == len(lines)-1
+
+		if !isLastSegment {
+			// This segment is followed by a '\n' in the buffer → content <br>.
+			txa.uaDiv.AppendChild(NewBr(txa.doc))
+		} else if endsWithNewline {
+			// The final segment is empty (value ends with '\n').
+			// The content <br> for that '\n' was already appended on the
+			// previous iteration. Now add the placeholder so the cursor
+			// can sit on the empty last line.
+			txa.uaDiv.AppendChild(NewPlaceholderBr(txa.doc))
+		}
+		// If isLastSegment && !endsWithNewline: the last line has content
+		// and no trailing '\n' → no br needed at all.
 	}
 }
 

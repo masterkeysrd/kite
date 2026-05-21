@@ -150,6 +150,12 @@ type Engine struct {
 	// lastCursorState tracks the hardware cursor state from the previous frame.
 	lastCursorState cursorRecord
 
+	// afterLayoutHooks are called once, after every layout+scroll phase, before
+	// paint. Each call to OnAfterLayout appends one hook; all hooks fire in
+	// registration order and are cleared after they fire (one-shot semantics).
+	// Use this to read freshly-computed cursor positions from CursorState().
+	afterLayoutHooks []func()
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -373,6 +379,15 @@ func (e *Engine) RequestFrame() {
 	e.frameRequested = true
 }
 
+// OnAfterLayout registers a one-shot callback that fires once, after the next
+// layout and scroll-into-view phase completes but before the paint phase.
+// This is the correct place to read CursorState() when an accurate, freshly
+// computed position is required (e.g. updating a status bar from a keydown
+// listener). The hook is called exactly once and then discarded.
+func (e *Engine) OnAfterLayout(fn func()) {
+	e.afterLayoutHooks = append(e.afterLayoutHooks, fn)
+}
+
 // RequestFrameAt schedules a frame wake-up at time t. If t is before
 // time.Now() the frame is scheduled immediately.
 //
@@ -501,6 +516,16 @@ func (e *Engine) Frame() {
 	if focused := e.focusManager.Current(); focused != nil {
 		if el, ok := focused.(dom.Element); ok {
 			el.ScrollCursorIntoView()
+		}
+	}
+
+	// 5c. After-layout hooks — fire once, then discard. These allow callers
+	// (e.g. status-bar updates) to read freshly computed CursorState values.
+	if len(e.afterLayoutHooks) > 0 {
+		hooks := e.afterLayoutHooks
+		e.afterLayoutHooks = nil
+		for _, fn := range hooks {
+			fn()
 		}
 	}
 

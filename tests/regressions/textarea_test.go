@@ -226,6 +226,227 @@ func TestTextArea_DumpTool(t *testing.T) {
 	}
 }
 
+// TestTextArea_Bug4_DownFromLastRowStaysOnLastRow verifies that pressing Down
+// while the cursor is anywhere on the last content row does not advance the
+// cursor to a phantom row beyond the content (i.e. the trailing-<br> line).
+//
+// Regression for: pressing Down from mid-last-row moves buffer offset to the
+// end of the last line (perceived as cursor jumping to last+1).
+func TestTextArea_Bug4_DownFromLastRowStaysOnLastRow(t *testing.T) {
+	b := mock.New(80, 20)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	// Two lines: move cursor to the START of the last line (not the end).
+	txa := element.NewTextArea(eng.Document(), "line1\nline2")
+	txa.Style(style.Style{
+		Width:  style.Some(style.Cells(20)),
+		Height: style.Some(style.Cells(5)),
+	})
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Move cursor to the start of "line2" (offset 6).
+	txa.Buffer().SetOffset(6)
+	txa.SyncBuffer()
+	eng.Frame()
+
+	cs := txa.CursorState()
+	if cs.Y != 1 {
+		t.Fatalf("pre-condition: cursor Y = %d, want 1 (start of last line)", cs.Y)
+	}
+	beforeOffset := txa.Buffer().ByteOffset()
+	beforeY := cs.Y
+
+	// Press Down — cursor is on the last content row and must not move.
+	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
+	eng.Frame()
+
+	cs = txa.CursorState()
+	if cs.Y != beforeY {
+		t.Errorf("Down from last row: cursor Y moved from %d to %d, want no change", beforeY, cs.Y)
+	}
+	// The buffer offset must not change either — pressing Down on the last line
+	// must be a strict no-op, not a jump-to-end-of-line.
+	if got := txa.Buffer().ByteOffset(); got != beforeOffset {
+		t.Errorf("Down from last row: buffer offset changed from %d to %d, want no change", beforeOffset, got)
+	}
+}
+
+// TestTextArea_Bug4_DownFromLastRowSoftWrap verifies the same invariant when
+// the last line is produced by soft-wrap rather than a hard newline.
+func TestTextArea_Bug4_DownFromLastRowSoftWrap(t *testing.T) {
+	b := mock.New(80, 20)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	// Single long line that soft-wraps at column 10 → produces two visual rows.
+	// Place cursor at start of the second (last) visual row.
+	txa := element.NewTextArea(eng.Document(), "1234567890abcde")
+	txa.Style(style.Style{
+		Width:  style.Some(style.Cells(10)),
+		Height: style.Some(style.Cells(5)),
+	})
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Offset 10 = start of the second wrapped row ("abcde" starts at byte 10).
+	txa.Buffer().SetOffset(10)
+	txa.SyncBuffer()
+	eng.Frame()
+
+	cs := txa.CursorState()
+	if cs.Y != 1 {
+		t.Fatalf("pre-condition: cursor Y = %d, want 1 (soft-wrap last row)", cs.Y)
+	}
+	beforeOffset := txa.Buffer().ByteOffset()
+	beforeY := cs.Y
+
+	// Press Down — cursor is on the last visual row and must not move.
+	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
+	eng.Frame()
+
+	cs = txa.CursorState()
+	if cs.Y != beforeY {
+		t.Errorf("Down from last soft-wrap row: cursor Y moved from %d to %d, want no change", beforeY, cs.Y)
+	}
+	if got := txa.Buffer().ByteOffset(); got != beforeOffset {
+		t.Errorf("Down from last soft-wrap row: buffer offset changed from %d to %d, want no change", beforeOffset, got)
+	}
+}
+
+// TestTextArea_Bug4_DownFromLastRowWhenOverflow verifies that pressing Down on
+// the last row is a strict no-op even when the content overflows the viewport
+// and a non-zero scroll offset is in effect. The mid-row variant checks that
+// the buffer offset does not jump to the end of the line.
+func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
+	b := mock.New(80, 20)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	// 12 lines in a 4-row viewport — forces scrolling.
+	text := "line0\nline1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\nline11"
+	txa := element.NewTextArea(eng.Document(), text)
+	txa.Style(style.Style{
+		Width:  style.Some(style.Cells(20)),
+		Height: style.Some(style.Cells(4)),
+	})
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Navigate from start to the last line via Down presses.
+	txa.Buffer().MoveToStart()
+	txa.SyncBuffer()
+	eng.Frame()
+
+	prevY, prevOff := -1, -1
+	for i := 0; i < 20; i++ {
+		cs := txa.CursorState()
+		off := txa.Buffer().ByteOffset()
+		if cs.Y == prevY && off == prevOff {
+			break
+		}
+		prevY, prevOff = cs.Y, off
+		dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
+		eng.Frame()
+	}
+
+	// Now on the last line. Record state.
+	lastY := txa.CursorState().Y
+	lastOff := txa.Buffer().ByteOffset()
+
+	// Three more Down presses must all be no-ops.
+	for i := 1; i <= 3; i++ {
+		dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
+		eng.Frame()
+		cs := txa.CursorState()
+		if cs.Y != lastY || txa.Buffer().ByteOffset() != lastOff {
+			t.Errorf("Down #%d from last row (overflow): Y %d→%d off %d→%d, want no change",
+				i, lastY, cs.Y, lastOff, txa.Buffer().ByteOffset())
+		}
+	}
+
+	// Also test from mid-line on the last row (not at end of line).
+	// "line11" starts at offset 67; place cursor 2 chars in.
+	txa.Buffer().SetOffset(69)
+	txa.SyncBuffer()
+	eng.Frame()
+
+	midY := txa.CursorState().Y
+	if midY != lastY {
+		t.Fatalf("mid-line pre-condition: Y = %d, want %d", midY, lastY)
+	}
+
+	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
+	eng.Frame()
+
+	if txa.CursorState().Y != midY || txa.Buffer().ByteOffset() != 69 {
+		t.Errorf("Down from mid-last-row (overflow): Y %d→%d off %d→%d, want no change",
+			midY, txa.CursorState().Y, 69, txa.Buffer().ByteOffset())
+	}
+}
+
+// TestTextArea_Bug5_CursorStateStaleFragment verifies that CursorState() returns
+// the last known good position — not the top-left corner — when called with a
+// stale fragment (e.g. from a keydown listener right after a buffer mutation,
+// before the next layout pass runs).
+//
+// Regression for: after pressing Enter at the end of the initial text the status
+// bar incorrectly showed Pos:(insetLeft,insetTop) instead of the real cursor
+// position, making subsequent navigation appear to jump.
+func TestTextArea_Bug5_CursorStateStaleFragment(t *testing.T) {
+	b := mock.New(80, 20)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	txa := element.NewTextArea(eng.Document(), "hello\nworld")
+	txa.Style(style.Style{
+		Width:  style.Some(style.Cells(20)),
+		Height: style.Some(style.Cells(5)),
+	})
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// After the first frame, buffer is at end (offset 11), cursor is at
+	// uaDiv Y=1 (last line). CursorState() should be (5,1).
+	cs := txa.CursorState()
+	if cs.X != 5 || cs.Y != 1 {
+		t.Fatalf("pre-condition: cursor = (%d,%d), want (5,1)", cs.X, cs.Y)
+	}
+
+	// Now simulate a keydown listener reading CursorState() immediately after
+	// a buffer mutation, but BEFORE the next layout pass. We do this by:
+	// 1. Inserting text directly into the buffer (bypassing syncCallback).
+	// 2. Calling CursorState() — at this point the fragment is stale (it was
+	//    computed for the old buffer value).
+	//
+	// Previously CursorState() would return (0,0) when FromTextFragment failed
+	// (offset past end of stale fragment), causing the status bar to show
+	// (insetLeft,insetTop) = (0,0) instead of the real last position.
+	txa.Buffer().Insert("\n") // buffer now has "hello\nworld\n", offset=12
+	// Do NOT call SyncBuffer / eng.Frame() — fragment is still for the old value.
+
+	cs = txa.CursorState()
+	// With the fix: should return last known good position (5,1), not (0,0).
+	if cs.X != 5 || cs.Y != 1 {
+		t.Errorf("CursorState with stale fragment = (%d,%d), want last-known (5,1)", cs.X, cs.Y)
+	}
+
+	// After the next frame the fragment is refreshed; cursor is now at the
+	// start of the new empty line (offset 12 → uaDiv Y=2, X=0).
+	txa.SyncBuffer()
+	eng.Frame()
+
+	cs = txa.CursorState()
+	if cs.X != 0 || cs.Y != 2 {
+		t.Errorf("CursorState after frame = (%d,%d), want (0,2)", cs.X, cs.Y)
+	}
+}
+
 func TestTextArea_CrashOverflow(t *testing.T) {
 	b := mock.New(80, 20)
 	eng := engine.New(b, engine.Options{})

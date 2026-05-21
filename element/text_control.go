@@ -59,6 +59,13 @@ type textControlBase[T dom.Element] struct {
 	// syncCallback is called after every buffer mutation to let the concrete
 	// element rebuild its UA subtree and mark the render tree dirty.
 	syncCallback func()
+
+	// lastKnownCX, lastKnownCY cache the most recent valid cursor position in
+	// uaDiv-local coordinates. CursorState() updates these whenever
+	// FromTextFragment returns ok=true, and falls back to them when the
+	// fragment is stale (e.g. when called from a keydown handler before the
+	// layout phase has run after a buffer mutation).
+	lastKnownCX, lastKnownCY int
 }
 
 // initTextControlBase initialises the base with its dependencies.
@@ -110,7 +117,17 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 
 	// cx, cy are relative to the ua-div's coordinate system (no border/padding
 	// on the ua-div itself, so they equal the IFC-local column and row).
-	cx, cy, _ := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
+	cx, cy, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
+	if ok {
+		// Cache for use when the fragment is stale (e.g. called before layout).
+		b.lastKnownCX, b.lastKnownCY = cx, cy
+	} else {
+		// Fragment is stale: buffer offset exceeds the old fragment's byte range
+		// (e.g. called from a keydown handler right after inserting text, before
+		// the next layout pass). Return the last known good position so the
+		// status bar and other callers do not show a misleading (0,0).
+		cx, cy = b.lastKnownCX, b.lastKnownCY
+	}
 
 	// Add the host's inset (border + padding) so the returned state is
 	// expressed relative to the host's border-box origin — matching the
@@ -395,6 +412,14 @@ func (b *textControlBase[T]) moveDown() {
 
 	curX, curY, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
 	if !ok {
+		return
+	}
+
+	// Guard: stop at the last content line. cursor.FromTextFragment at
+	// len(buf.Value()) returns the Y of the last line that has actual content.
+	// When curY is already there, pressing Down is a no-op.
+	_, lastLineY, okLast := cursor.FromTextFragment(uaDivFrag, len(b.buf.Value()))
+	if okLast && curY >= lastLineY {
 		return
 	}
 

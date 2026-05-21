@@ -46,6 +46,12 @@ const (
 	// It contributes zero bytes and zero visual width but terminates the
 	// current line immediately, similar to a \n cluster with BreakMandatory.
 	InlineBr
+	// InlineBrPlaceholder represents a trailing placeholder <br> that forces
+	// a line break (so the textarea always has height for an empty last line)
+	// but contributes ZERO bytes to the cursor byte-offset model. This maps
+	// to the browser model where the placeholder break is not part of the
+	// buffer value.
+	InlineBrPlaceholder
 )
 
 // InlineItem is the atomic unit of the flattened inline representation.
@@ -96,6 +102,14 @@ type brElement interface {
 	IsBr() bool
 }
 
+// brPlaceholderElement is implemented by elements that represent a trailing
+// placeholder line break. Like brElement it forces a new line so the textarea
+// always has height for an empty last line, but it emits NO byte to the cursor
+// offset model — matching the browser's <br id="placeholder"> convention.
+type brPlaceholderElement interface {
+	IsPlaceholderBr() bool
+}
+
 func (b *InlineItemsBuilder) currentParent() Node {
 	if len(b.parentStack) == 0 {
 		return nil
@@ -118,7 +132,13 @@ func (b *InlineItemsBuilder) collect(node Node) {
 		return
 	}
 
-	// If it's a <br> element, emit a mandatory line-break item.
+	// If it's a placeholder <br>, emit a zero-byte placeholder break item.
+	if br, ok := node.LogicalNode().(brPlaceholderElement); ok && br.IsPlaceholderBr() {
+		b.items = append(b.items, InlineItem{Type: InlineBrPlaceholder})
+		return
+	}
+
+	// If it's a content <br>, emit a mandatory line-break item with a '\n' byte.
 	if br, ok := node.LogicalNode().(brElement); ok && br.IsBr() {
 		b.items = append(b.items, InlineItem{Type: InlineBr})
 		return
@@ -305,11 +325,8 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 			continue
 
 		case InlineBr:
-			// <br> forces an immediate line break. Add a virtual newline
-			// cluster to the current line so that cursor.FromTextFragment
-			// counts the corresponding '\n' byte from the text buffer.
-			// The cluster has CellWidth=0 (invisible) and BreakMandatory so
-			// resolveX skips its visual contribution.
+			// Content <br>: forces an immediate line break and emits a virtual
+			// '\n' cluster so cursor.FromTextFragment counts the byte.
 			lineItems = append(lineItems, lineItem{
 				text: []text.Cluster{{
 					Bytes:      []byte{'\n'},
@@ -320,10 +337,14 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 				height: 1,
 			})
 			l.currentIndex++
-			// A trailing <br> still produces an empty line after itself.
-			if l.currentIndex >= len(l.items) {
-				l.hadForcedBreakAtEnd = true
-			}
+			goto lineEnded
+
+		case InlineBrPlaceholder:
+			// Placeholder <br>: creates exactly one empty trailing line for
+			// cursor height without contributing any bytes. It always appears
+			// as the last item. Emit the current (empty) line directly via
+			// lineEnded; no hadForcedBreakAtEnd is needed.
+			l.currentIndex++
 			goto lineEnded
 
 		case InlineAtomic:
@@ -585,6 +606,12 @@ func ComputeInlineMinMaxSizes(items []InlineItem) MinMaxSizes {
 
 		case InlineBr:
 			// <br> forces a mandatory break: end the current line.
+			result.Max = max(result.Max, currentLineMax)
+			currentLineMax = 0
+
+		case InlineBrPlaceholder:
+			// Placeholder <br>: same line-reset as a content br for sizing
+			// purposes, but contributes no bytes.
 			result.Max = max(result.Max, currentLineMax)
 			currentLineMax = 0
 		}
