@@ -79,8 +79,8 @@ func TestInput_Regression_IntrinsicStyleWins(t *testing.T) {
 	if cs.OverflowX != style.OverflowClip {
 		t.Errorf("OverflowX = %v, want OverflowClip (intrinsic must win)", cs.OverflowX)
 	}
-	if cs.WhiteSpace != style.WhiteSpaceNoWrap {
-		t.Errorf("WhiteSpace = %v, want WhiteSpaceNoWrap (intrinsic must win)", cs.WhiteSpace)
+	if cs.WhiteSpace != style.WhiteSpacePre {
+		t.Errorf("WhiteSpace = %v, want WhiteSpacePre (intrinsic must win)", cs.WhiteSpace)
 	}
 }
 
@@ -379,5 +379,53 @@ func TestInput_Regression_EngineCursorIntegration(t *testing.T) {
 	// cursor.FromTextFragment for "hello" at end (offset 5) should be X=5, Y=0.
 	if b.Cursor.X != 5 {
 		t.Errorf("expected cursor X=5, got %d", b.Cursor.X)
+	}
+}
+
+// --- ADR-012: Scroll-back on backspace ---------------------------------------
+
+// TestInput_Regression_ScrollBackOnBackspace verifies that when the cursor is
+// at the end of a scrolled input, deleting characters "pulls" the text back so
+// the cursor stays at the end of the content box (no empty space).
+func TestInput_Regression_ScrollBackOnBackspace(t *testing.T) {
+	b := mock.New(80, 5)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	// Create an input with a fixed width of 10 cells.
+	inp := element.NewInput(eng.Document(), "")
+	inp.Style(style.Style{
+		Width:   style.Some(style.Cells(10)),
+		Padding: style.Some(style.EdgeValues[int]{}),
+		Border:  style.Some(style.Border{}),
+	})
+
+	root := element.Box(inp)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Focus the input.
+	eng.FocusManager().Focus(inp, focus.ReasonProgrammatic)
+
+	// Type 15 characters into a 10-cell box.
+	// scrollX should end at 6.
+	for _, ch := range "123456789012345" {
+		inputDispatch(inp, key.Key{Code: ch, Text: string(ch)})
+		eng.Frame()
+	}
+
+	if gotX, _ := inp.Scroll(); gotX != 6 {
+		t.Errorf("After typing 15 chars, scrollX = %d, want 6", gotX)
+	}
+
+	// Backspace once. Value length becomes 14.
+	// If we didn't fix the bug, scrollX would stay at 6, and the cursor would
+	// be at position 14-6 = 8.
+	// With the fix, scrollX should become 14-9 = 5, keeping the cursor at 9.
+	inputDispatch(inp, key.Key{Code: key.KeyBackspace})
+	eng.Frame()
+
+	if gotX, _ := inp.Scroll(); gotX != 5 {
+		t.Errorf("After backspace, scrollX = %d, want 5 (to keep cursor at the end)", gotX)
 	}
 }

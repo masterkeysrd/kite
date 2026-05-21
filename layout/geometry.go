@@ -67,3 +67,12 @@ type Constraints struct {
 type MeasureResult struct {
 	Size Size
 }
+
+// InfiniteRect returns a rectangle that covers the entire signed integer coordinate space.
+func InfiniteRect() Rect {
+	const inf = 1e9 // Large enough for terminal grids
+	return Rect{
+		Origin: Point{X: -inf, Y: -inf},
+		Size:   Size{Width: 2 * inf, Height: 2 * inf},
+	}
+}

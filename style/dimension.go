@@ -10,10 +10,15 @@ const (
 	KindPercent
 	// KindAuto lets the layout engine determine the dimension.
 	KindAuto
-	// KindContent sizes the element to fit its content.
+	// KindContent sizes the element to fit its content, capped at the available width.
 	KindContent
 	// KindFr is a fractional unit used in flex/grid contexts.
 	KindFr
+	// KindMaxContent sizes the element to its unconstrained max-content width,
+	// ignoring the available width limit. Used internally by UA shadow subtrees
+	// (e.g. the inner div of <input>) that must be able to overflow their clip
+	// container so that the host's programmatic scroll offset can pan the content.
+	KindMaxContent
 )
 
 // Dimension is a tagged union representing a layout dimension. Use the
@@ -42,8 +47,14 @@ func Fr(n int) Dimension { return Dimension{kind: KindFr, cells: n} }
 // Auto is a Dimension that lets the layout engine choose the size.
 var Auto = Dimension{kind: KindAuto}
 
-// Content is a Dimension that sizes the element to fit its content.
+// Content is a Dimension that sizes the element to fit its content, capped
+// at the available width.
 var Content = Dimension{kind: KindContent}
+
+// MaxContent is a Dimension that sizes the element to its unconstrained
+// max-content width, not capped by the available width. Used for UA shadow
+// subtree inner elements that need to overflow a clip container.
+var MaxContent = Dimension{kind: KindMaxContent}
 
 // CellsValue returns the fixed cell count. Only valid when Kind() == KindCells
 // or KindFr; returns 0 otherwise.

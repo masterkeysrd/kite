@@ -16,6 +16,7 @@ type baseNode struct {
 	name           string
 	kind           Kind
 	self           Node
+	outer          Node // identity wrapper set by setOuterRecursive for UA subtrees (ADR-0036)
 	parent         Node
 	next           Node
 	prev           Node
@@ -89,6 +90,12 @@ func (b *baseNode) MarkNeedsSync() {
 			break
 		}
 		pb.childNeedsSync = true
+	}
+
+	// ADR-009: If this node is in a UA subtree, propagate ChildNeedsSync
+	// to the host element via the outer pointer.
+	if b.inUASubtree && b.outer != nil {
+		asBase(b.outer).MarkNeedsSync()
 	}
 }
 

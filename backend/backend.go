@@ -62,6 +62,8 @@ type Backend interface {
 
 	// SetCursorColor sets the terminal hardware cursor color.
 	SetCursorColor(color.Color)
+
+	DumpState()
 }
 
 // MouseSupport describes the level of mouse event support available from the

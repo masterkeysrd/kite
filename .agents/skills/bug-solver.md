@@ -40,11 +40,13 @@ When assigned a bug-related task, follow these steps in order:
 *   **Goal**: Confirm the fix and ensure no collateral damage.
 *   **Action**: 
     1. Run the newly created regression and unit tests. They must now pass ("Green" state).
-    2. Run the entire test suite (`go test ./...`) to ensure no other part of the system is broken.
-    3. Manually verify the fix by running relevant examples if applicable.
+    2. Ensure the regression test is integrated into the permanent test suite (e.g., `tests/regressions/`). **Regression tests are the mandatory final artifact of every bugfix.**
+    3. Run the entire test suite (`go test ./...`) to ensure no other part of the system is broken.
+    4. Manually verify the fix by running relevant examples if applicable.
 
 ## Guidelines
 *   **No Guessing**: Always verify assumptions by reading code or running targeted probe tests.
+*   **Permanent Regressions**: Every bugfix must conclude with a permanent regression test added to the codebase to prevent the issue from re-emerging.
 *   **Test Quality**: Write clear, descriptive test names and include comments explaining what the test is verifying and why.
 *   **Documentation**: If the fix involves a significant architectural change or touches a core invariant, update relevant ADRs or package documentation.
 *   **Cleanup**: Remove any temporary "repro" files created during investigation before finishing the task.

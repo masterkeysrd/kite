@@ -278,3 +278,10 @@ func (s Style) Merge(override Style) Style {
 		OverflowY: s.OverflowY.Merge(override.OverflowY),
 	}
 }
+
+// Overflow sets both OverflowX and OverflowY to v and returns the modified style.
+func (s Style) Overflow(v Overflow) Style {
+	s.OverflowX = Some(v)
+	s.OverflowY = Some(v)
+	return s
+}

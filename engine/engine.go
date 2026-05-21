@@ -2,9 +2,12 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -232,7 +235,9 @@ func New(b backend.Backend, opts Options) *Engine {
 	// Mark document for initial sync
 	e.document.MarkNeedsSync()
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
-	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{})
+	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{
+		ScrollableResolver: e.resolveScrollable,
+	})
 
 	// Probe capabilities from the backend.
 	e.caps = b.Caps()
@@ -251,6 +256,9 @@ func (e *Engine) RenderView() *render.RenderView { return e.renderView }
 
 // Document returns the logical document root.
 func (e *Engine) Document() dom.Document { return e.document }
+
+// PaintEngine returns the internal paint engine.
+func (e *Engine) PaintEngine() *paint.PaintEngine { return e.paintEngine }
 
 // AddEventListener registers fn as a listener for event of type typ on target.
 // It returns a Subscription that can be used to remove the listener.
@@ -489,6 +497,13 @@ func (e *Engine) Frame() {
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
 	}
 
+	// 5b. Auto-scroll phase — if an element is focused, ensure its cursor is visible.
+	if focused := e.focusManager.Current(); focused != nil {
+		if el, ok := focused.(dom.Element); ok {
+			el.ScrollCursorIntoView()
+		}
+	}
+
 	// Always update the hardware cursor state after layout but before the
 	// potential paint phase. This ensures that if a frame is produced, it
 	// carries the most recent cursor position.
@@ -545,11 +560,41 @@ func (e *Engine) updateHardwareCursor() bool {
 				state := provider.CursorState()
 				if state.Visible {
 					root := e.renderView.Fragment()
-					if bounds, found := layout.AbsoluteBounds(root, ro); found {
-						next.Visible = true
-						next.X = bounds.Origin.X + state.X
-						next.Y = bounds.Origin.Y + state.Y
-						next.Shape = state.Shape
+					if bounds, clip, found := layout.ScrolledAbsoluteBounds(root, ro); found {
+						scrollX, scrollY := 0, 0
+						if el, ok := focused.(dom.Element); ok {
+							scrollX, scrollY = el.Scroll()
+						}
+						cursorPos := layout.Point{
+							X: bounds.Origin.X + state.X - scrollX,
+							Y: bounds.Origin.Y + state.Y - scrollY,
+						}
+
+						// Hardware cursor is inside the content box.
+						// If the element itself clips, we must intersect with its content box.
+						cs := ro.ComputedStyle()
+						if cs.OverflowX != style.OverflowVisible || cs.OverflowY != style.OverflowVisible {
+							bw := cs.Border.Widths()
+							contentBox := layout.Rect{
+								Origin: layout.Point{
+									X: bounds.Origin.X + bw.Left + cs.Padding.Left,
+									Y: bounds.Origin.Y + bw.Top + cs.Padding.Top,
+								},
+								Size: layout.Size{
+									Width:  max(0, bounds.Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right),
+									Height: max(0, bounds.Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom),
+								},
+							}
+							clip = clip.Intersect(contentBox)
+						}
+
+						// Hardware cursor should only be visible if it's within the clip region.
+						if clip.Contains(cursorPos) {
+							next.Visible = true
+							next.X = cursorPos.X
+							next.Y = cursorPos.Y
+							next.Shape = state.Shape
+						}
 					}
 				}
 			}
@@ -766,7 +811,91 @@ func (e *Engine) executeJob(ctx context.Context, j Job) {
 	e.workerResults <- workerResult{job: j, err: jobErr}
 }
 
-// Stop shuts down the engine, waiting for workers to exit.
+func (e *Engine) Dump(path string) error {
+	size := e.backend.Size()
+	rawText := make([]string, size.Height)
+
+	// Capture the current visible state by re-painting into a temporary buffer.
+	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
+	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
+	root := e.renderView
+	e.paintEngine.Paint(root.Fragment(), fb)
+	for _, overlay := range root.Overlays() {
+		e.paintEngine.Paint(overlay.Fragment(), fb)
+	}
+
+	for y := 0; y < size.Height; y++ {
+		var line strings.Builder
+		for x := 0; x < size.Width; x++ {
+			c := fb.CellAt(x, y)
+			if c.Content == "" {
+				line.WriteRune(' ')
+			} else {
+				line.WriteString(c.Content)
+			}
+		}
+		rawText[y] = line.String()
+	}
+
+	type nodeDump struct {
+		Name     string      `json:"name"`
+		Kind     string      `json:"kind"`
+		Data     string      `json:"data,omitempty"`
+		Size     string      `json:"size,omitempty"`
+		Children []*nodeDump `json:"children,omitempty"`
+	}
+
+	var dumpNode func(n dom.Node) *nodeDump
+	dumpNode = func(n dom.Node) *nodeDump {
+		d := &nodeDump{
+			Name: n.NodeName(),
+			Kind: n.Kind().String(),
+		}
+		if tn, ok := n.(dom.TextNode); ok {
+			d.Data = tn.Data()
+		}
+
+		if ro := n.RenderObject(); ro != nil {
+			if frag := ro.Fragment(); frag != nil {
+				d.Size = fmt.Sprintf("%dx%d", frag.Size.Width, frag.Size.Height)
+			}
+		}
+
+		for child := range n.ChildNodes() {
+			d.Children = append(d.Children, dumpNode(child))
+		}
+		return d
+	}
+
+	data := struct {
+		ScreenSize struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+		} `json:"screen_size"`
+		RawText   []string  `json:"raw_text"`
+		DOMTree   *nodeDump `json:"dom_tree"`
+		Fragments *layout.Fragment
+	}{
+		ScreenSize: struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+		}{Width: size.Width, Height: size.Height},
+		RawText:   rawText,
+		DOMTree:   dumpNode(e.document),
+		Fragments: root.Fragment(),
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	return enc.Encode(data)
+}
+
 func (e *Engine) Stop() {
 	e.closeOnce.Do(func() {
 		close(e.closeCh)
@@ -821,6 +950,13 @@ func (e *Engine) Run(ctx context.Context) error {
 	}
 }
 
+// ProcessRawEvent converts a raw backend event into a sequence of DOM events
+// and dispatches them through the tree. It is used primarily for testing
+// and for custom event-loop implementations.
+func (e *Engine) ProcessRawEvent(raw event.RawEvent) {
+	e.processRawEvent(raw)
+}
+
 func (e *Engine) processRawEvent(raw event.RawEvent) {
 	e.logger.Info("engine: received raw event", slog.Any("event", raw))
 	evts := e.synthesizer.Process(raw)
@@ -828,6 +964,8 @@ func (e *Engine) processRawEvent(raw event.RawEvent) {
 		switch evt := ev.(type) {
 		case *event.MouseEvent:
 			e.dispatchMouseEvent(evt)
+		case *event.WheelEvent:
+			e.dispatchWheelEvent(evt)
 		case *event.KeyEvent:
 			e.dispatchKeyEvent(evt)
 		case *event.ResizeEvent:
@@ -840,6 +978,58 @@ func (e *Engine) processRawEvent(raw event.RawEvent) {
 			}
 		}
 	}
+}
+
+func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
+	target := ev.Target()
+	if target == nil {
+		return
+	}
+	if node, ok := target.(dom.Node); ok {
+		path := nodeAncestorPath(node)
+		scrollables := e.synthesizer.ResolveScrollables(path)
+		e.dispatcher.DispatchWheel(ev, path, scrollables)
+	}
+}
+
+func (e *Engine) resolveScrollable(target event.EventTarget) event.Scrollable {
+	// 1. Author-registered or Widget-provided Scrollable.
+	if sc, ok := target.(event.Scrollable); ok {
+		return sc
+	}
+
+	// 2. Framework default if the target's element is a scroll container.
+	var el dom.Element
+	if n, ok := target.(dom.Element); ok {
+		el = n
+	} else if n, ok := target.(dom.Node); ok {
+		el = n.ParentElement()
+	}
+
+	if el == nil {
+		return nil
+	}
+
+	ro := el.RenderObject()
+	if ro == nil {
+		return nil
+	}
+
+	cs := ro.ComputedStyle()
+	if cs == nil {
+		return nil
+	}
+
+	if isScrollContainer(cs) {
+		return dom.DefaultScroller(el)
+	}
+
+	return nil
+}
+
+func isScrollContainer(cs *style.Computed) bool {
+	return cs.OverflowX == style.OverflowScroll || cs.OverflowX == style.OverflowAuto || cs.OverflowX == style.OverflowHidden ||
+		cs.OverflowY == style.OverflowScroll || cs.OverflowY == style.OverflowAuto || cs.OverflowY == style.OverflowHidden
 }
 
 func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {

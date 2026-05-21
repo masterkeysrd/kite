@@ -37,4 +37,9 @@
 //
 // The cascade origin enum (CascadeOrigin) is internal to this package and
 // must not leak into dom, render, layout, or paint.
+// # Fluent Helpers
+//
+// Style provides fluent shorthands for common property combinations. For
+// example, Style.Overflow(v) sets both OverflowX and OverflowY to the same
+// value.
 package style

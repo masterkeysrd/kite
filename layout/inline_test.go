@@ -319,9 +319,20 @@ func TestInlineLayout_SpaceCollapsing(t *testing.T) {
 	lineBox := frag.Children[0].Fragment
 	textFrag := lineBox.Children[0].Fragment
 
-	// Leading spaces should be collapsed at the start of the line
-	if string(textFrag.Text[0].Bytes) != "L" {
-		t.Errorf("expected leading spaces to be collapsed, first cluster is %q", string(textFrag.Text[0].Bytes))
+	// Leading spaces should be visually collapsed (CellWidth=0) but their
+	// bytes must remain in the fragment for cursor byte-offset tracking.
+	for i, c := range textFrag.Text {
+		if len(c.Bytes) == 1 && c.Bytes[0] == ' ' {
+			if c.CellWidth != 0 {
+				t.Errorf("leading space cluster %d: CellWidth=%d, want 0 (collapsed)", i, c.CellWidth)
+			}
+		} else {
+			// First non-space cluster must be 'L'.
+			if string(c.Bytes) != "L" {
+				t.Errorf("first non-space cluster: got %q, want \"L\"", string(c.Bytes))
+			}
+			break
+		}
 	}
 }
 

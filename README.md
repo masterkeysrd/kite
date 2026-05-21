@@ -1,6 +1,6 @@
 # Kite
 
-Kite is a modern, DOM-like terminal UI framework for Go. It brings web-like development paradigms—such as a logical DOM tree, CSS-style flexbox layout, and a capture/target/bubble event model—to the terminal environment. 
+Kite is a modern, DOM-like terminal UI framework for Go. It brings web-like development paradigms—such as a logical DOM tree, CSS-style flexbox layout, standard event propagation, and scrolling—to the terminal environment. 
 
 ## 🏗 Architecture Overview
 

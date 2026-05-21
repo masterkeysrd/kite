@@ -229,6 +229,11 @@ func main() {
 		if ke.MatchString("ctrl+c") || ke.MatchString("q") {
 			cancel()
 		}
+
+		if ke.MatchString("ctrl+p") {
+			eng.Dump(fmt.Sprintf("dump-%d.txt", os.Getpid()))
+			b.DumpState()
+		}
 	})
 
 	// ── run ───────────────────────────────────────────────────────────────────

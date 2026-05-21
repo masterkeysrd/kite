@@ -51,4 +51,15 @@
 //     Children() iterator and therefore sees no UA nodes.
 //   - dom.IsUANode(n) reports whether n belongs to a UA subtree. Engine and
 //     focus code may use this predicate for additional guard checks.
+//
+// # Scroll (ADR-012)
+//
+// Every Element exposes Scroll, ScrollTo, and ScrollBy. These methods manage
+// a lazy scroll-offset state (X, Y) in terminal cells. The stored offset represents
+// raw author intent and is not clamped at the DOM level. Clamping and coordinate
+// translation happen at paint time if the element's computed overflow style
+// indicates it is a scroll container.
+//
+// Mutating the scroll offset marks the element's render object for a paint update
+// (DirtyScroll) and dispatches a bubbling event.ScrollEvent.
 package dom

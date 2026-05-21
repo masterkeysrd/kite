@@ -188,6 +188,11 @@ type Element interface {
 
 	// ScrollBy shifts the raw scroll offset by (dx, dy).
 	ScrollBy(dx, dy int)
+
+	// ScrollCursorIntoView scrolls the element so that the cursor (caret) is
+	// visible within the content box. It is typically called by the engine
+	// after layout if the element is focused.
+	ScrollCursorIntoView()
 }
 
 // TextNode is a leaf node that carries character data. It has no children.

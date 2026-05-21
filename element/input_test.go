@@ -103,8 +103,8 @@ func TestInput_IntrinsicStyle_Properties(t *testing.T) {
 	if !is.OverflowY.IsSet() || is.OverflowY.Value() != style.OverflowClip {
 		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowClip", is.OverflowY)
 	}
-	if !is.WhiteSpace.IsSet() || is.WhiteSpace.Value() != style.WhiteSpaceNoWrap {
-		t.Errorf("IntrinsicStyle.WhiteSpace = %v, want WhiteSpaceNoWrap", is.WhiteSpace)
+	if !is.WhiteSpace.IsSet() || is.WhiteSpace.Value() != style.WhiteSpacePre {
+		t.Errorf("IntrinsicStyle.WhiteSpace = %v, want WhiteSpacePre", is.WhiteSpace)
 	}
 }
 
@@ -140,8 +140,8 @@ func TestInput_IntrinsicStyle_ResistsAuthorOverride(t *testing.T) {
 	if cs.OverflowX != style.OverflowClip {
 		t.Errorf("OverflowX = %v, want OverflowClip (intrinsic must win)", cs.OverflowX)
 	}
-	if cs.WhiteSpace != style.WhiteSpaceNoWrap {
-		t.Errorf("WhiteSpace = %v, want WhiteSpaceNoWrap (intrinsic must win)", cs.WhiteSpace)
+	if cs.WhiteSpace != style.WhiteSpacePre {
+		t.Errorf("WhiteSpace = %v, want WhiteSpacePre (intrinsic must win)", cs.WhiteSpace)
 	}
 }
 

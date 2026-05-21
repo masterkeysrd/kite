@@ -36,3 +36,6 @@ This document outlines the major architectural features and subsystems that stil
     *   How does an element declare itself draggable?
     *   How do drop targets register themselves?
     *   Visual representation of the dragged item (potentially a ghost Overlay).
+
+## 6. Check white-space collapsing
+*  **Context:* We are currently collapsing all whitespace but what about If we want to conserve the original whitespace and print it as is?

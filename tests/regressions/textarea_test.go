@@ -256,6 +256,50 @@ func TestTextArea_CrashOverflow(t *testing.T) {
 	eng.PaintEngine().Paint(eng.RenderView().Fragment(), fb)
 }
 
+func TestTextArea_IsFocusable(t *testing.T) {
+	eng := engine.New(mock.New(80, 20), engine.Options{})
+	defer eng.Stop()
+
+	txa := element.NewTextArea(eng.Document(), "")
+	if !txa.IsFocusable() {
+		t.Errorf("TextArea should be focusable")
+	}
+}
+
+func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
+	b := mock.New(80, 20)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	txa := element.NewTextArea(eng.Document(), "")
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// 1. Verify Auto-focus works on first key press
+	eng.ProcessRawEvent(&event.RawKeyEvent{
+		Key: key.Key{Code: 'x', Text: "x"},
+	})
+	eng.Frame()
+
+	if eng.FocusManager().Current() != txa {
+		t.Errorf("TextArea should be auto-focused after key press, got %v", eng.FocusManager().Current())
+	}
+
+	if txa.Value() != "x" {
+		t.Errorf("Value = %q, want \"x\"", txa.Value())
+	}
+
+	// 2. Verify that Sync flags propagate from UA subtree (repainting fix)
+	// We check if the host element is marked for sync.
+	txa.Buffer().Insert("y")
+	txa.SyncBuffer() // This calls rebuildUASubtree and MarkNeedsSync on a UA node
+
+	if !txa.NeedsSync() {
+		t.Error("Host TextArea should need sync after UA subtree modification")
+	}
+}
+
 func dispatchKeyToTarget(target event.EventTarget, k key.Key) {
 	ev := event.NewKeyEvent(event.EventKeyDown, k)
 

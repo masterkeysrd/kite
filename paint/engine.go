@@ -130,6 +130,13 @@ func (p *PaintEngine) getJunctionGlyph(style BorderStyle, mask int) string {
 	}
 }
 
+func isScrollContainer(o style.Overflow) bool {
+	// overflow:clip creates a clipping boundary and supports programmatic
+	// scroll offsets (via ScrollTo/ScrollBy) even though it hides the scrollbar.
+	// This allows elements like <input> to pan their clipped content.
+	return o == style.OverflowScroll || o == style.OverflowAuto || o == style.OverflowHidden || o == style.OverflowClip
+}
+
 func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, surface Surface) {
 	if frag == nil {
 		return
@@ -182,7 +189,7 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 	if frag.Node != nil {
 		if el, ok := frag.Node.LogicalNode().(dom.Element); ok {
 			s := frag.Node.Style()
-			if overflowClips(s.OverflowX) || overflowClips(s.OverflowY) {
+			if isScrollContainer(s.OverflowX) || isScrollContainer(s.OverflowY) {
 				rawX, rawY := el.Scroll()
 
 				// Clamping: stored scroll offset is raw author intent, we clamp to

@@ -41,8 +41,8 @@ func TestAttachUARoot_SetsOuterOnRoot(t *testing.T) {
 
 	host.AttachUARoot(uaBox)
 
-	if uaBox.self != host {
-		t.Errorf("uaRoot.self = %v, want host (%v)", uaBox.self, host)
+	if uaBox.outer != host {
+		t.Errorf("uaRoot.self = %v, want host (%v)", uaBox.outer, host)
 	}
 }
 
@@ -60,15 +60,15 @@ func TestAttachUARoot_SetsOuterRecursively(t *testing.T) {
 
 	host.AttachUARoot(uaBox)
 
-	// uaBox, inner, and text must all have their self == host.
-	if uaBox.self != host {
-		t.Errorf("uaBox.self = %v, want host", uaBox.self)
+	// uaBox, inner, and text must all have their outer == host.
+	if uaBox.outer != host {
+		t.Errorf("uaBox.self = %v, want host", uaBox.outer)
 	}
-	if inner.self != host {
-		t.Errorf("inner.self = %v, want host", inner.self)
+	if inner.outer != host {
+		t.Errorf("inner.self = %v, want host", inner.outer)
 	}
-	if text.self != host {
-		t.Errorf("text.self = %v, want host", text.self)
+	if asBase(text).outer != host {
+		t.Errorf("text.self = %v, want host", asBase(text).outer)
 	}
 }
 

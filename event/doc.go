@@ -6,4 +6,13 @@
 // converts raw backend input into synthetic event (click, focus). Hit-test
 // results are cached on MouseEvent. No IntentEvent — the v1 layering mistake
 // is removed.
+// # Wheel and Scroll
+//
+// WheelEvent is dispatched for mouse wheel input. It bubbles until it reaches
+// an ancestor that implements Scrollable. The Synthesizer uses a
+// ScrollableResolver to identify these targets (typically elements indicating
+// scroll containerness via computed style).
+//
+// ScrollEvent is dispatched by the DOM when an element's scroll offset is
+// mutated programmatically or via the default wheel handler. ScrollEvent bubbles.
 package event

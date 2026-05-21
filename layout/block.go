@@ -29,13 +29,13 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 
 	// 2. Intrinsic Sizing: If inline size is not fixed, use ComputeMinMaxSizes.
 	var minMax MinMaxSizes
-	if !a.Space.IsFixedInlineSize {
+	if !a.Space.IsFixedInlineSize || comp.Width.Kind() == style.KindMaxContent {
 		minMax = a.ComputeMinMaxSizes()
 	}
 
 	// Resolve the resolved inline size (width).
 	var resolvedInlineSize int
-	if a.Space.IsFixedInlineSize {
+	if a.Space.IsFixedInlineSize && comp.Width.Kind() != style.KindMaxContent {
 		resolvedInlineSize = a.Space.AvailableSize.Width
 	} else {
 		switch comp.Width.Kind() {
@@ -47,8 +47,13 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 			// Block elements stretch to available width by default.
 			resolvedInlineSize = a.Space.AvailableSize.Width
 		case style.KindContent:
-			// Content (shrink-wrap)
+			// Content (shrink-wrap, capped at available width).
 			resolvedInlineSize = min(minMax.Max, a.Space.AvailableSize.Width)
+		case style.KindMaxContent:
+			// Unconstrained max-content width: the element grows as wide as its
+			// content requires, regardless of the available space. Used by UA inner
+			// elements that must overflow a clip container for programmatic scroll.
+			resolvedInlineSize = minMax.Max
 		default:
 			// Fallback to stretching for block elements as per specification
 			resolvedInlineSize = a.Space.AvailableSize.Width
@@ -162,6 +167,10 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 				childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
 			}
 		}
+		// KindMaxContent: do NOT set IsFixedInlineSize so the child's own block
+		// algorithm calls ComputeMinMaxSizes and uses the unconstrained max-content
+		// width. Leave AvailableSize.Width as the parent available width for the
+		// child's percent-resolution baseline only.
 
 		if childStyle.Height.Kind() == style.KindCells {
 			childSpaceBuilder.SetIsFixedBlockSize(true)

@@ -34,10 +34,11 @@ func NewElement(doc Document, tag string, self Node) Element {
 func newElement(tag string, doc Document, self Node) *element {
 	e := &element{tagName: tag}
 	e.ownerDocument = doc
-	if self == nil {
-		e.self = e
+	e.self = e // self is always the raw *element for DOM dispatch
+	if self != nil {
+		e.outer = self // outer is the user-visible wrapper (for identity resolution)
 	} else {
-		e.self = self
+		e.outer = e // outer defaults to self when no wrapper
 	}
 	e.kind = KindElement
 	e.name = tag
@@ -111,9 +112,10 @@ func (e *element) AttachUARoot(root Node) {
 		return
 	}
 	e.uaRoot = root
-	// Propagate the host's self pointer onto every node in the UA subtree.
-	// This ensures event.Target() and identity queries collapse to the host.
-	host := e.self
+	// Propagate the host's outer pointer (user-visible wrapper) onto every
+	// node in the UA subtree. This ensures event.Target() and identity
+	// queries collapse to the host (ADR-0036).
+	host := e.outer
 	setOuterRecursive(root, host)
 	// Mark the host so the engine syncs the new subtree on the next frame.
 	e.self.MarkNeedsSync()
@@ -164,6 +166,11 @@ func (e *element) ScrollBy(dx, dy int) {
 	e.ScrollTo(x+dx, y+dy)
 }
 
+func (e *element) ScrollCursorIntoView() {
+	// Base implementation is a no-op. Elements with a cursor (input, textarea)
+	// override this to ensure the caret remains visible after layout.
+}
+
 // setOuterRecursive walks the subtree rooted at n and sets the self/outer
 // back-pointer of every node to outer. This implements the ADR-0036 identity
 // propagation required for UA shadow subtrees (ADR-009).
@@ -172,7 +179,7 @@ func setOuterRecursive(n Node, outer Node) {
 		return
 	}
 	if b := asBase(n); b != nil {
-		b.self = outer
+		b.outer = outer
 		b.inUASubtree = true
 	}
 	for child := range n.ChildNodes() {

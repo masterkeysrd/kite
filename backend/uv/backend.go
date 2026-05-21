@@ -1,9 +1,11 @@
 package uv
 
 import (
+	"fmt"
 	"image/color"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -73,6 +75,10 @@ type Backend struct {
 	// cursorState is the buffered cursor state to be applied in the next frame.
 	cursorState       cursorRecord
 	lastPaintedCursor cursorRecord
+
+	// used to stop the world so we can dump internal state for debugging without
+	// concurrent modifications from the render loop.
+	block sync.Mutex
 }
 
 // New creates a UV backend using the default controlling terminal.
@@ -215,6 +221,69 @@ func (b *Backend) SetCursorShape(s cursor.Shape) {
 	b.cursorState.Shape = s
 }
 
+func (b *Backend) DumpState() {
+	b.block.Lock()
+	defer b.block.Unlock()
+
+	var sb strings.Builder
+	sb.WriteString("=== Backend State Dump ===\n")
+	fmt.Fprintf(&sb, "Terminal Size: %dx%d\n", b.width, b.height)
+
+	sb.WriteString("Current FrameBuffer:\n")
+	if b.current != nil {
+		for y := 0; y < b.current.Bounds().Size.Height; y++ {
+			for x := 0; x < b.current.Bounds().Size.Width; x++ {
+				c := b.current.CellAt(b.current.Bounds().Origin.X+x, b.current.Bounds().Origin.Y+y)
+				sb.WriteString(c.Content)
+			}
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString("<nil>\n")
+	}
+
+	// Current screen state
+	sb.WriteString("Current Screen State:\n")
+	for y := 0; y < b.screen.Height(); y++ {
+		for x := 0; x < b.screen.Width(); x++ {
+			c := b.screen.CellAt(x, y)
+			// sb.WriteString(c.Content)
+			if c.Content == "" && c.Width == 0 {
+				sb.WriteString(" ")
+			} else {
+				sb.WriteString(c.Content)
+			}
+
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("Cursor State:\n")
+	fmt.Fprintf(&sb, "  Visible: %v\n", b.cursorState.Visible)
+	fmt.Fprintf(&sb, "  Position: (%d, %d)\n", b.cursorState.X, b.cursorState.Y)
+	fmt.Fprintf(&sb, "  Shape: %v\n", b.cursorState.Shape)
+	if b.cursorState.Color != nil {
+		r, g, b, a := b.cursorState.Color.RGBA()
+		fmt.Fprintf(&sb, "  Color: RGBA(%d, %d, %d, %d)\n", r, g, b, a)
+	} else {
+		sb.WriteString("  Color: <nil>\n")
+	}
+
+	f, err := os.Create(fmt.Sprintf("backend_dump_%d.txt", time.Now().Unix()))
+	if err != nil {
+		slog.Error("uv: failed to create dump file", "error", err)
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(sb.String()); err != nil {
+		slog.Error("uv: failed to write dump file", "error", err)
+		return
+	}
+
+	slog.Info("uv: backend state dumped to file")
+}
+
 func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()
 	for req := range b.renderCh {
@@ -230,6 +299,9 @@ func (b *Backend) loopEvents() {
 }
 
 func (b *Backend) renderFrame(req renderRequest) {
+	b.block.Lock()
+	defer b.block.Unlock()
+
 	fb := req.fb
 	slog.Info("uv: renderFrame started", "width", fb.Bounds().Size.Width, "height", fb.Bounds().Size.Height)
 	bounds := fb.Bounds()
@@ -289,7 +361,8 @@ func (b *Backend) renderFrame(req renderRequest) {
 	//
 	// We strictly gate this behind `cursorChanged` so we only pay the performance
 	// penalty of a double I/O write on the exact frames where the user moves the cursor.
-	if cursorChanged && req.cursor.Visible {
+	if req.cursor.Visible {
+		b.screen.SetCursorPosition(req.cursor.X, req.cursor.Y)
 		b.screen.Render()
 		if err := b.screen.Flush(); err != nil {
 			slog.Error("uv: flush error after cursor update", "error", err)

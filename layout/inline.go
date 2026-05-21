@@ -1,7 +1,6 @@
 package layout
 
 import (
-	"strings"
 	"unicode"
 
 	"github.com/masterkeysrd/kite/style"
@@ -43,6 +42,10 @@ const (
 	InlineOpenTag
 	// InlineCloseTag marks the end of a styled range.
 	InlineCloseTag
+	// InlineBr represents a <br> element that forces a mandatory line break.
+	// It contributes zero bytes and zero visual width but terminates the
+	// current line immediately, similar to a \n cluster with BreakMandatory.
+	InlineBr
 )
 
 // InlineItem is the atomic unit of the flattened inline representation.
@@ -87,6 +90,12 @@ type textSource interface {
 	Data() string
 }
 
+// brElement is implemented by elements that represent a mandatory line break
+// (e.g. <br>). The IFC builder emits an InlineBr item for such elements.
+type brElement interface {
+	IsBr() bool
+}
+
 func (b *InlineItemsBuilder) currentParent() Node {
 	if len(b.parentStack) == 0 {
 		return nil
@@ -106,6 +115,12 @@ func (b *InlineItemsBuilder) collect(node Node) {
 	// If it's a text node, handle it.
 	if ts, ok := node.LogicalNode().(textSource); ok {
 		b.collectText(ts.Data(), node)
+		return
+	}
+
+	// If it's a <br> element, emit a mandatory line-break item.
+	if br, ok := node.LogicalNode().(brElement); ok && br.IsBr() {
+		b.items = append(b.items, InlineItem{Type: InlineBr})
 		return
 	}
 
@@ -150,36 +165,88 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 		ws = comp.WhiteSpace
 	}
 
-	var collapsed strings.Builder
-	for _, r := range data {
-		if ws == style.WhiteSpacePre || ws == style.WhiteSpacePreWrap {
-			collapsed.WriteRune(r)
-			continue
+	// For pre / pre-wrap: shape the original bytes with no collapsing.
+	if ws == style.WhiteSpacePre || ws == style.WhiteSpacePreWrap {
+		clusters := b.shaper.Shape(data)
+		if len(clusters) == 0 {
+			return
 		}
+		b.items = append(b.items, InlineItem{
+			Type:       InlineText,
+			Text:       clusters,
+			Node:       node,
+			ParentNode: b.currentParent(),
+		})
+		return
+	}
 
-		// Collapsing logic (Normal, NoWrap)
-		if unicode.IsSpace(r) {
-			if !b.lastWasSpace {
-				collapsed.WriteRune(' ')
+	// For Normal / NoWrap: shape the ORIGINAL string, then mark clusters that
+	// CSS whitespace collapsing would remove or merge as CellWidth=0.
+	//
+	// This preserves the byte-offset invariant that cursor.FromTextFragment
+	// depends on: Cluster.Bytes must reference original string bytes so that
+	// summing len(c.Bytes) across all clusters equals len(data), keeping the
+	// buffer's byteOffset in sync with the fragment's byte count.
+	//
+	// Collapsing rules applied here (CSS §white-space: normal / nowrap):
+	//   • A run of whitespace is represented as a single visible space; any
+	//     additional spaces in that run become CellWidth=0 (invisible).
+	//   • Leading whitespace (when b.lastWasSpace is true on entry) is
+	//     entirely invisible (every space → CellWidth=0).
+	//
+	// IMPORTANT: the shaper returns a cached slice shared across all callers.
+	// We must COPY the slice before mutating any CellWidth field to avoid
+	// poisoning the cache for other callers (e.g. a pre-whitespace text node
+	// that renders the same string without collapsing).
+	shaped := b.shaper.Shape(data)
+	if len(shaped) == 0 {
+		return
+	}
+
+	// Determine whether any clusters need collapsing before copying.
+	needsCopy := false
+	lws := b.lastWasSpace
+	for _, c := range shaped {
+		if isSpaceCluster(c) {
+			if lws {
+				needsCopy = true
+				break
+			}
+			lws = true
+		} else {
+			lws = false
+		}
+	}
+
+	var clusters []text.Cluster
+	if needsCopy {
+		clusters = make([]text.Cluster, len(shaped))
+		copy(clusters, shaped)
+	} else {
+		clusters = shaped
+	}
+
+	for i := range clusters {
+		c := &clusters[i]
+		if isSpaceCluster(*c) {
+			if b.lastWasSpace {
+				// Collapsed: keep bytes but make visually invisible.
+				c.CellWidth = 0
+			} else {
+				// First space in a run: keep as a visible space.
 				b.lastWasSpace = true
+				// CellWidth remains as shaped (1 for ASCII space).
 			}
 		} else {
-			collapsed.WriteRune(r)
 			b.lastWasSpace = false
 		}
 	}
 
-	textStr := collapsed.String()
-	if textStr == "" {
-		return
-	}
-
-	clusters := b.shaper.Shape(textStr)
 	b.items = append(b.items, InlineItem{
 		Type:       InlineText,
 		Text:       clusters,
 		Node:       node,
-		ParentNode: b.currentParent(), // Back to actual inline parent
+		ParentNode: b.currentParent(),
 	})
 }
 
@@ -237,6 +304,28 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 			l.currentIndex++
 			continue
 
+		case InlineBr:
+			// <br> forces an immediate line break. Add a virtual newline
+			// cluster to the current line so that cursor.FromTextFragment
+			// counts the corresponding '\n' byte from the text buffer.
+			// The cluster has CellWidth=0 (invisible) and BreakMandatory so
+			// resolveX skips its visual contribution.
+			lineItems = append(lineItems, lineItem{
+				text: []text.Cluster{{
+					Bytes:      []byte{'\n'},
+					CellWidth:  0,
+					BreakClass: text.BreakMandatory,
+				}},
+				width:  0,
+				height: 1,
+			})
+			l.currentIndex++
+			// A trailing <br> still produces an empty line after itself.
+			if l.currentIndex >= len(l.items) {
+				l.hadForcedBreakAtEnd = true
+			}
+			goto lineEnded
+
 		case InlineAtomic:
 			childAlgo := NewAlgorithm(item.Node, ConstraintSpace{
 				AvailableSize: Size{Width: l.width, Height: 1000},
@@ -263,7 +352,13 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 		case InlineText:
 			remainingClusters := item.Text[l.clusterIndex:]
 
-			// Collapse leading spaces at start of line
+			// Suppress leading visible spaces at the start of a wrapped line.
+			//
+			// Spaces that collectText already collapsed have CellWidth=0 and are
+			// present in the slice for byte-offset tracking — they need no action.
+			// A space with CellWidth>0 that arrives at the start of a new wrapped
+			// line must become invisible; we copy it before zeroing to avoid
+			// mutating the shaper's cached cluster slice.
 			if currentX == 0 {
 				comp := item.Node.Style()
 				ws := style.WhiteSpaceNormal
@@ -271,14 +366,18 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 					ws = comp.WhiteSpace
 				}
 				if ws == style.WhiteSpaceNormal || ws == style.WhiteSpaceNoWrap {
-					for len(remainingClusters) > 0 && isSpaceCluster(remainingClusters[0]) {
-						remainingClusters = remainingClusters[1:]
-						l.clusterIndex++
-					}
-					if len(remainingClusters) == 0 {
-						l.currentIndex++
-						l.clusterIndex = 0
-						continue
+					for i := range remainingClusters {
+						if !isSpaceCluster(remainingClusters[i]) {
+							break
+						}
+						if remainingClusters[i].CellWidth > 0 {
+							// Copy-on-write: replace the shared slice with a fresh
+							// copy before mutating, so the shaper cache is not poisoned.
+							copied := make([]text.Cluster, len(remainingClusters))
+							copy(copied, remainingClusters)
+							remainingClusters = copied
+							remainingClusters[i].CellWidth = 0
+						}
 					}
 				}
 			}
@@ -483,6 +582,11 @@ func ComputeInlineMinMaxSizes(items []InlineItem) MinMaxSizes {
 			childMinMax := IntrinsicMinMaxSizes(item.Node)
 			result.Min = max(result.Min, childMinMax.Min)
 			currentLineMax += childMinMax.Max
+
+		case InlineBr:
+			// <br> forces a mandatory break: end the current line.
+			result.Max = max(result.Max, currentLineMax)
+			currentLineMax = 0
 		}
 	}
 

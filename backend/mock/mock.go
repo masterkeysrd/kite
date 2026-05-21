@@ -134,3 +134,7 @@ func (b *Backend) LastFrame() FrameRecord {
 	}
 	return b.Frames[len(b.Frames)-1]
 }
+
+func (b *Backend) DumpState() {
+	panic("mock.Backend.DumpState not implemented")
+}

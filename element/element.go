@@ -168,7 +168,7 @@ func (b *elementBase[Self]) SetDisabled(v bool) {
 // IsFocusable reports whether the element is focusable.
 func (b *elementBase[Self]) IsFocusable() bool {
 	tag := b.TagName()
-	return tag == "button" || tag == "input"
+	return tag == "button" || tag == "input" || tag == "textarea"
 }
 
 // Focus is a no-op placeholder for focus acquisition.

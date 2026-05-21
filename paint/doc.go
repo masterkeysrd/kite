@@ -29,4 +29,18 @@
 // [Surface], after the full fragment tree has been painted. It must never be
 // called on a clipped sub-surface because the junction resolver must inspect
 // the complete set of border cells across the entire viewport.
+// # Scroll Translation (ADR-012)
+//
+// When a fragment's node is a scroll container (computed OverflowX or OverflowY
+// is Scroll or Auto), the engine reads the node's raw scroll offset from the DOM.
+// Paint "clamps on read" to the current content extent: the offset is clamped
+// between 0 and (contentSize - viewportSize).
+//
+// All descendant fragments are then painted at an origin shifted by the negative
+// of the clamped scroll offset. This shift combined with the content-box clipping
+// (ADR-011) enables scrolling.
+//
+// Storing the scroll state in the DOM while clamping at paint time ensures that
+// author intent (e.g., "scroll to bottom") is preserved across viewport resizes
+// or content updates even when the required clamping value changes.
 package paint

@@ -8,8 +8,10 @@ func Outer(n Node) Node {
 		return nil
 	}
 	if b := asBase(n); b != nil {
-		if b.self != nil {
-			return b.self
+		// outer is set either by the constructor (when a wrapper was provided)
+		// or by setOuterRecursive (for UA subtree nodes). Always prefer outer.
+		if b.outer != nil {
+			return b.outer
 		}
 	}
 	return n

@@ -41,10 +41,11 @@ type SynthesizerOptions struct {
 //
 // Synthesizer is not safe for concurrent use.
 type Synthesizer struct {
-	hit         HitTester
-	focus       FocusReader
-	clipboard   ClipboardBridge
-	clickRadius int
+	hit                HitTester
+	focus              FocusReader
+	clipboard          ClipboardBridge
+	clickRadius        int
+	scrollableResolver func(EventTarget) Scrollable
 
 	// pendingDown is set when a mousedown is received; cleared on mouseup.
 	pendingDown *MouseEvent
@@ -60,11 +61,27 @@ func NewSynthesizer(hit HitTester, focus FocusReader, opts SynthesizerOptions) *
 		radius = 3
 	}
 	return &Synthesizer{
-		hit:         hit,
-		focus:       focus,
-		clipboard:   opts.Clipboard,
-		clickRadius: radius,
+		hit:                hit,
+		focus:              focus,
+		clipboard:          opts.Clipboard,
+		clickRadius:        radius,
+		scrollableResolver: opts.ScrollableResolver,
 	}
+}
+
+// ResolveScrollables walks the ancestor path of target and returns a map of
+// targets to their resolved Scrollable implementations.
+func (s *Synthesizer) ResolveScrollables(path []EventTarget) map[EventTarget]Scrollable {
+	if s.scrollableResolver == nil {
+		return nil
+	}
+	res := make(map[EventTarget]Scrollable)
+	for _, et := range path {
+		if sc := s.scrollableResolver(et); sc != nil {
+			res[et] = sc
+		}
+	}
+	return res
 }
 
 // Process converts a RawEvent into zero or more structured events. The

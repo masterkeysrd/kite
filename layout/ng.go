@@ -179,3 +179,109 @@ func AbsoluteBounds(root *Fragment, target Node) (Rect, bool) {
 	}
 	return Rect{}, false
 }
+
+// ScrolledAbsoluteBounds returns the absolute bounding box of target, shifted
+// by all ancestor scroll offsets and clipped by all ancestor overflow regions.
+//
+// It returns:
+//   - rect: the absolute border-box of target (scrolled).
+//   - clip: the absolute content-box clip rectangle of the nearest clipping
+//     ancestor (intersected with all further clipping ancestors).
+//   - found: true if target was found in the subtree.
+func ScrolledAbsoluteBounds(root *Fragment, target Node) (rect Rect, clip Rect, found bool) {
+	return scrolledAbsoluteBounds(root, target, Point{0, 0}, InfiniteRect())
+}
+
+type scrollableElement interface {
+	Scroll() (x, y int)
+}
+
+func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentClip Rect) (Rect, Rect, bool) {
+	if frag == nil {
+		return Rect{}, Rect{}, false
+	}
+
+	// 1. If this is the target, we found it.
+	if frag.Node == target {
+		return Rect{Origin: origin, Size: frag.Size}, currentClip, true
+	}
+
+	// 2. Compute the new clip rect if this fragment clips.
+	newClip := currentClip
+	scrollX, scrollY := 0, 0
+
+	if frag.Node != nil && frag.Node.Style() != nil {
+		s := frag.Node.Style()
+		clipX := s.OverflowX != style.OverflowVisible
+		clipY := s.OverflowY != style.OverflowVisible
+
+		if clipX || clipY {
+			bw := s.Border.Widths()
+			pad := s.Padding
+			insetLeft := bw.Left + pad.Left
+			insetTop := bw.Top + pad.Top
+			insetRight := bw.Right + pad.Right
+			insetBottom := bw.Bottom + pad.Bottom
+
+			var fragClip Rect
+			if clipX {
+				fragClip.Origin.X = origin.X + insetLeft
+				fragClip.Size.Width = max(0, frag.Size.Width-insetLeft-insetRight)
+			} else {
+				fragClip.Origin.X = currentClip.Origin.X
+				fragClip.Size.Width = currentClip.Size.Width
+			}
+
+			if clipY {
+				fragClip.Origin.Y = origin.Y + insetTop
+				fragClip.Size.Height = max(0, frag.Size.Height-insetTop-insetBottom)
+			} else {
+				fragClip.Origin.Y = currentClip.Origin.Y
+				fragClip.Size.Height = currentClip.Size.Height
+			}
+			newClip = currentClip.Intersect(fragClip)
+		}
+
+		// 3. Compute scroll translation if this is a scroll container.
+		// overflow:clip is included: it creates a clip boundary and supports
+		// programmatic scroll offsets even without scrollbars.
+		isScrollX := s.OverflowX == style.OverflowScroll || s.OverflowX == style.OverflowAuto || s.OverflowX == style.OverflowHidden || s.OverflowX == style.OverflowClip
+		isScrollY := s.OverflowY == style.OverflowScroll || s.OverflowY == style.OverflowAuto || s.OverflowY == style.OverflowHidden || s.OverflowY == style.OverflowClip
+
+		if (isScrollX || isScrollY) && frag.Node.LogicalNode() != nil {
+			if el, ok := frag.Node.LogicalNode().(scrollableElement); ok {
+				rawX, rawY := el.Scroll()
+
+				bw := s.Border.Widths()
+				contentW := max(0, frag.Size.Width-bw.Left-bw.Right-s.Padding.Left-s.Padding.Right)
+				contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-s.Padding.Top-s.Padding.Bottom)
+
+				extentW, extentH := 0, 0
+				for _, childLink := range frag.Children {
+					extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width)
+					extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height)
+				}
+
+				if isScrollX {
+					scrollX = max(0, min(rawX, extentW-contentW))
+				}
+				if isScrollY {
+					scrollY = max(0, min(rawY, extentH-contentH))
+				}
+			}
+		}
+	}
+
+	// 4. Recurse.
+	for _, childLink := range frag.Children {
+		childOrigin := Point{
+			X: origin.X + childLink.Offset.X - scrollX,
+			Y: origin.Y + childLink.Offset.Y - scrollY,
+		}
+		if r, c, found := scrolledAbsoluteBounds(childLink.Fragment, target, childOrigin, newClip); found {
+			return r, c, true
+		}
+	}
+
+	return Rect{}, Rect{}, false
+}
