@@ -41,7 +41,7 @@ func (k Kind) String() string {
 type Node interface {
 	event.EventTarget
 
-	// Kind returns the kind of this node (Document, Element, or Text).
+	// Kind returns the kind of this node [Document], Element, or Text).
 	Kind() Kind
 
 	// NodeName returns the name of this node. For Element nodes it is the tag
@@ -152,6 +152,16 @@ type Element interface {
 
 	// SetID sets the element's identifier attribute value.
 	SetID(id string)
+
+	// Class returns the element's classification tag.
+	Class() string
+
+	// SetClass sets the element's classification tag.
+	SetClass(class string)
+
+	// QuerySelector returns the first element matching the selector in this element's subtree.
+	// It pierces UA shadow subtrees.
+	QuerySelector(selector string) Element
 
 	// ReplaceWith replaces this element with the given nodes and returns this
 	// element. The new nodes are appended in the order they are given. If this
@@ -285,4 +295,8 @@ type Document interface {
 	// Body returns the root element of the document (similar to <body>).
 	// If no body is mounted, it returns nil.
 	Body() Element
+
+	// QuerySelector returns the first element matching the selector in this document's subtree.
+	// It pierces UA shadow subtrees.
+	QuerySelector(selector string) Element
 }

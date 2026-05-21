@@ -13,6 +13,7 @@ type element struct {
 	baseNode
 	tagName string
 	id      string
+	class   string
 	uaRoot  Node // closed UA shadow subtree root; nil by default (ADR-009)
 	scroll  *scrollState
 }
@@ -53,6 +54,12 @@ func (e *element) TagName() string { return e.tagName }
 
 // ID returns the element's identifier.
 func (e *element) ID() string { return e.id }
+
+// Class returns the element's classification.
+func (e *element) Class() string { return e.class }
+
+// SetClass sets the element's classification.
+func (e *element) SetClass(class string) { e.class = class }
 
 // SetID sets the element's identifier. Registry maintenance
 // when the node is disconnected only the stored id field is

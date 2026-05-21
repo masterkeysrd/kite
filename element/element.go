@@ -49,9 +49,6 @@ type elementBase[Self any] struct {
 	// Style();
 	rawStyle style.Style
 
-	// class is the string classification tag; no selector engine is implied.
-	class string
-
 	// defaultStyle holds the element-type default style.
 	defaultStyle style.Style
 
@@ -118,7 +115,13 @@ func (b *elementBase[Self]) Style(s style.Style) *Self {
 
 // WithClass sets the string classification tag and returns *Self.
 func (b *elementBase[Self]) WithClass(class string) *Self {
-	b.class = class
+	b.SetClass(class)
+	return b.self
+}
+
+// WithID sets the element's identifier and returns *Self.
+func (b *elementBase[Self]) WithID(id string) *Self {
+	b.SetID(id)
 	return b.self
 }
 
