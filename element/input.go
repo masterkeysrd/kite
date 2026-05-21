@@ -5,8 +5,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/editor"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -42,13 +40,14 @@ func (d *uaInputDiv) DefaultStyle() style.Style {
 //     overflow-x:clip, overflow-y:clip, white-space:nowrap.
 //   - Cursor positioning uses cursor.FromTextFragment on the inner div's
 //     fragment, whose direct children are the IFC line-boxes.
+//   - Common text-editing mechanics (CursorState, ScrollCursorIntoView,
+//     handleMouseDown, handleKeyDown) are implemented by the embedded
+//     textControlBase[InputElement]. See ADR-013, TSK-029.
 //
-// See ADR-009, ADR-010, TSK-024.
+// See ADR-009, ADR-010, ADR-013, TSK-024, TSK-029.
 type InputElement struct {
 	elementBase[InputElement]
-
-	// buf is the 1-D logical text model.
-	buf *editor.Buffer
+	textControlBase[*InputElement]
 
 	// uaText is the single UA-internal text node whose Data() mirrors buf.Value().
 	// It is never nil after construction.
@@ -56,12 +55,12 @@ type InputElement struct {
 
 	// uaDiv is the inner UA block element (ua-input-div) that wraps uaText.
 	// Its render object's fragment has the IFC line-boxes as direct children,
-	// making it the correct root for cursor.FromTextFragment.
-	uaDiv *uaInputDiv
-
-	// needsScrollIntoView is set to true when the cursor moves or text changes,
-	// signaling the engine to enforce cursor visibility after the next layout.
-	needsScrollIntoView bool
+	// making it the correct root for cursor.FromTextFragment and
+	// scroll-offset calculations.
+	//
+	// This field is also stored in textControlBase.uaDiv (as dom.Element) for
+	// the shared geometry math; we keep a typed copy here for syncText.
+	uaInputDivEl *uaInputDiv
 }
 
 // Compile-time interface assertions.
@@ -113,9 +112,8 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	uaInnerDiv.AppendChild(uaText) // appends to uaInnerDivEl via embedding
 
 	inp := &InputElement{
-		buf:    buf,
-		uaText: uaText,
-		uaDiv:  uaInnerDiv,
+		uaText:       uaText,
+		uaInputDivEl: uaInnerDiv,
 	}
 
 	// Create the host DOM element. The self-pointer is the InputElement so
@@ -123,6 +121,9 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	el := doc.CreateElement("input", inp)
 
 	inp.initBase(el, inp, defaultInputStyle, intrinsicInputStyle)
+
+	// Initialise the shared text-control base.
+	inp.initTextControlBase(inp, uaInnerDiv, buf, false /* single-line */, inp.syncText)
 
 	// Attach the UA shadow subtree.
 	//
@@ -137,8 +138,8 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	uaRoot.AppendChild(uaInnerDiv) // the *uaInputDiv is the DOM tree node
 	el.AttachUARoot(uaRoot)
 
-	// Wire up default key bindings and mouse events.
-	inp.wireEvents()
+	// Wire up default key bindings and mouse events (via textControlBase).
+	inp.wireTextControlEvents()
 
 	return inp
 }
@@ -175,58 +176,6 @@ func (inp *InputElement) SyncBuffer() {
 	inp.syncText()
 }
 
-// --- cursor.Provider ---------------------------------------------------------
-
-// CursorState implements cursor.Provider. It returns the terminal-cell
-// coordinate of the caret within the host's content box, derived from the
-// IFC fragment tree via cursor.FromTextFragment.
-//
-// The coordinate is expressed relative to the host's border-box origin so
-// that engine.updateHardwareCursor can subtract the host's absolute origin
-// and the element's scroll offset to arrive at the physical screen position.
-//
-// If the host has not been laid out yet (no fragment), the cursor is placed
-// at the top-left corner.
-func (inp *InputElement) CursorState() cursor.State {
-	ro := inp.RenderObject()
-	if ro == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-	if ro.Fragment() == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-
-	// Use the ua-div's render object so cursor.FromTextFragment receives a
-	// fragment whose direct children are IFC line-boxes.
-	uaDivRO := inp.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-	uaDivFrag := uaDivRO.Fragment()
-	if uaDivFrag == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-
-	// cx, cy are relative to the ua-div's coordinate system (no border/padding
-	// on the ua-div itself, so they equal the IFC-local column and row).
-	cx, cy, _ := cursor.FromTextFragment(uaDivFrag, inp.buf.ByteOffset())
-
-	// Add the host's inset (border + padding) so the returned state is
-	// expressed relative to the host's border-box origin — matching the
-	// convention expected by engine.updateHardwareCursor.
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	insetLeft := bw.Left + cs.Padding.Left
-	insetTop := bw.Top + cs.Padding.Top
-
-	return cursor.State{
-		Visible: true,
-		X:       insetLeft + cx,
-		Y:       insetTop + cy,
-		Shape:   cursor.ShapeBarBlink,
-	}
-}
-
 // --- dom.Focusable -----------------------------------------------------------
 
 // IsFocusable always returns true for input elements.
@@ -255,7 +204,7 @@ func (inp *InputElement) IntrinsicStyle() style.Style {
 func (inp *InputElement) syncText() {
 	inp.uaText.SetData(inp.buf.Value())
 	inp.needsScrollIntoView = true
-	if ro := inp.uaDiv.RenderObject(); ro != nil {
+	if ro := inp.uaInputDivEl.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
 	}
 	if ro := inp.RenderObject(); ro != nil {
@@ -264,654 +213,5 @@ func (inp *InputElement) syncText() {
 	}
 }
 
-func (inp *InputElement) ScrollCursorIntoView() {
-	if !inp.needsScrollIntoView {
-		return
-	}
-	inp.needsScrollIntoView = false
-
-	ro := inp.RenderObject()
-	if ro == nil {
-		return
-	}
-	if ro.Fragment() == nil {
-		return
-	}
-
-	// Use the ua-div's fragment: its direct children are IFC line-boxes, making
-	// cursor.FromTextFragment return a position in the ua-div's coordinate
-	// space (content-relative, no inset).
-	uaDivRO := inp.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return
-	}
-	uaDivFrag := uaDivRO.Fragment()
-	if uaDivFrag == nil {
-		return
-	}
-
-	cx, _, ok := cursor.FromTextFragment(uaDivFrag, inp.buf.ByteOffset())
-	if !ok {
-		return
-	}
-
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	contentW := max(0, ro.Fragment().Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right)
-	totalWidth := uaDivFrag.Size.Width
-
-	scrollX, _ := inp.Scroll()
-
-	// 1. Ensure cursor is visible.
-	if cx < scrollX {
-		scrollX = cx
-	} else if cx >= scrollX+contentW {
-		scrollX = cx - contentW + 1
-	}
-
-	// 2. Clamp to allowed scroll range.
-	maxScrollX := max(0, totalWidth-contentW)
-	if totalWidth >= contentW {
-		maxScrollX++
-	}
-
-	if scrollX > maxScrollX {
-		scrollX = maxScrollX
-	}
-	if scrollX < 0 {
-		scrollX = 0
-	}
-
-	inp.ScrollTo(scrollX, 0)
-}
-
-// wireKeyListeners registers the default keystroke handlers on the host element.
-// Each handler mutates the buffer and calls syncText.
-func (inp *InputElement) wireEvents() {
-	inp.AddEventListener(event.EventKeyDown, inp.handleKeyDown)
-	inp.AddEventListener(event.EventMouseDown, inp.handleMouseDown)
-}
-
-func (inp *InputElement) handleMouseDown(ev event.Event) {
-	me, ok := ev.(*event.MouseEvent)
-	if !ok {
-		return
-	}
-	if me.Button != event.ButtonLeft {
-		return
-	}
-
-	ro := inp.RenderObject()
-	if ro == nil || ro.Fragment() == nil {
-		return
-	}
-
-	uaDivRO := inp.uaDiv.RenderObject()
-	if uaDivRO == nil || uaDivRO.Fragment() == nil {
-		return
-	}
-
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	insetLeft := bw.Left + cs.Padding.Left
-	insetTop := bw.Top + cs.Padding.Top
-
-	scrollX, _ := inp.Scroll()
-
-	targetX := me.Local.X - insetLeft + scrollX
-	targetY := me.Local.Y - insetTop
-
-	offset := cursor.ByteOffsetAtPoint(uaDivRO.Fragment(), targetX, targetY)
-	inp.buf.SetOffset(offset)
-	inp.syncText()
-}
-
-// handleKeyDown processes a keydown event and routes it to the appropriate
-// buffer operation.
-func (inp *InputElement) handleKeyDown(ev event.Event) {
-	ke, ok := ev.(*event.KeyEvent)
-	if !ok {
-		return
-	}
-
-	switch {
-	case ke.MatchString("backspace"):
-		inp.buf.DeletePrevious()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("delete"):
-		inp.buf.DeleteNext()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("left"):
-		inp.buf.MoveLeft()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("right"):
-		inp.buf.MoveRight()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("up"), ke.MatchString("down"):
-		// Single-line input: up/down have no meaning. Consume the event so
-		// the engine's default spatial-navigation handler does not shift
-		// focus away from this field.
-		ke.PreventDefault()
-	case ke.MatchString("home"), ke.MatchString("ctrl+a"):
-		inp.buf.MoveToStart()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("end"), ke.MatchString("ctrl+e"):
-		inp.buf.MoveToEnd()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("ctrl+w"), ke.MatchString("alt+backspace"):
-		inp.buf.DeleteWordPrevious()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("ctrl+k"):
-		// Delete from cursor to end of buffer.
-		inp.buf.DeleteWordNext()
-		inp.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("ctrl+u"):
-		// Delete from start of buffer to cursor.
-		inp.buf.DeleteWordPrevious()
-		inp.syncText()
-		ke.PreventDefault()
-	default:
-		// Printable character: insert if non-empty Text field and no ctrl.
-		if ke.Text != "" && (ke.Mod&key.ModCtrl == 0) && (ke.Mod&key.ModAlt == 0) {
-			inp.buf.Insert(ke.Text)
-			inp.syncText()
-			ke.PreventDefault()
-		}
-	}
-}
-
-// --- TextAreaElement ---------------------------------------------------------
-
-// TextAreaElement is a multi-line text-input widget implemented as a UA shadow
-// host (ADR-009).
-//
-// Architecture summary:
-//   - The host gets a plain render.Box; the standard IFC handles shaping,
-//     wrapping, and clipping.
-//   - The UA shadow subtree follows the HTML model: ua-textarea-root →
-//     ua-div → [text1, <br>, text2, ..., <br>(trailing)]. Each line of
-//     text is a separate TextNode; <br> elements force mandatory line breaks.
-//   - This removes the previous \n-in-text-node hack (white-space:pre-wrap).
-//   - UA-mandated styles live in IntrinsicStyle(): display:inline-block,
-//     overflow-y:scroll, overflow-wrap:break-word.
-//   - Cursor positioning uses cursor.FromTextFragment on the inner div's
-//     fragment (TSK-023). The virtual \n cluster emitted by InlineBr items
-//     keeps buffer byte offsets consistent.
-//   - Up/Down navigation is implemented by walking the fragment tree.
-type TextAreaElement struct {
-	elementBase[TextAreaElement]
-
-	// buf is the 1-D logical text model.
-	buf *editor.Buffer
-
-	// uaDiv is the inner block element (ua-textarea-div) that holds the
-	// text nodes and <br> elements. Its render object's fragment has the
-	// IFC line-boxes as direct children.
-	uaDiv dom.Element
-
-	// doc is the owning document, stored for creating new child nodes in
-	// syncText() without needing to walk the DOM tree.
-	doc dom.Document
-
-	// needsScrollIntoView signals that the cursor visibility should be enforced
-	// after the next layout.
-	needsScrollIntoView bool
-}
-
-// Compile-time interface assertions.
-var (
-	_ Element         = (*TextAreaElement)(nil)
-	_ cursor.Provider = (*TextAreaElement)(nil)
-)
-
-// intrinsicTextAreaStyle is the UA-mandated style for TextAreaElement.
-// Note: WhiteSpace is NOT pre-wrap here because the <br> model handles line
-// breaks via BrElement rather than \n characters in text nodes.
-var intrinsicTextAreaStyle = style.Style{
-	Display:      style.Some(style.DisplayInlineBlock),
-	OverflowY:    style.Some(style.OverflowScroll),
-	OverflowWrap: style.Some(style.OverflowWrapBreakWord),
-}
-
-// defaultTextAreaStyle holds the author-overridable defaults for a textarea.
-var defaultTextAreaStyle = style.Style{
-	Width:   style.Some(style.Cells(20)),
-	Height:  style.Some(style.Cells(5)),
-	Padding: style.Some(style.EdgeValues[int]{}),
-}
-
-// NewTextArea creates a new TextAreaElement owned by doc with an optional
-// initial value.
-func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
-	buf := editor.NewBuffer(initialValue)
-
-	txa := &TextAreaElement{
-		buf: buf,
-		doc: doc,
-	}
-
-	// Create the host DOM element.
-	el := doc.CreateElement("textarea", txa)
-	txa.initBase(el, txa, defaultTextAreaStyle, intrinsicTextAreaStyle)
-
-	// Build the UA shadow subtree following the HTML model:
-	//   ua-textarea-root → ua-div → [text1, <br>, text2, ..., <br>(trailing)]
-	//
-	// The ua-div is an unconstrained block that grows to fit content. The host
-	// clips vertically (overflow-y: scroll) and the scroll offset pans content.
-	uaDiv := doc.CreateElement("ua-textarea-div", nil)
-	txa.uaDiv = uaDiv
-
-	uaRoot := doc.CreateElement("ua-textarea-root", nil)
-	uaRoot.AppendChild(uaDiv)
-	el.AttachUARoot(uaRoot)
-
-	// Populate the UA subtree with the initial value.
-	txa.rebuildUASubtree()
-
-	// Wire up default key bindings and mouse events.
-	txa.wireEvents()
-
-	return txa
-}
-
-// TextArea creates a new TextAreaElement using the orphan document.
-func TextArea(initialValue string) *TextAreaElement {
-	return NewTextArea(orphanDocument, initialValue)
-}
-
-// Value returns the current text value.
-func (txa *TextAreaElement) Value() string {
-	return txa.buf.Value()
-}
-
-// SetValue replaces the buffer content.
-func (txa *TextAreaElement) SetValue(v string) *TextAreaElement {
-	txa.buf = editor.NewBuffer(v)
-	txa.syncText()
-	return txa
-}
-
-// Buffer returns the underlying editor.Buffer.
-func (txa *TextAreaElement) Buffer() *editor.Buffer {
-	return txa.buf
-}
-
-// SyncBuffer propagates the current buffer state to the UA text node.
-func (txa *TextAreaElement) SyncBuffer() {
-	txa.syncText()
-}
-
-// --- cursor.Provider ---------------------------------------------------------
-
-// CursorState implements cursor.Provider.
-func (txa *TextAreaElement) CursorState() cursor.State {
-	ro := txa.RenderObject()
-	if ro == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-	if ro.Fragment() == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-
-	// Use the ua-div's render object fragment: its direct children are the
-	// IFC line-boxes, which cursor.FromTextFragment requires.
-	uaDivRO := txa.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-	uaDivFrag := uaDivRO.Fragment()
-	if uaDivFrag == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-
-	cx, cy, _ := cursor.FromTextFragment(uaDivFrag, txa.buf.ByteOffset())
-
-	// Add the host's inset (border + padding) to the cursor coordinates.
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	insetLeft := bw.Left + cs.Padding.Left
-	insetTop := bw.Top + cs.Padding.Top
-
-	return cursor.State{
-		Visible: true,
-		X:       insetLeft + cx,
-		Y:       insetTop + cy,
-		Shape:   cursor.ShapeBarBlink,
-	}
-}
-
-// --- dom.Focusable -----------------------------------------------------------
-
-func (txa *TextAreaElement) IsFocusable() bool { return true }
-func (txa *TextAreaElement) Focus() {
-	txa.needsScrollIntoView = true
-}
-func (txa *TextAreaElement) Blur() {}
-
-// --- style.StyleNode overrides -----------------------------------------------
-
-func (txa *TextAreaElement) IntrinsicStyle() style.Style {
-	return intrinsicTextAreaStyle
-}
-
-// --- internal helpers --------------------------------------------------------
-
-func (txa *TextAreaElement) syncText() {
-	txa.needsScrollIntoView = true
-	txa.rebuildUASubtree()
-	if ro := txa.uaDiv.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-	}
-	if ro := txa.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		ro.MarkChildrenDirty()
-	}
-}
-
-// rebuildUASubtree rebuilds the ua-div's children to match the current buffer
-// value. It follows the HTML textarea model:
-//
-//	ua-div → [text1, <br>, text2, ..., <br>(trailing)]
-//
-// Each line of text is a separate TextNode; <br> elements force mandatory
-// line breaks in the IFC. A trailing <br> is always present so that the
-// textarea has height even when the last line is empty.
-//
-// All existing children of ua-div are removed before rebuilding. This is a
-// "nuke and rebuild" strategy — it is correct but not optimal. A future
-// optimisation could diff the existing subtree.
-func (txa *TextAreaElement) rebuildUASubtree() {
-	// Remove all existing children from the ua-div.
-	for {
-		child := txa.uaDiv.FirstChild()
-		if child == nil {
-			break
-		}
-		txa.uaDiv.RemoveChild(child)
-	}
-
-	// Split the buffer content by \n to get individual lines.
-	value := txa.buf.Value()
-	lines := splitLines(value)
-
-	// Add each line as a TextNode followed by a <br>.
-	// The trailing <br> is always added (even after the last non-empty line),
-	// matching the HTML spec's placeholder break.
-	for _, line := range lines {
-		if line != "" {
-			textNode := txa.doc.CreateTextNode(line, nil)
-			txa.uaDiv.AppendChild(textNode)
-		}
-		br := NewBr(txa.doc)
-		txa.uaDiv.AppendChild(br)
-	}
-}
-
-// splitLines splits s by \n and returns the segments. Unlike strings.Split,
-// this function treats a trailing \n as producing one extra empty segment
-// (matching the HTML textarea model where "a\n" has two lines: "a" and "").
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	lines = append(lines, s[start:])
-	return lines
-}
-
-func (txa *TextAreaElement) wireEvents() {
-	txa.AddEventListener(event.EventKeyDown, txa.handleKeyDown)
-	txa.AddEventListener(event.EventMouseDown, txa.handleMouseDown)
-}
-
-func (txa *TextAreaElement) handleMouseDown(ev event.Event) {
-	me, ok := ev.(*event.MouseEvent)
-	if !ok {
-		return
-	}
-	if me.Button != event.ButtonLeft {
-		return
-	}
-
-	ro := txa.RenderObject()
-	if ro == nil || ro.Fragment() == nil {
-		return
-	}
-
-	uaDivFrag := txa.uaDivFragment()
-	if uaDivFrag == nil {
-		return
-	}
-
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	insetLeft := bw.Left + cs.Padding.Left
-	insetTop := bw.Top + cs.Padding.Top
-
-	scrollX, scrollY := txa.Scroll()
-
-	targetX := me.Local.X - insetLeft + scrollX
-	targetY := me.Local.Y - insetTop + scrollY
-
-	offset := cursor.ByteOffsetAtPoint(uaDivFrag, targetX, targetY)
-	// Clamp to buffer length because of the extra trailing <br> in the UA tree.
-	if maxLen := len(txa.buf.Value()); offset > maxLen {
-		offset = maxLen
-	}
-	txa.buf.SetOffset(offset)
-	txa.syncText()
-}
-
-func (txa *TextAreaElement) handleKeyDown(ev event.Event) {
-	ke, ok := ev.(*event.KeyEvent)
-	if !ok {
-		return
-	}
-
-	switch {
-	case ke.MatchString("backspace"):
-		txa.buf.DeletePrevious()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("delete"):
-		txa.buf.DeleteNext()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("left"):
-		txa.buf.MoveLeft()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("right"):
-		txa.buf.MoveRight()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("up"):
-		txa.moveUp()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("down"):
-		txa.moveDown()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("enter"):
-		txa.buf.Insert("\n")
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("home"), ke.MatchString("ctrl+a"):
-		txa.buf.MoveToStart()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("end"), ke.MatchString("ctrl+e"):
-		txa.buf.MoveToEnd()
-		txa.syncText()
-		ke.PreventDefault()
-	case ke.MatchString("ctrl+w"), ke.MatchString("alt+backspace"):
-		txa.buf.DeleteWordPrevious()
-		txa.syncText()
-		ke.PreventDefault()
-	default:
-		if ke.Text != "" && (ke.Mod&key.ModCtrl == 0) && (ke.Mod&key.ModAlt == 0) {
-			txa.buf.Insert(ke.Text)
-			txa.syncText()
-			ke.PreventDefault()
-		}
-	}
-}
-
-func (txa *TextAreaElement) moveUp() {
-	ro := txa.RenderObject()
-	if ro == nil {
-		return
-	}
-	uaDivFrag := txa.uaDivFragment()
-	if uaDivFrag == nil || len(uaDivFrag.Children) == 0 {
-		return
-	}
-
-	curX, curY, ok := cursor.FromTextFragment(uaDivFrag, txa.buf.ByteOffset())
-	if !ok {
-		return
-	}
-
-	// Use the Y offset of the first line as the boundary for "Top of buffer".
-	if curY <= uaDivFrag.Children[0].Offset.Y {
-		txa.buf.MoveToStart()
-		return
-	}
-
-	targetY := curY - 1
-	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
-	if maxLen := len(txa.buf.Value()); offset > maxLen {
-		offset = maxLen
-	}
-	txa.buf.SetOffset(offset)
-}
-
-func (txa *TextAreaElement) moveDown() {
-	ro := txa.RenderObject()
-	if ro == nil {
-		return
-	}
-	uaDivFrag := txa.uaDivFragment()
-	if uaDivFrag == nil || len(uaDivFrag.Children) == 0 {
-		return
-	}
-
-	curX, curY, ok := cursor.FromTextFragment(uaDivFrag, txa.buf.ByteOffset())
-	if !ok {
-		return
-	}
-
-	targetY := curY + 1
-	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
-	if maxLen := len(txa.buf.Value()); offset > maxLen {
-		offset = maxLen
-	}
-	txa.buf.SetOffset(offset)
-}
-
-// uaDivFragment returns the fragment for the inner ua-div, whose direct
-// children are IFC line-boxes suitable for cursor.FromTextFragment.
-func (txa *TextAreaElement) uaDivFragment() *layout.Fragment {
-	if txa.uaDiv == nil {
-		return nil
-	}
-	uaDivRO := txa.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return nil
-	}
-	return uaDivRO.Fragment()
-}
-
-func (txa *TextAreaElement) ScrollCursorIntoView() {
-	if !txa.needsScrollIntoView {
-		return
-	}
-	txa.needsScrollIntoView = false
-
-	ro := txa.RenderObject()
-	if ro == nil {
-		return
-	}
-	if ro.Fragment() == nil {
-		return
-	}
-
-	uaDivFrag := txa.uaDivFragment()
-	if uaDivFrag == nil {
-		return
-	}
-
-	cx, cy, ok := cursor.FromTextFragment(uaDivFrag, txa.buf.ByteOffset())
-	if !ok {
-		return
-	}
-
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	contentW := max(0, ro.Fragment().Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right)
-	contentH := max(0, ro.Fragment().Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom)
-
-	scrollX, scrollY := txa.Scroll()
-
-	newX, newY := scrollX, scrollY
-
-	// 1. Ensure cursor is visible.
-	if cx < scrollX {
-		newX = cx
-	} else if cx >= scrollX+contentW {
-		newX = cx - contentW + 1
-	}
-
-	if cy < scrollY {
-		newY = cy
-	} else if cy >= scrollY+contentH {
-		newY = cy - contentH + 1
-	}
-
-	// 2. Clamp to allowed scroll range.
-	maxScrollX := max(0, uaDivFrag.Size.Width-contentW)
-	if uaDivFrag.Size.Width >= contentW {
-		maxScrollX++
-	}
-	maxScrollY := max(0, uaDivFrag.Size.Height-contentH)
-
-	if newX > maxScrollX {
-		newX = maxScrollX
-	}
-	if newX < 0 {
-		newX = 0
-	}
-	if newY > maxScrollY {
-		newY = maxScrollY
-	}
-	if newY < 0 {
-		newY = 0
-	}
-
-	if newX != scrollX || newY != scrollY {
-		txa.ScrollTo(newX, newY)
-	}
-}
-
 // OnWheel implements event.Scrollable. Input disables wheel scrolling.
 func (inp *InputElement) OnWheel(e *event.WheelEvent) {}
-
-// OnWheel implements event.Scrollable.
-func (txa *TextAreaElement) OnWheel(e *event.WheelEvent) {
-	txa.ScrollBy(e.DeltaX, e.DeltaY)
-	e.StopPropagation()
-}
