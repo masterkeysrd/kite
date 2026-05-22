@@ -1,5 +1,8 @@
 # TSK-033: Implement Terminal X-Ray Mode
 
+## Status
+In Progress
+
 ## Overview
 Add visual layout debugging directly into the core `paint` engine, toggleable via the devtools package, to overlay bounding boxes on the terminal interface.
 

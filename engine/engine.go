@@ -373,6 +373,12 @@ func (e *Engine) Bell() {
 	e.logger.Info("engine: bell")
 }
 
+// SetDebugXRay toggles the visual layout debugging overlay.
+func (e *Engine) SetDebugXRay(enabled bool) {
+	e.paintEngine.DebugXRay = enabled
+	e.RequestFrame()
+}
+
 // RequestFrame schedules a frame wake-up as soon as possible (after at least
 // MinFrameInterval has elapsed since the last frame). Consecutive calls within
 // MinFrameInterval coalesce.

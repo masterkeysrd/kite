@@ -525,3 +525,87 @@ func TestPaint_IsTransparent(t *testing.T) {
 		})
 	}
 }
+
+func TestPaint_DebugXRay(t *testing.T) {
+	// Content: 1x1
+	// Padding: 1 -> Padding Box: 3x3
+	// Border: 1 -> Border Box: 5x5
+	// Margin: 1 -> Margin Box: 7x7
+	// Origin (border-box): (1,1)
+
+	s := &style.Computed{
+		Margin:  style.EdgeAll(1),
+		Padding: style.EdgeAll(1),
+		Border:  style.SingleBorder(),
+	}
+
+	frag := makeBoxFrag(layout.Size{Width: 5, Height: 5}, s)
+
+	fb := NewFrameBuffer(0, 0, 7, 7)
+	pe := NewPaintEngine()
+	pe.DebugXRay = true
+
+	pe.paintFragment(frag, layout.Point{X: 1, Y: 1}, fb)
+
+	// Check colors
+	// Margin area & Border area: Red (100, 0, 0)
+	// Padding area: Green (0, 100, 0)
+	// Content area: Blue (0, 0, 100)
+
+	marginColor := color.RGBA{100, 0, 0, 255}
+	paddingColor := color.RGBA{0, 100, 0, 255}
+	contentColor := color.RGBA{0, 0, 100, 255}
+
+	// Cell (0,0) should be margin color
+	if c := fb.CellAt(0, 0).BG; c != marginColor {
+		t.Errorf("expected margin color at (0,0), got %v", c)
+	}
+
+	// Cell (1,1) is border, should be margin color (since it's outside padding box)
+	if c := fb.CellAt(1, 1).BG; c != marginColor {
+		t.Errorf("expected margin color at (1,1) [border], got %v", c)
+	}
+
+	// Cell (2,2) should be padding color
+	if c := fb.CellAt(2, 2).BG; c != paddingColor {
+		t.Errorf("expected padding color at (2,2), got %v", c)
+	}
+
+	// Cell (3,3) should be content color
+	if c := fb.CellAt(3, 3).BG; c != contentColor {
+		t.Errorf("expected content color at (3,3), got %v", c)
+	}
+}
+
+func TestPaint_DebugXRay_Clipping(t *testing.T) {
+	// Parent: 5x5, overflow: hidden
+	// Child: at (4,4) with margin 2.
+	// Child's Margin Box starts at (2,2) relative to parent origin.
+	// Parent size 5x5.
+	// Child margin box should be clipped by parent content box at x=5, y=5.
+
+	parentStyle := &style.Computed{OverflowX: style.OverflowHidden, OverflowY: style.OverflowHidden}
+	childStyle := &style.Computed{Margin: style.EdgeAll(2)}
+
+	childFrag := makeBoxFrag(layout.Size{Width: 1, Height: 1}, childStyle)
+	parentFrag := makeBoxFrag(layout.Size{Width: 5, Height: 5}, parentStyle,
+		layout.FragmentLink{Offset: layout.Point{X: 4, Y: 4}, Fragment: childFrag})
+
+	fb := NewFrameBuffer(0, 0, 10, 10)
+	pe := NewPaintEngine()
+	pe.DebugXRay = true
+
+	pe.paintFragment(parentFrag, layout.Point{X: 0, Y: 0}, fb)
+
+	marginColor := color.RGBA{100, 0, 0, 255}
+
+	// (2,2) should be margin color (it's inside parent 5x5)
+	if c := fb.CellAt(2, 2).BG; c != marginColor {
+		t.Errorf("expected margin color at (2,2), got %v", c)
+	}
+
+	// (5,2) should be nil (clipped by parent)
+	if c := fb.CellAt(5, 2).BG; c != nil {
+		t.Errorf("expected clipped at (5,2), got %v", c)
+	}
+}

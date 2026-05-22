@@ -11,6 +11,7 @@ import (
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/backend/uv"
+	"github.com/masterkeysrd/kite/devtools"
 	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
@@ -194,8 +195,10 @@ func main() {
 
 	eng.Mount(root)
 
-	// Start inspector
-	inspector.Attach(eng, "127.0.0.1:8081", inspector.Options{})
+	// Install devtools (Inspector + X-Ray)
+	devtools.Install(eng, devtools.Options{
+		InspectorAddr: "127.0.0.1:8081",
+	})
 
 	// Global quit listener
 

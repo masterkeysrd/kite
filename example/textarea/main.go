@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/masterkeysrd/kite/backend/uv"
+	"github.com/masterkeysrd/kite/devtools"
 	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
@@ -156,8 +157,10 @@ func main() {
 	eng.Mount(root)
 	updateStatus() // Initial status
 
-	// Start inspector
-	inspector.Attach(eng, "127.0.0.1:8085", inspector.Options{})
+	// Install devtools (Inspector + X-Ray)
+	devtools.Install(eng, devtools.Options{
+		InspectorAddr: "127.0.0.1:8085",
+	})
 
 	// Exit handlers
 	root.AddEventListener(event.EventKeyDown, func(e event.Event) {

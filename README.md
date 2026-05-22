@@ -128,21 +128,33 @@ func TestMyApp(t *testing.T) {
 
 ## 🛠 Developer Tools
 
-### Web-Based DOM Inspector
+Kite includes a unified developer tools package that provides both a web-based DOM inspector and an in-terminal X-Ray mode.
 
-Kite includes a powerful, web-based DOM inspector that allows you to debug your application's logical tree, computed styles, and layout box model in real-time.
-
-To enable the inspector in your application:
+To enable devtools in your application:
 
 ```go
-import "github.com/masterkeysrd/kite/devtools/inspector"
+import "github.com/masterkeysrd/kite/devtools"
 
 // ... after creating your engine
-inspector.Attach(eng, "127.0.0.1:8080", inspector.Options{})
+devtools.Install(eng, devtools.Options{
+    InspectorAddr: "127.0.0.1:8080", // Starts the web inspector
+    XRayHotkey:    "ctrl+d",        // Optional: defaults to ctrl+d
+})
 ```
 
-The inspector will automatically open your default browser. It features:
+### Web-Based DOM Inspector
+
+The inspector allows you to debug your application's logical tree, computed styles, and layout box model in real-time. It features:
 - **Live DOM Tree**: Explore the hierarchy with attribute summaries.
 - **Style Layers**: Inspect Computed, Author, Intrinsic, and Default styles.
 - **Box Model**: Visual representation of margins, borders, and padding.
 - **Properties**: Detailed node metadata and full text content.
+
+### Terminal X-Ray Mode
+
+For immediate in-terminal layout debugging, X-Ray Mode overlays colored bounding boxes directly on your running application. Toggle it using your configured hotkey (default **`Ctrl+D`**).
+
+**Color Legend:**
+- <span style="color:red">■</span> **Red**: Margin Box
+- <span style="color:green">■</span> **Green**: Padding Box
+- <span style="color:blue">■</span> **Blue**: Content Box

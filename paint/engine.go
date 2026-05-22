@@ -16,7 +16,9 @@ func overflowClips(o style.Overflow) bool {
 }
 
 // PaintEngine handles the paint phase of the pipeline.
-type PaintEngine struct{}
+type PaintEngine struct {
+	DebugXRay bool
+}
 
 // NewPaintEngine creates a new PaintEngine.
 func NewPaintEngine() *PaintEngine {
@@ -210,13 +212,70 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 		}
 	}
 
-	// 5. Recurse children (children are painted over parent).
+	// 5. X-Ray Mode (Task 33)
+	if p.DebugXRay && frag.Node != nil {
+		p.drawXRay(frag, origin, surface)
+	}
+
+	// 6. Recurse children (children are painted over parent).
 	for _, childLink := range frag.Children {
 		childOrigin := layout.Point{
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
 		p.paintFragment(childLink.Fragment, childOrigin, childSurface)
+	}
+}
+
+func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin layout.Point, surface Surface) {
+	s := frag.Node.Style()
+	if s == nil {
+		return
+	}
+
+	bw := s.Border.Widths()
+	pad := s.Padding
+	mar := s.Margin
+
+	// 1. Margin Box (Red border/tint)
+	marginRect := layout.Rect{
+		Origin: layout.Point{X: origin.X - mar.Left, Y: origin.Y - mar.Top},
+		Size: layout.Size{
+			Width:  frag.Size.Width + mar.Left + mar.Right,
+			Height: frag.Size.Height + mar.Top + mar.Bottom,
+		},
+	}
+	p.tintRect(marginRect, surface, color.RGBA{100, 0, 0, 255})
+
+	// 2. Padding Box (Green border/tint)
+	paddingRect := layout.Rect{
+		Origin: layout.Point{X: origin.X + bw.Left, Y: origin.Y + bw.Top},
+		Size: layout.Size{
+			Width:  max(0, frag.Size.Width-bw.Left-bw.Right),
+			Height: max(0, frag.Size.Height-bw.Top-bw.Bottom),
+		},
+	}
+	p.tintRect(paddingRect, surface, color.RGBA{0, 100, 0, 255})
+
+	// 3. Content Box (Blue border/tint)
+	contentRect := layout.Rect{
+		Origin: layout.Point{X: paddingRect.Origin.X + pad.Left, Y: paddingRect.Origin.Y + pad.Top},
+		Size: layout.Size{
+			Width:  max(0, paddingRect.Size.Width-pad.Left-pad.Right),
+			Height: max(0, paddingRect.Size.Height-pad.Top-pad.Bottom),
+		},
+	}
+	p.tintRect(contentRect, surface, color.RGBA{0, 0, 100, 255})
+}
+
+func (p *PaintEngine) tintRect(r layout.Rect, surface Surface, c color.Color) {
+	for y := 0; y < r.Size.Height; y++ {
+		for x := 0; x < r.Size.Width; x++ {
+			absX, absY := r.Origin.X+x, r.Origin.Y+y
+			cell := surface.CellAt(absX, absY)
+			cell.BG = c
+			surface.Set(absX, absY, cell)
+		}
 	}
 }
 
