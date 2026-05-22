@@ -76,4 +76,14 @@ type Object interface {
 	CachedMinMaxSizes() (layout.MinMaxSizes, bool)
 	SetCachedMinMaxSizes(layout.MinMaxSizes)
 	LogicalNode() any
+
+	// Offset returns the physical offset of this object relative to its parent.
+	// For most objects, this is managed by the parent's layout algorithm.
+	// For overlays, this is calculated by the overlay's own layout algorithm.
+	Offset() layout.Point
+	// SetOffset updates the physical offset of this object.
+	SetOffset(layout.Point)
+
+	// IsAnonymous reports whether this object is a virtual layout-only node.
+	IsAnonymous() bool
 }

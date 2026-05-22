@@ -323,4 +323,10 @@ type Document interface {
 	// Overlays returns an iterator over all elements currently in the top
 	// layer, sorted by z-index (ascending) and then by insertion order.
 	Overlays() iter.Seq[Element]
+
+	// FocusManager returns the focus manager for this document.
+	// Typed as any to avoid import cycle with the focus package.
+	FocusManager() any
+	// SetFocusManager sets the focus manager for this document.
+	SetFocusManager(fm any)
 }

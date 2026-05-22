@@ -44,8 +44,12 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:
-			// Block elements stretch to available width by default.
-			resolvedInlineSize = a.Space.AvailableSize.Width
+			// Block elements stretch to available width by default if not a shrink-wrap case.
+			if comp.Display == style.DisplayBlock || comp.Display == style.DisplayFlex {
+				resolvedInlineSize = a.Space.AvailableSize.Width
+			} else {
+				resolvedInlineSize = min(minMax.Max, a.Space.AvailableSize.Width)
+			}
 		case style.KindContent:
 			// Content (shrink-wrap, capped at available width).
 			resolvedInlineSize = min(minMax.Max, a.Space.AvailableSize.Width)
@@ -55,7 +59,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 			// elements that must overflow a clip container for programmatic scroll.
 			resolvedInlineSize = minMax.Max
 		default:
-			// Fallback to stretching for block elements as per specification
+			// Block elements stretch to available width by default.
 			resolvedInlineSize = a.Space.AvailableSize.Width
 		}
 	}
@@ -206,9 +210,10 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		var resolvedHeight int
 		switch comp.Height.Kind() {
 		case style.KindCells:
-			resolvedHeight = comp.Height.CellsValue()
+			resolvedHeight = max(comp.Height.CellsValue(), builder.CurrentBlockOffset())
 		case style.KindPercent:
 			resolvedHeight = int(float32(a.Space.PercentageResolutionSize.Height) * comp.Height.PercentValue() / 100.0)
+			resolvedHeight = max(resolvedHeight, builder.CurrentBlockOffset())
 		default:
 			resolvedHeight = builder.CurrentBlockOffset()
 		}

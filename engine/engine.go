@@ -244,6 +244,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	// Mark document for initial sync
 	e.document.MarkNeedsSync()
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
+	e.document.SetFocusManager(e.focusManager)
 	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})
@@ -910,11 +911,7 @@ func (e *Engine) Dump(path string) error {
 	root := e.renderView
 	e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, fb)
 	for _, overlay := range root.Overlays() {
-		offset := layout.Point{}
-		if cs := overlay.ComputedStyle(); cs != nil {
-			offset.X = cs.Margin.Left
-			offset.Y = cs.Margin.Top
-		}
+		offset := overlay.Offset()
 		e.paintEngine.PaintFragment(overlay.Fragment(), offset, fb)
 	}
 	e.paintEngine.ResolveBorders(fb)

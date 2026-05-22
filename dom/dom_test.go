@@ -67,6 +67,10 @@ func (f *fakeRO) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { ret
 func (f *fakeRO) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
 func (f *fakeRO) LogicalNode() any                                         { return nil }
 
+func (f *fakeRO) Offset() layout.Point   { return layout.Point{} }
+func (f *fakeRO) SetOffset(layout.Point) {}
+func (f *fakeRO) IsAnonymous() bool      { return false }
+
 var _ render.Object = (*fakeRO)(nil)
 
 // requireNode fails the test if got != want.

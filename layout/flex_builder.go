@@ -113,10 +113,18 @@ func NewFlexLineBuilder(geom flexGeometry, mainGap, crossGap int) *FlexLineBuild
 }
 
 func (b *FlexLineBuilder) AddItem(node Node, baseSize, minSize, maxSize, grow, shrink, order int) {
+	hypothetical := baseSize
+	if minSize > 0 && hypothetical < minSize {
+		hypothetical = minSize
+	}
+	if maxSize > 0 && hypothetical > maxSize {
+		hypothetical = maxSize
+	}
+
 	b.items = append(b.items, &FlexItem{
 		Node:                 node,
 		BaseSize:             baseSize,
-		HypotheticalMainSize: baseSize,
+		HypotheticalMainSize: hypothetical,
 		MinMainSize:          minSize,
 		MaxMainSize:          maxSize,
 		Grow:                 grow,

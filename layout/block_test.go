@@ -58,6 +58,11 @@ func (m *mockNode) SetCachedMinMaxSizes(sizes MinMaxSizes) {
 	m.cachedMinMax = sizes
 	m.minMaxValid = true
 }
+
+func (m *mockNode) SetOffset(Point) {}
+
+func (m *mockNode) IsAnonymous() bool { return false }
+
 func (m *mockNode) NextSibling() Node { return m.nextSibling }
 
 type mockTextNode struct {

@@ -267,6 +267,10 @@ func (r *spatialRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 func (r *spatialRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
 func (r *spatialRender) LogicalNode() any                        { return r.node }
 
+func (r *spatialRender) Offset() layout.Point   { return layout.Point{} }
+func (r *spatialRender) SetOffset(layout.Point) {}
+func (r *spatialRender) IsAnonymous() bool      { return false }
+
 var _ dom.Node = (*spatialObj)(nil)
 var _ render.Object = (*spatialRender)(nil)
 

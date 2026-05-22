@@ -2,7 +2,7 @@ package layout
 
 import (
 	"iter"
-	"sort"
+	"slices"
 
 	"github.com/masterkeysrd/kite/style"
 )
@@ -74,6 +74,12 @@ func (a *AnonymousBlock) CachedMinMaxSizes() (MinMaxSizes, bool) {
 }
 
 func (a *AnonymousBlock) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
+
+func (a *AnonymousBlock) SetOffset(p Point) {}
+
+func (a *AnonymousBlock) IsAnonymous() bool {
+	return true
+}
 
 func (a *AnonymousBlock) ComputeMinMaxSizes() MinMaxSizes {
 	// BlockAlgorithm's ComputeMinMaxSizes logic for IFC:
@@ -223,31 +229,58 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 		childMargin := childStyle.Margin
 
 		var baseSize, minSize, maxSize int
-		if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
-			if childStyle.Width.Kind() == style.KindCells {
-				baseSize = childStyle.Width.CellsValue()
-			} else {
+
+		// 1. Resolve Flex Basis (Main Size)
+		basis := childStyle.Flex.Basis
+		if basis.Kind() == style.KindCells {
+			baseSize = basis.CellsValue()
+		} else if basis.Kind() == style.KindContent {
+			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
 				baseSize = IntrinsicMinMaxSizes(item.Node).Max
+			} else {
+				baseSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems)
 			}
+		} else {
+			// Auto: Use width/height property
+			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
+				if childStyle.Width.Kind() == style.KindCells {
+					baseSize = childStyle.Width.CellsValue()
+				} else {
+					baseSize = IntrinsicMinMaxSizes(item.Node).Max
+				}
+			} else {
+				if childStyle.Height.Kind() == style.KindCells {
+					baseSize = childStyle.Height.CellsValue()
+				} else {
+					baseSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems)
+				}
+			}
+		}
+
+		// 2. Resolve Min/Max Main Sizes
+		if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
 			baseSize += childMargin.Left + childMargin.Right
 
-			if childStyle.MinWidth.Kind() == style.KindCells {
+			// Default min-size is min-content (CSS flexbox spec: min-width: auto)
+			if childStyle.MinWidth.Kind() == style.KindAuto {
+				minSize = IntrinsicMinMaxSizes(item.Node).Min + childMargin.Left + childMargin.Right
+			} else if childStyle.MinWidth.Kind() == style.KindCells {
 				minSize = childStyle.MinWidth.CellsValue() + childMargin.Left + childMargin.Right
 			}
+
 			if childStyle.MaxWidth.Kind() == style.KindCells {
 				maxSize = childStyle.MaxWidth.CellsValue() + childMargin.Left + childMargin.Right
 			}
 		} else {
-			if childStyle.Height.Kind() == style.KindCells {
-				baseSize = childStyle.Height.CellsValue()
-			} else {
-				baseSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems)
-			}
 			baseSize += childMargin.Top + childMargin.Bottom
 
-			if childStyle.MinHeight.Kind() == style.KindCells {
+			// Default min-size is min-content (CSS flexbox spec: min-height: auto)
+			if childStyle.MinHeight.Kind() == style.KindAuto {
+				minSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems) + childMargin.Top + childMargin.Bottom
+			} else if childStyle.MinHeight.Kind() == style.KindCells {
 				minSize = childStyle.MinHeight.CellsValue() + childMargin.Top + childMargin.Bottom
 			}
+
 			if childStyle.MaxHeight.Kind() == style.KindCells {
 				maxSize = childStyle.MaxHeight.CellsValue() + childMargin.Top + childMargin.Bottom
 			}
@@ -494,8 +527,8 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 	}
 
 	// Sort by order
-	sort.SliceStable(allItems, func(i, j int) bool {
-		return allItems[i].Order < allItems[j].Order
+	slices.SortFunc(allItems, func(a, b *FlexItem) int {
+		return a.Order - b.Order
 	})
 
 	// Handle reverse directions

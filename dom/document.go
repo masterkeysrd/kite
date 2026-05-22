@@ -28,6 +28,8 @@ type document struct {
 	overlays  []overlayRecord
 	nextOrder int
 
+	focusManager any
+
 	// mutating is the reentrancy guard. It is true while an attach or detach
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
@@ -141,6 +143,14 @@ func (d *document) Overlays() iter.Seq[Element] {
 			}
 		}
 	}
+}
+
+func (d *document) FocusManager() any {
+	return d.focusManager
+}
+
+func (d *document) SetFocusManager(fm any) {
+	d.focusManager = fm
 }
 
 func (d *document) sortOverlays() {

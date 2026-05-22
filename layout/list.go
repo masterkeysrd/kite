@@ -191,7 +191,7 @@ func (a *ListAlgorithm) Layout() *Fragment {
 			resolvedHeight = max(resolvedHeight, border.Top+padding.Top+markerFrag.Size.Height+padding.Bottom+border.Bottom)
 		}
 		if comp.Height.Kind() == style.KindCells {
-			resolvedHeight = max(resolvedHeight, comp.Height.CellsValue())
+			resolvedHeight = comp.Height.CellsValue()
 		}
 		builder.SetBlockSize(resolvedHeight)
 	}

@@ -25,6 +25,7 @@ type BaseRender struct {
 	logicalNode   any
 	eventTarget   event.EventTarget
 	computedStyle *style.Computed
+	offset        layout.Point
 }
 
 // Init sets the self-pointer and logical identity for the BaseRender.
@@ -152,6 +153,21 @@ func (b *BaseRender) ClearChildNeedsStyle()             { b.ClearDirty(ChildNeed
 func (b *BaseRender) StyleParent() style.StyleNode      { return b.parent }
 func (b *BaseRender) StyleFirstChild() style.StyleNode  { return b.firstChild }
 func (b *BaseRender) StyleNextSibling() style.StyleNode { return b.next }
+
+func (b *BaseRender) Offset() layout.Point {
+	return b.offset
+}
+
+func (b *BaseRender) SetOffset(p layout.Point) {
+	if b.offset != p {
+		b.MarkDirty(DirtyPaint)
+		b.offset = p
+	}
+}
+
+func (b *BaseRender) IsAnonymous() bool {
+	return false
+}
 
 func (b *BaseRender) Children() iter.Seq[Object] {
 	return func(yield func(Object) bool) {
@@ -357,7 +373,9 @@ func LayoutPhase(root Object, available layout.Size) {
 	if rv, ok := root.(*RenderView); ok {
 		overlaySpace := layout.NewConstraintSpaceBuilder(available).ToConstraintSpace()
 		for _, overlay := range rv.Overlays() {
-			layout.NewAlgorithm(overlay, overlaySpace).Layout()
+			algo := layout.NewAlgorithm(overlay, overlaySpace)
+			frag := algo.Layout()
+			overlay.SetCachedLayout(overlaySpace, frag)
 		}
 	}
 }

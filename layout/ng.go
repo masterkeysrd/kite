@@ -119,6 +119,9 @@ type Algorithm interface {
 
 // NewAlgorithm returns the appropriate layout algorithm for the given node and constraints.
 func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
+	if _, ok := node.LogicalNode().(OverlayLever); ok {
+		return &OverlayAlgorithm{Node: node, Space: space}
+	}
 	switch node.Style().Display {
 	case style.DisplayFlex, style.DisplayInlineFlex:
 		return &FlexAlgorithm{Node: node, Space: space}

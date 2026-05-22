@@ -54,6 +54,13 @@ type Node interface {
 
 	// SetCachedMinMaxSizes stores the computed intrinsic minimum and maximum sizes.
 	SetCachedMinMaxSizes(sizes MinMaxSizes)
+
+	// SetOffset updates the physical offset of this node.
+	SetOffset(Point)
+
+	// IsAnonymous reports whether this node is a virtual layout-only node
+	// (like flex's AnonymousBlock) that should trigger shrink-wrap for auto width.
+	IsAnonymous() bool
 }
 
 type TableCellLever interface {
@@ -92,4 +99,19 @@ func IsInlineLevel(node Node) bool {
 
 	comp := node.Style()
 	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
+}
+
+type OverlayPlacement int
+
+const (
+	PlacementTop OverlayPlacement = iota
+	PlacementBottom
+	PlacementLeft
+	PlacementRight
+)
+
+type OverlayLever interface {
+	Anchor() any // Returns dom.Element, but typed as any to avoid cycle
+	Placement() OverlayPlacement
+	Flip() bool
 }
