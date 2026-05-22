@@ -1,6 +1,9 @@
 package devtools
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
@@ -22,6 +25,16 @@ type Options struct {
 
 // Install registers standard developer tools on the given engine.
 func Install(eng *engine.Engine, opts Options) error {
+	// Backwards-compatible Install that does not bind the inspector browser
+	// lifecycle to the engine's Run context. Use InstallWithContext to bind
+	// the browser to a context so it auto-closes on cancellation.
+	return InstallWithContext(context.Background(), eng, opts)
+}
+
+// InstallWithContext installs devtools and, if requested, opens a floating
+// inspector window that is bound to the provided context. When `ctx` is
+// cancelled the inspector process started in app-mode will be terminated.
+func InstallWithContext(ctx context.Context, eng *engine.Engine, opts Options) error {
 	// 1. Setup X-Ray Toggle
 	hotkey := opts.XRayHotkey
 	if hotkey == "" {
@@ -41,8 +54,19 @@ func Install(eng *engine.Engine, opts Options) error {
 
 	// 2. Setup Inspector if address is provided
 	if opts.InspectorAddr != "" {
-		if err := inspector.Attach(eng, opts.InspectorAddr, opts.InspectorOptions); err != nil {
+		actualAddr, err := inspector.Attach(eng, opts.InspectorAddr, opts.InspectorOptions)
+		if err != nil {
 			return err
+		}
+
+		if !opts.InspectorOptions.NoOpen {
+			// Launch the floating inspector bound to ctx so it will be
+			// terminated when ctx is cancelled by the caller.
+			go func() {
+				if err := OpenFloatingInspector(ctx, "http://"+actualAddr); err != nil {
+					slog.Warn("devtools: failed to open floating inspector", "err", err)
+				}
+			}()
 		}
 	}
 
