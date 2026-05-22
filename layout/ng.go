@@ -53,20 +53,22 @@ type FragmentLink struct {
 //
 // The three size fields serve distinct roles (ADR-018):
 //   - AvailableSize: per-child space after subtracting margins (or an explicit size).
-//   - ContainingSpace: parent's border-box — the base for KindPercent resolution.
-//   - ContainerSpace: parent's content-box (ContainingSpace − border − padding) —
-//     the total space available to children before their individual margins are subtracted.
+//   - ContainerSpace: parent's content-box (ContainingSpace − border − padding).
+//     KindPercent dimensions resolve against this field, and it is the base for
+//     computing per-child AvailableSize. In CSS, percentage widths/heights always
+//     resolve against the containing block's content area.
+//   - ContainingSpace: parent's resolved border-box. Carries the parent's total
+//     outer size for algorithms that require it (e.g. intrinsic sizing, positioning).
 type ConstraintSpace struct {
 	// AvailableSize is the ideal size the node should consume, provided by the parent.
 	AvailableSize Size
 
 	// ContainingSpace is the parent's resolved border-box dimensions.
-	// All KindPercent resolutions MUST use this field (ADR-018).
 	ContainingSpace Size
 
 	// ContainerSpace is the parent's content-box dimensions
 	// (ContainingSpace minus border minus padding).
-	// Algorithms use this to compute per-child AvailableSize.
+	// KindPercent resolution and per-child AvailableSize derive from this field.
 	ContainerSpace Size
 
 	// IsFixedInlineSize indicates the inline size (width) is pre-determined.

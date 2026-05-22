@@ -174,7 +174,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	if !a.Space.IsFixedInlineSize {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedWidth = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedWidth = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedWidth = comp.Width.CellsValue()
 		case style.KindContent:
@@ -192,7 +192,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	if !a.Space.IsFixedBlockSize {
 		switch comp.Height.Kind() {
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.ContainingSpace.Height) * comp.Height.PercentValue() / 100.0)
+			resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
 		case style.KindAuto:
@@ -556,4 +556,3 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 
 	return allItems[startIndex:]
 }
-

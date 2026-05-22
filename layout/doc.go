@@ -26,10 +26,11 @@
 // [NewConstraintSpaceBuilder].  The space carries three distinct size concepts:
 //
 //   - AvailableSize — the per-child space after subtracting margins (or an explicit size).
-//   - ContainingSpace — the parent's resolved border-box; used as the base for
-//     KindPercent resolution.
-//   - ContainerSpace — the parent's content-box (ContainingSpace minus border and
-//     padding); algorithms use this to derive per-child AvailableSize.
+//   - ContainerSpace — the parent's content-box (border-box minus border minus padding).
+//     KindPercent dimensions resolve against this field, following CSS semantics where
+//     percentage widths/heights resolve against the containing block's content area.
+//   - ContainingSpace — the parent's resolved border-box. Available to algorithms that
+//     need the parent's total outer size.
 //
 // Block-level child constraint generation is centralised in [BuildChildSpace],
 // which eliminates the decoration subtraction and width/height resolution logic

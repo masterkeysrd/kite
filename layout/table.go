@@ -78,7 +78,7 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	} else {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedInlineSize = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:

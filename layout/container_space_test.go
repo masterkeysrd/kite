@@ -55,8 +55,9 @@ func TestBuildChildSpace_KindPercent(t *testing.T) {
 	if !cs.IsFixedInlineSize {
 		t.Error("expected IsFixedInlineSize=true for KindPercent")
 	}
-	if cs.AvailableSize.Width != 50 {
-		t.Errorf("expected AvailableSize.Width=50 (50%% of border-box 100), got %d", cs.AvailableSize.Width)
+	// 50% of containerSpace.Width=80 (content-box, not border-box 100)
+	if cs.AvailableSize.Width != 40 {
+		t.Errorf("expected AvailableSize.Width=40 (50%% of content-box 80), got %d", cs.AvailableSize.Width)
 	}
 }
 
@@ -111,9 +112,9 @@ func TestBuildChildSpace_HeightPercent_FixedParent(t *testing.T) {
 	if !cs.IsFixedBlockSize {
 		t.Error("expected IsFixedBlockSize=true for percent height with fixed parent")
 	}
-	// 50% of containingSpace.Height=40 = 20
-	if cs.AvailableSize.Height != 20 {
-		t.Errorf("expected AvailableSize.Height=20, got %d", cs.AvailableSize.Height)
+	// 50% of containerSpace.Height=30 (content-box, not border-box 40) = 15
+	if cs.AvailableSize.Height != 15 {
+		t.Errorf("expected AvailableSize.Height=15 (50%% of content-box 30), got %d", cs.AvailableSize.Height)
 	}
 }
 
@@ -174,10 +175,9 @@ func TestBuildChildSpace_DisplayTable_Auto(t *testing.T) {
 // Integration tests — full layout pass
 // ---------------------------------------------------------------------------
 
-func TestPercentResolvesAgainstBorderBox(t *testing.T) {
-	// Parent: width=20 border=1 each side padding=2 each side → content=14.
-	// Child: width=50% → must resolve against parent's border-box (20), giving 10.
-	// Old code wrongly resolved against content-box (14), giving 7.
+func TestPercentResolvesAgainstContentBox(t *testing.T) {
+	// Parent: width=20, border=1 each side, padding=2 each side → content-box=14.
+	// Child: width=50% → resolves against content-box (14), giving 7.
 	parentStyle := &style.Computed{
 		Width:   style.Cells(20),
 		Height:  style.Auto,
@@ -192,7 +192,6 @@ func TestPercentResolvesAgainstBorderBox(t *testing.T) {
 	child := &mockNode{style: childStyle}
 	parent := &mockNode{style: parentStyle, firstChild: child}
 
-	// Do NOT fix the inline size so the parent resolves its own KindCells width=20.
 	space := NewConstraintSpaceBuilder(Size{Width: 100, Height: 100}).
 		SetContainingSpace(Size{Width: 100, Height: 100}).
 		SetContainerSpace(Size{Width: 100, Height: 100}).
@@ -200,19 +199,21 @@ func TestPercentResolvesAgainstBorderBox(t *testing.T) {
 
 	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout()
 
-	// Parent is width=20 (KindCells). Child should be 50% of 20 = 10.
+	// Parent content-box = 20 - 2(border) - 4(padding) = 14. Child = 50% of 14 = 7.
 	if len(frag.Children) == 0 {
 		t.Fatal("expected at least one child fragment")
 	}
 	childFrag := frag.Children[0].Fragment
-	if childFrag.Size.Width != 10 {
-		t.Errorf("expected child width=10 (50%% of border-box 20), got %d", childFrag.Size.Width)
+	if childFrag.Size.Width != 7 {
+		t.Errorf("expected child width=7 (50%% of content-box 14), got %d", childFrag.Size.Width)
 	}
 }
 
 func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
-	// Three-level tree: viewport(W:100) → parent(W:50, P:5each) → child(W:50%).
-	// Child's 50% must resolve against parent's border-box (50), not viewport (100).
+	// Three-level tree: viewport(W:100) → parent(W:50, padding:5each) → grandchild(W:50%).
+	// parent content-box = 50 - 10 = 40.
+	// grandchild 50% must resolve against parent's content-box (40), not its border-box (50)
+	// and not the viewport (100).
 	parentStyle := &style.Computed{
 		Width:   style.Cells(50),
 		Height:  style.Auto,
@@ -225,11 +226,10 @@ func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
 	grandchild := &mockNode{style: grandchildStyle}
 	parent := &mockNode{style: parentStyle, firstChild: grandchild}
 	root := &mockNode{
-		style: &style.Computed{Width: style.Cells(100), Height: style.Auto},
+		style:      &style.Computed{Width: style.Cells(100), Height: style.Auto},
 		firstChild: parent,
 	}
 
-	// Do NOT fix the inline size so parent resolves its own KindCells width=50.
 	space := NewConstraintSpaceBuilder(Size{100, 100}).
 		SetContainingSpace(Size{100, 100}).
 		SetContainerSpace(Size{100, 100}).
@@ -237,7 +237,6 @@ func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
 
 	rootFrag := (&BlockAlgorithm{Node: root, Space: space}).Layout()
 
-	// Navigate: root → parent → grandchild
 	if len(rootFrag.Children) == 0 {
 		t.Fatal("root has no children")
 	}
@@ -247,9 +246,9 @@ func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
 	}
 	gcFrag := parentFrag.Children[0].Fragment
 
-	// grandchild width = 50% of parent border-box (50) = 25
-	if gcFrag.Size.Width != 25 {
-		t.Errorf("expected grandchild width=25 (50%% of parent border-box 50), got %d", gcFrag.Size.Width)
+	// grandchild = 50% of parent content-box (40) = 20
+	if gcFrag.Size.Width != 20 {
+		t.Errorf("expected grandchild width=20 (50%% of content-box 40), got %d", gcFrag.Size.Width)
 	}
 }
 

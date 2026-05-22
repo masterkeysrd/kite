@@ -40,7 +40,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	} else {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedInlineSize = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:
@@ -182,7 +182,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		case style.KindCells:
 			resolvedHeight = max(comp.Height.CellsValue(), builder.CurrentBlockOffset())
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.ContainingSpace.Height) * comp.Height.PercentValue() / 100.0)
+			resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
 			resolvedHeight = max(resolvedHeight, builder.CurrentBlockOffset())
 		default:
 			resolvedHeight = builder.CurrentBlockOffset()

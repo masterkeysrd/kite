@@ -15,7 +15,8 @@ func NewConstraintSpaceBuilder(availableSize Size) *ConstraintSpaceBuilder {
 	}
 }
 
-// SetContainingSpace sets the parent's border-box size used for KindPercent resolution (ADR-018).
+// SetContainingSpace sets the parent's border-box size (ADR-018).
+// KindPercent resolution uses ContainerSpace (content-box), not this field.
 func (b *ConstraintSpaceBuilder) SetContainingSpace(size Size) *ConstraintSpaceBuilder {
 	b.space.ContainingSpace = size
 	return b

@@ -31,10 +31,12 @@ func BuildChildSpace(child Node, containerSpace Size, containingSpace Size, pare
 		b.SetIsFixedInlineSize(true)
 		b.space.AvailableSize.Width = childStyle.Width.CellsValue()
 	case style.KindPercent:
-		// Percentage resolves against the parent's border-box (containingSpace), not the
-		// content-box. This is the correct behaviour per ADR-017 / ADR-018.
+		// Percentage widths resolve against the parent's content-box (containerSpace).
+		// In CSS, the "containing block" for percentage resolution is the parent's
+		// content area — not its border-box. Using the border-box would cause
+		// width:100% children to overflow past the parent's border/padding.
 		b.SetIsFixedInlineSize(true)
-		b.space.AvailableSize.Width = int(float32(containingSpace.Width) * childStyle.Width.PercentValue() / 100.0)
+		b.space.AvailableSize.Width = int(float32(containerSpace.Width) * childStyle.Width.PercentValue() / 100.0)
 	case style.KindAuto:
 		// Tables shrink-wrap; all other block-level elements stretch to fill.
 		if childStyle.Display != style.DisplayTable {
@@ -52,10 +54,11 @@ func BuildChildSpace(child Node, containerSpace Size, containingSpace Size, pare
 		b.SetIsFixedBlockSize(true)
 		b.space.AvailableSize.Height = childStyle.Height.CellsValue()
 	case style.KindPercent:
-		// Percentage height is only defined when the parent has a fixed block size.
+		// Percentage heights resolve against the parent's content-box height, same
+		// as percentage widths. Only defined when the parent has a fixed block size.
 		if parentSpace.IsFixedBlockSize {
 			b.SetIsFixedBlockSize(true)
-			b.space.AvailableSize.Height = int(float32(containingSpace.Height) * childStyle.Height.PercentValue() / 100.0)
+			b.space.AvailableSize.Height = int(float32(containerSpace.Height) * childStyle.Height.PercentValue() / 100.0)
 		}
 	}
 
