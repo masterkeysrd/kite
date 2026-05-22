@@ -16,6 +16,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/paint"
+	"iter"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -131,6 +132,15 @@ func (e *Environment) SendKey(k key.Key) {
 // HasFocus reports whether the given logical node currently has focus.
 func (e *Environment) HasFocus(n dom.Node) bool {
 	return e.Engine.FocusManager().Current() == n
+}
+
+// CurrentFocus returns the logical node that currently holds focus, or nil
+// if no node is focused.
+func (e *Environment) CurrentFocus() dom.Node {
+	if e == nil || e.Engine == nil {
+		return nil
+	}
+	return e.Engine.FocusManager().Current()
 }
 
 // Type simulates typing the given text.
@@ -249,9 +259,9 @@ func (e *Environment) matchGolden(filename string) (actual, expected []byte, gol
 		Cells:  make([][]goldenCell, height),
 	}
 
-	for y := range height {
+	for y := 0; y < height; y++ {
 		gf.Cells[y] = make([]goldenCell, width)
-		for x := range width {
+		for x := 0; x < width; x++ {
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
 			gf.Cells[y][x] = goldenCell{
 				Content: cell.Content,

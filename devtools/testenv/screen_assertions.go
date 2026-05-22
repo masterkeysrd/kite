@@ -1,8 +1,10 @@
 package testenv
 
 import (
+	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/paint"
 )
 
@@ -44,4 +46,71 @@ func (c *CellAssertion) ToHaveContent(expected string) *ScreenAssertion {
 		c.screen.t.Errorf("Expected cell at (%d,%d) to be %q, got %q", c.x, c.y, expected, c.cell.Content)
 	}
 	return c.screen
+}
+
+// RegionAssertion scopes assertions to a rectangular region on the framebuffer.
+type RegionAssertion struct {
+	screen *ScreenAssertion
+	rect   layout.Rect
+}
+
+// RegionRect scopes assertions to a layout.Rect region.
+func (s *ScreenAssertion) RegionRect(r layout.Rect) *RegionAssertion {
+	s.t.Helper()
+	return &RegionAssertion{screen: s, rect: r}
+}
+
+// Region is a convenience that accepts raw coordinates and size.
+func (s *ScreenAssertion) Region(x, y, w, h int) *RegionAssertion {
+	s.t.Helper()
+	return s.RegionRect(layout.Rect{Origin: layout.Point{X: x, Y: y}, Size: layout.Size{Width: w, Height: h}})
+}
+
+// ToHaveBackground asserts that EVERY cell in the region has the specified background.
+func (r *RegionAssertion) ToHaveBackground(expected color.Color) *ScreenAssertion {
+	r.screen.t.Helper()
+	fb := r.screen.fb
+	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
+		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
+			actual := fb.CellAt(cx, cy).BG
+			if actual != expected {
+				r.screen.t.Errorf("cell (%d,%d) expected bg %v, got %v", cx, cy, expected, actual)
+			}
+		}
+	}
+	return r.screen
+}
+
+// ToNotHaveBackground asserts that NO cell in the region has the specified background.
+func (r *RegionAssertion) ToNotHaveBackground(unexpected color.Color) *ScreenAssertion {
+	r.screen.t.Helper()
+	fb := r.screen.fb
+	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
+		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
+			actual := fb.CellAt(cx, cy).BG
+			if actual == unexpected {
+				r.screen.t.Errorf("cell (%d,%d) was clipped but had unexpected bg %v", cx, cy, actual)
+			}
+		}
+	}
+	return r.screen
+}
+
+// ToHaveBackgroundCountGreaterThan asserts that the number of cells in the region
+// carrying the specified background color is strictly greater than `min`.
+func (r *RegionAssertion) ToHaveBackgroundCountGreaterThan(expected color.Color, min int) *ScreenAssertion {
+	r.screen.t.Helper()
+	fb := r.screen.fb
+	count := 0
+	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
+		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
+			if fb.CellAt(cx, cy).BG == expected {
+				count++
+			}
+		}
+	}
+	if count <= min {
+		r.screen.t.Errorf("expected more than %d cells with bg %v, got %d", min, expected, count)
+	}
+	return r.screen
 }

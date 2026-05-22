@@ -3,16 +3,14 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/style"
 )
 
 func TestTableGrouping_Sorting(t *testing.T) {
-	be := mock.New(80, 24)
-	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
+	env := testenv.Default(80, 24)
+	defer env.Close()
 
 	// Create sections in "wrong" order: tfoot, tbody, thead
 	table := element.Table(
@@ -20,48 +18,26 @@ func TestTableGrouping_Sorting(t *testing.T) {
 		element.TBody(element.TR(element.TD("Body"))),
 		element.THead(element.TR(element.TD("Header"))),
 	)
-	doc.AppendChild(table)
+	env.Mount(table)
+	env.RenderFrame()
 
-	eng.Frame()
-
-	tableFrag := table.RenderObject().Fragment()
-	if len(tableFrag.Children) != 3 {
-		t.Fatalf("expected 3 section fragments, got %d", len(tableFrag.Children))
-	}
-
-	// Verify order: thead, tbody, tfoot
-	if tableFrag.Children[0].Fragment.Node.Style().Display != style.DisplayTableHeaderGroup {
-		t.Errorf("expected first child to be thead (%d), got %d", style.DisplayTableHeaderGroup, tableFrag.Children[0].Fragment.Node.Style().Display)
-	}
-	if tableFrag.Children[1].Fragment.Node.Style().Display != style.DisplayTableRowGroup {
-		t.Errorf("expected second child to be tbody (%d), got %d", style.DisplayTableRowGroup, tableFrag.Children[1].Fragment.Node.Style().Display)
-	}
-	if tableFrag.Children[2].Fragment.Node.Style().Display != style.DisplayTableFooterGroup {
-		t.Errorf("expected third child to be tfoot (%d), got %d", style.DisplayTableFooterGroup, tableFrag.Children[2].Fragment.Node.Style().Display)
-	}
-
-	// Verify Y offsets (order)
-	if tableFrag.Children[0].Offset.Y >= tableFrag.Children[1].Offset.Y {
-		t.Errorf("thead should be above tbody")
-	}
-	if tableFrag.Children[1].Offset.Y >= tableFrag.Children[2].Offset.Y {
-		t.Errorf("tbody should be above tfoot")
-	}
+	// Verify structure and that first column cells have equal width.
+	testenv.Expect(t, table).
+		ToHaveTableStructure([]string{"thead", "tbody", "tfoot"}).
+		CellsInColumn(0).ToHaveEqualWidth()
 }
 
 func TestTableGrouping_AnonymousGroups(t *testing.T) {
-	be := mock.New(80, 24)
-	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
+	env := testenv.Default(80, 24)
+	defer env.Close()
 
 	// Table with direct TRs
 	table := element.Table(
 		element.TR(element.TD("Row 1")),
 		element.TR(element.TD("Row 2")),
 	)
-	doc.AppendChild(table)
-
-	eng.Frame()
+	env.Mount(table)
+	env.RenderFrame()
 
 	tableFrag := table.RenderObject().Fragment()
 	// Should have 1 child (anonymous tbody)
@@ -80,18 +56,16 @@ func TestTableGrouping_AnonymousGroups(t *testing.T) {
 }
 
 func TestTableGrouping_ColumnSynchronization(t *testing.T) {
-	be := mock.New(80, 24)
-	eng := engine.New(be, engine.Options{})
-	doc := eng.Document()
+	env := testenv.Default(80, 24)
+	defer env.Close()
 
 	// Table with wide cell in tbody and narrow cell in thead
 	table := element.Table(
 		element.THead(element.TR(element.TD("H"))),
 		element.TBody(element.TR(element.TD("Wide Content"))),
 	)
-	doc.AppendChild(table)
-
-	eng.Frame()
+	env.Mount(table)
+	env.RenderFrame()
 
 	tableFrag := table.RenderObject().Fragment()
 	// Total width should be at least 12 (width of "Wide Content")

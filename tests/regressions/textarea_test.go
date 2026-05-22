@@ -1,125 +1,96 @@
 package regressions
 
 import (
-	"encoding/json"
 	"image/color"
-	"os"
 	"testing"
 
-	"github.com/masterkeysrd/kite/backend/mock"
-	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/engine"
-	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/paint"
 	"github.com/masterkeysrd/kite/style"
 )
 
 func TestTextArea_Regression_Nav(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
 	// 10 cells wide to force wrapping
-	txa := element.NewTextArea(eng.Document(), "line1\nline2")
+	txa := element.NewTextArea(e.Document(), "line1\nline2")
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(10)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	// Initial cursor is at end of "line1\nline2" (offset 11)
-	cs := txa.CursorState()
-	if cs.X != 5 || cs.Y != 1 {
-		t.Errorf("initial cursor = (%d, %d), want (5, 1)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 1)
 
 	// Up to line 1
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyUp})
-	eng.Frame()
-	cs = txa.CursorState()
-	if cs.X != 5 || cs.Y != 0 {
-		t.Errorf("cursor after Up = (%d, %d), want (5, 0)", cs.X, cs.Y)
-	}
+	e.DispatchKey(txa, key.Key{Code: key.KeyUp})
+	e.RenderFrame()
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 0)
 
 	// Down to line 2
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
-	eng.Frame()
-	cs = txa.CursorState()
-	if cs.X != 5 || cs.Y != 1 {
-		t.Errorf("cursor after Down = (%d, %d), want (5, 1)", cs.X, cs.Y)
-	}
+	e.DispatchKey(txa, key.Key{Code: key.KeyDown})
+	e.RenderFrame()
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 1)
 }
 
 func TestTextArea_Regression_SoftWrapNav(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "123456789012345")
+	txa := element.NewTextArea(e.Document(), "123456789012345")
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(10)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
-	cs := txa.CursorState()
-	if cs.Y != 1 || cs.X != 5 {
-		t.Errorf("soft wrap cursor = (%d, %d), want (5, 1)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 1)
 
 	// Up to line 0
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyUp})
-	eng.Frame()
-	cs = txa.CursorState()
-	if cs.Y != 0 || cs.X != 5 {
-		t.Errorf("soft wrap cursor after Up = (%d, %d), want (5, 0)", cs.X, cs.Y)
-	}
+	e.DispatchKey(txa, key.Key{Code: key.KeyUp})
+	e.RenderFrame()
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 0)
 }
 
 func TestTextArea_Bug1_UpFromLastChar(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "abc\ndef")
+	txa := element.NewTextArea(e.Document(), "abc\ndef")
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(20)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	txa.Buffer().MoveToEnd()
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
-	cs := txa.CursorState()
-	if cs.Y != 1 || cs.X != 3 {
-		t.Fatalf("Initial cursor should be at (3, 1), got (%d, %d)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(3, 1)
 
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyUp})
-	eng.Frame()
+	e.DispatchKey(txa, key.Key{Code: key.KeyUp})
+	e.RenderFrame()
 
-	cs = txa.CursorState()
-	if cs.Y != 0 || cs.X != 3 {
-		t.Errorf("After Up from end: cursor = (%d, %d), want (3, 0)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(3, 0)
 }
 
 func TestTextArea_Bug2_WithPadding(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "abc\ndef")
+	txa := element.NewTextArea(e.Document(), "abc\ndef")
 	txa.Style(style.Style{
 		Width:   style.Some(style.Cells(20)),
 		Height:  style.Some(style.Cells(5)),
@@ -127,103 +98,45 @@ func TestTextArea_Bug2_WithPadding(t *testing.T) {
 		Border:  style.SingleBorder().Some(),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	txa.Buffer().SetOffset(5)
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
-	cs := txa.CursorState()
-	if cs.Y != 2 || cs.X != 3 {
-		t.Fatalf("Initial cursor at 'e' should be (3, 2), got (%d, %d)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(3, 2)
 
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyUp})
-	eng.Frame()
+	e.DispatchKey(txa, key.Key{Code: key.KeyUp})
+	e.RenderFrame()
 
-	cs = txa.CursorState()
-	if cs.Y != 1 || cs.X != 3 {
-		t.Errorf("After Up with padding: cursor = (%d, %d), want (3, 1)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(3, 1)
 }
 
 func TestTextArea_Bug3_StuckInThirdLine(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
 	initialText := "Welcome!\n\nThird line"
-	txa := element.NewTextArea(eng.Document(), initialText)
+	txa := element.NewTextArea(e.Document(), initialText)
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(20)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	txa.Buffer().SetOffset(10)
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
-	cs := txa.CursorState()
-	if cs.Y != 2 || cs.X != 0 {
-		t.Fatalf("Initial cursor at 'Third line' should be (0, 2), got (%d, %d)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(0, 2)
 
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyUp})
-	eng.Frame()
+	e.DispatchKey(txa, key.Key{Code: key.KeyUp})
+	e.RenderFrame()
 
-	cs = txa.CursorState()
-	if cs.Y != 1 {
-		t.Errorf("After first Up: cursor Y = %d, want 1", cs.Y)
-	}
-}
-
-func TestTextArea_DumpTool(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
-
-	txa := element.NewTextArea(eng.Document(), "Dump test")
-	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
-
-	// Bind Ctrl+P manually in the application/test layer
-	root.AddEventListener(event.EventKeyDown, func(ev event.Event) {
-		ke := ev.(*event.KeyEvent)
-		if ke.MatchString("ctrl+p") {
-			_ = eng.Dump("kite-dump-test.json")
-		}
-	})
-
-	dispatchKeyToTarget(txa, key.Key{Code: 'p', Mod: key.ModCtrl})
-	eng.Frame()
-
-	if _, err := os.Stat("kite-dump-test.json"); os.IsNotExist(err) {
-		t.Fatalf("kite-dump-test.json was not created")
-	}
-	defer os.Remove("kite-dump-test.json")
-
-	data, err := os.ReadFile("kite-dump-test.json")
-	if err != nil {
-		t.Fatalf("failed to read dump: %v", err)
-	}
-
-	var dump struct {
-		ScreenSize struct {
-			Width int `json:"width"`
-		} `json:"screen_size"`
-	}
-	if err := json.Unmarshal(data, &dump); err != nil {
-		t.Fatalf("failed to unmarshal dump: %v", err)
-	}
-
-	if dump.ScreenSize.Width != 80 {
-		t.Errorf("dump.ScreenSize.Width = %d, want 80", dump.ScreenSize.Width)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(0, 1)
 }
 
 // TestTextArea_Bug4_DownFromLastRowStaysOnLastRow verifies that pressing Down
@@ -233,40 +146,33 @@ func TestTextArea_DumpTool(t *testing.T) {
 // Regression for: pressing Down from mid-last-row moves buffer offset to the
 // end of the last line (perceived as cursor jumping to last+1).
 func TestTextArea_Bug4_DownFromLastRowStaysOnLastRow(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
 	// Two lines: move cursor to the START of the last line (not the end).
-	txa := element.NewTextArea(eng.Document(), "line1\nline2")
+	txa := element.NewTextArea(e.Document(), "line1\nline2")
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(20)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	// Move cursor to the start of "line2" (offset 6).
 	txa.Buffer().SetOffset(6)
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
-	cs := txa.CursorState()
-	if cs.Y != 1 {
-		t.Fatalf("pre-condition: cursor Y = %d, want 1 (start of last line)", cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(0, 1)
 	beforeOffset := txa.Buffer().ByteOffset()
-	beforeY := cs.Y
+	beforeY := txa.CursorState().Y
 
 	// Press Down — cursor is on the last content row and must not move.
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
-	eng.Frame()
+	e.DispatchKey(txa, key.Key{Code: key.KeyDown})
+	e.RenderFrame()
 
-	cs = txa.CursorState()
-	if cs.Y != beforeY {
-		t.Errorf("Down from last row: cursor Y moved from %d to %d, want no change", beforeY, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(txa.CursorState().X, beforeY)
 	// The buffer offset must not change either — pressing Down on the last line
 	// must be a strict no-op, not a jump-to-end-of-line.
 	if got := txa.Buffer().ByteOffset(); got != beforeOffset {
@@ -277,41 +183,34 @@ func TestTextArea_Bug4_DownFromLastRowStaysOnLastRow(t *testing.T) {
 // TestTextArea_Bug4_DownFromLastRowSoftWrap verifies the same invariant when
 // the last line is produced by soft-wrap rather than a hard newline.
 func TestTextArea_Bug4_DownFromLastRowSoftWrap(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
 	// Single long line that soft-wraps at column 10 → produces two visual rows.
 	// Place cursor at start of the second (last) visual row.
-	txa := element.NewTextArea(eng.Document(), "1234567890abcde")
+	txa := element.NewTextArea(e.Document(), "1234567890abcde")
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(10)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	// Offset 10 = start of the second wrapped row ("abcde" starts at byte 10).
 	txa.Buffer().SetOffset(10)
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
-	cs := txa.CursorState()
-	if cs.Y != 1 {
-		t.Fatalf("pre-condition: cursor Y = %d, want 1 (soft-wrap last row)", cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(0, 1)
 	beforeOffset := txa.Buffer().ByteOffset()
-	beforeY := cs.Y
+	beforeY := txa.CursorState().Y
 
 	// Press Down — cursor is on the last visual row and must not move.
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
-	eng.Frame()
+	e.DispatchKey(txa, key.Key{Code: key.KeyDown})
+	e.RenderFrame()
 
-	cs = txa.CursorState()
-	if cs.Y != beforeY {
-		t.Errorf("Down from last soft-wrap row: cursor Y moved from %d to %d, want no change", beforeY, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(txa.CursorState().X, beforeY)
 	if got := txa.Buffer().ByteOffset(); got != beforeOffset {
 		t.Errorf("Down from last soft-wrap row: buffer offset changed from %d to %d, want no change", beforeOffset, got)
 	}
@@ -322,25 +221,24 @@ func TestTextArea_Bug4_DownFromLastRowSoftWrap(t *testing.T) {
 // and a non-zero scroll offset is in effect. The mid-row variant checks that
 // the buffer offset does not jump to the end of the line.
 func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
 	// 12 lines in a 4-row viewport — forces scrolling.
 	text := "line0\nline1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\nline11"
-	txa := element.NewTextArea(eng.Document(), text)
+	txa := element.NewTextArea(e.Document(), text)
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(20)),
 		Height: style.Some(style.Cells(4)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	// Navigate from start to the last line via Down presses.
 	txa.Buffer().MoveToStart()
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
 	prevY, prevOff := -1, -1
 	for i := 0; i < 20; i++ {
@@ -350,8 +248,8 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 			break
 		}
 		prevY, prevOff = cs.Y, off
-		dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
-		eng.Frame()
+		e.DispatchKey(txa, key.Key{Code: key.KeyDown})
+		e.RenderFrame()
 	}
 
 	// Now on the last line. Record state.
@@ -360,8 +258,8 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 
 	// Three more Down presses must all be no-ops.
 	for i := 1; i <= 3; i++ {
-		dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
-		eng.Frame()
+		e.DispatchKey(txa, key.Key{Code: key.KeyDown})
+		e.RenderFrame()
 		cs := txa.CursorState()
 		if cs.Y != lastY || txa.Buffer().ByteOffset() != lastOff {
 			t.Errorf("Down #%d from last row (overflow): Y %d→%d off %d→%d, want no change",
@@ -373,15 +271,15 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 	// "line11" starts at offset 67; place cursor 2 chars in.
 	txa.Buffer().SetOffset(69)
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
 	midY := txa.CursorState().Y
 	if midY != lastY {
 		t.Fatalf("mid-line pre-condition: Y = %d, want %d", midY, lastY)
 	}
 
-	dispatchKeyToTarget(txa, key.Key{Code: key.KeyDown})
-	eng.Frame()
+	e.DispatchKey(txa, key.Key{Code: key.KeyDown})
+	e.RenderFrame()
 
 	if txa.CursorState().Y != midY || txa.Buffer().ByteOffset() != 69 {
 		t.Errorf("Down from mid-last-row (overflow): Y %d→%d off %d→%d, want no change",
@@ -398,25 +296,21 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 // bar incorrectly showed Pos:(insetLeft,insetTop) instead of the real cursor
 // position, making subsequent navigation appear to jump.
 func TestTextArea_Bug5_CursorStateStaleFragment(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "hello\nworld")
+	txa := element.NewTextArea(e.Document(), "hello\nworld")
 	txa.Style(style.Style{
 		Width:  style.Some(style.Cells(20)),
 		Height: style.Some(style.Cells(5)),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	// After the first frame, buffer is at end (offset 11), cursor is at
 	// uaDiv Y=1 (last line). CursorState() should be (5,1).
-	cs := txa.CursorState()
-	if cs.X != 5 || cs.Y != 1 {
-		t.Fatalf("pre-condition: cursor = (%d,%d), want (5,1)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 1)
 
 	// Now simulate a keydown listener reading CursorState() immediately after
 	// a buffer mutation, but BEFORE the next layout pass. We do this by:
@@ -428,83 +322,69 @@ func TestTextArea_Bug5_CursorStateStaleFragment(t *testing.T) {
 	// (offset past end of stale fragment), causing the status bar to show
 	// (insetLeft,insetTop) = (0,0) instead of the real last position.
 	txa.Buffer().Insert("\n") // buffer now has "hello\nworld\n", offset=12
-	// Do NOT call SyncBuffer / eng.Frame() — fragment is still for the old value.
+	// Do NOT call SyncBuffer / e.RenderFrame() — fragment is still for the old value.
 
-	cs = txa.CursorState()
 	// With the fix: should return last known good position (5,1), not (0,0).
-	if cs.X != 5 || cs.Y != 1 {
-		t.Errorf("CursorState with stale fragment = (%d,%d), want last-known (5,1)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(5, 1)
 
 	// After the next frame the fragment is refreshed; cursor is now at the
 	// start of the new empty line (offset 12 → uaDiv Y=2, X=0).
 	txa.SyncBuffer()
-	eng.Frame()
+	e.RenderFrame()
 
-	cs = txa.CursorState()
-	if cs.X != 0 || cs.Y != 2 {
-		t.Errorf("CursorState after frame = (%d,%d), want (0,2)", cs.X, cs.Y)
-	}
+	testenv.Expect(t, txa).ToHaveCursorAt(0, 2)
 }
 
 func TestTextArea_CrashOverflow(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "line1")
+	txa := element.NewTextArea(e.Document(), "line1")
 	txa.Style(style.Style{
 		Width:      style.Some(style.Cells(20)),
 		Height:     style.Some(style.Cells(3)),
 		Background: style.Some[color.Color](color.White),
 	})
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	for i := 0; i < 10; i++ {
-		dispatchKeyToTarget(txa, key.Key{Code: key.KeyEnter})
-		eng.Frame()
+		e.DispatchKey(txa, key.Key{Code: key.KeyEnter})
+		e.RenderFrame()
 	}
 
-	ro := txa.RenderObject()
-	frag := ro.Fragment()
-	if frag.Size.Height != 3 {
-		t.Errorf("textarea height = %d, want 3", frag.Size.Height)
-	}
+	testenv.Expect(t, txa).ToHaveFragmentHeight(3)
 
 	fb := paint.NewFrameBuffer(0, 0, 80, 20)
-	eng.PaintEngine().Paint(eng.RenderView().Fragment(), fb)
+	e.Engine.PaintEngine().Paint(e.Engine.RenderView().Fragment(), fb)
 }
 
 func TestTextArea_IsFocusable(t *testing.T) {
-	eng := engine.New(mock.New(80, 20), engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "")
+	txa := element.NewTextArea(e.Document(), "")
 	if !txa.IsFocusable() {
 		t.Errorf("TextArea should be focusable")
 	}
 }
 
 func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
-	b := mock.New(80, 20)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	e := testenv.Default(80, 20)
+	defer e.Close()
 
-	txa := element.NewTextArea(eng.Document(), "")
+	txa := element.NewTextArea(e.Document(), "")
 	root := element.Box(txa)
-	eng.Mount(root)
-	eng.Frame()
+	e.Mount(root)
+	e.RenderFrame()
 
 	// 1. Verify Auto-focus works on first key press
-	eng.ProcessRawEvent(&event.RawKeyEvent{
-		Key: key.Key{Code: 'x', Text: "x"},
-	})
-	eng.Frame()
+	e.SendKey(key.Key{Code: 'x', Text: "x"})
+	e.RenderFrame()
 
-	if eng.FocusManager().Current() != txa {
-		t.Errorf("TextArea should be auto-focused after key press, got %v", eng.FocusManager().Current())
+	if !e.HasFocus(txa) {
+		t.Errorf("TextArea should be auto-focused after key press, got %v", e.Engine.FocusManager().Current())
 	}
 
 	if txa.Value() != "x" {
@@ -521,30 +401,51 @@ func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
 	}
 }
 
-func dispatchKeyToTarget(target event.EventTarget, k key.Key) {
-	ev := event.NewKeyEvent(event.EventKeyDown, k)
+// TestTextArea_Regression_ScrollCursorPos verifies that the hardware cursor
+// stays aligned with the text content when the textarea is scrolled.
+// This handles the regression where content was panned incorrectly relative
+// to the cursor due to border/padding insets in the paint engine's clamping logic.
+func TestTextArea_Regression_ScrollCursorPos(t *testing.T) {
+	e := testenv.Default(80, 26)
+	defer e.Close()
 
-	// Build the path from target up to root.
-	var path []event.EventTarget
-	curr := target
-	for curr != nil {
-		path = append(path, curr)
-		if n, ok := curr.(dom.Node); ok {
-			p := n.Parent()
-			if p == nil {
-				break
-			}
-			curr = p
-		} else {
-			break
-		}
-	}
+	// 5 lines of text
+	initialText := "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
+	txa := element.NewTextArea(e.Document(), initialText)
+	txa.Style(style.Style{
+		Width:   style.Some(style.Cells(20)),
+		Height:  style.Some(style.Cells(7)), // 3 lines visible + 4 cells inset (border=1, padding=1)
+		Padding: style.Some(style.Edges(1, 1)),
+		Border:  style.SingleBorder().Some(),
+	})
 
-	// Reverse the path so it's root -> target.
-	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
-		path[i], path[j] = path[j], path[i]
-	}
+	root := element.Box(txa)
+	e.Mount(root)
 
-	d := event.NewDispatcher()
-	d.Dispatch(ev, path)
+	// Focus the textarea so the engine tracks its cursor.
+	e.Engine.FocusManager().Focus(txa, focus.ReasonProgrammatic)
+	e.RenderFrame()
+
+	// Place cursor at "Line 3" (offset 14)
+	txa.Buffer().SetOffset(14)
+	txa.SyncBuffer()
+	e.RenderFrame()
+
+	// Line 3 is at local Y=2.
+	// state.Y = insetTop + localY = 2 + 2 = 4.
+	// Initial scroll is (0,0) because Line 3 fits in contentH=3.
+
+	testenv.Expect(t, txa).
+		ExpectHardwareCursorVisible(e).
+		ExpectHardwareCursorY(e, 4)
+
+	// Scroll down by 1 line.
+	txa.ScrollTo(0, 1)
+	e.RenderFrame()
+	testenv.Expect(t, txa).ExpectHardwareCursorY(e, 3)
+
+	// Scroll down by 2 lines.
+	txa.ScrollTo(0, 2)
+	e.RenderFrame()
+	testenv.Expect(t, txa).ExpectHardwareCursorY(e, 2)
 }

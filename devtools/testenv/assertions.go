@@ -6,6 +6,7 @@ import (
 
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -174,6 +175,38 @@ func (a *ElementAssertion) ExpectHardwareCursorY(env *Environment, want int, msg
 	return a
 }
 
+// ToHaveFocus asserts that this node is the currently focused node in env.
+func (a *ElementAssertion) ToHaveFocus(env *Environment, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if env == nil {
+		a.t.Fatalf("environment is nil")
+	}
+	if env.CurrentFocus() != a.node {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected node to be focused, got %v%s", env.CurrentFocus(), suffix)
+	}
+	return a
+}
+
+// ToNotHaveFocus asserts that this node is not the currently focused node.
+func (a *ElementAssertion) ToNotHaveFocus(env *Environment, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if env == nil {
+		a.t.Fatalf("environment is nil")
+	}
+	if env.CurrentFocus() == a.node {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected node to not be focused%s", suffix)
+	}
+	return a
+}
+
 // ToHaveTableStructure verifies that the table's section fragments appear in
 // the specified order (e.g. "thead", "tbody", "tfoot"). It returns the
 // same ElementAssertion to allow chaining further table-related checks.
@@ -294,4 +327,102 @@ func (c *ColumnAssertion) ToHaveEqualWidth(msgs ...any) *ColumnAssertion {
 		}
 	}
 	return c
+}
+
+// ToHaveCellContentInFrame scans the last painted framebuffer for a cell whose
+// content equals the expected string. Useful for asserting border junctions
+// and other painted characters.
+func (a *ElementAssertion) ToHaveCellContentInFrame(env *Environment, expected string, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if env == nil || env.Backend == nil {
+		a.t.Fatalf("environment or backend is nil")
+	}
+	fr := env.Backend.LastFrame()
+	if fr.Surface == nil {
+		a.t.Fatalf("no frame produced by backend")
+	}
+	fb := fr.Surface
+	bounds := fb.Bounds()
+	found := false
+	for y := bounds.Origin.Y; y < bounds.Origin.Y+bounds.Size.Height; y++ {
+		for x := bounds.Origin.X; x < bounds.Origin.X+bounds.Size.Width; x++ {
+			if fb.CellAt(x, y).Content == expected {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected to find %q in last frame%s", expected, suffix)
+	}
+	return a
+}
+
+// ToHaveScroll asserts that the element reports the given scroll offsets.
+func (a *ElementAssertion) ToHaveScroll(x, y int, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+
+	// Prefer the node itself, but fall back to Unwrap() if it's a wrapper.
+	var el dom.Element
+	if e, ok := a.node.(dom.Element); ok {
+		el = e
+	} else if un := a.node.Unwrap(); un != nil {
+		if e2, ok2 := un.(dom.Element); ok2 {
+			el = e2
+		}
+	}
+
+	if el == nil {
+		a.t.Fatalf("node does not implement dom.Element (cannot check scroll)")
+	}
+
+	cx, cy := el.Scroll()
+	if cx != x || cy != y {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected scroll (%d, %d), got (%d, %d)%s", x, y, cx, cy, suffix)
+	}
+	return a
+}
+
+// EventAssertion provides helpers for asserting that events fire on targets.
+type EventAssertion struct {
+	t         *testing.T
+	target    event.EventTarget
+	eventType event.EventType
+}
+
+// ExpectEvent creates an assertion for event listeners.
+func ExpectEvent(t *testing.T, target event.EventTarget, eventType event.EventType) *EventAssertion {
+	return &EventAssertion{t: t, target: target, eventType: eventType}
+}
+
+// ToFireWhen executes the action and asserts the event was received.
+func (ea *EventAssertion) ToFireWhen(action func()) {
+	ea.t.Helper()
+	fired := false
+	sub := ea.target.AddEventListener(ea.eventType, func(e event.Event) {
+		fired = true
+	}, event.Once())
+
+	action()
+
+	if !fired {
+		ea.t.Errorf("expected event %q to fire, but it did not", ea.eventType)
+	}
+	if sub != nil {
+		sub.Cancel()
+	}
 }

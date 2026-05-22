@@ -3,6 +3,7 @@ package regressions
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
@@ -22,10 +23,7 @@ func TestScroll_PreservedAcrossMoves(t *testing.T) {
 	parent1.RemoveChild(el)
 	parent2.AppendChild(el)
 
-	x, y := el.Scroll()
-	if x != 10 || y != 20 {
-		t.Errorf("Scroll not preserved after move: got (%d, %d), want (10, 20)", x, y)
-	}
+	testenv.Expect(t, el).ToHaveScroll(10, 20)
 }
 
 func TestScroll_PreservedAcrossOverflowToggle(t *testing.T) {
@@ -39,10 +37,7 @@ func TestScroll_PreservedAcrossOverflowToggle(t *testing.T) {
 	// Toggle overflow to visible (non-container)
 	el.Style(style.Style{}.Overflow(style.OverflowVisible))
 
-	x, y := el.Unwrap().(dom.Element).Scroll()
-	if x != 10 || y != 20 {
-		t.Errorf("Scroll not preserved after overflow toggle: got (%d, %d), want (10, 20)", x, y)
-	}
+	testenv.Expect(t, el.Unwrap().(dom.Element)).ToHaveScroll(10, 20)
 }
 
 func TestScroll_EventBubbling(t *testing.T) {
@@ -51,14 +46,7 @@ func TestScroll_EventBubbling(t *testing.T) {
 	child := doc.CreateElement("div", nil)
 	parent.AppendChild(child)
 
-	var received bool
-	parent.AddEventListener(event.EventScroll, func(e event.Event) {
-		received = true
+	testenv.ExpectEvent(t, parent, event.EventScroll).ToFireWhen(func() {
+		child.ScrollTo(1, 1)
 	})
-
-	child.ScrollTo(1, 1)
-
-	if !received {
-		t.Error("ScrollEvent did not bubble to parent")
-	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
@@ -181,6 +182,37 @@ func TestTextArea_Regression_PublicChildrenHideUA(t *testing.T) {
 func dispatchKeyToInput(inp *element.InputElement, k key.Key) {
 	ev := event.NewKeyEvent(event.EventKeyDown, k)
 	path := []event.EventTarget{inp}
+	d := event.NewDispatcher()
+	d.Dispatch(ev, path)
+}
+
+// dispatchKeyToTarget sends a key down event to an arbitrary EventTarget by
+// building the ancestor path (root -> target) and dispatching through the
+// event system. This mirrors testenv.Environment.DispatchKey for engine-based
+// tests that don't use the higher-level test environment.
+func dispatchKeyToTarget(target event.EventTarget, k key.Key) {
+	ev := event.NewKeyEvent(event.EventKeyDown, k)
+
+	var path []event.EventTarget
+	curr := target
+	for curr != nil {
+		path = append(path, curr)
+		if n, ok := curr.(dom.Node); ok {
+			p := n.Parent()
+			if p == nil {
+				break
+			}
+			curr = p
+		} else {
+			break
+		}
+	}
+
+	// Reverse to root -> target
+	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+		path[i], path[j] = path[j], path[i]
+	}
+
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
 }

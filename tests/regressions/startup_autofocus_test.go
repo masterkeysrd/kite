@@ -3,36 +3,30 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/engine"
 )
 
 // TestRegression_StartupAutofocus verifies that the first focusable element
 // is automatically focused on the first frame, and its cursor is shown.
 func TestRegression_StartupAutofocus(t *testing.T) {
-	b := mock.New(80, 24)
-	eng := engine.New(b, engine.Options{})
-	defer eng.Stop()
+	env := testenv.Default(80, 24)
+	defer env.Close()
 
-	inp := element.NewInput(eng.Document(), "initial")
-	eng.Mount(inp)
+	inp := element.NewInput(env.Document(), "initial")
+	env.Mount(inp)
 
-	// Before any frame, focus is nil.
-	if eng.FocusManager().Current() != nil {
+	// Before any frame, focus should be nil (no focused node).
+	if env.CurrentFocus() != nil {
 		t.Fatal("pre-frame focus should be nil")
 	}
 
 	// Trigger the first frame.
-	eng.Frame()
+	env.RenderFrame()
 
 	// 1. Focus should be on the input.
-	if eng.FocusManager().Current() != inp {
-		t.Errorf("after first frame: focused element = %v, want the input", eng.FocusManager().Current())
-	}
+	testenv.Expect(t, inp).ToHaveFocus(env)
 
 	// 2. The hardware cursor should be visible in the backend.
-	if !b.Cursor.Visible {
-		t.Error("after first frame: hardware cursor is hidden, want visible")
-	}
+	testenv.Expect(t, inp).ExpectHardwareCursorVisible(env)
 }
