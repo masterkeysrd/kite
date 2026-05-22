@@ -440,7 +440,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			itemsToSkip += len(line.Items)
 		}
 
-		if breakLineIndex != -1 {
+		if breakLineIndex != -1 && breakLineIndex > 0 {
 			breakToken = &BreakToken{
 				Node:       a.Node,
 				ChildIndex: itemsToSkip,

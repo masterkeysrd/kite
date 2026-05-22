@@ -292,16 +292,25 @@ func (b *FlexLineBuilder) AlignLine(lineIndex int, containerMainSize int, justif
 	case style.JustifyCenter:
 		startMainOffset = remainingMain / 2
 	case style.JustifyBetween:
-		if len(line.Items) > 1 {
+		if remainingMain < 0 {
+			startMainOffset = 0
+			itemSpacing = b.mainGap
+		} else if len(line.Items) > 1 {
 			itemSpacing = b.mainGap + remainingMain/(len(line.Items)-1)
 		}
 	case style.JustifyAround:
-		if len(line.Items) > 0 {
+		if remainingMain < 0 {
+			startMainOffset = 0
+			itemSpacing = b.mainGap
+		} else if len(line.Items) > 0 {
 			itemSpacing = b.mainGap + remainingMain/len(line.Items)
 			startMainOffset = (itemSpacing - b.mainGap) / 2
 		}
 	case style.JustifyEvenly:
-		if len(line.Items) > 0 {
+		if remainingMain < 0 {
+			startMainOffset = 0
+			itemSpacing = b.mainGap
+		} else if len(line.Items) > 0 {
 			itemSpacing = b.mainGap + remainingMain/(len(line.Items)+1)
 			startMainOffset = itemSpacing - b.mainGap
 		}
