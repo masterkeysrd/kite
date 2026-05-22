@@ -32,8 +32,8 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-017 | Logical Text Controller | Done | `tasks/TSK-017-logical-text-controller.md` |
 | TSK-018 | UA Shadow Subtree Primitive (supersedes prior Input/TextArea task) | Done | `tasks/TSK-018-ua-shadow-subtree-primitive.md` |
 | TSK-019 | Document Overlay API and Render Root | Done | `tasks/TSK-019-document-overlay-api.md` |
-| TSK-020 | Element Bounding Client Rect | Pending | `tasks/TSK-020-element-bounding-client-rect.md` |
-| TSK-021 | Overlay and Dialog Components | Pending | `tasks/TSK-021-overlay-and-dialog-components.md` |
+| TSK-020 | Element Bounding Client Rect | Done | `tasks/TSK-020-element-bounding-client-rect.md` |
+| TSK-021 | Overlay and Dialog Components | Done | `tasks/TSK-021-overlay-and-dialog-components.md` |
 | TSK-022 | Intrinsic Style Layer | Done | `tasks/TSK-022-intrinsic-style-layer.md` |
 | TSK-023 | cursor.FromTextFragment Helper | Done | `tasks/TSK-023-cursor-from-text-fragment.md` |
 | TSK-024 | Implement `<input>` onto UA Shadow Subtree | Done | `tasks/TSK-024-input-on-ua-subtree.md` |
@@ -46,3 +46,10 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-031 | Implement Golden Testing & Visual Dumps | Done | `tasks/TSK-031-golden-testing.md` |
 | TSK-032 | Implement Web-Based DOM Inspector (SSE) | Done | `tasks/TSK-032-web-inspector.md` |
 | TSK-033 | Implement Terminal X-Ray Mode | In Progress | `tasks/TSK-033-xray-mode.md` |
+| TSK-034 | Event Coalescing and Throttling in Engine | Pending | `tasks/TSK-034-event-coalescing.md` |
+| TSK-035 | Deferred Scroll & Cursor Rendering for Text Controls | Pending | `tasks/TSK-035-deferred-scroll-rendering.md` |
+| TSK-036 | Customizable Visual Scrollbars | Pending | `tasks/TSK-036-visual-scrollbars.md` |
+| TSK-037 | Implement Button Element | Pending | `tasks/TSK-037-button-element.md` |
+| TSK-038 | Implement Checkbox and Radio Components | Pending | `tasks/TSK-038-checkbox-radio-elements.md` |
+| TSK-039 | Implement Select (Dropdown) Component | Pending | `tasks/TSK-039-select-element.md` |
+| TSK-040 | Audit and Enforce Strict Border-Box Sizing | Pending | `tasks/TSK-040-strict-box-model.md` |
