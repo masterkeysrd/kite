@@ -1,9 +1,17 @@
 package layout
 
 import (
+	"math"
+
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
+
+// InfiniteBlockSize is the height used when probing a node's intrinsic block
+// size. It represents an unconstrained vertical axis: the node should size to
+// its content, not to the available height. math.MaxInt32/2 avoids overflow
+// when arithmetic is performed on top of it.
+const InfiniteBlockSize = math.MaxInt32 / 2
 
 // Fragment represents the immutable output of a layout algorithm.
 // Once created, a Fragment's fields must never be modified. This immutability
@@ -171,7 +179,16 @@ func IntrinsicMinMaxSizes(node Node) MinMaxSizes {
 // available inline size (width).
 func IntrinsicBlockSize(node Node, availableWidth int) int {
 	// For now, we just run a probe layout. In the future, this should be cached.
-	space := NewConstraintSpaceBuilder(Size{Width: availableWidth, Height: 1000}).ToConstraintSpace()
+	// ContainerSpace and ContainingSpace must be set to the probe width so that
+	// children with KindPercent widths resolve correctly inside the probe.
+	// Without this, a child with width:100% would resolve to 0 (ContainerSpace.Width=0),
+	// causing the IFC to place each character on its own line and return a wildly
+	// inflated block height.
+	probeSize := Size{Width: availableWidth, Height: InfiniteBlockSize}
+	space := NewConstraintSpaceBuilder(probeSize).
+		SetContainerSpace(probeSize).
+		SetContainingSpace(probeSize).
+		ToConstraintSpace()
 	algo := NewAlgorithm(node, space)
 	return algo.Layout().Size.Height
 }

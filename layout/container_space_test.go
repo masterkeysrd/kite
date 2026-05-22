@@ -172,6 +172,36 @@ func TestBuildChildSpace_DisplayTable_Auto(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// IntrinsicBlockSize — percent-width probe correctness
+// ---------------------------------------------------------------------------
+
+// TestIntrinsicBlockSize_PercentWidthChild guards the fix for the kite-dump.json
+// regression: a flex column item with width:100% was probed by IntrinsicBlockSize
+// with ContainerSpace={0,0}, causing the IFC to place each character on its own
+// line and return a vastly inflated height (e.g. 7 instead of 1).
+func TestIntrinsicBlockSize_PercentWidthChild(t *testing.T) {
+	// A plain box with width:100% and a single line of text.
+	// IntrinsicBlockSize(node, 30) should return 1 — one line of text.
+	node := &mockNode{
+		style: &style.Computed{
+			Width:  style.Percent(100),
+			Height: style.Auto,
+		},
+		firstChild: &mockTextNode{
+			mockNode: mockNode{style: &style.Computed{Display: style.DisplayInline}},
+			data:     "Sign In",
+		},
+	}
+
+	h := IntrinsicBlockSize(node, 30)
+	if h != 1 {
+		t.Errorf("expected IntrinsicBlockSize=1 for single-line percent-width node, got %d "+
+			"(ContainerSpace not propagated in probe?)", h)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Integration tests — full layout pass
 // ---------------------------------------------------------------------------
 
