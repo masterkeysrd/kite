@@ -43,6 +43,10 @@ The framework operates via a central nervous system called the **Engine (`/engin
 ### 3.3. Layout Engine (`/layout`)
 - **Responsibility:** High-performance layout computations.
 - **Design:** Inspired by Blink's LayoutNG. It computes layout in terms of logical geometry (agnostic of reading direction or physical coordinates initially) and returns immutable `Fragment` trees.
+- **Constraint Propagation:** `ConstraintSpace` carries two spatial references that flow from parent to child (ADR-018):
+  - **`ContainingSpace`:** The parent's border-box dimensions. All percentage-based sizes resolve against this (e.g., `width: 50%` → `ContainingSpace.Width * 50 / 100`), consistent with the strict border-box model (ADR-017).
+  - **`ContainerSpace`:** The parent's content-box dimensions (border-box minus border and padding). This is the available space for children before individual child margins are subtracted.
+  - A shared `BuildChildSpace` function centralizes child constraint generation, eliminating duplicated decoration math across formatting contexts.
 - **Contexts:**
   - **Block Formatting Context (BFC):** Stacks elements vertically.
   - **Flex Formatting Context (FFC):** Lays out elements in one-dimensional rows or columns (supports growing, shrinking, alignment).

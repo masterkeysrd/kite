@@ -78,7 +78,7 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	} else {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.PercentageResolutionSize.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedInlineSize = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:
@@ -116,7 +116,8 @@ func (a *TableAlgorithm) Layout() *Fragment {
 		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-padding.Top-padding.Bottom)
 
 		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetPercentageResolutionSize(Size{Width: childAvailWidth, Height: childAvailHeight})
+		childSpaceBuilder.SetContainingSpace(Size{Width: resolvedInlineSize, Height: a.Space.AvailableSize.Height})
+		childSpaceBuilder.SetContainerSpace(Size{Width: childAvailWidth, Height: childAvailHeight})
 		childSpaceBuilder.SetIsFixedInlineSize(true)
 
 		childSpace := childSpaceBuilder.ToConstraintSpace()
@@ -263,7 +264,8 @@ func (a *TableSectionAlgorithm) Layout() *Fragment {
 		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-(border.Top+border.Bottom+padding.Top+padding.Bottom))
 
 		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetPercentageResolutionSize(Size{Width: a.Space.AvailableSize.Width, Height: childAvailHeight})
+		childSpaceBuilder.SetContainingSpace(Size{Width: a.Space.AvailableSize.Width, Height: a.Space.AvailableSize.Height})
+		childSpaceBuilder.SetContainerSpace(Size{Width: childAvailWidth, Height: childAvailHeight})
 		childSpaceBuilder.SetIsFixedInlineSize(true)
 
 		childSpace := childSpaceBuilder.ToConstraintSpace()
@@ -510,9 +512,11 @@ func (a *TableRowAlgorithm) Layout() *Fragment {
 			childMargin := cell.Node.Style().Margin
 			cellAvailWidth := max(0, cellWidth-childMargin.Left-childMargin.Right)
 
-			// Cells act as BFCs with rigid constraints passed by the row
+			// Cells act as BFCs with rigid constraints passed by the row.
+			// ContainingSpace = cell's border-box; ContainerSpace = cell's content-box.
 			childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: cellAvailWidth, Height: a.Space.AvailableSize.Height})
-			childSpaceBuilder.SetPercentageResolutionSize(Size{Width: cellWidth, Height: a.Space.AvailableSize.Height})
+			childSpaceBuilder.SetContainingSpace(Size{Width: cellWidth, Height: a.Space.AvailableSize.Height})
+			childSpaceBuilder.SetContainerSpace(Size{Width: cellAvailWidth, Height: a.Space.AvailableSize.Height})
 			childSpaceBuilder.SetIsFixedInlineSize(true)
 			childSpace := childSpaceBuilder.ToConstraintSpace()
 

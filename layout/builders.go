@@ -6,19 +6,25 @@ type ConstraintSpaceBuilder struct {
 }
 
 // NewConstraintSpaceBuilder creates a new builder initialized with the available size.
+// ContainingSpace and ContainerSpace default to zero and must be set explicitly by the caller.
 func NewConstraintSpaceBuilder(availableSize Size) *ConstraintSpaceBuilder {
 	return &ConstraintSpaceBuilder{
 		space: ConstraintSpace{
 			AvailableSize: availableSize,
-			// By default, percentage resolution size matches available size.
-			PercentageResolutionSize: availableSize,
 		},
 	}
 }
 
-// SetPercentageResolutionSize sets the size used for percentage resolution.
-func (b *ConstraintSpaceBuilder) SetPercentageResolutionSize(size Size) *ConstraintSpaceBuilder {
-	b.space.PercentageResolutionSize = size
+// SetContainingSpace sets the parent's border-box size used for KindPercent resolution (ADR-018).
+func (b *ConstraintSpaceBuilder) SetContainingSpace(size Size) *ConstraintSpaceBuilder {
+	b.space.ContainingSpace = size
+	return b
+}
+
+// SetContainerSpace sets the parent's content-box size (the available space for children
+// before per-child margins are subtracted) (ADR-018).
+func (b *ConstraintSpaceBuilder) SetContainerSpace(size Size) *ConstraintSpaceBuilder {
+	b.space.ContainerSpace = size
 	return b
 }
 

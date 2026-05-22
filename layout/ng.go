@@ -48,14 +48,26 @@ type FragmentLink struct {
 }
 
 // ConstraintSpace defines the inputs for a layout operation. It encapsulates the
-// physical size constraints (Min/Max) alongside any additional context required
-// during the layout walk (e.g., percentage resolution sizes, exclusion spaces for floats).
+// physical size constraints alongside any additional context required during the
+// layout walk (e.g., parent reference sizes, break tokens).
+//
+// The three size fields serve distinct roles (ADR-018):
+//   - AvailableSize: per-child space after subtracting margins (or an explicit size).
+//   - ContainingSpace: parent's border-box — the base for KindPercent resolution.
+//   - ContainerSpace: parent's content-box (ContainingSpace − border − padding) —
+//     the total space available to children before their individual margins are subtracted.
 type ConstraintSpace struct {
 	// AvailableSize is the ideal size the node should consume, provided by the parent.
 	AvailableSize Size
 
-	// PercentageResolutionSize is the size used to resolve percentage-based dimensions.
-	PercentageResolutionSize Size
+	// ContainingSpace is the parent's resolved border-box dimensions.
+	// All KindPercent resolutions MUST use this field (ADR-018).
+	ContainingSpace Size
+
+	// ContainerSpace is the parent's content-box dimensions
+	// (ContainingSpace minus border minus padding).
+	// Algorithms use this to compute per-child AvailableSize.
+	ContainerSpace Size
 
 	// IsFixedInlineSize indicates the inline size (width) is pre-determined.
 	IsFixedInlineSize bool

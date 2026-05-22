@@ -174,7 +174,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	if !a.Space.IsFixedInlineSize {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedWidth = int(float32(a.Space.PercentageResolutionSize.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedWidth = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedWidth = comp.Width.CellsValue()
 		case style.KindContent:
@@ -192,7 +192,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	if !a.Space.IsFixedBlockSize {
 		switch comp.Height.Kind() {
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.PercentageResolutionSize.Height) * comp.Height.PercentValue() / 100.0)
+			resolvedHeight = int(float32(a.Space.ContainingSpace.Height) * comp.Height.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
 		case style.KindAuto:
@@ -317,7 +317,12 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			}
 
 			measureCrossSize := contentCrossSizeForItems
+			flexContainingSpace := Size{Width: resolvedWidth, Height: resolvedHeight}
+			flexContainerSpace := Size{Width: resolvedWidth - decorX, Height: resolvedHeight - decorY}
+
 			childSpaceBuilder := NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
+			childSpaceBuilder.SetContainingSpace(flexContainingSpace)
+			childSpaceBuilder.SetContainerSpace(flexContainerSpace)
 			childSpaceBuilder.SetIsFixedInlineSize(true)
 			childSpaceBuilder.SetIsFixedBlockSize(false)
 
@@ -328,6 +333,8 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 				if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
 					childSpaceBuilder = NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
+					childSpaceBuilder.SetContainingSpace(flexContainingSpace)
+					childSpaceBuilder.SetContainerSpace(flexContainerSpace)
 					childSpaceBuilder.SetIsFixedInlineSize(true)
 					childSpaceBuilder.SetIsFixedBlockSize(true)
 				}
@@ -549,3 +556,4 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 
 	return allItems[startIndex:]
 }
+

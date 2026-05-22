@@ -38,7 +38,7 @@ func (a *ListAlgorithm) Layout() *Fragment {
 	} else {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.PercentageResolutionSize.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedInlineSize = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:
@@ -132,41 +132,16 @@ func (a *ListAlgorithm) Layout() *Fragment {
 			continue
 		}
 
-		// Block Child
-		childStyle := child.Style()
-		childMargin := childStyle.Margin
-
-		childAvailWidth := max(0, column2Width-childMargin.Left-childMargin.Right)
-		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-(border.Bottom+padding.Bottom))
-
-		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetPercentageResolutionSize(Size{
-			Width:  column2Width,
-			Height: max(0, a.Space.AvailableSize.Height-parentDecorY),
-		})
-
-		if childStyle.Width.Kind() == style.KindCells {
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = childStyle.Width.CellsValue()
-		} else if childStyle.Width.Kind() == style.KindPercent {
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = int(float32(column2Width) * childStyle.Width.PercentValue() / 100.0)
-		} else if childStyle.Width.Kind() == style.KindAuto {
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
+		// Block Child — delegate to BuildChildSpace (ADR-018).
+		// The list item's border-box is the containing space; column 2 is the container.
+		childMargin := child.Style().Margin
+		containingSpace := Size{Width: resolvedInlineSize, Height: a.Space.AvailableSize.Height}
+		containerSpace := Size{Width: column2Width, Height: max(0, a.Space.AvailableSize.Height-parentDecorY)}
+		adjustedContainer := Size{
+			Width:  containerSpace.Width,
+			Height: max(0, containerSpace.Height-builder.CurrentBlockOffset()),
 		}
-
-		if childStyle.Height.Kind() == style.KindCells {
-			childSpaceBuilder.SetIsFixedBlockSize(true)
-			childSpaceBuilder.space.AvailableSize.Height = childStyle.Height.CellsValue()
-		} else if childStyle.Height.Kind() == style.KindPercent {
-			if a.Space.IsFixedBlockSize {
-				childSpaceBuilder.SetIsFixedBlockSize(true)
-				childSpaceBuilder.space.AvailableSize.Height = int(float32(a.Space.AvailableSize.Height-parentDecorY) * childStyle.Height.PercentValue() / 100.0)
-			}
-		}
-
-		childSpace := childSpaceBuilder.ToConstraintSpace()
+		childSpace := BuildChildSpace(child, adjustedContainer, containingSpace, a.Space)
 		childAlgo := NewAlgorithm(child, childSpace)
 		childFrag := childAlgo.Layout()
 

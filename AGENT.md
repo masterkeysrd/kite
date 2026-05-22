@@ -107,6 +107,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **List layout (virtual markers)** | `layout/list.go` |
 | **Table layout algorithm** | `layout/table.go`, `layout/table_builder.go` |
 | **Layout entry-point (NG dispatcher)** | `layout/ng.go` |
+| **Layout child constraint space builder** | `layout/resolve.go` (BuildChildSpace, ADR-018) |
 | **Paint engine & overflow clipping** | `paint/engine.go` (ADR-011) |
 | **Paint framebuffer & surface** | `paint/framebuffer.go`, `paint/types.go` |
 | **Border intersection resolver** | `paint/engine.go` (`resolveBorders`) |

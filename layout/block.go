@@ -40,7 +40,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	} else {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.PercentageResolutionSize.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedInlineSize = int(float32(a.Space.ContainingSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:
@@ -146,47 +146,17 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		}
 
 		// Standard Block Child Layout
-		childStyle := child.Style()
-		childMargin := childStyle.Margin
+		childMargin := child.Style().Margin
 
-		// 5. Constraint Generation: Use ConstraintSpaceBuilder.
-		childAvailWidth := max(0, resolvedInlineSize-parentDecorX-childMargin.Left-childMargin.Right)
-		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-childMargin.Top-childMargin.Bottom-(border.Bottom+padding.Bottom))
-
-		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetPercentageResolutionSize(Size{
-			Width:  contentWidth,
-			Height: max(0, a.Space.AvailableSize.Height-parentDecorY),
-		})
-
-		if childStyle.Width.Kind() == style.KindCells {
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = childStyle.Width.CellsValue()
-		} else if childStyle.Width.Kind() == style.KindPercent {
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.space.AvailableSize.Width = int(float32(contentWidth) * childStyle.Width.PercentValue() / 100.0)
-		} else if childStyle.Width.Kind() == style.KindAuto {
-			if childStyle.Display != style.DisplayTable {
-				childSpaceBuilder.SetIsFixedInlineSize(true)
-				childSpaceBuilder.space.AvailableSize.Width = childAvailWidth
-			}
+		// 5. Constraint Generation: delegate to BuildChildSpace (ADR-018).
+		// Adjust container height for the space already consumed by previous children.
+		containingSpace := Size{Width: resolvedInlineSize, Height: a.Space.AvailableSize.Height}
+		containerSpace := Size{Width: contentWidth, Height: max(0, a.Space.AvailableSize.Height-parentDecorY)}
+		adjustedContainer := Size{
+			Width:  containerSpace.Width,
+			Height: max(0, containerSpace.Height-builder.CurrentBlockOffset()),
 		}
-		// KindMaxContent: do NOT set IsFixedInlineSize so the child's own block
-		// algorithm calls ComputeMinMaxSizes and uses the unconstrained max-content
-		// width. Leave AvailableSize.Width as the parent available width for the
-		// child's percent-resolution baseline only.
-
-		if childStyle.Height.Kind() == style.KindCells {
-			childSpaceBuilder.SetIsFixedBlockSize(true)
-			childSpaceBuilder.space.AvailableSize.Height = childStyle.Height.CellsValue()
-		} else if childStyle.Height.Kind() == style.KindPercent {
-			if a.Space.IsFixedBlockSize {
-				childSpaceBuilder.SetIsFixedBlockSize(true)
-				childSpaceBuilder.space.AvailableSize.Height = int(float32(a.Space.AvailableSize.Height-parentDecorY) * childStyle.Height.PercentValue() / 100.0)
-			}
-		}
-
-		childSpace := childSpaceBuilder.ToConstraintSpace()
+		childSpace := BuildChildSpace(child, adjustedContainer, containingSpace, a.Space)
 		childAlgo := NewAlgorithm(child, childSpace)
 		childFrag := childAlgo.Layout()
 
@@ -212,7 +182,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		case style.KindCells:
 			resolvedHeight = max(comp.Height.CellsValue(), builder.CurrentBlockOffset())
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.PercentageResolutionSize.Height) * comp.Height.PercentValue() / 100.0)
+			resolvedHeight = int(float32(a.Space.ContainingSpace.Height) * comp.Height.PercentValue() / 100.0)
 			resolvedHeight = max(resolvedHeight, builder.CurrentBlockOffset())
 		default:
 			resolvedHeight = builder.CurrentBlockOffset()

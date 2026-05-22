@@ -53,3 +53,4 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-038 | Implement Checkbox and Radio Components | Pending | `tasks/TSK-038-checkbox-radio-elements.md` |
 | TSK-039 | Implement Select (Dropdown) Component | Pending | `tasks/TSK-039-select-element.md` |
 | TSK-040 | Audit and Enforce Strict Border-Box Sizing | Pending | `tasks/TSK-040-strict-box-model.md` |
+| TSK-041 | Introduce ContainingSpace and ContainerSpace into Layout | In Progress | `tasks/TSK-041-layout-container-spaces.md` |

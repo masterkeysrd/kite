@@ -19,4 +19,20 @@
 //     intrinsic column widths, handling `ColSpan` and `RowSpan`, before resolving rows and cells.
 //
 // The layout process follows a LayoutNG-inspired immutable fragment tree model.
+//
+// # Constraint Space (ADR-018)
+//
+// Every layout operation receives a [ConstraintSpace] built by
+// [NewConstraintSpaceBuilder].  The space carries three distinct size concepts:
+//
+//   - AvailableSize — the per-child space after subtracting margins (or an explicit size).
+//   - ContainingSpace — the parent's resolved border-box; used as the base for
+//     KindPercent resolution.
+//   - ContainerSpace — the parent's content-box (ContainingSpace minus border and
+//     padding); algorithms use this to derive per-child AvailableSize.
+//
+// Block-level child constraint generation is centralised in [BuildChildSpace],
+// which eliminates the decoration subtraction and width/height resolution logic
+// that would otherwise be duplicated across BlockAlgorithm, ListAlgorithm, and
+// similar algorithms.
 package layout
