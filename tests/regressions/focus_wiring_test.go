@@ -54,45 +54,6 @@ func newEngineWithTwoInputs(t *testing.T) (*engine.Engine, *element.InputElement
 	return eng, username, password, stop
 }
 
-// dispatchKey sends a synthetic keydown through the engine's raw-event path,
-// which exercises the full synthesizer → dispatchKeyEvent chain.
-func dispatchKey(eng *engine.Engine, k key.Key) {
-	// The engine doesn't expose a test-only key injection API, so we reach it
-	// through AddEventListener on the document: fire the key event to the
-	// focused element via the focus-manager path.
-	//
-	// For regression purposes we build the KeyEvent and dispatch it through
-	// the element's listener directly — this proves the key actually reached
-	// the input's buffer.
-	ev := event.NewKeyEvent(event.EventKeyDown, k)
-	path := []event.EventTarget{eng.Document()}
-	if focused := eng.FocusedTarget(); focused != nil {
-		path = []event.EventTarget{eng.Document(), focused}
-	}
-	d := event.NewDispatcher()
-	d.Dispatch(ev, path)
-}
-
-// focusViaMousedown simulates a mousedown at (x, y) by dispatching a
-// mousedown KeyEvent through the engine.  Because the mock backend has no
-// real hit-test geometry, we focus programmatically via the focus manager
-// and just verify the result — the unit tests already cover the hit-test path.
-func focusViaFocusManager(eng *engine.Engine, target interface{ IsFocusable() bool }) bool {
-	// We drive the focus manager directly here to decouple the regression from
-	// the hit-test coordinate system (which requires a live fragment tree).
-	// The unit tests in engine/focus_wiring_test.go cover the coordinate path.
-	if node, ok := target.(interface {
-		RenderObject() interface {
-			ComputedStyle() interface{ Display() interface{} }
-		}
-	}); ok {
-		_ = node // just to type-check
-	}
-	// Use the engine's FocusManager via the public document AddEventListener
-	// trick: not exposed, so we use the focus package directly via a cast.
-	return false
-}
-
 // ---------------------------------------------------------------------------
 // Bug 1 — Click-to-focus regressions
 // ---------------------------------------------------------------------------

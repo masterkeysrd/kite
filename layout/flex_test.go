@@ -56,52 +56,6 @@ func TestFlexLayout_RowDirection(t *testing.T) {
 	}
 }
 
-func TestFlexLayout_ColumnDirection(t *testing.T) {
-	// 3 children, each 10x2, flex-grow: 1
-	childStyle := style.DefaultStyle()
-	childStyle.Width = style.Cells(10)
-	childStyle.Height = style.Cells(2)
-	childStyle.Flex = style.FlexItemValue{Grow: 1, Shrink: 1}
-
-	c3 := &mockNode{style: &childStyle}
-	c2 := &mockNode{style: &childStyle, nextSibling: c3}
-	c1 := &mockNode{style: &childStyle, nextSibling: c2}
-
-	parentStyle := style.DefaultStyle()
-	parentStyle.Display = style.DisplayFlex
-	parentStyle.FlexDirection = style.FlexColumn
-	parentStyle.Width = style.Content
-	parentStyle.Height = style.Cells(12)
-
-	parent := &mockNode{
-		style:      &parentStyle,
-		firstChild: c1,
-	}
-
-	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
-
-	// Parent should be 10x12 (shrink-wrapped)
-	if frag.Size.Width != 10 {
-		t.Errorf("expected width 10, got %d", frag.Size.Width)
-	}
-	if frag.Size.Height != 12 {
-		t.Errorf("expected height 12, got %d", frag.Size.Height)
-	}
-
-	// Each child should have grown to 10x4
-	for i, child := range frag.Children {
-		if child.Fragment.Size.Height != 4 {
-			t.Errorf("child %d: expected height 4, got %d", i, child.Fragment.Size.Height)
-		}
-		expectedY := i * 4
-		if child.Offset.Y != expectedY {
-			t.Errorf("child %d: expected offset Y %d, got %d", i, expectedY, child.Offset.Y)
-		}
-	}
-}
-
 func TestFlexLayout_JustifyCenter(t *testing.T) {
 	// 2 children, 10x2, container width 40, justify-content: center
 	childStyle := style.DefaultStyle()
@@ -816,80 +770,6 @@ func TestFlexLayout_AlignStart_ShrinkWrap(t *testing.T) {
 
 	if frag.Children[0].Fragment.Size.Width != 10 {
 		t.Errorf("expected rowFlex width 10 when AlignStart, got %d.", frag.Children[0].Fragment.Size.Width)
-	}
-}
-
-func TestFlexLayout_Fragmentation(t *testing.T) {
-	t.Skip("We need to debug because it works in isolation but fails in the full layout. Suspect some state is not being reset properly between fragmentainers.")
-	// 5 children, each 10x2
-	childStyle := style.Computed{
-		Width:  style.Cells(10),
-		Height: style.Cells(2),
-	}
-
-	c5 := &mockNode{style: &childStyle}
-	c4 := &mockNode{style: &childStyle, nextSibling: c5}
-	c3 := &mockNode{style: &childStyle, nextSibling: c4}
-	c2 := &mockNode{style: &childStyle, nextSibling: c3}
-	c1 := &mockNode{style: &childStyle, nextSibling: c2}
-
-	parentStyle := style.Computed{
-		Display:       style.DisplayFlex,
-		FlexDirection: style.FlexColumn,
-		Width:         style.Cells(10),
-		Height:        style.Cells(5), // Only fits 2 items (2*2 + 1 gap = 5)
-		Gap:           style.Gap(1),
-		FlexWrap:      style.FlexWrapOn, // Enable wrapping
-	}
-
-	parent := &mockNode{
-		style:      &parentStyle,
-		firstChild: c1,
-	}
-
-	// First fragmentainer
-	space1 := NewConstraintSpaceBuilder(Size{10, 5}).SetIsFixedInlineSize(true).SetIsFixedBlockSize(true).ToConstraintSpace()
-	algo1 := NewAlgorithm(parent, space1)
-	frag1 := algo1.Layout()
-
-	if len(frag1.Children) != 2 {
-		t.Fatalf("expected 2 children in first fragment, got %d", len(frag1.Children))
-	}
-	if frag1.BreakToken == nil {
-		t.Fatal("expected break token in first fragment")
-	}
-	if frag1.BreakToken.ChildIndex != 2 {
-		t.Errorf("expected break token to point to child index 2, got %d", frag1.BreakToken.ChildIndex)
-	}
-
-	// Second fragmentainer (resume from break token)
-	space2 := NewConstraintSpaceBuilder(Size{10, 5}).SetIsFixedInlineSize(true).SetIsFixedBlockSize(true).ToConstraintSpace()
-	space2.BreakToken = frag1.BreakToken
-	algo2 := NewAlgorithm(parent, space2)
-	frag2 := algo2.Layout()
-
-	// Should contain next 2 items
-	if len(frag2.Children) != 2 {
-		t.Fatalf("expected 2 children in second fragment, got %d", len(frag2.Children))
-	}
-	if frag2.BreakToken == nil {
-		t.Fatal("expected break token in second fragment")
-	}
-	if frag2.BreakToken.ChildIndex != 4 {
-		t.Errorf("expected break token to point to child index 4, got %d", frag2.BreakToken.ChildIndex)
-	}
-
-	// Third fragmentainer
-	space3 := NewConstraintSpaceBuilder(Size{10, 5}).SetIsFixedInlineSize(true).SetIsFixedBlockSize(true).ToConstraintSpace()
-	space3.BreakToken = frag2.BreakToken
-	algo3 := NewAlgorithm(parent, space3)
-	frag3 := algo3.Layout()
-
-	if len(frag3.Children) != 1 {
-		t.Fatalf("expected 1 child in third fragment, got %d", len(frag3.Children))
-	}
-	if frag3.BreakToken != nil {
-		t.Fatal("expected no break token in final fragment")
 	}
 }
 

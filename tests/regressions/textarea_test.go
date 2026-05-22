@@ -241,7 +241,7 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 	e.RenderFrame()
 
 	prevY, prevOff := -1, -1
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		cs := txa.CursorState()
 		off := txa.Buffer().ByteOffset()
 		if cs.Y == prevY && off == prevOff {
@@ -349,7 +349,7 @@ func TestTextArea_CrashOverflow(t *testing.T) {
 	e.Mount(root)
 	e.RenderFrame()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		e.DispatchKey(txa, key.Key{Code: key.KeyEnter})
 		e.RenderFrame()
 	}
