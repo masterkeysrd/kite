@@ -31,8 +31,6 @@ type Inspector struct {
 
 // Options configures the inspector.
 type Options struct {
-	// NoOpen prevents the inspector from automatically opening the browser.
-	NoOpen bool
 }
 
 func Attach(eng *engine.Engine, addr string, opts Options) (string, error) {

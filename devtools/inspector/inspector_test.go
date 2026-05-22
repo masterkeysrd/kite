@@ -31,7 +31,7 @@ func TestInspector(t *testing.T) {
 	l.Close()
 
 	// 3. Attach inspector
-	if _, err := Attach(eng, actualAddr, Options{NoOpen: true}); err != nil {
+	if _, err := Attach(eng, actualAddr, Options{}); err != nil {
 		t.Fatal(err)
 	}
 

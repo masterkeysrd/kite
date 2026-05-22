@@ -16,7 +16,6 @@ func main() {
     eng := engine.New(backend, opts)
     
     // Start the inspector on port 8080.
-    // Use Options{NoOpen: true} to prevent the browser from automatically opening.
     if err := inspector.Attach(eng, "127.0.0.1:8080", inspector.Options{}); err != nil {
         log.Fatalf("failed to attach inspector: %v", err)
     }
@@ -26,7 +25,7 @@ func main() {
 }
 ```
 
-Once your application is running, the inspector will automatically attempt to open your default web browser to the dashboard URL. If the browser does not open, navigate to the address printed in the logs (typically `http://127.0.0.1:8080`).
+Once your application is running, the inspector is available via the **Ctrl+I** hotkey (by default). When pressed, it will automatically attempt to open your default web browser to the dashboard URL. If the browser does not open, navigate to the address printed in the logs (typically `http://127.0.0.1:8080`).
 
 ### Port Handling
 
@@ -35,7 +34,7 @@ If the requested port is already in use, the inspector will automatically find a
 ## Features
 
 - **Live DOM Tree**: View the logical DOM hierarchy in real-time. The tree updates automatically via Server-Sent Events (SSE) whenever a frame is rendered.
-- **Auto-Open**: Automatically opens your default web browser when the inspector starts.
+- **Hot-key Access**: Press **Ctrl+I** to open the inspector browser window.
 - **Dynamic Port Selection**: Automatically fallback to an available port if the default one is occupied.
 - **Node Selection**: Click on any node in the tree to view its details.
 - **Computed Styles**: Inspect the fully resolved computed styles for the selected node.

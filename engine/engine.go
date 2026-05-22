@@ -159,6 +159,9 @@ type Engine struct {
 	// onFrameRenderedHooks are called after every frame is committed.
 	onFrameRenderedHooks []func()
 
+	// onStopHooks are called when the engine is stopping.
+	onStopHooks []func()
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -377,6 +380,10 @@ func (e *Engine) Bell() {
 // SetDebugXRay toggles the visual layout debugging overlay.
 func (e *Engine) SetDebugXRay(enabled bool) {
 	e.paintEngine.DebugXRay = enabled
+	// Force a repaint so the overlay appears even if the DOM hasn't changed.
+	if e.renderView != nil {
+		e.renderView.MarkDirty(render.DirtyPaint)
+	}
 	e.RequestFrame()
 }
 
@@ -401,6 +408,11 @@ func (e *Engine) OnAfterLayout(fn func()) {
 // OnFrameRendered registers a hook to be called after every frame is committed.
 func (e *Engine) OnFrameRendered(fn func()) {
 	e.onFrameRenderedHooks = append(e.onFrameRenderedHooks, fn)
+}
+
+// OnStop registers a hook to be called when the engine stops.
+func (e *Engine) OnStop(fn func()) {
+	e.onStopHooks = append(e.onStopHooks, fn)
 }
 
 // RequestFrameAt schedules a frame wake-up at time t. If t is before
@@ -995,8 +1007,16 @@ func (e *Engine) Dump(path string) error {
 	return enc.Encode(data)
 }
 
+// Done returns a channel that is closed when the engine stops.
+func (e *Engine) Done() <-chan struct{} {
+	return e.closeCh
+}
+
 func (e *Engine) Stop() {
 	e.closeOnce.Do(func() {
+		for _, fn := range e.onStopHooks {
+			fn()
+		}
 		close(e.closeCh)
 		e.workerCancel()
 

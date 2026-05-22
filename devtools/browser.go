@@ -3,9 +3,11 @@ package devtools
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"runtime"
+	"syscall"
 )
 
 // LocateBrowser finds the path to the first available Chromium-based browser
@@ -60,18 +62,41 @@ func LocateBrowser() string {
 // available. When a non-nil context is provided, the launched browser process
 // is bound to the context and will be killed when the context is cancelled.
 func OpenFloatingInspector(ctx context.Context, url string) error {
+	slog.Info("devtools: OpenFloatingInspector called", "url", url)
 	browserPath := LocateBrowser()
+	slog.Info("devtools: LocateBrowser result", "path", browserPath)
 
 	if browserPath != "" {
-		// Launch a Chromium-based browser in app mode tied to ctx so it will
-		// be terminated automatically when ctx is cancelled.
-		cmd := exec.CommandContext(ctx, browserPath, "--app="+url)
+		slog.Info("devtools: launching Chromium in app mode", "path", browserPath, "url", url)
+		// Launch a Chromium-based browser in app mode.
+		cmd := exec.Command(browserPath, "--app="+url)
+
+		// On Unix-like systems, start the process in its own process group
+		// so we can kill it and all its children later.
+		if runtime.GOOS != "windows" {
+			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		}
+
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("failed to start browser %q: %w", browserPath, err)
 		}
+
+		// Handle cleanup in a goroutine tied to the context.
+		go func() {
+			<-ctx.Done()
+			slog.Info("devtools: context cancelled, killing browser process")
+			if runtime.GOOS == "windows" {
+				_ = cmd.Process.Kill()
+			} else {
+				// Kill the entire process group.
+				_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			}
+		}()
+
 		return nil
 	}
 
+	slog.Info("devtools: falling back to system default opener", "url", url)
 	// Fallback: open with the system default opener (won't auto-close).
 	// Caller should be aware that the fallback does not bind the process to ctx.
 	var cmd *exec.Cmd

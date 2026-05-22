@@ -144,7 +144,9 @@ devtools.Install(eng, devtools.Options{
 
 ### Web-Based DOM Inspector
 
-The inspector allows you to debug your application's logical tree, computed styles, and layout box model in real-time. It features:
+The inspector allows you to debug your application's logical tree, computed styles, and layout box model in real-time. Open the inspector window in your browser using your configured hotkey (default **`Ctrl+I`**).
+
+It features:
 - **Live DOM Tree**: Explore the hierarchy with attribute summaries.
 - **Style Layers**: Inspect Computed, Author, Intrinsic, and Default styles.
 - **Box Model**: Visual representation of margins, borders, and padding.

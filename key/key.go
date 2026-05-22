@@ -86,7 +86,23 @@ func keyMatchString(k Key, s string) bool {
 		}
 	}
 
-	return (k.Mod == mod && k.Code == code) || (k.Text == text && text != "")
+	if (k.Mod == mod && k.Code == code) || (k.Text == text && text != "") {
+		return true
+	}
+
+	// Fallback for control characters sent by some backends or special case for Ctrl+I as Tab
+	if mod == ModCtrl {
+		switch code {
+		case 'd', 'D':
+			return k.Code == 0x04
+		case 'i', 'I':
+			return k.Code == 0x09 || (k.Mod == ModCtrl && (k.Code == 'i' || k.Code == 'I'))
+		case 'c', 'C':
+			return k.Code == 0x03
+		}
+	}
+
+	return false
 }
 
 var stringKeyType = map[string]rune{
