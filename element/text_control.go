@@ -280,6 +280,9 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	b.syncCallback()
 }
 
+// ProvidesCursor implements dom.Element.
+func (b *textControlBase[T]) ProvidesCursor() bool { return true }
+
 // handleKeyDown processes a keydown event and routes it to the appropriate
 // buffer operation.
 //

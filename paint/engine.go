@@ -193,21 +193,9 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point, 
 			s := frag.Node.Style()
 			if isScrollContainer(s.OverflowX) || isScrollContainer(s.OverflowY) {
 				rawX, rawY := el.Scroll()
-
-				// Clamping: stored scroll offset is raw author intent, we clamp to
-				// actual content extent.
-				bw := s.Border.Widths()
-				contentW := max(0, frag.Size.Width-bw.Left-bw.Right-s.Padding.Left-s.Padding.Right)
-				contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-s.Padding.Top-s.Padding.Bottom)
-
-				extentW, extentH := 0, 0
-				for _, childLink := range frag.Children {
-					extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width)
-					extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height)
-				}
-
-				scrollX = max(0, min(rawX, extentW-contentW))
-				scrollY = max(0, min(rawY, extentH-contentH))
+				maxSX, maxSY := layout.MaxScroll(frag)
+				scrollX = max(0, min(rawX, maxSX))
+				scrollY = max(0, min(rawY, maxSY))
 			}
 		}
 	}

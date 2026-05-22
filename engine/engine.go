@@ -607,27 +607,7 @@ func (e *Engine) updateHardwareCursor() bool {
 						scrollX, scrollY := 0, 0
 						if el, ok := focused.(dom.Element); ok {
 							rawX, rawY := el.Scroll()
-
-							// ADR-012: Clamp scroll offset to content extent, matching paint.
-							cs := ro.ComputedStyle()
-							bw := cs.Border.Widths()
-							contentW := max(0, ro.Fragment().Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right)
-							contentH := max(0, ro.Fragment().Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom)
-
-							extentW, extentH := 0, 0
-							for _, childLink := range ro.Fragment().Children {
-								extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-bw.Left-cs.Padding.Left)
-								extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-bw.Top-cs.Padding.Top)
-							}
-
-							maxSX := max(0, extentW-contentW)
-							maxSY := max(0, extentH-contentH)
-
-							// Inputs and TextAreas need 1 extra cell of scroll to show the cursor at the end.
-							if el.NodeName() == "input" || el.NodeName() == "textarea" {
-								maxSX++
-							}
-
+							maxSX, maxSY := layout.MaxScroll(ro.Fragment())
 							scrollX = max(0, min(rawX, maxSX))
 							scrollY = max(0, min(rawY, maxSY))
 						}
@@ -942,6 +922,7 @@ func (e *Engine) Dump(path string) error {
 		} `json:"screen_size"`
 		RawText   []string  `json:"raw_text"`
 		DOMTree   *nodeDump `json:"dom_tree"`
+		Cursor    cursorRecord
 		Fragments *layout.Fragment
 	}{
 		ScreenSize: struct {
@@ -949,6 +930,7 @@ func (e *Engine) Dump(path string) error {
 			Height int `json:"height"`
 		}{Width: size.Width, Height: size.Height},
 		RawText:   rawText,
+		Cursor:    e.lastCursorState,
 		DOMTree:   dumpNode(e.document),
 		Fragments: root.Fragment(),
 	}

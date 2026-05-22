@@ -208,6 +208,10 @@ type Element interface {
 	// visible within the content box. It is typically called by the engine
 	// after layout if the element is focused.
 	ScrollCursorIntoView()
+
+	// ProvidesCursor reports whether this element provides a text cursor.
+	// Used by the layout and paint engines to adjust scroll clamping.
+	ProvidesCursor() bool
 }
 
 // TextNode is a leaf node that carries character data. It has no children.

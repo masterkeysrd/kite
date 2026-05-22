@@ -178,6 +178,11 @@ func (e *element) ScrollCursorIntoView() {
 	// override this to ensure the caret remains visible after layout.
 }
 
+func (e *element) ProvidesCursor() bool {
+	// Base implementation returns false.
+	return false
+}
+
 // setOuterRecursive walks the subtree rooted at n and sets the self/outer
 // back-pointer of every node to outer. This implements the ADR-0036 identity
 // propagation required for UA shadow subtrees (ADR-009).

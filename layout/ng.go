@@ -251,31 +251,9 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 		if (isScrollX || isScrollY) && frag.Node.LogicalNode() != nil {
 			if el, ok := frag.Node.LogicalNode().(scrollableElement); ok {
 				rawX, rawY := el.Scroll()
-
-				bw := s.Border.Widths()
-				insetLeft := bw.Left + s.Padding.Left
-				insetTop := bw.Top + s.Padding.Top
-				contentW := max(0, frag.Size.Width-bw.Left-bw.Right-s.Padding.Left-s.Padding.Right)
-				contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-s.Padding.Top-s.Padding.Bottom)
-
-				extentW, extentH := 0, 0
-				for _, childLink := range frag.Children {
-					extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-insetLeft)
-					extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-insetTop)
-				}
-
-				if isScrollX {
-					maxS := max(0, extentW-contentW)
-					// Inputs and TextAreas need 1 extra cell of scroll to show the cursor at the end.
-					if nodeName(frag.Node) == "input" || nodeName(frag.Node) == "textarea" {
-						maxS++
-					}
-					scrollX = max(0, min(rawX, maxS))
-				}
-				if isScrollY {
-					maxS := max(0, extentH-contentH)
-					scrollY = max(0, min(rawY, maxS))
-				}
+				maxSX, maxSY := MaxScroll(frag)
+				scrollX = max(0, min(rawX, maxSX))
+				scrollY = max(0, min(rawY, maxSY))
 			}
 		}
 	}
@@ -294,12 +272,46 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 	return Rect{}, Rect{}, false
 }
 
-func nodeName(n Node) string {
-	if n == nil || n.LogicalNode() == nil {
-		return ""
+// MaxScroll calculates the maximum horizontal and vertical scroll offsets
+// for a fragment, clamped to its content extent.
+func MaxScroll(frag *Fragment) (x, y int) {
+	if frag == nil || frag.Node == nil || frag.Node.Style() == nil {
+		return 0, 0
 	}
-	if ln, ok := n.LogicalNode().(interface{ NodeName() string }); ok {
-		return ln.NodeName()
+
+	s := frag.Node.Style()
+	bw := s.Border.Widths()
+	pad := s.Padding
+
+	// Content-box insets from the fragment's border-box origin.
+	insetLeft := bw.Left + pad.Left
+	insetTop := bw.Top + pad.Top
+
+	// Content box size.
+	contentW := max(0, frag.Size.Width-bw.Left-bw.Right-pad.Left-pad.Right)
+	contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-pad.Top-pad.Bottom)
+
+	// Content extent (union of child fragments).
+	extentW, extentH := 0, 0
+	for _, childLink := range frag.Children {
+		extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-insetLeft)
+		extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-insetTop)
 	}
-	return ""
+
+	maxSX := max(0, extentW-contentW)
+	maxSY := max(0, extentH-contentH)
+
+	// Inputs and TextAreas (elements providing a cursor) need 1 extra cell of
+	// horizontal scroll so the caret can sit after the last character.
+	isCursorProvider := false
+	if ln := frag.Node.LogicalNode(); ln != nil {
+		if el, ok := ln.(interface{ ProvidesCursor() bool }); ok {
+			isCursorProvider = el.ProvidesCursor()
+		}
+	}
+	if isCursorProvider {
+		maxSX++
+	}
+
+	return maxSX, maxSY
 }
