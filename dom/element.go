@@ -4,6 +4,7 @@ import (
 	"iter"
 
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -181,6 +182,38 @@ func (e *element) ScrollCursorIntoView() {
 func (e *element) ProvidesCursor() bool {
 	// Base implementation returns false.
 	return false
+}
+
+func (e *element) GetBoundingClientRect() (layout.Rect, bool) {
+	if !e.connected {
+		return layout.Rect{}, false
+	}
+
+	// Traverse up to find the root node (usually the Document).
+	var root Node = e.self
+	for p := root.Parent(); p != nil; {
+		root = p
+		p = root.Parent()
+	}
+
+	// Grab the root fragment from its render object.
+	ro := root.RenderObject()
+	if ro == nil {
+		return layout.Rect{}, false
+	}
+	rootFragment := ro.Fragment()
+	if rootFragment == nil {
+		return layout.Rect{}, false
+	}
+
+	// Target the render object of this element.
+	targetRO := e.RenderObject()
+	if targetRO == nil {
+		return layout.Rect{}, false
+	}
+
+	rect, _, found := layout.ScrolledAbsoluteBounds(rootFragment, targetRO)
+	return rect, found
 }
 
 // setOuterRecursive walks the subtree rooted at n and sets the self/outer

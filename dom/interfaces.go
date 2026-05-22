@@ -4,6 +4,7 @@ import (
 	"iter"
 
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -212,6 +213,11 @@ type Element interface {
 	// ProvidesCursor reports whether this element provides a text cursor.
 	// Used by the layout and paint engines to adjust scroll clamping.
 	ProvidesCursor() bool
+
+	// GetBoundingClientRect returns the physical terminal rectangle occupied
+	// by this element. It returns (rect, true) if the element is connected
+	// and has been laid out; otherwise it returns (Rect{}, false).
+	GetBoundingClientRect() (layout.Rect, bool)
 }
 
 // TextNode is a leaf node that carries character data. It has no children.
