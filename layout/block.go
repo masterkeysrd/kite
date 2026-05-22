@@ -180,7 +180,7 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 		var resolvedHeight int
 		switch comp.Height.Kind() {
 		case style.KindCells:
-			resolvedHeight = max(comp.Height.CellsValue(), builder.CurrentBlockOffset())
+			resolvedHeight = comp.Height.CellsValue()
 		case style.KindPercent:
 			resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
 			resolvedHeight = max(resolvedHeight, builder.CurrentBlockOffset())

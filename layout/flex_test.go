@@ -897,7 +897,7 @@ func TestFlexLayout_ColumnItemsWrapAndGrow(t *testing.T) {
 	// Child Box: Width auto, padding 0.
 	// Text inside Child Box: "123456789012345" (15 chars).
 	// If we set container to Width 10, it should wrap.
-	
+
 	textStyle := style.DefaultStyle()
 	textStyle.Display = style.DisplayInline
 	textNode := &mockTextNode{
@@ -932,11 +932,11 @@ func TestFlexLayout_ColumnItemsWrapAndGrow(t *testing.T) {
 	// "1234567890"
 	// "12345"
 	// Height should be 2.
-	
+
 	if len(frag.Children) != 1 {
 		t.Fatalf("expected 1 child, got %d", len(frag.Children))
 	}
-	
+
 	childFrag := frag.Children[0].Fragment
 	if childFrag.Size.Height != 2 {
 		t.Errorf("expected child height 2 (wrapped), got %d", childFrag.Size.Height)
@@ -952,7 +952,7 @@ func TestFlexLayout_ColumnItemsAlignEndWrap(t *testing.T) {
 	// Child Box: Width auto, align-items: end.
 	// Text "1234567890" (10 chars).
 	// It should NOT wrap if it fits, but if container is small it should.
-	
+
 	textStyle := style.DefaultStyle()
 	textStyle.Display = style.DisplayInline
 	textNode := &mockTextNode{
@@ -987,12 +987,182 @@ func TestFlexLayout_ColumnItemsAlignEndWrap(t *testing.T) {
 	if len(frag.Children) != 1 {
 		t.Fatalf("expected 1 child, got %d", len(frag.Children))
 	}
-	
+
 	childFrag := frag.Children[0].Fragment
 	// MaxContent of text is 15. Available is 10.
 	// probeWidth should be min(15, 10) = 10.
 	// Resulting height should be 2.
 	if childFrag.Size.Height != 2 {
 		t.Errorf("expected child height 2, got %d", childFrag.Size.Height)
+	}
+}
+
+func TestFlexLayout_ColumnHeightAuto(t *testing.T) {
+	// Root container: height auto.
+	// 3 children, each 10x2.
+	// Total height should be 6.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+
+	c3 := &mockNode{style: &childStyle}
+	c2 := &mockNode{style: &childStyle, nextSibling: c3}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(20)
+	parentStyle.Height = style.Auto
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	if frag.Size.Height != 6 {
+		t.Errorf("expected height 6, got %d", frag.Size.Height)
+	}
+}
+
+func TestFlexLayout_ColumnHeightAutoWithGap(t *testing.T) {
+	// Root container: height auto, gap 1.
+	// 2 children, each 10x2.
+	// Total height should be 2 + 1 + 2 = 5.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+
+	c2 := &mockNode{style: &childStyle}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(20)
+	parentStyle.Height = style.Auto
+	parentStyle.Gap = style.Gap(1, 0) // Row gap 1
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	if frag.Size.Height != 5 {
+		t.Errorf("expected height 5, got %d", frag.Size.Height)
+	}
+}
+
+func TestFlexLayout_ColumnHeightAutoWithMargins(t *testing.T) {
+	// Root container: height auto.
+	// 2 children, each 10x2, margin-top: 1.
+	// Total height should be (1 + 2) + (1 + 2) = 6.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+	childStyle.Margin = style.Edges(1, 0, 0, 0) // Top 1
+
+	c2 := &mockNode{style: &childStyle}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(20)
+	parentStyle.Height = style.Auto
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	if frag.Size.Height != 6 {
+		t.Errorf("expected height 6, got %d", frag.Size.Height)
+	}
+}
+
+func TestFlexLayout_ColumnHeightAutoWithMarginsFixed(t *testing.T) {
+	// Root container: height auto.
+	// 2 children, each 10x2, margin-top: 1.
+	// Total height should be (1 + 2) + (1 + 2) = 6.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+	childStyle.Margin = style.Edges(1, 0, 0, 0) // Top 1
+
+	c2 := &mockNode{style: &childStyle}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(20)
+	parentStyle.Height = style.Auto
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	// Currently failing (got 4).
+	if frag.Size.Height != 6 {
+		t.Errorf("expected height 6, got %d", frag.Size.Height)
+	}
+}
+
+func TestFlexLayout_RowHeightAutoWithGap(t *testing.T) {
+	// Root container: height auto.
+	// 2 children, each 10x2.
+	// Row flex, so height is max(child height).
+	// BUT if there are multiple lines (wrapping), then height is sum(line heights) + gaps.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+
+	c2 := &mockNode{style: &childStyle}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.FlexWrap = style.FlexWrapOn
+	parentStyle.Width = style.Cells(15) // Force wrap
+	parentStyle.Height = style.Auto
+	parentStyle.Gap = style.Gap(1, 0) // Row gap 1
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	// 2 lines, each 2 high. 1 row gap of 1.
+	// Total height should be 2 + 1 + 2 = 5.
+	if frag.Size.Height != 5 {
+		t.Errorf("expected height 5, got %d", frag.Size.Height)
 	}
 }

@@ -346,7 +346,13 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 
 			childAlgo := NewAlgorithm(item.Node, childSpaceBuilder.ToConstraintSpace())
 			item.Fragment = childAlgo.Layout()
+
 			item.MainSize = geom.MainSize(item.Fragment.Size)
+			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
+				item.MainSize += childMargin.Top + childMargin.Bottom
+			} else {
+				item.MainSize += childMargin.Left + childMargin.Right
+			}
 
 			itemCrossSize := geom.CrossSize(item.Fragment.Size)
 			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
@@ -358,15 +364,6 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			lineCrossSize = max(lineCrossSize, item.CrossSize)
 
 			lineMainSize += item.MainSize
-			if j > 0 {
-				lineMainSize += mainGap
-			}
-		}
-		// Note: lineMainSize was accumulated from item.MainSize BEFORE layout.
-		// Re-accumulate it from updated item.MainSize.
-		lineMainSize = 0
-		for j, it := range line.Items {
-			lineMainSize += it.MainSize
 			if j > 0 {
 				lineMainSize += mainGap
 			}
