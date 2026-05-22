@@ -180,8 +180,10 @@ func (i *Inspector) broadcast() {
 }
 
 type InspectorPayload struct {
-	DOM       *NodeSnapshot     `json:"dom"`
-	Fragments *FragmentSnapshot `json:"fragments"`
+	DOM          *NodeSnapshot       `json:"dom"`
+	Overlays     []*NodeSnapshot     `json:"overlays,omitempty"`
+	Fragments    *FragmentSnapshot   `json:"fragments"`
+	OverlayFrags []*FragmentSnapshot `json:"overlayFragments,omitempty"`
 }
 
 type FragmentSnapshot struct {
@@ -230,13 +232,33 @@ func (i *Inspector) takeSnapshot() *InspectorPayload {
 
 	// Also compute bounds for overlays
 	for _, overlay := range rv.Overlays() {
-		i.computeAllBounds(overlay.Fragment(), layout.Point{X: 0, Y: 0}, boundsMap)
+		offset := layout.Point{}
+		if cs := overlay.ComputedStyle(); cs != nil {
+			offset.X = cs.Margin.Left
+			offset.Y = cs.Margin.Top
+		}
+		i.computeAllBounds(overlay.Fragment(), offset, boundsMap)
 	}
 
-	return &InspectorPayload{
+	payload := &InspectorPayload{
 		DOM:       i.snapshotNode(doc, boundsMap),
 		Fragments: i.snapshotFragment(rv.Fragment(), layout.Point{X: 0, Y: 0}),
 	}
+
+	for overlayEl := range doc.Overlays() {
+		payload.Overlays = append(payload.Overlays, i.snapshotNode(overlayEl, boundsMap))
+	}
+
+	for _, overlayRO := range rv.Overlays() {
+		offset := layout.Point{}
+		if cs := overlayRO.ComputedStyle(); cs != nil {
+			offset.X = cs.Margin.Left
+			offset.Y = cs.Margin.Top
+		}
+		payload.OverlayFrags = append(payload.OverlayFrags, i.snapshotFragment(overlayRO.Fragment(), offset))
+	}
+
+	return payload
 }
 
 func (i *Inspector) snapshotFragment(f *layout.Fragment, offset layout.Point) *FragmentSnapshot {

@@ -486,6 +486,7 @@ func (e *Engine) Frame() {
 	// 1. Sync Phase — walk logical DOM and project to render tree.
 	if e.document.NeedsSync() || e.document.ChildNeedsSync() {
 		e.syncRenderTree(e.document, e.renderView)
+		e.syncOverlays(e.document)
 	}
 
 	// 1b. Autofocus Phase — if nothing is focused, try to find the first
@@ -508,6 +509,11 @@ func (e *Engine) Frame() {
 	if root.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
 		style.ResolveTree(e.resolver, root)
 	}
+	for _, overlay := range root.Overlays() {
+		if overlay.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
+			style.ResolveTree(e.resolver, overlay)
+		}
+	}
 
 	// 5. Layout phase — gated on DirtyLayout | ChildNeedsLayout.
 	if root.Flags()&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
@@ -517,13 +523,13 @@ func (e *Engine) Frame() {
 		start := e.clock.Now()
 		render.LayoutPhase(root, viewport)
 
-		for _, overlay := range root.Overlays() {
-			render.LayoutPhase(overlay, viewport)
-		}
 		duration := e.clock.Now().Sub(start)
 		e.logger.Info("engine: layout complete", "duration_ms", duration.Milliseconds())
 
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
+		for _, overlay := range root.Overlays() {
+			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
+		}
 	}
 
 	// 5b. Auto-scroll phase — if an element is focused, ensure its cursor is visible.
@@ -550,23 +556,39 @@ func (e *Engine) Frame() {
 
 	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
 
+	anyOverlayDirty := false
+	for _, o := range root.Overlays() {
+		if o.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+			anyOverlayDirty = true
+			break
+		}
+	}
+
 	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint
 	// OR a cursor change (which requires a Flush even if no cells changed).
-	if cursorChanged || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 		surface := e.backend.BeginFrame()
 		e.logger.Info("engine: painting main content")
-		e.paintEngine.Paint(root.Fragment(), surface)
+		e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, surface)
 		for _, overlay := range root.Overlays() {
-			if overlay.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
-				e.logger.Info("engine: painting overlay")
-				e.paintEngine.Paint(overlay.Fragment(), surface)
+			e.logger.Info("engine: painting overlay")
+			offset := layout.Point{}
+			if cs := overlay.ComputedStyle(); cs != nil {
+				offset.X = cs.Margin.Left
+				offset.Y = cs.Margin.Top
 			}
+			e.paintEngine.PaintFragment(overlay.Fragment(), offset, surface)
 		}
+		e.paintEngine.ResolveBorders(surface)
+
 		// 7. Sync — hand the frame to the render goroutine.
 		if err := e.backend.EndFrame(); err != nil {
 			e.logger.Error("engine: EndFrame error", slog.Any("error", err))
 		}
 		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
+		for _, overlay := range root.Overlays() {
+			overlay.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
+		}
 		e.logger.Info("engine: frame committed", slog.Uint64("version", e.frameVersion))
 		e.frameVersion++
 	}
@@ -729,6 +751,25 @@ func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
 	n.ClearSyncFlags()
 }
 
+func (e *Engine) syncOverlays(d dom.Document) {
+	var overlayROs []render.Object
+	for overlayEl := range d.Overlays() {
+		childRO := overlayEl.RenderObject()
+		if childRO == nil {
+			childRO = e.createRenderObject(overlayEl)
+			overlayEl.SetRenderObject(childRO)
+		}
+
+		// If the child was already there, it might still need internal sync.
+		if overlayEl.NeedsSync() || overlayEl.ChildNeedsSync() {
+			e.syncRenderTree(overlayEl, childRO)
+		}
+
+		overlayROs = append(overlayROs, childRO)
+	}
+	e.renderView.SetOverlays(overlayROs)
+}
+
 // diffChildren synchronizes the children of n into the render object ro.
 func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 	// Map existing render children.
@@ -867,10 +908,16 @@ func (e *Engine) Dump(path string) error {
 	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
 	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 	root := e.renderView
-	e.paintEngine.Paint(root.Fragment(), fb)
+	e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, fb)
 	for _, overlay := range root.Overlays() {
-		e.paintEngine.Paint(overlay.Fragment(), fb)
+		offset := layout.Point{}
+		if cs := overlay.ComputedStyle(); cs != nil {
+			offset.X = cs.Margin.Left
+			offset.Y = cs.Margin.Top
+		}
+		e.paintEngine.PaintFragment(overlay.Fragment(), offset, fb)
 	}
+	e.paintEngine.ResolveBorders(fb)
 
 	for y := 0; y < size.Height; y++ {
 		var line strings.Builder
@@ -920,8 +967,9 @@ func (e *Engine) Dump(path string) error {
 			Width  int `json:"width"`
 			Height int `json:"height"`
 		} `json:"screen_size"`
-		RawText   []string  `json:"raw_text"`
-		DOMTree   *nodeDump `json:"dom_tree"`
+		RawText   []string    `json:"raw_text"`
+		DOMTree   *nodeDump   `json:"dom_tree"`
+		Overlays  []*nodeDump `json:"overlays,omitempty"`
 		Cursor    cursorRecord
 		Fragments *layout.Fragment
 	}{
@@ -929,11 +977,15 @@ func (e *Engine) Dump(path string) error {
 			Width  int `json:"width"`
 			Height int `json:"height"`
 		}{Width: size.Width, Height: size.Height},
-		RawText:   rawText,
-		Cursor:    e.lastCursorState,
-		DOMTree:   dumpNode(e.document),
-		Fragments: root.Fragment(),
+		RawText: rawText,
+		Cursor:  e.lastCursorState,
+		DOMTree: dumpNode(e.document),
 	}
+
+	for overlay := range e.document.Overlays() {
+		data.Overlays = append(data.Overlays, dumpNode(overlay))
+	}
+	data.Fragments = root.Fragment()
 
 	f, err := os.Create(path)
 	if err != nil {
@@ -1218,8 +1270,8 @@ func (e *Engine) shouldRunFrame() bool {
 	if !e.nextFrameAt.IsZero() && e.clock.Now().After(e.nextFrameAt) {
 		return true
 	}
-	// Check for dirty render tree.
-	return e.renderView.Flags() != 0
+	// Check for dirty DOM or render tree.
+	return e.document.NeedsSync() || e.document.ChildNeedsSync() || e.renderView.Flags() != 0
 }
 
 func unwrapProvider(n dom.Node) render.CustomObjectProvider {

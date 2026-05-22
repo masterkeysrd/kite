@@ -1,5 +1,10 @@
 package dom
 
+import (
+	"iter"
+	"slices"
+)
+
 // idRegistrar is an unexported interface implemented by *document.
 // element uses it (via a type assertion on ownerDocument) to maintain
 // the O(1) ID map without creating an import cycle or exposing internals.
@@ -8,11 +13,21 @@ type idRegistrar interface {
 	unregisterID(id string)
 }
 
+type overlayRecord struct {
+	el     Element
+	zIndex int
+	order  int
+}
+
 // document is the concrete, unexported implementation of Document.
 type document struct {
 	baseNode
 	byID    map[string]Element
 	anchors map[string]Element
+
+	overlays  []overlayRecord
+	nextOrder int
+
 	// mutating is the reentrancy guard. It is true while an attach or detach
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
@@ -81,6 +96,60 @@ func (d *document) Body() Element {
 		}
 	}
 	return nil
+}
+
+func (d *document) ShowOverlay(el Element, zIndex int) {
+	// If el is already an overlay, update its zIndex.
+	for i, o := range d.overlays {
+		if o.el == el {
+			if o.zIndex == zIndex {
+				return
+			}
+			d.overlays[i].zIndex = zIndex
+			d.sortOverlays()
+			d.MarkNeedsSync()
+			return
+		}
+	}
+
+	// Add new overlay.
+	d.overlays = append(d.overlays, overlayRecord{
+		el:     el,
+		zIndex: zIndex,
+		order:  d.nextOrder,
+	})
+	d.nextOrder++
+	d.sortOverlays()
+	d.MarkNeedsSync()
+}
+
+func (d *document) HideOverlay(el Element) {
+	for i, o := range d.overlays {
+		if o.el == el {
+			d.overlays = append(d.overlays[:i], d.overlays[i+1:]...)
+			d.MarkNeedsSync()
+			return
+		}
+	}
+}
+
+func (d *document) Overlays() iter.Seq[Element] {
+	return func(yield func(Element) bool) {
+		for _, o := range d.overlays {
+			if !yield(o.el) {
+				return
+			}
+		}
+	}
+}
+
+func (d *document) sortOverlays() {
+	slices.SortFunc(d.overlays, func(a, b overlayRecord) int {
+		if a.zIndex != b.zIndex {
+			return a.zIndex - b.zIndex
+		}
+		return a.order - b.order
+	})
 }
 
 // --- attach / detach walks --------------------------------------------------

@@ -147,13 +147,13 @@
             const payload = JSON.parse(event.data);
             const data = payload.dom;
             
-            renderTree(data, treeContent);
+            renderTree(payload, treeContent);
             if (payload.fragments) {
-                renderFragmentTree(payload.fragments, document.getElementById('fragment-tree-content'));
+                renderFragmentTrees(payload, document.getElementById('fragment-tree-content'));
             }
 
             if (selectedId) {
-                const newNode = findNodeById(data, selectedId);
+                const newNode = findNodeByIdInPayload(payload, selectedId);
                 if (newNode) {
                     selectedNode = newNode;
                     updateDetails();
@@ -161,9 +161,18 @@
             }
         };
 
-        function renderFragmentTree(node, container) {
+        function renderFragmentTrees(payload, container) {
             container.innerHTML = '';
-            container.appendChild(createFragmentElement(node));
+            container.appendChild(createFragmentElement(payload.fragments));
+            if (payload.overlayFragments) {
+                payload.overlayFragments.forEach(f => {
+                    const separator = document.createElement('div');
+                    separator.style.borderTop = '1px dashed #ccc';
+                    separator.style.margin = '10px 0';
+                    container.appendChild(separator);
+                    container.appendChild(createFragmentElement(f));
+                });
+            }
         }
 
         function createFragmentElement(node) {
@@ -240,6 +249,18 @@
             return div;
         }
 
+        function findNodeByIdInPayload(payload, id) {
+            let found = findNodeById(payload.dom, id);
+            if (found) return found;
+            if (payload.overlays) {
+                for (const overlay of payload.overlays) {
+                    found = findNodeById(overlay, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
         function findNodeById(node, id) {
             if (nodeUniqueId(node) === id) return node;
             if (node.children) {
@@ -251,10 +272,25 @@
             return null;
         }
 
-        function renderTree(node, container) {
+        function renderTree(payload, container) {
             const scrollTop = container.scrollTop;
             container.innerHTML = '';
-            container.appendChild(createNodeElement(node));
+            container.appendChild(createNodeElement(payload.dom));
+            
+            if (payload.overlays && payload.overlays.length > 0) {
+                const topLayer = {
+                    kind: "Document",
+                    name: "Top Layer (Overlays)",
+                    children: payload.overlays,
+                    rect: { Origin: {X:0, Y:0}, Size: {Width:0, Height:0} }
+                };
+                const topLayerEl = createNodeElement(topLayer);
+                topLayerEl.style.marginTop = "20px";
+                topLayerEl.style.borderTop = "1px solid #ddd";
+                topLayerEl.style.paddingTop = "10px";
+                container.appendChild(topLayerEl);
+            }
+
             container.scrollTop = scrollTop;
         }
 

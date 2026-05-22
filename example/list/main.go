@@ -11,7 +11,6 @@ import (
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/backend/uv"
 	"github.com/masterkeysrd/kite/devtools"
-	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"

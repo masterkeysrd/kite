@@ -5,6 +5,11 @@
 // Paint → Sync. Hit-testing is not a phase; it is an on-demand query
 // dispatched by the engine between frames.
 //
+// The engine supports multi-root rendering via the Document Overlay API.
+// Each frame synchronizes the document's top-layer overlays into the render
+// tree, ensures they are styled and laid out against the full viewport, and
+// paints them sequentially above the main document flow.
+//
 // # Hardware Cursor
 //
 // The engine automatically manages the terminal's hardware cursor based on the

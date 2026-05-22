@@ -26,6 +26,36 @@ type Environment struct {
 	Backend *mock.Backend
 }
 
+// DispatchKey sends a key down event to the target EventTarget by building
+// the ancestor path (root -> target) and dispatching through the event
+// system. Useful for tests to simulate keyboard input against nodes.
+func (e *Environment) DispatchKey(target event.EventTarget, k key.Key) {
+	ev := event.NewKeyEvent(event.EventKeyDown, k)
+
+	var path []event.EventTarget
+	curr := target
+	for curr != nil {
+		path = append(path, curr)
+		if n, ok := curr.(dom.Node); ok {
+			p := n.Parent()
+			if p == nil {
+				break
+			}
+			curr = p
+		} else {
+			break
+		}
+	}
+
+	// Reverse to root -> target
+	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+		path[i], path[j] = path[j], path[i]
+	}
+
+	d := event.NewDispatcher()
+	d.Dispatch(ev, path)
+}
+
 // New creates a new test environment wrapping the given engine.
 func New(eng *engine.Engine) *Environment {
 	return &Environment{
@@ -98,6 +128,11 @@ func (e *Environment) SendKey(k key.Key) {
 	})
 }
 
+// HasFocus reports whether the given logical node currently has focus.
+func (e *Environment) HasFocus(n dom.Node) bool {
+	return e.Engine.FocusManager().Current() == n
+}
+
 // Type simulates typing the given text.
 func (e *Environment) Type(text string) {
 	for _, r := range text {
@@ -136,6 +171,31 @@ func (e *Environment) Wheel(x, y, dx, dy int) {
 // ScrollTo sets the scroll offset of an element.
 func (e *Environment) ScrollTo(el dom.Element, x, y int) {
 	el.ScrollTo(x, y)
+}
+
+// ShowOverlay adds el to the top layer at the specified z-index.
+func (e *Environment) ShowOverlay(el dom.Element, zIndex int) {
+	e.Engine.Document().ShowOverlay(el, zIndex)
+}
+
+// HideOverlay removes el from the top layer.
+func (e *Environment) HideOverlay(el dom.Element) {
+	e.Engine.Document().HideOverlay(el)
+}
+
+// Overlays returns an iterator over all active overlays.
+func (e *Environment) Overlays() iter.Seq[dom.Element] {
+	return e.Engine.Document().Overlays()
+}
+
+// QueryOverlay returns the first element matching the selector in any active overlay.
+func (e *Environment) QueryOverlay(selector string) dom.Element {
+	for overlay := range e.Engine.Document().Overlays() {
+		if found := overlay.QuerySelector(selector); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 // MatchGolden compares the current framebuffer against a stored snapshot.

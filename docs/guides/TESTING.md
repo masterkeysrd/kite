@@ -86,3 +86,44 @@ When running interactive tests or manual verification, you can toggle the visual
 2. Press the configured hotkey (default `Ctrl+D`) while the application is running to overlay the Margin (Red), Padding (Green), and Content (Blue) boxes.
 
 See the `kite-testing` skill for more detailed guidelines.
+
+### Assertion helpers (devtools/testenv)
+
+Two new helper families make headless assertions ergonomic:
+
+- `Expect(t, node)` — fluent assertions on logical DOM nodes. Located in `devtools/testenv/assertions.go`.
+    - Example:
+
+```go
+env := testenv.Default(10,5)
+defer env.Close()
+
+tree := element.Box(
+        element.Box("a"),
+        element.Box("b"),
+        element.Box("c"),
+)
+env.Mount(tree)
+env.Flush()
+
+testenv.Expect(t, tree).
+    ToHaveChildCount(3).
+    ToHaveChildrenText([]string{"a", "b", "c"})
+```
+
+- `ExpectScreen(t, env)` — fluent assertions on the rendered framebuffer. Located in `devtools/testenv/screen_assertions.go`.
+    - Example:
+
+```go
+env := testenv.Default(20,10)
+defer env.Close()
+
+// ... mount and render ...
+env.Flush()
+
+testenv.ExpectScreen(t, env).
+        CellAt(1,3).ToHaveContent("├").
+        CellAt(10,3).ToHaveContent("┤")
+```
+
+Both helpers use `t.Helper()` and call `t.Fatalf`/`t.Errorf` as appropriate.

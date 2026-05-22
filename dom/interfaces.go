@@ -261,7 +261,7 @@ type Focusable interface {
 }
 
 // Document is the root of a DOM tree and the factory for all new nodes.
-// Tree-global concerns such as overlays, focus management, and the task
+// Tree-global concerns such as focus management, and the task
 // scheduler are out of scope here and will be added in later tasks.
 type Document interface {
 	Node
@@ -303,4 +303,18 @@ type Document interface {
 	// QuerySelector returns the first element matching the selector in this document's subtree.
 	// It pierces UA shadow subtrees.
 	QuerySelector(selector string) Element
+
+	// ShowOverlay adds el to the top layer at the specified z-index.
+	// Elements in the top layer are rendered above the document body and
+	// ignore the normal layout flow. If el is already an overlay, its
+	// z-index is updated.
+	ShowOverlay(el Element, zIndex int)
+
+	// HideOverlay removes el from the top layer. If el is not an overlay,
+	// the call is a no-op.
+	HideOverlay(el Element)
+
+	// Overlays returns an iterator over all elements currently in the top
+	// layer, sorted by z-index (ascending) and then by insertion order.
+	Overlays() iter.Seq[Element]
 }

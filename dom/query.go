@@ -13,7 +13,17 @@ func (d *document) QuerySelector(selector string) Element {
 	if selector == "" {
 		return nil
 	}
-	return querySelector(d.self, selector)
+	// Search main document tree
+	if found := querySelector(d.self, selector); found != nil {
+		return found
+	}
+	// Search overlays
+	for _, o := range d.overlays {
+		if found := querySelector(o.el, selector); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 func querySelector(n Node, selector string) Element {

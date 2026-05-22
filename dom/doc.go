@@ -62,4 +62,13 @@
 //
 // Mutating the scroll offset marks the element's render object for a paint update
 // (DirtyScroll) and dispatches a bubbling event.ScrollEvent.
+//
+// # Overlays (ADR-008)
+//
+// The document manages a top layer for out-of-flow elements such as dialogs,
+// tooltips, and context menus via ShowOverlay(el, zIndex) and HideOverlay(el).
+//
+// Overlays are rendered above the document body and are sorted primarily by
+// zIndex (ascending) and secondarily by insertion order. Because overlays are
+// out-of-flow, they do not affect the layout of the main document body.
 package dom

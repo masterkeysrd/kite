@@ -31,7 +31,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-016 | Custom Render Object Hook | Done | `tasks/TSK-016-custom-render-object-hook.md` |
 | TSK-017 | Logical Text Controller | Done | `tasks/TSK-017-logical-text-controller.md` |
 | TSK-018 | UA Shadow Subtree Primitive (supersedes prior Input/TextArea task) | Done | `tasks/TSK-018-ua-shadow-subtree-primitive.md` |
-| TSK-019 | Document Overlay API and Render Root | Pending | `tasks/TSK-019-document-overlay-api.md` |
+| TSK-019 | Document Overlay API and Render Root | Done | `tasks/TSK-019-document-overlay-api.md` |
 | TSK-020 | Element Bounding Client Rect | Pending | `tasks/TSK-020-element-bounding-client-rect.md` |
 | TSK-021 | Overlay and Dialog Components | Pending | `tasks/TSK-021-overlay-and-dialog-components.md` |
 | TSK-022 | Intrinsic Style Layer | Done | `tasks/TSK-022-intrinsic-style-layer.md` |

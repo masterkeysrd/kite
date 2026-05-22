@@ -25,19 +25,26 @@ func NewPaintEngine() *PaintEngine {
 	return &PaintEngine{}
 }
 
-// Paint draws the immutable fragment tree onto the surface.
-//
-// resolveBorders is invoked exactly once on the root surface after the full
-// fragment tree has been painted. It must never be called on a clipped
-// sub-surface because the junction resolver must see the complete set of
-// border cells across the entire viewport.
+// PaintFragment draws the immutable fragment tree onto the surface at the given origin.
+func (p *PaintEngine) PaintFragment(frag *layout.Fragment, origin layout.Point, surface Surface) {
+	if frag == nil {
+		return
+	}
+	p.paintFragment(frag, origin, surface)
+}
+
+// ResolveBorders resolves border junctions across the entire surface.
+func (p *PaintEngine) ResolveBorders(surface Surface) {
+	p.resolveBorders(surface)
+}
+
+// Paint draws the immutable fragment tree onto the surface and resolves borders.
 func (p *PaintEngine) Paint(frag *layout.Fragment, surface Surface) {
 	if frag == nil {
 		return
 	}
-	p.paintFragment(frag, layout.Point{}, surface)
-	// resolveBorders runs once on the root surface. See invariant note above.
-	p.resolveBorders(surface)
+	p.PaintFragment(frag, layout.Point{}, surface)
+	p.ResolveBorders(surface)
 }
 
 func (p *PaintEngine) resolveBorders(surface Surface) {

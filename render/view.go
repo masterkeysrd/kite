@@ -315,6 +315,12 @@ func (v *RenderView) Overlays() []Object {
 	return v.overlays
 }
 
+// SetOverlays replaces the list of overlay render trees.
+func (v *RenderView) SetOverlays(overlays []Object) {
+	v.overlays = overlays
+	v.MarkDirty(DirtyLayout | DirtyPaint)
+}
+
 func (v *RenderView) Style() *style.Computed {
 	return &style.Computed{Display: style.DisplayBlock}
 }
@@ -346,6 +352,14 @@ func LayoutPhase(root Object, available layout.Size) {
 	// 3. Execute the layout pass.
 	// This will recursively visit children and cache fragments internally.
 	algo.Layout()
+
+	// 4. Layout overlays.
+	if rv, ok := root.(*RenderView); ok {
+		overlaySpace := layout.NewConstraintSpaceBuilder(available).ToConstraintSpace()
+		for _, overlay := range rv.Overlays() {
+			layout.NewAlgorithm(overlay, overlaySpace).Layout()
+		}
+	}
 }
 
 // Unlink removes obj from its parent.
