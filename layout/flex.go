@@ -252,7 +252,11 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 				if childStyle.Height.Kind() == style.KindCells {
 					baseSize = childStyle.Height.CellsValue()
 				} else {
-					baseSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems)
+					probeWidth := contentCrossSizeForItems
+					if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
+						probeWidth = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
+					}
+					baseSize = IntrinsicBlockSize(item.Node, probeWidth)
 				}
 			}
 		}
@@ -328,7 +332,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
 				childSpaceBuilder.SetIsFixedInlineSize(false)
-				childSpaceBuilder.SetIsFixedBlockSize(true)
+				childSpaceBuilder.SetIsFixedBlockSize(false)
 
 				if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
@@ -336,12 +340,13 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 					childSpaceBuilder.SetContainingSpace(flexContainingSpace)
 					childSpaceBuilder.SetContainerSpace(flexContainerSpace)
 					childSpaceBuilder.SetIsFixedInlineSize(true)
-					childSpaceBuilder.SetIsFixedBlockSize(true)
+					childSpaceBuilder.SetIsFixedBlockSize(false)
 				}
 			}
 
 			childAlgo := NewAlgorithm(item.Node, childSpaceBuilder.ToConstraintSpace())
 			item.Fragment = childAlgo.Layout()
+			item.MainSize = geom.MainSize(item.Fragment.Size)
 
 			itemCrossSize := geom.CrossSize(item.Fragment.Size)
 			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
@@ -353,6 +358,15 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			lineCrossSize = max(lineCrossSize, item.CrossSize)
 
 			lineMainSize += item.MainSize
+			if j > 0 {
+				lineMainSize += mainGap
+			}
+		}
+		// Note: lineMainSize was accumulated from item.MainSize BEFORE layout.
+		// Re-accumulate it from updated item.MainSize.
+		lineMainSize = 0
+		for j, it := range line.Items {
+			lineMainSize += it.MainSize
 			if j > 0 {
 				lineMainSize += mainGap
 			}

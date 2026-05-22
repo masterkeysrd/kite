@@ -891,3 +891,108 @@ func TestFlexLayout_Fragmentation(t *testing.T) {
 		t.Fatal("expected no break token in final fragment")
 	}
 }
+
+func TestFlexLayout_ColumnItemsWrapAndGrow(t *testing.T) {
+	// Root container: Width 20. Available content width = 20.
+	// Child Box: Width auto, padding 0.
+	// Text inside Child Box: "123456789012345" (15 chars).
+	// If we set container to Width 10, it should wrap.
+	
+	textStyle := style.DefaultStyle()
+	textStyle.Display = style.DisplayInline
+	textNode := &mockTextNode{
+		mockNode: mockNode{style: &textStyle},
+		data:     "123456789012345",
+	}
+
+	childStyle := style.DefaultStyle()
+	childStyle.Display = style.DisplayBlock
+	childStyle.Width = style.Auto
+	childStyle.Height = style.Auto
+	child := &mockNode{
+		style:      &childStyle,
+		firstChild: textNode,
+	}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(10)
+	parentStyle.Height = style.Auto
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	// Child box should have wrapped text. Width 10, text 15.
+	// "1234567890"
+	// "12345"
+	// Height should be 2.
+	
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+	
+	childFrag := frag.Children[0].Fragment
+	if childFrag.Size.Height != 2 {
+		t.Errorf("expected child height 2 (wrapped), got %d", childFrag.Size.Height)
+	}
+
+	if frag.Size.Height != 2 {
+		t.Errorf("expected parent height 2, got %d", frag.Size.Height)
+	}
+}
+
+func TestFlexLayout_ColumnItemsAlignEndWrap(t *testing.T) {
+	// Root container: Width 30.
+	// Child Box: Width auto, align-items: end.
+	// Text "1234567890" (10 chars).
+	// It should NOT wrap if it fits, but if container is small it should.
+	
+	textStyle := style.DefaultStyle()
+	textStyle.Display = style.DisplayInline
+	textNode := &mockTextNode{
+		mockNode: mockNode{style: &textStyle},
+		data:     "123456789012345", // 15 chars
+	}
+
+	childStyle := style.DefaultStyle()
+	childStyle.Display = style.DisplayBlock
+	childStyle.Width = style.Auto
+	childStyle.Height = style.Auto
+	child := &mockNode{
+		style:      &childStyle,
+		firstChild: textNode,
+	}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(10)
+	parentStyle.Height = style.Auto
+	parentStyle.AlignItems = style.AlignEnd
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+	
+	childFrag := frag.Children[0].Fragment
+	// MaxContent of text is 15. Available is 10.
+	// probeWidth should be min(15, 10) = 10.
+	// Resulting height should be 2.
+	if childFrag.Size.Height != 2 {
+		t.Errorf("expected child height 2, got %d", childFrag.Size.Height)
+	}
+}
