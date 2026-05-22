@@ -24,8 +24,7 @@ import (
 // -----------------------------------------------------------------------------
 
 var (
-	colorRed  = color.RGBA{255, 0, 0, 255}
-	colorBlue = color.RGBA{0, 0, 255, 255}
+	colorRed = color.RGBA{255, 0, 0, 255}
 )
 
 // overflowFrame runs one engine frame and returns the FrameBuffer; it fatals if

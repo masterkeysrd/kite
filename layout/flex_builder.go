@@ -231,20 +231,23 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 
 		// Distribute free space.
 		var violationCount int
+		remainingToDistribute := remainingFreeSpace
 
 		for _, item := range line.Items {
 			if item.Frozen {
 				continue
 			}
 
+			var amount int
 			if useGrow {
-				item.MainSize = item.HypotheticalMainSize + (remainingFreeSpace * item.Grow / totalFlexFactor)
+				// To handle integer truncation correctly, we distribute the remaining space
+				// proportionally among the remaining unfrozen items.
+				amount = (remainingToDistribute * item.Grow) / totalFlexFactor
 			} else if totalBaseSizeFactor > 0 {
-				shrinkAmount := ((-remainingFreeSpace) * item.Shrink * item.BaseSize) / totalBaseSizeFactor
-				item.MainSize = item.HypotheticalMainSize - shrinkAmount
-			} else {
-				item.MainSize = item.HypotheticalMainSize
+				amount = -(((-remainingToDistribute) * item.Shrink * item.BaseSize) / totalBaseSizeFactor)
 			}
+
+			item.MainSize = item.HypotheticalMainSize + amount
 
 			// Respect min/max bounds
 			if item.MainSize < item.MinMainSize {
@@ -256,9 +259,29 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 				item.Frozen = true
 				violationCount++
 			}
+
+			if !item.Frozen {
+				remainingToDistribute -= amount
+				if useGrow {
+					totalFlexFactor -= item.Grow
+				} else {
+					totalBaseSizeFactor -= item.Shrink * item.BaseSize
+				}
+			}
 		}
 
 		if violationCount == 0 {
+			// If there's still some space left due to rounding and no violations,
+			// we just give it to the last unfrozen item.
+			if remainingToDistribute != 0 {
+				for i := len(line.Items) - 1; i >= 0; i-- {
+					item := line.Items[i]
+					if !item.Frozen {
+						item.MainSize += remainingToDistribute
+						break
+					}
+				}
+			}
 			break
 		}
 	}
@@ -292,16 +315,25 @@ func (b *FlexLineBuilder) AlignLine(lineIndex int, containerMainSize int, justif
 	case style.JustifyCenter:
 		startMainOffset = remainingMain / 2
 	case style.JustifyBetween:
-		if len(line.Items) > 1 {
+		if remainingMain < 0 {
+			startMainOffset = 0
+			itemSpacing = b.mainGap
+		} else if len(line.Items) > 1 {
 			itemSpacing = b.mainGap + remainingMain/(len(line.Items)-1)
 		}
 	case style.JustifyAround:
-		if len(line.Items) > 0 {
+		if remainingMain < 0 {
+			startMainOffset = 0
+			itemSpacing = b.mainGap
+		} else if len(line.Items) > 0 {
 			itemSpacing = b.mainGap + remainingMain/len(line.Items)
 			startMainOffset = (itemSpacing - b.mainGap) / 2
 		}
 	case style.JustifyEvenly:
-		if len(line.Items) > 0 {
+		if remainingMain < 0 {
+			startMainOffset = 0
+			itemSpacing = b.mainGap
+		} else if len(line.Items) > 0 {
 			itemSpacing = b.mainGap + remainingMain/(len(line.Items)+1)
 			startMainOffset = itemSpacing - b.mainGap
 		}

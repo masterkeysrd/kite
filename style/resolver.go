@@ -103,9 +103,9 @@ func DefaultStyle() Computed {
 		// Box model ------------------------------------------------------------
 		Width:     Auto,              // width determined by content / parent
 		Height:    Auto,              // height determined by content / parent
-		MinWidth:  Cells(0),          // no minimum width constraint
+		MinWidth:  Auto,              // CSS parity: default min-width is auto (min-content)
 		MaxWidth:  Content,           // natural content width (no maximum)
-		MinHeight: Cells(0),          // no minimum height constraint
+		MinHeight: Auto,              // CSS parity: default min-height is auto (min-content)
 		MaxHeight: Content,           // natural content height (no maximum)
 		Padding:   EdgeValues[int]{}, // zero padding on all sides
 		Margin:    EdgeValues[int]{}, // zero margin on all sides

@@ -174,7 +174,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	if !a.Space.IsFixedInlineSize {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedWidth = int(float32(a.Space.PercentageResolutionSize.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedWidth = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedWidth = comp.Width.CellsValue()
 		case style.KindContent:
@@ -192,7 +192,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	if !a.Space.IsFixedBlockSize {
 		switch comp.Height.Kind() {
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.PercentageResolutionSize.Height) * comp.Height.PercentValue() / 100.0)
+			resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
 		case style.KindAuto:
@@ -252,7 +252,11 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 				if childStyle.Height.Kind() == style.KindCells {
 					baseSize = childStyle.Height.CellsValue()
 				} else {
-					baseSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems)
+					probeWidth := contentCrossSizeForItems
+					if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
+						probeWidth = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
+					}
+					baseSize = IntrinsicBlockSize(item.Node, probeWidth)
 				}
 			}
 		}
@@ -317,24 +321,38 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			}
 
 			measureCrossSize := contentCrossSizeForItems
+			flexContainingSpace := Size{Width: resolvedWidth, Height: resolvedHeight}
+			flexContainerSpace := Size{Width: resolvedWidth - decorX, Height: resolvedHeight - decorY}
+
 			childSpaceBuilder := NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
+			childSpaceBuilder.SetContainingSpace(flexContainingSpace)
+			childSpaceBuilder.SetContainerSpace(flexContainerSpace)
 			childSpaceBuilder.SetIsFixedInlineSize(true)
 			childSpaceBuilder.SetIsFixedBlockSize(false)
 
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
 				childSpaceBuilder.SetIsFixedInlineSize(false)
-				childSpaceBuilder.SetIsFixedBlockSize(true)
+				childSpaceBuilder.SetIsFixedBlockSize(false)
 
 				if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
 					childSpaceBuilder = NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
+					childSpaceBuilder.SetContainingSpace(flexContainingSpace)
+					childSpaceBuilder.SetContainerSpace(flexContainerSpace)
 					childSpaceBuilder.SetIsFixedInlineSize(true)
-					childSpaceBuilder.SetIsFixedBlockSize(true)
+					childSpaceBuilder.SetIsFixedBlockSize(false)
 				}
 			}
 
 			childAlgo := NewAlgorithm(item.Node, childSpaceBuilder.ToConstraintSpace())
 			item.Fragment = childAlgo.Layout()
+
+			item.MainSize = geom.MainSize(item.Fragment.Size)
+			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
+				item.MainSize += childMargin.Top + childMargin.Bottom
+			} else {
+				item.MainSize += childMargin.Left + childMargin.Right
+			}
 
 			itemCrossSize := geom.CrossSize(item.Fragment.Size)
 			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
@@ -433,7 +451,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			itemsToSkip += len(line.Items)
 		}
 
-		if breakLineIndex != -1 {
+		if breakLineIndex != -1 && breakLineIndex > 0 {
 			breakToken = &BreakToken{
 				Node:       a.Node,
 				ChildIndex: itemsToSkip,

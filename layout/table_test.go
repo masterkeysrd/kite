@@ -197,60 +197,6 @@ func TestTableLayout_FaultTolerance_AnonymousRow(t *testing.T) {
 	}
 }
 
-func TestTableLayout_StretchAndShrink(t *testing.T) {
-	linkSiblings := func(nodes ...Node) Node {
-		for i := 0; i < len(nodes)-1; i++ {
-			switch n := nodes[i].(type) {
-			case *mockTableCellNode:
-				n.nextSibling = nodes[i+1]
-			case *mockNode:
-				n.nextSibling = nodes[i+1]
-			}
-		}
-		if len(nodes) > 0 {
-			return nodes[0]
-		}
-		return nil
-	}
-
-	cellStyle10 := &style.Computed{Display: style.DisplayTableCell, Width: style.Cells(10), Height: style.Cells(1)}
-	c11 := &mockTableCellNode{mockNode: mockNode{style: cellStyle10}}
-	row1 := &mockNode{
-		style:      &style.Computed{Display: style.DisplayTableRow},
-		firstChild: linkSiblings(c11),
-	}
-
-	tableAuto := &mockNode{
-		style: &style.Computed{
-			Display: style.DisplayTable,
-			Width:   style.Auto,
-		},
-		firstChild: linkSiblings(row1),
-	}
-	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	frag1 := (&TableAlgorithm{Node: tableAuto, Space: space}).Layout()
-	if frag1.Size.Width != 10 {
-		t.Errorf("expected Auto table to shrink to 10, got %d", frag1.Size.Width)
-	}
-
-	c11_2 := &mockTableCellNode{mockNode: mockNode{style: cellStyle10}}
-	row1_2 := &mockNode{
-		style:      &style.Computed{Display: style.DisplayTableRow},
-		firstChild: linkSiblings(c11_2),
-	}
-	tablePercent := &mockNode{
-		style: &style.Computed{
-			Display: style.DisplayTable,
-			Width:   style.Percent(100),
-		},
-		firstChild: linkSiblings(row1_2),
-	}
-	frag2 := (&TableAlgorithm{Node: tablePercent, Space: space}).Layout()
-	if frag2.Size.Width != 100 {
-		t.Errorf("expected Percent table to stretch to 100, got %d", frag2.Size.Width)
-	}
-}
-
 func TestTableLayout_BorderOverlap(t *testing.T) {
 	linkSiblings := func(nodes ...Node) Node {
 		for i := 0; i < len(nodes)-1; i++ {

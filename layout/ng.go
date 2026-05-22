@@ -1,9 +1,17 @@
 package layout
 
 import (
+	"math"
+
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
+
+// InfiniteBlockSize is the height used when probing a node's intrinsic block
+// size. It represents an unconstrained vertical axis: the node should size to
+// its content, not to the available height. math.MaxInt32/2 avoids overflow
+// when arithmetic is performed on top of it.
+const InfiniteBlockSize = math.MaxInt32 / 2
 
 // Fragment represents the immutable output of a layout algorithm.
 // Once created, a Fragment's fields must never be modified. This immutability
@@ -48,14 +56,28 @@ type FragmentLink struct {
 }
 
 // ConstraintSpace defines the inputs for a layout operation. It encapsulates the
-// physical size constraints (Min/Max) alongside any additional context required
-// during the layout walk (e.g., percentage resolution sizes, exclusion spaces for floats).
+// physical size constraints alongside any additional context required during the
+// layout walk (e.g., parent reference sizes, break tokens).
+//
+// The three size fields serve distinct roles (ADR-018):
+//   - AvailableSize: per-child space after subtracting margins (or an explicit size).
+//   - ContainerSpace: parent's content-box (ContainingSpace − border − padding).
+//     KindPercent dimensions resolve against this field, and it is the base for
+//     computing per-child AvailableSize. In CSS, percentage widths/heights always
+//     resolve against the containing block's content area.
+//   - ContainingSpace: parent's resolved border-box. Carries the parent's total
+//     outer size for algorithms that require it (e.g. intrinsic sizing, positioning).
 type ConstraintSpace struct {
 	// AvailableSize is the ideal size the node should consume, provided by the parent.
 	AvailableSize Size
 
-	// PercentageResolutionSize is the size used to resolve percentage-based dimensions.
-	PercentageResolutionSize Size
+	// ContainingSpace is the parent's resolved border-box dimensions.
+	ContainingSpace Size
+
+	// ContainerSpace is the parent's content-box dimensions
+	// (ContainingSpace minus border minus padding).
+	// KindPercent resolution and per-child AvailableSize derive from this field.
+	ContainerSpace Size
 
 	// IsFixedInlineSize indicates the inline size (width) is pre-determined.
 	IsFixedInlineSize bool
@@ -157,7 +179,16 @@ func IntrinsicMinMaxSizes(node Node) MinMaxSizes {
 // available inline size (width).
 func IntrinsicBlockSize(node Node, availableWidth int) int {
 	// For now, we just run a probe layout. In the future, this should be cached.
-	space := NewConstraintSpaceBuilder(Size{Width: availableWidth, Height: 1000}).ToConstraintSpace()
+	// ContainerSpace and ContainingSpace must be set to the probe width so that
+	// children with KindPercent widths resolve correctly inside the probe.
+	// Without this, a child with width:100% would resolve to 0 (ContainerSpace.Width=0),
+	// causing the IFC to place each character on its own line and return a wildly
+	// inflated block height.
+	probeSize := Size{Width: availableWidth, Height: InfiniteBlockSize}
+	space := NewConstraintSpaceBuilder(probeSize).
+		SetContainerSpace(probeSize).
+		SetContainingSpace(probeSize).
+		ToConstraintSpace()
 	algo := NewAlgorithm(node, space)
 	return algo.Layout().Size.Height
 }

@@ -35,7 +35,7 @@ type Options struct {
 	NoOpen bool
 }
 
-func Attach(eng *engine.Engine, addr string, opts Options) error {
+func Attach(eng *engine.Engine, addr string, opts Options) (string, error) {
 	insp := &Inspector{
 		eng: eng,
 	}
@@ -55,7 +55,7 @@ func Attach(eng *engine.Engine, addr string, opts Options) error {
 		slog.Warn("inspector: requested address failed, trying random port", "addr", addr, "err", err)
 		l, err = net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
-			return fmt.Errorf("inspector: failed to find any available port: %w", err)
+			return "", fmt.Errorf("inspector: failed to find any available port: %w", err)
 		}
 	}
 
@@ -69,12 +69,7 @@ func Attach(eng *engine.Engine, addr string, opts Options) error {
 		}
 	}()
 
-	// Auto-open browser
-	if !opts.NoOpen {
-		go openBrowser("http://" + actualAddr)
-	}
-
-	return nil
+	return actualAddr, nil
 }
 
 func openBrowser(url string) {

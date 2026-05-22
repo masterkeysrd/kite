@@ -14,6 +14,8 @@ func (a *OverlayAlgorithm) Layout() *Fragment {
 	// 1. Measure content first (shrink-wrap)
 	// Overlays typically shrink-wrap their content unless they have fixed sizes.
 	csb := NewConstraintSpaceBuilder(a.Space.AvailableSize)
+	csb.SetContainingSpace(a.Space.ContainingSpace)
+	csb.SetContainerSpace(a.Space.ContainerSpace)
 	if a.Node.Style().Width.Kind() == style.KindAuto || a.Node.Style().Width.Kind() == style.KindContent {
 		csb.SetIsFixedInlineSize(false)
 	} else {

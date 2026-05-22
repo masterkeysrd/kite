@@ -357,7 +357,10 @@ func (v *RenderView) SetLogicalNode(n any) { v.logicalNode = n }
 func LayoutPhase(root Object, available layout.Size) {
 	// 1. Build the constraint space for the viewport.
 	// The viewport forces a fixed size.
+	// The viewport has no border/padding, so ContainingSpace and ContainerSpace are equal.
 	space := layout.NewConstraintSpaceBuilder(available).
+		SetContainingSpace(available).
+		SetContainerSpace(available).
 		SetIsFixedInlineSize(true).
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
@@ -371,7 +374,10 @@ func LayoutPhase(root Object, available layout.Size) {
 
 	// 4. Layout overlays.
 	if rv, ok := root.(*RenderView); ok {
-		overlaySpace := layout.NewConstraintSpaceBuilder(available).ToConstraintSpace()
+		overlaySpace := layout.NewConstraintSpaceBuilder(available).
+			SetContainingSpace(available).
+			SetContainerSpace(available).
+			ToConstraintSpace()
 		for _, overlay := range rv.Overlays() {
 			algo := layout.NewAlgorithm(overlay, overlaySpace)
 			frag := algo.Layout()
