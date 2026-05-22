@@ -10,16 +10,20 @@ import (
 	"strings"
 	"testing"
 
+	"iter"
+
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/paint"
-	"iter"
 )
 
-var update = flag.Bool("update", false, "update golden files")
+var (
+	update = flag.Bool("update", false, "update golden files")
+	print  = flag.Bool("print", false, "print current frame to ANSI to stdout on MatchGolden")
+)
 
 // Environment provides ergonomic tools for testing Kite components headless.
 type Environment struct {
@@ -95,6 +99,13 @@ func (e *Environment) Mount(n dom.Node) {
 	if el, ok := n.(dom.Element); ok {
 		e.Engine.Mount(el)
 	}
+}
+
+func (e *Environment) Resize(width, height int) {
+	e.Engine.ProcessRawEvent(&event.RawResizeEvent{
+		Width:  width,
+		Height: height,
+	})
 }
 
 // Flush blocks until the engine completes a frame, allowing assertions on the newly painted state.
@@ -226,6 +237,10 @@ func (e *Environment) MatchGolden(t *testing.T, filename string) {
 	if string(actual) != string(expected) {
 		t.Errorf("framebuffer does not match golden file %s", goldenPath)
 		t.Errorf("actual output written to %s", actualPath)
+	}
+
+	if *print {
+		fmt.Printf("--- Golden: %s ---\n%s\n", filename, e.DumpText())
 	}
 }
 
