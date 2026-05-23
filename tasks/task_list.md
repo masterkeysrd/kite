@@ -54,7 +54,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-039 | Implement Select (Dropdown) Component | Done | `tasks/TSK-039-select-element.md` |
 | TSK-040 | Audit and Enforce Strict Border-Box Sizing | Done | `tasks/TSK-040-strict-box-model.md` |
 | TSK-041 | Introduce ContainingSpace and ContainerSpace into Layout | Done | `tasks/TSK-041-layout-container-spaces.md` |
-| TSK-042 | Refactor Engine to use Pipeline Decorator and Inline TraceContext | In Progress | `tasks/TSK-042-profiler-pipeline-decorator.md` |
+| TSK-042 | Refactor Engine to use Pipeline Decorator and Inline TraceContext | Done | `tasks/TSK-042-profiler-pipeline-decorator.md` |
 | TSK-043 | Implement DevTools Profiler Endpoints and Flamechart UI | Done | `tasks/TSK-043-devtools-flamechart-ui.md` |
-| TSK-044 | Migrate DevTools Frontend to Preact and Vite | Pending | `tasks/TSK-044-devtools-frontend-preact.md` |
+| TSK-044 | Migrate DevTools Frontend to Preact and Vite | Done | `tasks/TSK-044-devtools-frontend-preact.md` |
 | TSK-045 | Implement Animation System and Engine Integration | Pending | `tasks/TSK-045-animation-system.md` |
