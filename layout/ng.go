@@ -34,6 +34,11 @@ type Fragment struct {
 
 	// BreakToken is the token to resume layout in the next fragmentainer.
 	BreakToken *BreakToken
+
+	// HasScrollbarX indicates that a horizontal scrollbar was reserved during layout.
+	HasScrollbarX bool
+	// HasScrollbarY indicates that a vertical scrollbar was reserved during layout.
+	HasScrollbarY bool
 }
 
 // BreakToken represents the state needed to resume layout of a node in a new
@@ -92,6 +97,65 @@ type ConstraintSpace struct {
 // MinMaxSizes represents the intrinsic minimum and maximum widths of a node.
 type MinMaxSizes struct {
 	Min, Max int
+}
+
+// ResolvedDecorations contains the computed sizes and visibility flags for an
+// element's non-content area (borders, padding, and scrollbars).
+type ResolvedDecorations struct {
+	// Insets is the total space consumed by decorations on each side.
+	// This is the sum of Border + Padding + (if present) Scrollbar.
+	Insets style.EdgeValues[int]
+
+	// HasScrollbarX indicates if a horizontal scrollbar is active.
+	HasScrollbarX bool
+	// HasScrollbarY indicates if a vertical scrollbar is active.
+	HasScrollbarY bool
+}
+
+// ResolveDecorations computes the decoration sizes for a node based on its style
+// and whether scrollbars have been requested/forced by the layout algorithm.
+func ResolveDecorations(node Node, scrollX, scrollY bool) ResolvedDecorations {
+	s := node.Style()
+	bw := s.Border.Widths()
+	p := s.Padding
+
+	res := ResolvedDecorations{
+		Insets: style.EdgeValues[int]{
+			Top:    bw.Top + p.Top,
+			Right:  bw.Right + p.Right,
+			Bottom: bw.Bottom + p.Bottom,
+			Left:   bw.Left + p.Left,
+		},
+		HasScrollbarX: scrollX,
+		HasScrollbarY: scrollY,
+	}
+
+	if scrollX {
+		res.Insets.Bottom++
+	}
+	if scrollY {
+		res.Insets.Right++
+	}
+
+	return res
+}
+
+// ShouldReserveScrollbar returns true if space for a scrollbar must be reserved
+// regardless of content size (i.e. style is OverflowScroll).
+func ShouldReserveScrollbar(s *style.Computed) (x, y bool) {
+	sb := s.Scrollbar
+	x = sb.X.UnwrapOr(false) && s.OverflowX == style.OverflowScroll
+	y = sb.Y.UnwrapOr(false) && s.OverflowY == style.OverflowScroll
+	return x, y
+}
+
+// ViewportSize returns the available content area for a fragment of the given
+// outer size, accounting for decorations.
+func (d ResolvedDecorations) ViewportSize(outer Size) Size {
+	return Size{
+		Width:  max(0, outer.Width-d.Insets.Left-d.Insets.Right),
+		Height: max(0, outer.Height-d.Insets.Top-d.Insets.Bottom),
+	}
 }
 
 // Encompass expands the min/max bounds to fit another MinMaxSizes.
@@ -313,37 +377,30 @@ func MaxScroll(frag *Fragment) (x, y int) {
 		return 0, 0
 	}
 
-	s := frag.Node.Style()
-	bw := s.Border.Widths()
-	pad := s.Padding
-
-	// Content-box insets from the fragment's border-box origin.
-	insetLeft := bw.Left + pad.Left
-	insetTop := bw.Top + pad.Top
-
-	// Content box size.
-	contentW := max(0, frag.Size.Width-bw.Left-bw.Right-pad.Left-pad.Right)
-	contentH := max(0, frag.Size.Height-bw.Top-bw.Bottom-pad.Top-pad.Bottom)
+	decor := ResolveDecorations(frag.Node, frag.HasScrollbarX, frag.HasScrollbarY)
+	viewport := decor.ViewportSize(frag.Size)
 
 	// Content extent (union of child fragments).
 	extentW, extentH := 0, 0
 	for _, childLink := range frag.Children {
-		extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-insetLeft)
-		extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-insetTop)
+		extentW = max(extentW, childLink.Offset.X+childLink.Fragment.Size.Width-decor.Insets.Left)
+		extentH = max(extentH, childLink.Offset.Y+childLink.Fragment.Size.Height-decor.Insets.Top)
 	}
 
-	maxSX := max(0, extentW-contentW)
-	maxSY := max(0, extentH-contentH)
+	maxSX := max(0, extentW-viewport.Width)
+	maxSY := max(0, extentH-viewport.Height)
 
 	// Inputs and TextAreas (elements providing a cursor) need 1 extra cell of
 	// horizontal scroll so the caret can sit after the last character.
+	// We only add this if we are already overflowing or if the content
+	// exactly fits, to avoid "loose" scrolling when content is smaller than viewport.
 	isCursorProvider := false
 	if ln := frag.Node.LogicalNode(); ln != nil {
 		if el, ok := ln.(interface{ ProvidesCursor() bool }); ok {
 			isCursorProvider = el.ProvidesCursor()
 		}
 	}
-	if isCursorProvider {
+	if isCursorProvider && extentW >= viewport.Width {
 		maxSX++
 	}
 

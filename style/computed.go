@@ -55,8 +55,9 @@ type Computed struct {
 
 	// --- Overflow / scroll ----------------------------------------------------
 
-	OverflowX Overflow `json:"overflowX"`
-	OverflowY Overflow `json:"overflowY"`
+	OverflowX Overflow  `json:"overflowX"`
+	OverflowY Overflow  `json:"overflowY"`
+	Scrollbar Scrollbar `json:"scrollbar"`
 
 	// --- Cursor ---------------------------------------------------------------
 
@@ -100,6 +101,8 @@ func (c *Computed) AffectsLayout(other *Computed) bool {
 		c.OverflowWrap != other.OverflowWrap ||
 		c.OverflowX != other.OverflowX ||
 		c.OverflowY != other.OverflowY ||
+		c.Scrollbar.X != other.Scrollbar.X ||
+		c.Scrollbar.Y != other.Scrollbar.Y ||
 		c.CursorShape != other.CursorShape ||
 		c.CursorColor != other.CursorColor
 }
@@ -119,5 +122,9 @@ func (c *Computed) AffectsPaint(other *Computed) bool {
 		c.Italic != other.Italic ||
 		c.Underline != other.Underline ||
 		c.Strikethrough != other.Strikethrough ||
-		c.Reverse != other.Reverse
+		c.Reverse != other.Reverse ||
+		c.Scrollbar.TrackGlyph != other.Scrollbar.TrackGlyph ||
+		c.Scrollbar.TrackColor != other.Scrollbar.TrackColor ||
+		c.Scrollbar.ThumbGlyph != other.Scrollbar.ThumbGlyph ||
+		c.Scrollbar.ThumbColor != other.Scrollbar.ThumbColor
 }

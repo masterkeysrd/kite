@@ -221,11 +221,7 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 	}
 
 	// 3. Clamp to allowed scroll range.
-	maxScrollX := max(0, uaDivFrag.Size.Width-contentW)
-	if uaDivFrag.Size.Width >= contentW {
-		maxScrollX++
-	}
-	maxScrollY := max(0, uaDivFrag.Size.Height-contentH)
+	maxScrollX, maxScrollY := layout.MaxScroll(ro.Fragment())
 
 	if newX > maxScrollX {
 		newX = maxScrollX

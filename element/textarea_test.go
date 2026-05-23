@@ -34,16 +34,14 @@ func TestTextArea_IntrinsicStyle_Properties(t *testing.T) {
 	if !is.Display.IsSet() || is.Display.Value() != style.DisplayInlineBlock {
 		t.Errorf("IntrinsicStyle.Display = %v, want DisplayInlineBlock", is.Display)
 	}
-	if !is.OverflowY.IsSet() || is.OverflowY.Value() != style.OverflowScroll {
-		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowScroll", is.OverflowY)
+	if !is.OverflowY.IsSet() || is.OverflowY.Value() != style.OverflowAuto {
+		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowAuto", is.OverflowY)
 	}
 	if !is.OverflowWrap.IsSet() || is.OverflowWrap.Value() != style.OverflowWrapBreakWord {
 		t.Errorf("IntrinsicStyle.OverflowWrap = %v, want OverflowWrapBreakWord", is.OverflowWrap)
 	}
-	// OverflowX and WhiteSpace are no longer forced by the textarea host;
-	// line breaks are handled by <br> elements in the UA subtree (HTML model).
-	if is.OverflowX.IsSet() {
-		t.Errorf("IntrinsicStyle.OverflowX should not be forced, got %v", is.OverflowX)
+	if !is.OverflowX.IsSet() || is.OverflowX.Value() != style.OverflowClip {
+		t.Errorf("IntrinsicStyle.OverflowX = %v, want OverflowClip", is.OverflowX)
 	}
 	if is.WhiteSpace.IsSet() {
 		t.Errorf("IntrinsicStyle.WhiteSpace should not be forced, got %v", is.WhiteSpace)
@@ -57,7 +55,7 @@ func TestTextArea_IntrinsicStyle_Wins(t *testing.T) {
 
 	txa := element.TextArea("")
 	txa.Style(style.Style{
-		OverflowY: style.Some(style.OverflowVisible), // must lose to intrinsic Scroll
+		OverflowY: style.Some(style.OverflowVisible), // must lose to intrinsic Auto
 	})
 
 	root := element.Box(txa)
@@ -69,9 +67,9 @@ func TestTextArea_IntrinsicStyle_Wins(t *testing.T) {
 		t.Fatal("no render object")
 	}
 	cs := ro.ComputedStyle()
-	// overflow-y: scroll must always be forced by the intrinsic style.
-	if cs.OverflowY != style.OverflowScroll {
-		t.Errorf("OverflowY = %v, want OverflowScroll (intrinsic must win)", cs.OverflowY)
+	// overflow-y: auto must always be forced by the intrinsic style.
+	if cs.OverflowY != style.OverflowAuto {
+		t.Errorf("OverflowY = %v, want OverflowAuto (intrinsic must win)", cs.OverflowY)
 	}
 }
 

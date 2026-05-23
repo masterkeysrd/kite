@@ -54,6 +54,8 @@ type BoxFragmentBuilder struct {
 	children           []FragmentLink
 	currentBlockOffset int
 	breakToken         *BreakToken
+	hasScrollbarX      bool
+	hasScrollbarY      bool
 }
 
 // NewBoxFragmentBuilder creates a new builder for the given node and constraint space.
@@ -81,9 +83,24 @@ func (b *BoxFragmentBuilder) SetBlockSize(height int) {
 	b.size.Height = height
 }
 
+// SetHasScrollbarX sets whether the fragment has a horizontal scrollbar.
+func (b *BoxFragmentBuilder) SetHasScrollbarX(v bool) {
+	b.hasScrollbarX = v
+}
+
+// SetHasScrollbarY sets whether the fragment has a vertical scrollbar.
+func (b *BoxFragmentBuilder) SetHasScrollbarY(v bool) {
+	b.hasScrollbarY = v
+}
+
 // CurrentBlockOffset returns the current block-direction offset (Y).
 func (b *BoxFragmentBuilder) CurrentBlockOffset() int {
 	return b.currentBlockOffset
+}
+
+// SetBlockOffset sets the current block-direction offset (Y).
+func (b *BoxFragmentBuilder) SetBlockOffset(offset int) {
+	b.currentBlockOffset = offset
 }
 
 // AdvanceBlockOffset increases the block-direction offset (Y).
@@ -104,9 +121,11 @@ func (b *BoxFragmentBuilder) ToFragment() *Fragment {
 	// TODO: Apply Min/Max constraints from style if needed,
 	// though they are often already handled by the algorithm.
 	return &Fragment{
-		Node:       b.node,
-		Size:       b.size,
-		Children:   b.children,
-		BreakToken: b.breakToken,
+		Node:          b.node,
+		Size:          b.size,
+		Children:      b.children,
+		BreakToken:    b.breakToken,
+		HasScrollbarX: b.hasScrollbarX,
+		HasScrollbarY: b.hasScrollbarY,
 	}
 }

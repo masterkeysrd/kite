@@ -99,9 +99,9 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	}
 
 	comp := a.Node.Style()
-	border := comp.Border.Widths()
-	padding := comp.Padding
-	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
+	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
+	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
+
 	gap := comp.Gap
 
 	if comp.Width.Kind() == style.KindCells {
@@ -147,7 +147,7 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		result = MinMaxSizes{Min: maxMin, Max: maxMax}
 	}
 
-	result = result.Add(parentDecorX)
+	result = result.Add(decor.Insets.Left + decor.Insets.Right)
 	a.Node.SetCachedMinMaxSizes(result)
 	return result
 }
@@ -159,14 +159,33 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	}
 
 	comp := a.Node.Style()
+
+	// 1. Initial Scrollbar Decision
+	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
+
+	frag, contentSize := a.layoutInternal(hasScrollbarX, hasScrollbarY)
+
+	// 2. Check for Auto Scrollbars
+	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
+	viewport := decor.ViewportSize(frag.Size)
+
+	needY := !hasScrollbarY && comp.Scrollbar.Y.UnwrapOr(false) && comp.OverflowY == style.OverflowAuto && contentSize.Height > viewport.Height
+	needX := !hasScrollbarX && comp.Scrollbar.X.UnwrapOr(false) && comp.OverflowX == style.OverflowAuto && contentSize.Width > viewport.Width
+
+	if needY || needX {
+		frag, _ = a.layoutInternal(hasScrollbarX || needX, hasScrollbarY || needY)
+	}
+
+	a.Node.SetCachedLayout(a.Space, frag)
+	return frag
+}
+
+func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fragment, Size) {
+	comp := a.Node.Style()
 	geom := flexGeometry{direction: comp.FlexDirection}
+	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
 
 	// 1. Resolve Container Main/Cross Sizes
-	border := comp.Border.Widths()
-	padding := comp.Padding
-	decorX := border.Left + border.Right + padding.Left + padding.Right
-	decorY := border.Top + border.Bottom + padding.Top + padding.Bottom
-
 	var minMax MinMaxSizes
 	if !a.Space.IsFixedInlineSize {
 		minMax = a.ComputeMinMaxSizes()
@@ -189,6 +208,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			}
 		}
 	}
+	resolvedWidth = max(resolvedWidth, decor.Insets.Left+decor.Insets.Right)
 
 	resolvedHeight := a.Space.AvailableSize.Height
 	if !a.Space.IsFixedBlockSize {
@@ -205,15 +225,15 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	}
 
 	containerSize := Size{Width: resolvedWidth, Height: resolvedHeight}
+	contentWidth := max(0, resolvedWidth-decor.Insets.Left-decor.Insets.Right)
+	contentHeight := max(0, resolvedHeight-decor.Insets.Top-decor.Insets.Bottom)
 
-	decorMain := decorX
-	decorCross := decorY
+	contentMainSize := contentWidth
+	contentCrossSizeForItems := contentHeight
 	if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
-		decorMain = decorY
-		decorCross = decorX
+		contentMainSize = contentHeight
+		contentCrossSizeForItems = contentWidth
 	}
-	contentMainSize := geom.MainSize(containerSize) - decorMain
-	contentCrossSizeForItems := geom.CrossSize(containerSize) - decorCross
 
 	// 2. Prepare Items & Instantiate Builder
 	mainGap := comp.Gap.Column
@@ -324,7 +344,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 
 			measureCrossSize := contentCrossSizeForItems
 			flexContainingSpace := Size{Width: resolvedWidth, Height: resolvedHeight}
-			flexContainerSpace := Size{Width: resolvedWidth - decorX, Height: resolvedHeight - decorY}
+			flexContainerSpace := Size{Width: contentWidth, Height: contentHeight}
 
 			childSpaceBuilder := NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
 			childSpaceBuilder.SetContainingSpace(flexContainingSpace)
@@ -390,7 +410,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 				} else {
 					logicalWidth = totalMaxLineMain
 				}
-				resolvedWidth = min(logicalWidth+decorX, a.Space.AvailableSize.Width)
+				resolvedWidth = min(logicalWidth+decor.Insets.Left+decor.Insets.Right, a.Space.AvailableSize.Width)
 			} else {
 				resolvedWidth = a.Space.AvailableSize.Width
 			}
@@ -401,7 +421,7 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			} else {
 				logicalWidth = totalMaxLineMain
 			}
-			resolvedWidth = min(logicalWidth+decorX, a.Space.AvailableSize.Width)
+			resolvedWidth = min(logicalWidth+decor.Insets.Left+decor.Insets.Right, a.Space.AvailableSize.Width)
 		}
 	}
 
@@ -413,12 +433,15 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 			} else {
 				logicalHeight = totalSumLineCross
 			}
-			resolvedHeight = logicalHeight + decorY
+			resolvedHeight = logicalHeight + decor.Insets.Top + decor.Insets.Bottom
 		}
 	}
 
 	containerSize = Size{Width: resolvedWidth, Height: resolvedHeight}
-	contentCrossSizeForItems = geom.CrossSize(containerSize) - decorCross
+	contentCrossSizeForItems = geom.CrossSize(containerSize) - (decor.Insets.Top + decor.Insets.Bottom)
+	if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
+		contentCrossSizeForItems = geom.CrossSize(containerSize) - (decor.Insets.Left + decor.Insets.Right)
+	}
 
 	// 6. Alignment & Positioning
 	builder.AlignCrossAxis(contentCrossSizeForItems, comp.AlignContent, comp.AlignItems)
@@ -466,22 +489,22 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	fragBuilder.SetInlineSize(resolvedWidth)
 	fragBuilder.SetBlockSize(resolvedHeight)
 	fragBuilder.SetBreakToken(breakToken)
+	fragBuilder.SetHasScrollbarX(hasScrollbarX)
+	fragBuilder.SetHasScrollbarY(hasScrollbarY)
 
 	// Add children to fragment builder using resolved offsets
-	contentOffset := Point{X: border.Left + padding.Left, Y: border.Top + padding.Top}
 	for _, line := range lines {
 		for _, item := range line.Items {
 			offset := Point{
-				X: contentOffset.X + item.Offset.X,
-				Y: contentOffset.Y + item.Offset.Y,
+				X: decor.Insets.Left + item.Offset.X,
+				Y: decor.Insets.Top + item.Offset.Y,
 			}
 			fragBuilder.AddChild(item.Fragment, offset)
 		}
 	}
 
-	frag := fragBuilder.ToFragment()
-	a.Node.SetCachedLayout(a.Space, frag)
-	return frag
+	contentSize := geom.MakeSize(totalMaxLineMain, totalSumLineCross)
+	return fragBuilder.ToFragment(), contentSize
 }
 
 func (a *FlexAlgorithm) isInlineLevel(node Node) bool {

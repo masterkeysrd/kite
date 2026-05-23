@@ -137,6 +137,24 @@ func (b *elementBase[Self]) Hidden(v bool) *Self {
 	return b.self
 }
 
+// ScrollbarX enables or disables the horizontal scrollbar and returns *Self.
+func (b *elementBase[Self]) ScrollbarX(v bool) *Self {
+	b.rawStyle = b.rawStyle.ScrollbarX(v)
+	if ro := b.RenderObject(); ro != nil {
+		ro.MarkDirty(render.DirtyStyle)
+	}
+	return b.self
+}
+
+// ScrollbarY enables or disables the vertical scrollbar and returns *Self.
+func (b *elementBase[Self]) ScrollbarY(v bool) *Self {
+	b.rawStyle = b.rawStyle.ScrollbarY(v)
+	if ro := b.RenderObject(); ro != nil {
+		ro.MarkDirty(render.DirtyStyle)
+	}
+	return b.self
+}
+
 // Listeners returns the set of event listeners registered on this element.
 func (b *elementBase[Self]) Listeners() []PendingListener {
 	return b.listeners

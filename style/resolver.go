@@ -48,6 +48,7 @@ const (
 	PropListStyleType           //nolint:revive
 	PropCursorShape             //nolint:revive
 	PropCursorColor             //nolint:revive
+	PropScrollbar               //nolint:revive
 )
 
 // Inheritable returns the set of properties that are inherited from a parent
@@ -131,6 +132,7 @@ func DefaultStyle() Computed {
 		// Overflow / scroll ----------------------------------------------------
 		OverflowX: OverflowVisible,
 		OverflowY: OverflowVisible,
+		Scrollbar: Scrollbar{},
 
 		// Cursor ---------------------------------------------------------------
 		CursorShape: CursorShapeBlockBlink,
@@ -284,6 +286,24 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 	// (sparse: most elements return an empty Style{} and Apply is a no-op).
 	// Tagged as OriginUserAgent in the cascade-origin model (ADR-010).
 	c = elem.IntrinsicStyle().Apply(c) // _ = OriginUserAgent
+
+	// Apply sensible TUI defaults for glyphs if explicitly set to true but missing glyphs.
+	if c.Scrollbar.X.UnwrapOr(false) || c.Scrollbar.Y.UnwrapOr(false) {
+		if !c.Scrollbar.TrackGlyph.IsSet() {
+			if c.Scrollbar.Y.UnwrapOr(false) {
+				c.Scrollbar.TrackGlyph = Some(DefaultScrollbarTrackVertical)
+			} else {
+				c.Scrollbar.TrackGlyph = Some(DefaultScrollbarTrackHorizontal)
+			}
+		}
+		if !c.Scrollbar.ThumbGlyph.IsSet() {
+			if c.Scrollbar.Y.UnwrapOr(false) {
+				c.Scrollbar.ThumbGlyph = Some(DefaultScrollbarThumbVertical)
+			} else {
+				c.Scrollbar.ThumbGlyph = Some(DefaultScrollbarThumbHorizontal)
+			}
+		}
+	}
 
 	// Computed-value resolution notes:
 	//   TerminalDefault colours remain symbolic; the backend resolves them at

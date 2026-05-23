@@ -97,9 +97,13 @@ type Style struct {
 	// --- Overflow / scroll ----------------------------------------------------
 
 	// OverflowX controls how content that overflows on the horizontal axis is handled.
+	// Defaults to OverflowVisible.
 	OverflowX Optional[Overflow]
 	// OverflowY controls how content that overflows on the vertical axis is handled.
+	// Defaults to OverflowVisible.
 	OverflowY Optional[Overflow]
+	// Scrollbar defines the visual appearance of scrollbars.
+	Scrollbar Optional[Scrollbar]
 
 	// --- Cursor ---------------------------------------------------------------
 
@@ -226,6 +230,9 @@ func (s Style) Apply(base Computed) Computed {
 	if s.OverflowY.IsSet() {
 		base.OverflowY = s.OverflowY.Value()
 	}
+	if s.Scrollbar.IsSet() {
+		base.Scrollbar = base.Scrollbar.Merge(s.Scrollbar.Value())
+	}
 	return base
 }
 
@@ -276,12 +283,57 @@ func (s Style) Merge(override Style) Style {
 
 		OverflowX: s.OverflowX.Merge(override.OverflowX),
 		OverflowY: s.OverflowY.Merge(override.OverflowY),
+		Scrollbar: mergeOptionalScrollbar(s.Scrollbar, override.Scrollbar),
 	}
+}
+
+func mergeOptionalScrollbar(base, override Optional[Scrollbar]) Optional[Scrollbar] {
+	if !override.IsSet() {
+		return base
+	}
+	if !base.IsSet() {
+		return override
+	}
+	return Some(base.Value().Merge(override.Value()))
 }
 
 // Overflow sets both OverflowX and OverflowY to v and returns the modified style.
 func (s Style) Overflow(v Overflow) Style {
 	s.OverflowX = Some(v)
 	s.OverflowY = Some(v)
+	return s
+}
+
+// ScrollbarX enables or disables the horizontal scrollbar.
+func (s Style) ScrollbarX(v bool) Style {
+	sb, _ := s.Scrollbar.Get()
+	sb.X = Some(v)
+	s.Scrollbar = Some(sb)
+	return s
+}
+
+// ScrollbarY enables or disables the vertical scrollbar.
+func (s Style) ScrollbarY(v bool) Style {
+	sb, _ := s.Scrollbar.Get()
+	sb.Y = Some(v)
+	s.Scrollbar = Some(sb)
+	return s
+}
+
+// ScrollbarThumb sets the glyph and color for the scrollbar thumb.
+func (s Style) ScrollbarThumb(glyph rune, c color.Color) Style {
+	sb, _ := s.Scrollbar.Get()
+	sb.ThumbGlyph = Some(glyph)
+	sb.ThumbColor = Some(c)
+	s.Scrollbar = Some(sb)
+	return s
+}
+
+// ScrollbarTrack sets the glyph and color for the scrollbar track.
+func (s Style) ScrollbarTrack(glyph rune, c color.Color) Style {
+	sb, _ := s.Scrollbar.Get()
+	sb.TrackGlyph = Some(glyph)
+	sb.TrackColor = Some(c)
+	s.Scrollbar = Some(sb)
 	return s
 }

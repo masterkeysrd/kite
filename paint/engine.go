@@ -167,6 +167,133 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point) 
 
 	// Pop child clip.
 	p.popClip()
+
+	// 7. Paint scrollbars OVER children (Task 36)
+	// Scrollbars are painted after popping the content clip so they can sit
+	// on the edge of the content area without being clipped by it. They are
+	// still clipped by the fragment's own clip (pushed at the start).
+	p.paintScrollbars(frag, origin)
+}
+
+func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin layout.Point) {
+	if !frag.HasScrollbarY && !frag.HasScrollbarX {
+		return
+	}
+
+	s := frag.Node.Style()
+	sb := s.Scrollbar
+	bw := s.Border.Widths()
+
+	maxSX, maxSY := layout.MaxScroll(frag)
+	scrollX, scrollY := 0, 0
+	if el, ok := frag.Node.LogicalNode().(dom.Element); ok {
+		scrollX, scrollY = el.Scroll()
+	}
+	scrollX = max(0, min(scrollX, maxSX))
+	scrollY = max(0, min(scrollY, maxSY))
+
+	// Determine colors
+	trackFG := sb.TrackColor.UnwrapOr(s.Foreground)
+	if trackFG == style.TerminalDefault {
+		trackFG = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	}
+	thumbFG := sb.ThumbColor.UnwrapOr(s.Foreground)
+	if thumbFG == style.TerminalDefault {
+		thumbFG = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	}
+	bg := s.Background
+	if isTransparent(bg) {
+		bg = color.Transparent
+	}
+
+	// Vertical Scrollbar
+	if frag.HasScrollbarY && maxSY > 0 {
+		trackX := origin.X + frag.Size.Width - bw.Right - 1
+		trackYStart := origin.Y + bw.Top
+		trackHeight := max(0, frag.Size.Height-bw.Top-bw.Bottom)
+
+		// The viewport height (what the scrollbar represents)
+		viewHeight := trackHeight
+		if frag.HasScrollbarX {
+			viewHeight = max(0, viewHeight-1)
+		}
+
+		extentHeight := viewHeight + maxSY
+
+		// Draw track
+		trackGlyph := string(sb.TrackGlyph.UnwrapOr(style.DefaultScrollbarTrackVertical))
+		for i := 0; i < viewHeight; i++ {
+			p.setCell(trackX, trackYStart+i, Cell{
+				Content: trackGlyph,
+				Width:   1,
+				FG:      trackFG,
+				BG:      bg,
+			})
+		}
+
+		// Draw thumb
+		if extentHeight > viewHeight && viewHeight > 0 {
+			thumbHeight := max(1, viewHeight*viewHeight/extentHeight)
+			thumbPos := 0
+			if maxSY > 0 {
+				thumbPos = scrollY * (viewHeight - thumbHeight) / maxSY
+			}
+
+			thumbGlyph := string(sb.ThumbGlyph.UnwrapOr(style.DefaultScrollbarThumbVertical))
+			for i := 0; i < thumbHeight; i++ {
+				p.setCell(trackX, trackYStart+thumbPos+i, Cell{
+					Content: thumbGlyph,
+					Width:   1,
+					FG:      thumbFG,
+					BG:      bg,
+				})
+			}
+		}
+	}
+
+	// Horizontal Scrollbar
+	if frag.HasScrollbarX && maxSX > 0 {
+		trackY := origin.Y + frag.Size.Height - bw.Bottom - 1
+		trackXStart := origin.X + bw.Left
+		trackWidth := max(0, frag.Size.Width-bw.Left-bw.Right)
+
+		viewWidth := trackWidth
+		if frag.HasScrollbarY {
+			viewWidth = max(0, viewWidth-1)
+		}
+
+		extentWidth := viewWidth + maxSX
+
+		// Draw track
+		trackGlyph := string(sb.TrackGlyph.UnwrapOr(style.DefaultScrollbarTrackHorizontal))
+		for i := 0; i < viewWidth; i++ {
+			p.setCell(trackXStart+i, trackY, Cell{
+				Content: trackGlyph,
+				Width:   1,
+				FG:      trackFG,
+				BG:      bg,
+			})
+		}
+
+		// Draw thumb
+		if extentWidth > viewWidth && viewWidth > 0 {
+			thumbWidth := max(1, viewWidth*viewWidth/extentWidth)
+			thumbPos := 0
+			if maxSX > 0 {
+				thumbPos = scrollX * (viewWidth - thumbWidth) / maxSX
+			}
+
+			thumbGlyph := string(sb.ThumbGlyph.UnwrapOr(style.DefaultScrollbarThumbHorizontal))
+			for i := 0; i < thumbWidth; i++ {
+				p.setCell(trackXStart+thumbPos+i, trackY, Cell{
+					Content: thumbGlyph,
+					Width:   1,
+					FG:      thumbFG,
+					BG:      bg,
+				})
+			}
+		}
+	}
 }
 
 func (p *PaintEngine) pushChildClip(frag *layout.Fragment, origin layout.Point) {

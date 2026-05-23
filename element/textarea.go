@@ -39,6 +39,17 @@ type TextAreaElement struct {
 	doc dom.Document
 }
 
+// uaTextAreaDiv is the inner UA block element that wraps the text content.
+// It has Width:Content so it doesn't stretch to the host's width.
+type uaTextAreaDiv struct {
+	dom.Element
+}
+
+func (d *uaTextAreaDiv) Unwrap() dom.Node { return d.Element }
+func (d *uaTextAreaDiv) DefaultStyle() style.Style {
+	return style.Style{Width: style.Some(style.Content)}
+}
+
 // Compile-time interface assertions.
 var (
 	_ Element         = (*TextAreaElement)(nil)
@@ -50,15 +61,17 @@ var (
 // breaks via BrElement rather than \n characters in text nodes.
 var intrinsicTextAreaStyle = style.Style{
 	Display:      style.Some(style.DisplayInlineBlock),
-	OverflowY:    style.Some(style.OverflowScroll),
+	OverflowX:    style.Some(style.OverflowClip),
+	OverflowY:    style.Some(style.OverflowAuto),
 	OverflowWrap: style.Some(style.OverflowWrapBreakWord),
 }
 
 // defaultTextAreaStyle holds the author-overridable defaults for a textarea.
 var defaultTextAreaStyle = style.Style{
-	Width:   style.Some(style.Cells(20)),
-	Height:  style.Some(style.Cells(5)),
-	Padding: style.Some(style.EdgeValues[int]{}),
+	Width:     style.Some(style.Cells(20)),
+	Height:    style.Some(style.Cells(5)),
+	Padding:   style.Some(style.EdgeValues[int]{}),
+	Scrollbar: style.Some(style.Scrollbar{Y: style.Some(true)}),
 }
 
 // NewTextArea creates a new TextAreaElement owned by doc with an optional
@@ -79,7 +92,7 @@ func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	//
 	// The ua-div is an unconstrained block that grows to fit content. The host
 	// clips vertically (overflow-y: scroll) and the scroll offset pans content.
-	uaDiv := doc.CreateElement("ua-textarea-div", nil)
+	uaDiv := &uaTextAreaDiv{doc.CreateElement("ua-textarea-div", nil)}
 
 	// Initialise the shared text-control base with the ua-div and buffer.
 	txa.initTextControlBase(txa, uaDiv, buf, true /* multi-line */, txa.syncText)
