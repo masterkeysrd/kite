@@ -1,0 +1,22 @@
+apiVersion: warp/v1alpha1
+kind: ModelProvider
+metadata:
+  name: ollama
+  description: Local Ollama provider configuration for TaskSmith.
+spec:
+  type: ollama
+  endpoint: http://localhost:11434
+  defaultModel: ollama/qwen3.6
+  models:
+    - id: qwen3.6
+      name: qwen3.6
+      label: Qwen3.6
+      limits:
+        context: 32768
+        output: 8192
+    - id: qwen3-coder:30b
+      name: qwen3-coder:30b
+      label: Qwen3 Coder 30B
+      limits:
+        context: 32768
+        output: 8192

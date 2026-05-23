@@ -1,0 +1,25 @@
+apiVersion: warp/v1alpha1
+kind: ModelProvider
+metadata:
+  name: anthropic
+  description: Anthropic provider configuration for TaskSmith.
+spec:
+  type: anthropic
+  endpoint: https://api.anthropic.com
+  defaultModel: anthropic/claude-sonnet-4-6
+  auth:
+    type: env
+    key: ANTHROPIC_API_KEY
+  models:
+    - id: claude-sonnet-4-6
+      name: claude-sonnet-4-6
+      label: Claude Sonnet 4.6
+      limits:
+        context: 200000
+        output: 64000
+    - id: claude-opus-4-7
+      name: claude-opus-4-7
+      label: Claude Opus 4.7
+      limits:
+        context: 200000
+        output: 64000

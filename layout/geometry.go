@@ -58,6 +58,15 @@ func (r Rect) Intersect(other Rect) Rect {
 	}
 }
 
+// Overlaps reports whether r and other have a non-empty intersection.
+func (r Rect) Overlaps(other Rect) bool {
+	x1 := max(r.Origin.X, other.Origin.X)
+	y1 := max(r.Origin.Y, other.Origin.Y)
+	x2 := min(r.Origin.X+r.Size.Width, other.Origin.X+other.Size.Width)
+	y2 := min(r.Origin.Y+r.Size.Height, other.Origin.Y+other.Size.Height)
+	return x2 > x1 && y2 > y1
+}
+
 // Constraints defines the minimum and maximum dimensions allowed for a box.
 type Constraints struct {
 	Min, Max Size

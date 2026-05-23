@@ -324,7 +324,6 @@ func (b *Backend) renderFrame(req renderRequest) {
 
 	// Reuse a single uv.Cell object to avoid thousands of allocations per frame.
 	var uvCell uv.Cell
-
 	for y := 0; y < bounds.Size.Height; y++ {
 		for x := 0; x < bounds.Size.Width; {
 			c := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)

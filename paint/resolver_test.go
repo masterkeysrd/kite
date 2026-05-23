@@ -5,20 +5,28 @@ import (
 	"testing"
 )
 
+func setCell(pe *PaintEngine, fb Surface, x, y int, c Cell) {
+	pe.rootSurface = fb
+	if len(pe.clipStack) == 0 {
+		pe.clipStack = append(pe.clipStack, fb.Bounds())
+	}
+	pe.setCell(x, y, c)
+}
+
 func TestResolveBorders(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 5, 5)
+	pe := NewPaintEngine()
 
 	// Create a horizontal line at y=2
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 
 	// Create a vertical line at x=2
 	for y := 0; y < 5; y++ {
-		fb.Set(2, y, Cell{Content: "│", BorderStyle: BorderSingle})
+		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle})
 	}
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	// Check the intersection at (2, 2)
@@ -31,17 +39,18 @@ func TestResolveBorders(t *testing.T) {
 func TestResolveBorders_Styles(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 5, 5)
 
+	pe := NewPaintEngine()
+
 	// Double horizontal line
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 2, Cell{Content: "═", BorderStyle: BorderDouble})
+		setCell(pe, fb, x, 2, Cell{Content: "═", BorderStyle: BorderDouble})
 	}
 
 	// Double vertical line
 	for y := 0; y < 5; y++ {
-		fb.Set(2, y, Cell{Content: "║", BorderStyle: BorderDouble})
+		setCell(pe, fb, 2, y, Cell{Content: "║", BorderStyle: BorderDouble})
 	}
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	c := fb.CellAt(2, 2)
@@ -53,17 +62,18 @@ func TestResolveBorders_Styles(t *testing.T) {
 func TestResolveBorders_MixedStyles(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 5, 5)
 
+	pe := NewPaintEngine()
+
 	// Thick horizontal line
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 2, Cell{Content: "━", BorderStyle: BorderThick})
+		setCell(pe, fb, x, 2, Cell{Content: "━", BorderStyle: BorderThick})
 	}
 
 	// Single vertical line
 	for y := 0; y < 5; y++ {
-		fb.Set(2, y, Cell{Content: "│", BorderStyle: BorderSingle})
+		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle})
 	}
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	// Rule 3: Only borders of the same type can be merged.
@@ -78,20 +88,21 @@ func TestResolveBorders_MixedStyles(t *testing.T) {
 func TestResolveBorders_RoundedTee(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 5, 5)
 
+	pe := NewPaintEngine()
+
 	// Rounded horizontal line (top edge of a box)
-	fb.Set(1, 1, Cell{Content: "╭", BorderStyle: BorderRounded})
-	fb.Set(2, 1, Cell{Content: "─", BorderStyle: BorderRounded})
-	fb.Set(3, 1, Cell{Content: "╮", BorderStyle: BorderRounded})
+	setCell(pe, fb, 1, 1, Cell{Content: "╭", BorderStyle: BorderRounded})
+	setCell(pe, fb, 2, 1, Cell{Content: "─", BorderStyle: BorderRounded})
+	setCell(pe, fb, 3, 1, Cell{Content: "╮", BorderStyle: BorderRounded})
 
 	// Vertical lines to make them actual corners
-	fb.Set(1, 2, Cell{Content: "│", BorderStyle: BorderRounded})
-	fb.Set(3, 2, Cell{Content: "│", BorderStyle: BorderRounded})
+	setCell(pe, fb, 1, 2, Cell{Content: "│", BorderStyle: BorderRounded})
+	setCell(pe, fb, 3, 2, Cell{Content: "│", BorderStyle: BorderRounded})
 
 	// Vertical line hitting the middle of the rounded horizontal line
 	// Note: this is BorderSingle, while horizontal is BorderRounded.
-	fb.Set(2, 2, Cell{Content: "│", BorderStyle: BorderSingle})
+	setCell(pe, fb, 2, 2, Cell{Content: "│", BorderStyle: BorderSingle})
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	// The corner (1, 1) and (3, 1) should remain rounded if they are corners
@@ -112,16 +123,17 @@ func TestResolveBorders_RoundedTee(t *testing.T) {
 func TestResolveBorders_NoMangleText(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 3, 3)
 
+	pe := NewPaintEngine()
+
 	// Border horizontal line at y=1
-	fb.Set(0, 1, Cell{Content: "─", BorderStyle: BorderSingle})
-	fb.Set(1, 1, Cell{Content: "─", BorderStyle: BorderSingle})
-	fb.Set(2, 1, Cell{Content: "─", BorderStyle: BorderSingle})
+	setCell(pe, fb, 0, 1, Cell{Content: "─", BorderStyle: BorderSingle})
+	setCell(pe, fb, 1, 1, Cell{Content: "─", BorderStyle: BorderSingle})
+	setCell(pe, fb, 2, 1, Cell{Content: "─", BorderStyle: BorderSingle})
 
 	// User text "|" at (1, 0) and (1, 2) - NO BorderStyle
-	fb.Set(1, 0, Cell{Content: "|"})
-	fb.Set(1, 2, Cell{Content: "|"})
+	setCell(pe, fb, 1, 0, Cell{Content: "|"})
+	setCell(pe, fb, 1, 2, Cell{Content: "|"})
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	// The center (1, 1) should remain "─" because its vertical neighbors don't have a BorderStyle
@@ -134,16 +146,17 @@ func TestResolveBorders_NoMangleText(t *testing.T) {
 func TestResolveBorders_ParallelNoMerge(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 5, 5)
 
+	pe := NewPaintEngine()
+
 	// Line 1: y=1
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 1, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 1, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 	// Line 2: y=2
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	// They should remain "─" and not become "┬" or "┴" or "┼"
@@ -163,17 +176,18 @@ func TestResolveBorders_SameBackgroundOnly(t *testing.T) {
 	blue := color.RGBA{0, 0, 255, 255}
 	red := color.RGBA{255, 0, 0, 255}
 
+	pe := NewPaintEngine()
+
 	// Horizontal line: y=2, Blue background
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 2, Cell{Content: "─", BorderStyle: BorderSingle, BG: blue})
+		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle, BG: blue})
 	}
 
 	// Vertical line: x=2, Red background
 	for y := 0; y < 5; y++ {
-		fb.Set(2, y, Cell{Content: "│", BorderStyle: BorderSingle, BG: red})
+		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle, BG: red})
 	}
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	// Since they have different backgrounds, they shouldn't merge.
@@ -186,17 +200,18 @@ func TestResolveBorders_SameBackgroundOnly(t *testing.T) {
 func TestResolveBorders_SameTypeOnly(t *testing.T) {
 	fb := NewFrameBuffer(0, 0, 5, 5)
 
+	pe := NewPaintEngine()
+
 	// Horizontal line: Single
 	for x := 0; x < 5; x++ {
-		fb.Set(x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 
 	// Vertical line: Double
 	for y := 0; y < 5; y++ {
-		fb.Set(2, y, Cell{Content: "║", BorderStyle: BorderDouble})
+		setCell(pe, fb, 2, y, Cell{Content: "║", BorderStyle: BorderDouble})
 	}
 
-	pe := NewPaintEngine()
 	pe.resolveBorders(fb)
 
 	c := fb.CellAt(2, 2)

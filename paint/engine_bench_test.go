@@ -83,7 +83,7 @@ func BenchmarkPaint_NoOverflow(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		fb.BumpVersion()
-		pe.paintFragment(frag, layout.Point{}, fb)
+		pe.PaintFragment(frag, layout.Point{}, fb)
 	}
 }
 
@@ -107,6 +107,6 @@ func BenchmarkPaint_DeepNestedClips(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		fb.BumpVersion()
-		pe.paintFragment(frag, layout.Point{}, fb)
+		pe.PaintFragment(frag, layout.Point{}, fb)
 	}
 }
