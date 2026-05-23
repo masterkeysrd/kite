@@ -3,7 +3,9 @@
 //
 // Dispatch follows the capture → target → bubble model. Listeners return a
 // cancel Subscription instead of requiring explicit removal. The Synthesizer
-// converts raw backend input into synthetic event (click, focus). Hit-test
+// converts raw backend input into synthetic event (click, focus). High-frequency
+// raw inputs (e.g. mouse move, wheel) are typically coalesced by the engine
+// before being passed to the Synthesizer to maintain performance. Hit-test
 // results are cached on MouseEvent. No IntentEvent — the v1 layering mistake
 // is removed.
 // # Wheel and Scroll

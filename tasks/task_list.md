@@ -38,19 +38,19 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-023 | cursor.FromTextFragment Helper | Done | `tasks/TSK-023-cursor-from-text-fragment.md` |
 | TSK-024 | Implement `<input>` onto UA Shadow Subtree | Done | `tasks/TSK-024-input-on-ua-subtree.md` |
 | TSK-025 | Implement `<textarea>` onto UA Shadow Subtree | Done | `tasks/TSK-025-textarea-on-ua-subtree.md` |
-| TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Pending | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
+| TSK-026 | IFC Honors `overflow-wrap` (deferred IFC cleanup) | Done | `tasks/TSK-026-ifc-honors-overflow-wrap.md` |
 | TSK-027 | Paint Honors `overflow: clip` / `overflow: hidden` | Done | `tasks/TSK-027-paint-overflow-clipping.md` |
 | TSK-028 | Generic Scroll Offset on DOM Elements | Done | `tasks/TSK-028-generic-scroll-offset.md` |
 | TSK-029 | Unified Text Control Base | Done | `tasks/TSK-029-unified-text-control-base.md` |
 | TSK-030 | Implement Headless Test Environment (`testenv`) | Done | `tasks/TSK-030-headless-testenv.md` |
 | TSK-031 | Implement Golden Testing & Visual Dumps | Done | `tasks/TSK-031-golden-testing.md` |
 | TSK-032 | Implement Web-Based DOM Inspector (SSE) | Done | `tasks/TSK-032-web-inspector.md` |
-| TSK-033 | Implement Terminal X-Ray Mode | In Progress | `tasks/TSK-033-xray-mode.md` |
-| TSK-034 | Event Coalescing and Throttling in Engine | Pending | `tasks/TSK-034-event-coalescing.md` |
+| TSK-033 | Implement Terminal X-Ray Mode | Done | `tasks/TSK-033-xray-mode.md` |
+| TSK-034 | Event Coalescing and Throttling in Engine | Done | `tasks/TSK-034-event-coalescing.md` |
 | TSK-035 | Deferred Scroll & Cursor Rendering for Text Controls | Pending | `tasks/TSK-035-deferred-scroll-rendering.md` |
 | TSK-036 | Customizable Visual Scrollbars | Pending | `tasks/TSK-036-visual-scrollbars.md` |
 | TSK-037 | Implement Button Element | Pending | `tasks/TSK-037-button-element.md` |
 | TSK-038 | Implement Checkbox and Radio Components | Pending | `tasks/TSK-038-checkbox-radio-elements.md` |
 | TSK-039 | Implement Select (Dropdown) Component | Pending | `tasks/TSK-039-select-element.md` |
-| TSK-040 | Audit and Enforce Strict Border-Box Sizing | Pending | `tasks/TSK-040-strict-box-model.md` |
-| TSK-041 | Introduce ContainingSpace and ContainerSpace into Layout | In Progress | `tasks/TSK-041-layout-container-spaces.md` |
+| TSK-040 | Audit and Enforce Strict Border-Box Sizing | Done | `tasks/TSK-040-strict-box-model.md` |
+| TSK-041 | Introduce ContainingSpace and ContainerSpace into Layout | Done | `tasks/TSK-041-layout-container-spaces.md` |

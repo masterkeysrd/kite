@@ -162,6 +162,9 @@ type Engine struct {
 	// onStopHooks are called when the engine is stopping.
 	onStopHooks []func()
 
+	// eventBuffer holds raw events to be processed before the next frame.
+	eventBuffer []event.RawEvent
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -1055,8 +1058,9 @@ func (e *Engine) Run(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
-			e.processRawEvent(raw)
+			e.eventBuffer = append(e.eventBuffer, raw)
 		case <-ticker.C:
+			e.drainEvents()
 			if e.shouldRunFrame() {
 				e.Frame()
 			}
@@ -1071,25 +1075,94 @@ func (e *Engine) ProcessRawEvent(raw event.RawEvent) {
 	e.processRawEvent(raw)
 }
 
+func (e *Engine) drainEvents() {
+	if len(e.eventBuffer) == 0 {
+		return
+	}
+
+	// 1. Synthesize all raw events into structured events.
+	var structured []event.Event
+	for _, raw := range e.eventBuffer {
+		structured = append(structured, e.synthesizer.Process(raw)...)
+	}
+	e.eventBuffer = e.eventBuffer[:0]
+
+	// 2. Coalesce high-frequency events.
+	coalesced := e.coalesceEvents(structured)
+
+	// 3. Dispatch.
+	for _, ev := range coalesced {
+		e.dispatchEvent(ev)
+	}
+}
+
+func (e *Engine) coalesceEvents(events []event.Event) []event.Event {
+	if len(events) == 0 {
+		return nil
+	}
+
+	// Find the index of the last MouseMove event.
+	lastMouseMoveIdx := -1
+	for i, ev := range events {
+		if me, ok := ev.(*event.MouseEvent); ok && me.Type() == event.EventMouseMove {
+			lastMouseMoveIdx = i
+		}
+	}
+
+	res := make([]event.Event, 0, len(events))
+	wheelMap := make(map[event.EventTarget]*event.WheelEvent)
+
+	for i, ev := range events {
+		switch evt := ev.(type) {
+		case *event.MouseEvent:
+			if evt.Type() == event.EventMouseMove {
+				if i == lastMouseMoveIdx {
+					res = append(res, evt)
+				}
+				// discard older moves
+			} else {
+				res = append(res, evt)
+			}
+		case *event.WheelEvent:
+			target := evt.Target()
+			if existing, ok := wheelMap[target]; ok {
+				existing.DeltaX += evt.DeltaX
+				existing.DeltaY += evt.DeltaY
+			} else {
+				wheelMap[target] = evt
+				res = append(res, evt)
+			}
+		default:
+			res = append(res, evt)
+		}
+	}
+
+	return res
+}
+
+func (e *Engine) dispatchEvent(ev event.Event) {
+	switch evt := ev.(type) {
+	case *event.MouseEvent:
+		e.dispatchMouseEvent(evt)
+	case *event.WheelEvent:
+		e.dispatchWheelEvent(evt)
+	case *event.KeyEvent:
+		e.dispatchKeyEvent(evt)
+	case *event.ResizeEvent:
+		e.handleResize(evt)
+	default:
+		// For generic events (paste, etc), dispatch to focused element.
+		if focused := e.focusManager.Current(); focused != nil {
+			path := nodeAncestorPath(focused)
+			e.dispatcher.Dispatch(ev, path)
+		}
+	}
+}
+
 func (e *Engine) processRawEvent(raw event.RawEvent) {
 	evts := e.synthesizer.Process(raw)
 	for _, ev := range evts {
-		switch evt := ev.(type) {
-		case *event.MouseEvent:
-			e.dispatchMouseEvent(evt)
-		case *event.WheelEvent:
-			e.dispatchWheelEvent(evt)
-		case *event.KeyEvent:
-			e.dispatchKeyEvent(evt)
-		case *event.ResizeEvent:
-			e.handleResize(evt)
-		default:
-			// For generic events (paste, etc), dispatch to focused element.
-			if focused := e.focusManager.Current(); focused != nil {
-				path := nodeAncestorPath(focused)
-				e.dispatcher.Dispatch(ev, path)
-			}
-		}
+		e.dispatchEvent(ev)
 	}
 }
 
