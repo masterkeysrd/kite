@@ -57,34 +57,104 @@ func (p *PaintEngine) resolveBorders(surface Surface) {
 			}
 
 			// Check cardinal neighbors
-			up := surface.CellAt(x, y-1).BorderStyle
-			down := surface.CellAt(x, y+1).BorderStyle
-			left := surface.CellAt(x-1, y).BorderStyle
-			right := surface.CellAt(x+1, y).BorderStyle
+			up := surface.CellAt(x, y-1)
+			down := surface.CellAt(x, y+1)
+			left := surface.CellAt(x-1, y)
+			right := surface.CellAt(x+1, y)
 
 			mask := 0
-			if up != BorderNone {
+			if up.BorderStyle == c.BorderStyle && colorsEqual(up.FG, c.FG) && colorsEqual(up.BG, c.BG) && p.connectsDown(up) {
 				mask |= 8
 			}
-			if down != BorderNone {
+			if down.BorderStyle == c.BorderStyle && colorsEqual(down.FG, c.FG) && colorsEqual(down.BG, c.BG) && p.connectsUp(down) {
 				mask |= 4
 			}
-			if left != BorderNone {
+			if left.BorderStyle == c.BorderStyle && colorsEqual(left.FG, c.FG) && colorsEqual(left.BG, c.BG) && p.connectsRight(left) {
 				mask |= 2
 			}
-			if right != BorderNone {
+			if right.BorderStyle == c.BorderStyle && colorsEqual(right.FG, c.FG) && colorsEqual(right.BG, c.BG) && p.connectsLeft(right) {
 				mask |= 1
 			}
 
-			// Find dominant style (Heaviest Style Wins)
-			dominantStyle := max(right, max(left, max(down, max(up, c.BorderStyle))))
-			newContent := p.getJunctionGlyph(dominantStyle, mask)
+			newContent := p.getJunctionGlyph(c.BorderStyle, mask)
 			if newContent != "" && newContent != c.Content {
 				c.Content = newContent
 				surface.Set(x, y, c)
 			}
 		}
 	}
+}
+
+func (p *PaintEngine) connectsUp(c Cell) bool {
+	switch c.Content {
+	case "│", "║", "┃", "|",
+		"└", "╚", "┗", "╰",
+		"┘", "╝", "┛", "╯",
+		"┴", "╩", "┻",
+		"├", "╠", "┣",
+		"┤", "╣", "┫",
+		"┼", "╬", "╋",
+		"+":
+		return true
+	}
+	return false
+}
+
+func (p *PaintEngine) connectsDown(c Cell) bool {
+	switch c.Content {
+	case "│", "║", "┃", "|",
+		"┌", "╔", "┏", "╭",
+		"┐", "╗", "┓", "╮",
+		"┬", "╦", "┳",
+		"├", "╠", "┣",
+		"┤", "╣", "┫",
+		"┼", "╬", "╋",
+		"+":
+		return true
+	}
+	return false
+}
+
+func (p *PaintEngine) connectsLeft(c Cell) bool {
+	switch c.Content {
+	case "─", "═", "━", "-",
+		"┐", "╗", "┓", "╮",
+		"┘", "╝", "┛", "╯",
+		"┬", "╦", "┳",
+		"┴", "╩", "┻",
+		"┤", "╣", "┫",
+		"┼", "╬", "╋",
+		"+":
+		return true
+	}
+	return false
+}
+
+func (p *PaintEngine) connectsRight(c Cell) bool {
+	switch c.Content {
+	case "─", "═", "━", "-",
+		"┌", "╔", "┏", "╭",
+		"└", "╚", "┗", "╰",
+		"┬", "╦", "┳",
+		"┴", "╩", "┻",
+		"├", "╠", "┣",
+		"┼", "╬", "╋",
+		"+":
+		return true
+	}
+	return false
+}
+
+func colorsEqual(c1, c2 color.Color) bool {
+	if c1 == c2 {
+		return true
+	}
+	if c1 == nil || c2 == nil {
+		return false
+	}
+	r1, g1, b1, a1 := c1.RGBA()
+	r2, g2, b2, a2 := c2.RGBA()
+	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
 }
 
 func (p *PaintEngine) getJunctionGlyph(style BorderStyle, mask int) string {
