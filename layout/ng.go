@@ -208,7 +208,12 @@ func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
 	if _, ok := node.LogicalNode().(OverlayLever); ok {
 		return &OverlayAlgorithm{Node: node, Space: space}
 	}
-	switch node.Style().Display {
+	comp := node.Style()
+	if comp.Display == style.DisplayNone {
+		return &NoneAlgorithm{Node: node, Space: space}
+	}
+
+	switch comp.Display {
 	case style.DisplayFlex, style.DisplayInlineFlex:
 		return &FlexAlgorithm{Node: node, Space: space}
 	case style.DisplayTable:
@@ -226,6 +231,24 @@ func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
 		return &BlockAlgorithm{Node: node, Space: space}
 	}
 }
+
+// NoneAlgorithm is a layout formatter for nodes with display: none.
+// It always returns an empty fragment.
+type NoneAlgorithm struct {
+	Node  Node
+	Space ConstraintSpace
+}
+
+func (a *NoneAlgorithm) Layout() *Fragment {
+	return &Fragment{
+		Node: a.Node,
+	}
+}
+
+func (a *NoneAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+	return MinMaxSizes{}
+}
+
 
 // IntrinsicMinMaxSizes computes the intrinsic min/max widths for a node by selecting
 // the correct algorithm based on its display style.

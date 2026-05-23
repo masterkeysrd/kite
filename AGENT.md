@@ -137,8 +137,9 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Element base & fluent API** | `element/element.go` |
 | **Shared text-control mechanics** | `element/text_control.go` (ADR-013) |
 | **`<input>` element** | `element/input.go` |
-| **`<textarea>` element** | `element/textarea.go` |
-| **`<box>` / `<span>` elements** | `element/box.go`, `element/span.go` |
+| `<textarea>` element | `element/textarea.go` |
+| `<select>` element | `element/select.go` |
+| `<box>` / `<span>` elements | `element/box.go`, `element/span.go` |
 | **`<br>` element** | `element/br.go` |
 | **List elements (ul/ol/li)** | `element/list.go` |
 | **Table elements (table/tr/td/…)** | `element/table.go` |

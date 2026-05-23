@@ -65,6 +65,8 @@ btn := element.Box("Click Me").
 | `Button` | `button` | A clickable button with centered content and interactive states. |
 | `Input` | `input` | A single-line text input field. |
 | `TextArea` | `textarea` | A multi-line scrollable text editor. |
+| `Select` | `select` | A dropdown selection component with overlay. |
+| `Option` | `option` | A data element for Select options. |
 | `Checkbox` | `checkbox` | A toggleable checkbox with UA glyphs. |
 | `RadioGroup`| `radiogroup`| A container that manages a set of Radio buttons. |
 | `Radio` | `radio` | A single radio button within a group. |

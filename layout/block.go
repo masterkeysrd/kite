@@ -109,6 +109,11 @@ func (a *BlockAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fra
 
 	child, ok := nextChild()
 	for ok {
+		if child.Style().Display == style.DisplayNone {
+			child, ok = nextChild()
+			continue
+		}
+
 		if IsInlineLevel(child) {
 			// Sequence of inline children: group into Anonymous Block (IFC).
 			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)

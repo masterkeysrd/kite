@@ -521,6 +521,11 @@ func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
 
 	child, ok := nextChild()
 	for ok {
+		if child.Style().Display == style.DisplayNone {
+			child, ok = nextChild()
+			continue
+		}
+
 		if a.isInlineLevel(child) {
 			anon := &AnonymousBlock{
 				parent: a.Node,

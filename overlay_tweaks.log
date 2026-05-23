@@ -1,0 +1,84 @@
+time=2026-05-23T04:54:47.077-04:00 level=INFO msg="unhandled event: uv.PixelSizeEvent{Width:1700, Height:988}"
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: draining events" raw_events=2 coalesced_events=1 dropped_events=1 batchCounter=1 eventsCounter=2
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="engine: frame committed" version=0
+time=2026-05-23T04:54:47.086-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:47.087-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:48.614-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=2 batchCounter=2 eventsCounter=3
+time=2026-05-23T04:54:50.853-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=3 batchCounter=3 eventsCounter=4
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="engine: frame committed" version=1
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:50.854-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=4 batchCounter=4 eventsCounter=5
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="engine: frame committed" version=2
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:51.614-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=5 batchCounter=5 eventsCounter=6
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="engine: frame committed" version=3
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:52.150-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=6 batchCounter=6 eventsCounter=7
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="engine: frame committed" version=4
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:52.518-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=7 batchCounter=7 eventsCounter=8
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="engine: frame committed" version=5
+time=2026-05-23T04:54:53.389-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:53.390-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=8 batchCounter=8 eventsCounter=9
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="engine: frame committed" version=6
+time=2026-05-23T04:54:53.814-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:53.815-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=9 batchCounter=9 eventsCounter=10
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="engine: frame committed" version=7
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:54.350-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=10 batchCounter=10 eventsCounter=11
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: layout phase" viewport="{Width:85 Height:26}"
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: layout complete" duration_ms=0
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: checking paint phase" flags=132
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: painting main content"
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: painting overlay"
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="engine: frame committed" version=8
+time=2026-05-23T04:54:54.749-04:00 level=INFO msg="uv: renderFrame started" width=85 height=26
+time=2026-05-23T04:54:54.750-04:00 level=INFO msg="uv: screen.Flush called"
+time=2026-05-23T04:54:55.414-04:00 level=INFO msg="engine: draining events" raw_events=1 coalesced_events=1 dropped_events=11 batchCounter=11 eventsCounter=12
