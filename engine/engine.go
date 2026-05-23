@@ -479,13 +479,28 @@ func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
 	if p.X < 0 || p.Y < 0 || p.X >= frag.Size.Width || p.Y >= frag.Size.Height {
 		return nil
 	}
+
+	// ── Account for Scroll Translation ───────────────────────────────────────
+	scrollX, scrollY := 0, 0
+	if frag.Node != nil {
+		if el, ok := frag.Node.LogicalNode().(dom.Element); ok {
+			s := frag.Node.Style()
+			if isScrollable(s.OverflowX) || isScrollable(s.OverflowY) {
+				rawX, rawY := el.Scroll()
+				maxSX, maxSY := layout.MaxScroll(frag)
+				scrollX = max(0, min(rawX, maxSX))
+				scrollY = max(0, min(rawY, maxSY))
+			}
+		}
+	}
+
 	// Walk children in reverse paint order (last child is topmost).
 	for i := len(frag.Children) - 1; i >= 0; i-- {
 		link := frag.Children[i]
-		// Translate point into child's coordinate space
+		// Translate point into child's coordinate space, accounting for scroll.
 		childPoint := layout.Point{
-			X: p.X - link.Offset.X,
-			Y: p.Y - link.Offset.Y,
+			X: p.X - link.Offset.X + scrollX,
+			Y: p.Y - link.Offset.Y + scrollY,
 		}
 		if hit := hitTestFragment(link.Fragment, childPoint); hit != nil {
 			return hit
@@ -1334,9 +1349,12 @@ func (e *Engine) resolveScrollable(target event.EventTarget) event.Scrollable {
 	return nil
 }
 
+func isScrollable(o style.Overflow) bool {
+	return o == style.OverflowScroll || o == style.OverflowAuto || o == style.OverflowHidden || o == style.OverflowClip
+}
+
 func isScrollContainer(cs *style.Computed) bool {
-	return cs.OverflowX == style.OverflowScroll || cs.OverflowX == style.OverflowAuto || cs.OverflowX == style.OverflowHidden ||
-		cs.OverflowY == style.OverflowScroll || cs.OverflowY == style.OverflowAuto || cs.OverflowY == style.OverflowHidden
+	return isScrollable(cs.OverflowX) || isScrollable(cs.OverflowY)
 }
 
 func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {

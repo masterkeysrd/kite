@@ -88,4 +88,8 @@ type Object interface {
 
 	// IsAnonymous reports whether this object is a virtual layout-only node.
 	IsAnonymous() bool
+
+	// MaxScroll returns the maximum horizontal and vertical scroll offsets
+	// based on the current layout fragment and content extent.
+	MaxScroll() (x, y int)
 }

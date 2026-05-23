@@ -239,6 +239,7 @@ func (r *testRender) LogicalNode() any                        { return r.node }
 func (r *testRender) Offset() layout.Point   { return layout.Point{} }
 func (r *testRender) SetOffset(layout.Point) {}
 func (r *testRender) IsAnonymous() bool      { return false }
+func (r *testRender) MaxScroll() (int, int)  { return 0, 0 }
 
 var _ dom.Node = (*testObject)(nil)
 var _ render.Object = (*testRender)(nil)

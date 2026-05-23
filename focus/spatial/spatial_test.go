@@ -272,6 +272,7 @@ func (r *spatialRender) LogicalNode() any                        { return r.node
 func (r *spatialRender) Offset() layout.Point   { return layout.Point{} }
 func (r *spatialRender) SetOffset(layout.Point) {}
 func (r *spatialRender) IsAnonymous() bool      { return false }
+func (r *spatialRender) MaxScroll() (int, int)  { return 0, 0 }
 
 var _ dom.Node = (*spatialObj)(nil)
 var _ render.Object = (*spatialRender)(nil)

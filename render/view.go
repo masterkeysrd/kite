@@ -171,6 +171,13 @@ func (b *BaseRender) IsAnonymous() bool {
 	return false
 }
 
+func (b *BaseRender) MaxScroll() (x, y int) {
+	if b.cachedFrag == nil {
+		return 0, 0
+	}
+	return layout.MaxScroll(b.cachedFrag)
+}
+
 func (b *BaseRender) Children() iter.Seq[Object] {
 	return func(yield func(Object) bool) {
 		for c := b.firstChild; c != nil; c = c.NextSibling() {

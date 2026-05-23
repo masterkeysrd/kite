@@ -171,6 +171,15 @@ func (e *element) ScrollTo(x, y int) {
 
 func (e *element) ScrollBy(dx, dy int) {
 	x, y := e.Scroll()
+
+	// If the element has a render object, we must base the relative scroll
+	// on the current clamped visual position to avoid accumulation at boundaries.
+	if ro := e.RenderObject(); ro != nil {
+		maxSX, maxSY := ro.MaxScroll()
+		x = max(0, min(x, maxSX))
+		y = max(0, min(y, maxSY))
+	}
+
 	e.ScrollTo(x+dx, y+dy)
 }
 

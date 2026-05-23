@@ -72,6 +72,7 @@ func (f *fakeRO) LogicalNode() any                                         { ret
 func (f *fakeRO) Offset() layout.Point   { return layout.Point{} }
 func (f *fakeRO) SetOffset(layout.Point) {}
 func (f *fakeRO) IsAnonymous() bool      { return false }
+func (f *fakeRO) MaxScroll() (int, int)  { return 0, 0 }
 
 var _ render.Object = (*fakeRO)(nil)
 
