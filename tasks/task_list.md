@@ -49,7 +49,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-034 | Event Coalescing and Throttling in Engine | Done | `tasks/TSK-034-event-coalescing.md` |
 | TSK-035 | Deferred Scroll & Cursor Rendering for Text Controls | Done | `tasks/TSK-035-deferred-scroll-rendering.md` |
 | TSK-036 | Customizable Visual Scrollbars | Done | `tasks/TSK-036-visual-scrollbars.md` |
-| TSK-037 | Implement Button Element | Pending | `tasks/TSK-037-button-element.md` |
+| TSK-037 | Implement Button Element | Done | `tasks/TSK-037-button-element.md` |
 | TSK-038 | Implement Checkbox and Radio Components | Pending | `tasks/TSK-038-checkbox-radio-elements.md` |
 | TSK-039 | Implement Select (Dropdown) Component | Pending | `tasks/TSK-039-select-element.md` |
 | TSK-040 | Audit and Enforce Strict Border-Box Sizing | Done | `tasks/TSK-040-strict-box-model.md` |

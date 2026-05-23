@@ -165,6 +165,7 @@ func (b *elementBase[Self]) Listeners() []PendingListener {
 // event-target resolver during dispatch setup.
 func (b *elementBase[Self]) OnEvent(typ event.EventType, fn event.Listener) *Self {
 	b.listeners = append(b.listeners, PendingListener{Typ: typ, Fn: fn})
+	b.AddEventListener(typ, fn)
 	return b.self
 }
 

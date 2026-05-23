@@ -214,8 +214,8 @@ This source map summarises the repository packages, their responsibilities, and 
     - Key files: `editor/doc.go`, `buffer.go`, tests
 
 - **element** — Path: `element/`
-    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List, Overlay, Dialog) and declarative builders. (See `element/doc.go`)
-    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, `overlay.go`, `dialog.go`, tests
+    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List, Overlay, Dialog, Button) and declarative builders. (See `element/doc.go`)
+    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, `overlay.go`, `dialog.go`, `button.go`, tests
 
 - **engine** — Path: `engine/`
     - Description: Main event loop, frame pipeline (Tasks → Style → Layout → Paint → Sync), task queues, and worker pool. Coordinates other packages. (See `engine/doc.go`)
@@ -226,7 +226,7 @@ This source map summarises the repository packages, their responsibilities, and 
     - Key files: `event/doc.go`, `dispatcher.go`, `events.go`, `synthesizer.go`, tests
 
 - **example** — Path: `example/`
-    - Description: Example applications and usage demos. Subpackages: `app1`, `flex`, `input`, `list`, `table`, `textarea`.
+    - Description: Example applications and usage demos. Subpackages: `app1`, `button`, `flex`, `input`, `list`, `table`, `textarea`.
 
 - **focus** — Path: `focus/`
     - Description: Focus management, `focus.Manager`, reasons, scope stack, and spatial navigation. (See `focus/doc.go`)

@@ -30,8 +30,9 @@ func (a *AnonymousBlock) Style() *style.Computed {
 	s.Margin = style.EdgeValues[int]{}
 	s.Padding = style.EdgeValues[int]{}
 	s.Border = style.Border{}
-	// Reset width/height to auto to allow the anonymous box to shrink-wrap its inlines
-	s.Width = style.Auto
+	// Use Width: Content to ensure the anonymous box shrink-wraps its inlines,
+	// allowing the flex container to correctly align/center it.
+	s.Width = style.Content
 	s.Height = style.Auto
 	return &s
 }
@@ -508,8 +509,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 }
 
 func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
-	comp := node.Style()
-	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
+	return IsInlineLevel(node)
 }
 
 func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {

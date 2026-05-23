@@ -86,6 +86,10 @@ func main() {
 			element.LI("Flexbox Layout"),
 		),
 
+		element.Button("Click Me").OnEvent(event.EventClick, func(e event.Event) {
+			// Handle click
+		}),
+
 		element.Table(
 			element.TR(
 				element.TD("Cell 1"),

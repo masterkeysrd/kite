@@ -12,7 +12,9 @@ The `style` package manages the sparse `Style` definitions and the fully-resolve
 1. **Inherited Values**: Properties like `Foreground` and `Bold` flow from parent to child.
 2. **Element Defaults**: Tag-specific defaults (e.g., `Display: Inline` for `<span>`).
 3. **Author Styles**: Properties set explicitly via `Style()`.
-4. **UA-Intrinsic Styles**: Mandatory properties for compound elements (e.g., `OverflowY: Auto` for `<textarea>`).
+4. **UA-Intrinsic Styles**: Mandatory properties for compound elements. Examples:
+    - `<textarea>`: `OverflowY: Auto`, `OverflowX: Clip`.
+    - `<button>`: `Display: Flex`, `AlignItems: Center`, `JustifyContent: Center`.
 
 ## 📜 Scrollbars (Task 036)
 

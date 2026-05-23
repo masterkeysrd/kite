@@ -3,9 +3,9 @@
 This document outlines the major architectural features and subsystems that still need to be designed and agreed upon in future sessions.
 
 ## 1. Interactive Components (Forms & Buttons)
-*   **Context:** We have designed text inputs, but a standard UI framework requires a comprehensive set of controls.
+*   **Context:** We have designed text inputs and buttons, but a standard UI framework requires a comprehensive set of controls.
 *   **Design Needs:**
-    *   `Button`: Should it be a specialized component or just a `Box` with standard focus semantics (e.g., `Enter`/`Space` triggering a `click` event)?
+    *   ~~`Button`~~ (Implemented in TSK-037).
     *   `Checkbox` / `Toggle`.
     *   `RadioGroup`: Requires shared state management to ensure mutual exclusivity.
     *   `Select` (Dropdown): Will heavily utilize the new `Overlay` system designed in ADR-008.

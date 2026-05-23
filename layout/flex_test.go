@@ -1046,3 +1046,48 @@ func TestFlexLayout_RowHeightAutoWithGap(t *testing.T) {
 		t.Errorf("expected height 5, got %d", frag.Size.Height)
 	}
 }
+
+func TestFlexLayout_CenteringWithText(t *testing.T) {
+	// Root is a FlexRow with JustifyContent: Center.
+	// Contains a single text node.
+	// The text should be centered.
+
+	textStyle := style.DefaultStyle()
+	textStyle.Display = style.DisplayInline
+	textNode := &mockTextNode{
+		mockNode: mockNode{style: &textStyle},
+		data:     "Center Me", // 9 cells
+	}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.JustifyContent = style.JustifyCenter
+	parentStyle.Width = style.Cells(100)
+	parentStyle.Height = style.Auto
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout()
+
+	// Text "Center Me" (9) should be wrapped in an AnonymousBlock.
+	// The AnonymousBlock should have Width: Content (9).
+	// Center offset = (100 - 9) / 2 = 45.
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+
+	anonFrag := frag.Children[0].Fragment
+	if anonFrag.Size.Width != 9 {
+		t.Errorf("expected anonymous block width 9, got %d", anonFrag.Size.Width)
+	}
+
+	if frag.Children[0].Offset.X != 45 {
+		t.Errorf("expected anonymous block offset X 45, got %d", frag.Children[0].Offset.X)
+	}
+}

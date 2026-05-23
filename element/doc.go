@@ -58,6 +58,7 @@
 //   - Box: A generic container (similar to <div>).
 //   - Span: An inline container (similar to <span>).
 //   - Text: A leaf node containing text.
+//   - Button: A clickable button with centered content and interactive states.
 //   - UL (UnorderedList): A list with bullet markers (<ul>).
 //   - OL (OrderedList): A numbered list (<ol>).
 //   - LI (ListItem): An individual item within a list (<li>).

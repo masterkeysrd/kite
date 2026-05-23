@@ -62,6 +62,9 @@ btn := element.Box("Click Me").
 | `Box` | `box` | A generic container (similar to `<div>`). |
 | `Span` | `span` | An inline container (similar to `<span>`). |
 | `Text` | `#text` | A leaf node containing text. |
+| `Button` | `button` | A clickable button with centered content and interactive states. |
+| `Input` | `input` | A single-line text input field. |
+| `TextArea` | `textarea` | A multi-line scrollable text editor. |
 | `UL` | `ul` | An unordered list with markers. |
 | `OL` | `ol` | An ordered list with numbers. |
 | `LI` | `li` | A list item. |
