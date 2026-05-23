@@ -68,7 +68,7 @@ func InstallWithContext(ctx context.Context, eng *engine.Engine, opts Options) e
 	if opts.InspectorAddr != "" {
 		inspectorHotkey := opts.InspectorHotkey
 		if inspectorHotkey == "" {
-			inspectorHotkey = "ctrl+i"
+			inspectorHotkey = "f12"
 		}
 
 		var actualAddr string
@@ -83,6 +83,7 @@ func InstallWithContext(ctx context.Context, eng *engine.Engine, opts Options) e
 			}
 			slog.Info("devtools: inspector hotkey matched", "hotkey", inspectorHotkey)
 
+			slog.Info("key event:", "key", ke.Key, "ctrl", ke.Mod, "code", ke.Code)
 			if actualAddr == "" {
 				slog.Info("devtools: starting inspector server")
 				addr, err := inspector.Attach(eng, opts.InspectorAddr, opts.InspectorOptions)
