@@ -460,9 +460,16 @@ func isScrollContainer(o style.Overflow) bool {
 }
 
 func (p *PaintEngine) fillRect(r layout.Rect, content string, fg, bg color.Color) {
-	for y := 0; y < r.Size.Height; y++ {
-		for x := 0; x < r.Size.Width; x++ {
-			p.setCell(r.Origin.X+x, r.Origin.Y+y, Cell{
+	clip := p.clipStack[len(p.clipStack)-1]
+
+	visibleRect := r.Intersect(clip)
+	if visibleRect.Size.Width <= 0 || visibleRect.Size.Height <= 0 {
+		return
+	}
+
+	for y := 0; y < visibleRect.Size.Height; y++ {
+		for x := 0; x < visibleRect.Size.Width; x++ {
+			p.setCell(visibleRect.Origin.X+x, visibleRect.Origin.Y+y, Cell{
 				Content: content,
 				Width:   1,
 				FG:      fg,
