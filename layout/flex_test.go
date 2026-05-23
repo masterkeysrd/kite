@@ -364,7 +364,6 @@ func TestFlexLayout_NoWrapItems(t *testing.T) {
 		t.Fatalf("expected 1 child")
 	}
 
-	itemFrag := frag.Children[0].Fragment
 	// If it used min-content, it might be smaller than 12.
 	// But "VeryLongWord" is unbreakable, so min-content is also 12.
 	// Let's use two words.
@@ -381,7 +380,7 @@ func TestFlexLayout_NoWrapItems(t *testing.T) {
 	algo = NewAlgorithm(parent, space)
 	frag = algo.Layout()
 
-	itemFrag = frag.Children[0].Fragment
+	itemFrag := frag.Children[0].Fragment
 	if itemFrag.Size.Width < 9 {
 		t.Errorf("expected item width at least 9 (max-content), got %d. This causes wrapping!", itemFrag.Size.Width)
 	}

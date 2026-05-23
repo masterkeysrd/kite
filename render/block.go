@@ -15,7 +15,7 @@ var _ Object = (*Block)(nil)
 // NewBlock creates a new Block render object.
 func NewBlock(logicalNode any, target event.EventTarget) *Block {
 	b := &Block{}
-	b.BaseRender.Init(b, logicalNode, target)
+	b.Init(b, logicalNode, target)
 	// Default block style
 	b.SetComputedStyle(&style.Computed{Display: style.DisplayBlock})
 	return b
