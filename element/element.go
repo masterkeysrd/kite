@@ -24,6 +24,9 @@ type Element interface {
 
 	// Listeners returns the set of event listeners registered on this element.
 	Listeners() []PendingListener
+
+	// DispatchEvent fires an event that propagates through the DOM tree.
+	DispatchEvent(e event.Event)
 }
 
 // elementBase is the shared data and method set embedded by every concrete
@@ -160,6 +163,22 @@ func (b *elementBase[Self]) Listeners() []PendingListener {
 	return b.listeners
 }
 
+// DispatchEvent fires an event that propagates through the DOM tree.
+func (b *elementBase[Self]) DispatchEvent(e event.Event) {
+	// Build the ancestor path for dispatch (root -> target).
+	var path []event.EventTarget
+	for p := dom.Node(b.Element); p != nil; p = p.Parent() {
+		path = append(path, p.EventTarget())
+	}
+	// Reverse the path.
+	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+		path[i], path[j] = path[j], path[i]
+	}
+
+	dispatcher := event.NewDispatcher()
+	dispatcher.Dispatch(e, path)
+}
+
 // OnEvent registers fn as a listener for event of type typ and returns *Self.
 // Listeners are stored on the element and retrieved by the engine's
 // event-target resolver during dispatch setup.
@@ -190,7 +209,7 @@ func (b *elementBase[Self]) SetDisabled(v bool) {
 // IsFocusable reports whether the element is focusable.
 func (b *elementBase[Self]) IsFocusable() bool {
 	tag := b.TagName()
-	return tag == "button" || tag == "input" || tag == "textarea"
+	return tag == "button" || tag == "input" || tag == "textarea" || tag == "checkbox" || tag == "radio"
 }
 
 // Focus is a no-op placeholder for focus acquisition.

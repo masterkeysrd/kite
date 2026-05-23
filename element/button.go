@@ -92,7 +92,7 @@ func (b *ButtonElement) handleMouseUp(e event.Event) {
 
 	// Fire EventClick.
 	click := event.NewMouseEvent(event.EventClick, me.Screen, event.ButtonLeft, me.Mods)
-	b.dispatchEvent(click)
+	b.DispatchEvent(click)
 }
 
 func (b *ButtonElement) handleKeyDown(e event.Event) {

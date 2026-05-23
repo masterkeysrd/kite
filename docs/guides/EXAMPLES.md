@@ -27,6 +27,7 @@ Inspect typical examples:
 - `example/app1` — app scaffold demonstrating mounting and basic widgets.
 - `example/flex` — flexbox layout usage.
 - `example/input` — input widget example.
+- `example/checkbox_radio` — Checkbox and RadioGroup demonstration.
 - `example/overlay` — basic anchored overlay demo.
 - `example/dialog` — modal dialog demonstration.
 - `example/overlay_tweaks` — interactive configuration of overlay smart-flipping.

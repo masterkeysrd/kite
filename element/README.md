@@ -65,6 +65,9 @@ btn := element.Box("Click Me").
 | `Button` | `button` | A clickable button with centered content and interactive states. |
 | `Input` | `input` | A single-line text input field. |
 | `TextArea` | `textarea` | A multi-line scrollable text editor. |
+| `Checkbox` | `checkbox` | A toggleable checkbox with UA glyphs. |
+| `RadioGroup`| `radiogroup`| A container that manages a set of Radio buttons. |
+| `Radio` | `radio` | A single radio button within a group. |
 | `UL` | `ul` | An unordered list with markers. |
 | `OL` | `ol` | An ordered list with numbers. |
 | `LI` | `li` | A list item. |
