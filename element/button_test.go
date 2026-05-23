@@ -73,8 +73,8 @@ func TestButton_IsFocusable(t *testing.T) {
 
 func TestButton_ActiveStyle(t *testing.T) {
 	btn := element.Button("Active")
-	is := btn.IntrinsicStyle()
-	if is.Reverse.UnwrapOr(false) {
+	ds := btn.DefaultStyle()
+	if ds.Reverse.UnwrapOr(false) {
 		t.Error("button should not be reversed by default")
 	}
 
@@ -85,8 +85,8 @@ func TestButton_ActiveStyle(t *testing.T) {
 	down := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(down, path)
 
-	is = btn.IntrinsicStyle()
-	if !is.Reverse.UnwrapOr(false) {
+	ds = btn.DefaultStyle()
+	if !ds.Reverse.UnwrapOr(false) {
 		t.Error("button should be reversed when active")
 	}
 
@@ -94,8 +94,8 @@ func TestButton_ActiveStyle(t *testing.T) {
 	up := event.NewMouseEvent(event.EventMouseUp, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(up, path)
 
-	is = btn.IntrinsicStyle()
-	if is.Reverse.UnwrapOr(false) {
+	ds = btn.DefaultStyle()
+	if ds.Reverse.UnwrapOr(false) {
 		t.Error("button should not be reversed after mouse up")
 	}
 }

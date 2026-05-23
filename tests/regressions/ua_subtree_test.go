@@ -29,12 +29,14 @@ type testHost struct {
 func (h *testHost) Unwrap() dom.Node { return h.Element }
 
 func newTestHost(doc dom.Document) *testHost {
-	el := doc.CreateElement("x-host", nil)
+	h := &testHost{}
+	el := doc.CreateElement("x-host", h)
 	inner := doc.CreateElement("div", nil)
 	text := doc.CreateTextNode("hi", nil)
 	inner.AppendChild(text)
 
-	h := &testHost{Element: el, uaInner: inner}
+	h.Element = el
+	h.uaInner = inner
 	el.AttachUARoot(inner)
 	return h
 }

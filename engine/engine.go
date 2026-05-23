@@ -344,7 +344,13 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 	// Walk overlays from the end (topmost) to start.
 	overlays := e.renderView.Overlays()
 	for i := len(overlays) - 1; i >= 0; i-- {
-		if hit := hitTestFragment(overlays[i].Fragment(), p); hit != nil {
+		ov := overlays[i]
+		offset := ov.Offset()
+		localP := layout.Point{
+			X: p.X - offset.X,
+			Y: p.Y - offset.Y,
+		}
+		if hit := hitTestFragment(ov.Fragment(), localP); hit != nil {
 			return hit.EventTarget()
 		}
 	}
@@ -1286,7 +1292,7 @@ func (e *Engine) processRawEvent(raw event.RawEvent) {
 }
 
 func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
-	target := ev.Target()
+	target := ev.OriginalTarget()
 	if target == nil {
 		return
 	}
@@ -1358,7 +1364,7 @@ func isScrollContainer(cs *style.Computed) bool {
 }
 
 func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
-	target := ev.Target()
+	target := ev.OriginalTarget()
 	if target == nil {
 		return
 	}
@@ -1386,6 +1392,25 @@ func nodeAncestorPath(n dom.Node) []event.EventTarget {
 		chain = append(chain, cur)
 		parent := cur.Parent()
 		if parent == nil {
+			// 1. Cross UA shadow boundary: jump from UARoot to host element.
+			// EventTarget() on a UAT node returns its host (ADR-0036).
+			if et := cur.EventTarget(); et != nil {
+				if host, ok := et.(dom.Node); ok && host != cur {
+					cur = host
+					continue
+				}
+			}
+
+			// 2. Cross Overlay boundary: jump from Overlay to Anchor.
+			if ov, ok := cur.(interface{ Anchor() dom.Element }); ok {
+				if anchor := ov.Anchor(); anchor != nil {
+					if aNode, ok := anchor.(dom.Node); ok {
+						cur = aNode
+						continue
+					}
+				}
+			}
+
 			// check if it is the document
 			if doc := cur.OwnerDocument(); doc != nil && cur != doc {
 				cur = doc

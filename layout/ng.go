@@ -249,7 +249,6 @@ func (a *NoneAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	return MinMaxSizes{}
 }
 
-
 // IntrinsicMinMaxSizes computes the intrinsic min/max widths for a node by selecting
 // the correct algorithm based on its display style.
 func IntrinsicMinMaxSizes(node Node) MinMaxSizes {

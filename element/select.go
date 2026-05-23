@@ -13,6 +13,7 @@ import (
 )
 
 // OptionElement represents a single option in a Select component.
+// It is a metadata-only element that does not participate in the main render tree.
 type OptionElement struct {
 	elementBase[OptionElement]
 	value string
@@ -29,12 +30,27 @@ func NewOption(doc dom.Document, text, value string) *OptionElement {
 }
 
 func (o *OptionElement) IntrinsicStyle() style.Style {
+	// Options are metadata-only; they should never produce render objects.
 	return style.Style{Display: style.Some(style.DisplayNone)}
 }
 
 // Option creates a new OptionElement with the given text and value.
 func Option(text, value string) *OptionElement {
 	return NewOption(orphanDocument, text, value)
+}
+
+type uaSelectRoot struct {
+	dom.Element
+}
+
+func (r *uaSelectRoot) Unwrap() dom.Node { return r.Element }
+
+var defaultSelectStyle = style.Style{
+	Width: style.Some(style.Cells(20)),
+}
+
+var intrinsicSelectStyle = style.Style{
+	Display: style.Some(style.DisplayInlineBlock),
 }
 
 // SelectElement implements a dropdown selection component.
@@ -56,13 +72,19 @@ var _ Element = (*SelectElement)(nil)
 func NewSelect(doc dom.Document, children ...any) *SelectElement {
 	s := &SelectElement{}
 	el := doc.CreateElement("select", s)
-	s.initBase(el, s, style.Style{}, style.Style{
-		Display: style.Some(style.DisplayInlineBlock),
-	})
+	s.initBase(el, s, defaultSelectStyle, intrinsicSelectStyle)
 
-	// UA Shadow Subtree: Trigger Button
-	s.uaButton = NewButton(doc, "Select... ▼")
-	uaRoot := doc.CreateElement("ua-select-root", nil)
+	// UA Shadow Subtree: Trigger Button. We force DisplayBlock here so that
+	// the button correctly fills the host's available width even when the
+	// host is an InlineBlock (as is the case for SelectElement).
+	s.uaButton = NewButton(doc, "Select... ▼").Style(style.Style{
+		Display: style.Some(style.DisplayBlock),
+		Width:   style.Some(style.Percent(100)),
+		Height:  style.Some(style.Auto),
+	})
+	uaRoot := &uaSelectRoot{}
+	uaRootEl := doc.CreateElement("ua-select-root", uaRoot)
+	uaRoot.Element = uaRootEl
 	uaRoot.AppendChild(s.uaButton)
 	el.AttachUARoot(uaRoot)
 
@@ -87,14 +109,16 @@ func (s *SelectElement) processSelectChildren(children []any) {
 		case []any:
 			s.processSelectChildren(v)
 		case dom.Node:
+			// If it's a node but not an OptionElement, add it to the group's metadata
+			// if it wraps one, otherwise ignore or handle as public child.
 			if opt, ok := v.EventTarget().(*OptionElement); ok {
 				s.options = append(s.options, opt)
 			} else {
-				s.AppendChild(v)
+				// We do NOT add options to the public children list to avoid
+				// rendering them in the main flow.
 			}
 		default:
-			// Fallback to standard child processing for strings, etc.
-			processChildren(s, []any{child})
+			// Strings and other types are ignored for Select unless they are options.
 		}
 	}
 }
@@ -128,7 +152,7 @@ func (s *SelectElement) OnChange(fn func(string)) *SelectElement {
 
 func (s *SelectElement) wireEvents() {
 	s.OnEvent(event.EventClick, func(e event.Event) {
-		s.openDropdown()
+		s.openDropdown(e)
 	})
 	s.OnEvent(event.EventMouseDown, func(e event.Event) {
 		if me, ok := e.(*event.MouseEvent); ok && me.Button == event.ButtonLeft {
@@ -140,8 +164,11 @@ func (s *SelectElement) wireEvents() {
 	})
 	s.OnEvent(event.EventKeyDown, func(e event.Event) {
 		if ke, ok := e.(*event.KeyEvent); ok {
-			if ke.MatchString(" ") || ke.MatchString("enter") {
-				s.openDropdown()
+			if ke.MatchString("up") || ke.MatchString("down") {
+				s.openDropdown(e)
+				e.StopPropagation()
+			} else if ke.MatchString(" ") || ke.MatchString("enter") {
+				s.openDropdown(e)
 				e.StopPropagation()
 			}
 		}
@@ -161,7 +188,7 @@ func (s *SelectElement) syncValue() {
 	s.uaButton.SetData(text)
 }
 
-func (s *SelectElement) openDropdown() {
+func (s *SelectElement) openDropdown(trigger event.Event) {
 	if s.isOpen {
 		return
 	}
@@ -172,32 +199,32 @@ func (s *SelectElement) openDropdown() {
 	}
 
 	// Calculate width from Select element
-	width := style.Cells(20)
+	width := style.Cells(25)
 	if ro := s.RenderObject(); ro != nil {
-		width = style.Cells(ro.Fragment().Size.Width)
+		width = style.Cells(max(25, ro.Fragment().Size.Width))
 	}
 
 	// Create overlay content
 	content := Box().Style(style.Style{
-		Width:      style.Some(width),
-		MaxHeight:  style.Some(style.Cells(10)),
-		Border:     style.SingleBorder().Some(),
-		Background: style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 30, A: 255}),
-		OverflowY:  style.Some(style.OverflowAuto),
+		Display:       style.Some(style.DisplayFlex),
+		FlexDirection: style.Some(style.FlexColumn),
+		Width:         style.Some(width),
+		MaxHeight:     style.Some(style.Cells(10)),
+		Border:        style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 150, A: 255}).Some(),
+		Background:    style.Some[color.Color](color.RGBA{R: 25, G: 25, B: 35, A: 255}),
+		OverflowY:     style.Some(style.OverflowAuto),
 	})
 	content.ScrollbarY(true)
 
-	var firstBtn *ButtonElement
 	for _, opt := range s.options {
-		btn := Button(opt.text).Style(style.Style{
+		opt := opt // Capture for closure
+		btn := Button(" " + opt.text).Style(style.Style{
+			Display:   style.Some(style.DisplayBlock), // Ensure one per line
 			Width:     style.Some(style.Percent(100)),
 			TextAlign: style.Some(style.TextAlignLeft),
 			Padding:   style.Some(style.Edges(0, 1)),
 			Border:    style.EmptyBorder().Some(),
 		})
-		if firstBtn == nil {
-			firstBtn = btn
-		}
 		btn.OnEvent(event.EventClick, func(e event.Event) {
 			s.selectOption(opt)
 		})
@@ -214,35 +241,95 @@ func (s *SelectElement) openDropdown() {
 	s.isOpen = true
 	doc.AppendChild(s.overlay)
 
+	// Determine initial focus
+	var autofocus dom.Node
+	if s.value != "" {
+		// Find the button corresponding to the current value
+		for i, opt := range s.options {
+			if opt.value == s.value {
+				// The content Box has buttons as children in the same order as s.options
+				childIdx := 0
+				for child := range content.ChildNodes() {
+					if childIdx == i {
+						autofocus = child
+						break
+					}
+					childIdx++
+				}
+				break
+			}
+		}
+	}
+	if autofocus == nil {
+		autofocus = content.FirstChild()
+	}
+
 	if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-		fm.PushScope(&focus.Scope{Root: s.overlay, Autofocus: firstBtn})
+		fm.PushScope(&focus.Scope{Root: s.overlay, Autofocus: autofocus})
+
+		// Handle initial navigation if opened via arrow keys
+		if trigger != nil {
+			if ke, ok := trigger.(*event.KeyEvent); ok {
+				if ke.MatchString("down") {
+					if s.value != "" {
+						fm.Next()
+					}
+				} else if ke.MatchString("up") {
+					if s.value == "" {
+						// wrap to last
+						fm.Previous()
+					} else {
+						fm.Previous()
+					}
+				}
+			}
+		}
 	}
 
 	// Add global escape listener to close dropdown
 	s.escSub = doc.AddEventListener(event.EventKeyDown, func(e event.Event) {
 		ke, ok := e.(*event.KeyEvent)
-		if ok && ke.MatchString("esc") {
+		if !ok {
+			return
+		}
+		if ke.MatchString("esc") {
 			s.closeDropdown()
 			e.StopPropagation()
+		} else if ke.MatchString("up") {
+			if fm, ok := doc.FocusManager().(*focus.Manager); ok {
+				fm.Previous()
+				e.StopPropagation()
+			}
+		} else if ke.MatchString("down") {
+			if fm, ok := doc.FocusManager().(*focus.Manager); ok {
+				fm.Next()
+				e.StopPropagation()
+			}
+		} else if ke.MatchString("enter") || ke.MatchString(" ") {
+			if fm, ok := doc.FocusManager().(*focus.Manager); ok {
+				if btn, ok := fm.Current().(*ButtonElement); ok {
+					// The button's EventKeyDown handler already handles Enter/Space
+					// but it might not have been triggered if we are capturing.
+					// Let's manually trigger selection.
+					btn.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+					e.StopPropagation()
+				}
+			}
 		}
 	}, event.Capture())
 
 	// Add global click listener to close dropdown
 	s.clickSub = doc.AddEventListener(event.EventMouseDown, func(e event.Event) {
 		me := e.(*event.MouseEvent)
+		target, ok := me.Target().(dom.Node)
+		if !ok {
+			return
+		}
 		// If click is outside the overlay and not on the select itself, close.
-		if !s.isDescendant(me.Target()) && !s.overlay.Contains(me.Target().(dom.Node)) {
+		if !s.Contains(target) && !s.overlay.Contains(target) {
 			s.closeDropdown()
 		}
 	}, event.Capture())
-}
-
-func (s *SelectElement) isDescendant(target event.EventTarget) bool {
-	n, ok := target.(dom.Node)
-	if !ok {
-		return false
-	}
-	return s.Contains(n)
 }
 
 func (s *SelectElement) selectOption(opt *OptionElement) {
@@ -289,6 +376,5 @@ func (s *SelectElement) emitChange() {
 }
 
 func (s *SelectElement) SetData(data string) {
-	// Delegate to uaButton for simple text updates if used directly
 	s.uaButton.SetData(data)
 }

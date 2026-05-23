@@ -379,7 +379,8 @@ func LayoutPhase(root Object, available layout.Size) {
 
 	// 3. Execute the layout pass.
 	// This will recursively visit children and cache fragments internally.
-	algo.Layout()
+	frag := algo.Layout()
+	propagateOffsets(frag)
 
 	// 4. Layout overlays.
 	if rv, ok := root.(*RenderView); ok {
@@ -408,6 +409,7 @@ func LayoutPhase(root Object, available layout.Size) {
 			algo := layout.NewAlgorithm(overlay, overlaySpace)
 			frag := algo.Layout()
 			overlay.SetCachedLayout(overlaySpace, frag)
+			propagateOffsets(frag)
 
 			// If the overlay doesn't have a custom positioner (like OverlayAlgorithm),
 			// we fallback to margin-based positioning relative to the viewport.
@@ -418,6 +420,18 @@ func LayoutPhase(root Object, available layout.Size) {
 					overlay.SetOffset(layout.Point{X: x, Y: y})
 				}
 			}
+		}
+	}
+}
+
+func propagateOffsets(frag *layout.Fragment) {
+	if frag == nil {
+		return
+	}
+	for _, link := range frag.Children {
+		if ro, ok := link.Fragment.Node.(Object); ok {
+			ro.SetOffset(link.Offset)
+			propagateOffsets(link.Fragment)
 		}
 	}
 }

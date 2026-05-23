@@ -44,6 +44,11 @@ func (t *textNode) SetData(data string) {
 	t.data = data
 	t.MarkNeedsSync()
 
+	// Mark the text node's own render object as dirty if it exists.
+	if ro := t.RenderObject(); ro != nil {
+		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+	}
+
 	// Notify the render tree. We need to find the nearest ancestor that has
 	// a render object. For nodes in a UA subtree, we use the host element
 	// (outer pointer) as the starting point for the walk-up.
@@ -54,7 +59,7 @@ func (t *textNode) SetData(data string) {
 
 	for p := start; p != nil; p = p.Parent() {
 		if ro := p.RenderObject(); ro != nil {
-			ro.MarkChildrenDirty()
+			ro.MarkDirty(render.DirtyLayout)
 			break
 		}
 	}

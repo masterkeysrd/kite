@@ -95,15 +95,18 @@ func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 	if len(path) == 0 {
 		return
 	}
-	target := path[len(path)-1]
-	e.setTarget(target)
+
+	// Step i's target is the deepest ancestor of the real target that step i can see.
+	targets := computeRetargeting(path)
+	realTarget := path[len(path)-1]
 
 	// Phase 1: Capture — root → target's parent.
 	e.setPhase(PhaseCapture)
-	for _, et := range path[:len(path)-1] {
+	for i, et := range path[:len(path)-1] {
 		if e.PropagationStopped() {
 			return
 		}
+		e.setTarget(targets[i])
 		e.setCurrentTarget(et)
 		et.DispatchTo(e)
 	}
@@ -114,8 +117,9 @@ func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 
 	// Phase 2: Target — both capture and bubble listeners fire.
 	e.setPhase(PhaseTarget)
-	e.setCurrentTarget(target)
-	target.DispatchToTarget(e)
+	e.setTarget(realTarget)
+	e.setCurrentTarget(realTarget)
+	realTarget.DispatchToTarget(e)
 
 	if e.PropagationStopped() || !e.Bubbles() {
 		return
@@ -128,6 +132,7 @@ func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 			return
 		}
 		et := path[i]
+		e.setTarget(targets[i])
 		e.setCurrentTarget(et)
 		et.DispatchTo(e)
 	}
@@ -142,16 +147,17 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 	if len(path) == 0 {
 		return
 	}
-	// Dispatch normally through capture/target; bubble stops at first Scrollable.
-	target := path[len(path)-1]
-	e.setTarget(target)
+
+	targets := computeRetargeting(path)
+	realTarget := path[len(path)-1]
 
 	// Capture.
 	e.setPhase(PhaseCapture)
-	for _, et := range path[:len(path)-1] {
+	for i, et := range path[:len(path)-1] {
 		if e.PropagationStopped() {
 			return
 		}
+		e.setTarget(targets[i])
 		e.setCurrentTarget(et)
 		et.DispatchTo(e)
 	}
@@ -162,11 +168,12 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 
 	// Target.
 	e.setPhase(PhaseTarget)
-	e.setCurrentTarget(target)
-	target.DispatchToTarget(e)
+	e.setTarget(realTarget)
+	e.setCurrentTarget(realTarget)
+	realTarget.DispatchToTarget(e)
 
 	// Check if target itself is Scrollable.
-	if sc, ok := scrollables[target]; ok {
+	if sc, ok := scrollables[realTarget]; ok {
 		sc.OnWheel(e)
 		return
 	}
@@ -182,6 +189,7 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 			return
 		}
 		et := path[i]
+		e.setTarget(targets[i])
 		if sc, ok := scrollables[et]; ok {
 			e.setCurrentTarget(et)
 			sc.OnWheel(e)
@@ -192,11 +200,62 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 	}
 }
 
+func computeRetargeting(path []EventTarget) []EventTarget {
+	res := make([]EventTarget, len(path))
+	if len(path) == 0 {
+		return res
+	}
+
+	// We walk from target to root.
+	// The current visible target starts as the deepest node.
+	currentTarget := path[len(path)-1]
+
+	for i := len(path) - 1; i >= 0; i-- {
+		res[i] = currentTarget
+
+		if i > 0 {
+			parent := path[i-1]
+			child := path[i]
+
+			isBoundary := false
+
+			// 1. UA Shadow Boundary: The child's visible identity is the parent.
+			if et := child.EventTarget(); et != nil && et == parent {
+				isBoundary = true
+			}
+
+			// 2. Overlay Boundary: The child is an overlay anchored to the parent.
+			if ov, ok := child.(interface{ Anchor() any }); ok {
+				if ov.Anchor() == parent {
+					isBoundary = true
+				}
+			}
+
+			if isBoundary {
+				// Crossing a boundary outward. The new visible target for ancestors
+				// is the boundary node itself.
+				currentTarget = parent
+				// If the boundary node itself has a different user-visible identity
+				// (e.g., it's also a wrapper), we use that.
+				if et := parent.EventTarget(); et != nil {
+					currentTarget = et
+				}
+			}
+		}
+	}
+
+	return res
+}
+
 type EventTarget interface {
 	AddEventListener(typ EventType, fn Listener, opts ...Option) Subscription
 	DispatchTo(e Event)
 	DispatchToTarget(e Event)
 	removeRegistration(id uint64)
+	// EventTarget returns the user-visible event target for this object.
+	// For logical nodes in a UA shadow subtree, this returns the host element;
+	// otherwise it returns the object itself.
+	EventTarget() EventTarget
 }
 
 // Target manages event listeners for a single object. It should
@@ -207,6 +266,11 @@ type EventTarget interface {
 // single main-loop goroutine.
 type Target struct {
 	listeners map[EventType][]*registration
+}
+
+// EventTarget implements event.EventTarget.
+func (t *Target) EventTarget() EventTarget {
+	return nil
 }
 
 // AddEventListener registers fn as a listener for event of type typ on this
