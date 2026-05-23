@@ -27,6 +27,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/render"
 )
 
 // textControlBase[T] holds the state shared by single-line and multi-line
@@ -66,6 +67,18 @@ type textControlBase[T dom.Element] struct {
 	// fragment is stale (e.g. when called from a keydown handler before the
 	// layout phase has run after a buffer mutation).
 	lastKnownCX, lastKnownCY int
+
+	// lastSyncedOffset tracks the buffer offset at the time lastKnownCX/Y
+	// were computed.
+	lastSyncedOffset int
+
+	// lastSyncedVersion tracks the buffer.Version() at the time of the last
+	// full shadow-DOM rebuild.
+	lastSyncedVersion int64
+
+	// lastRenderedVersion tracks the buffer.Version() at the time of the last
+	// paint phase.
+	lastRenderedVersion int64
 }
 
 // initTextControlBase initialises the base with its dependencies.
@@ -86,6 +99,9 @@ func (b *textControlBase[T]) initTextControlBase(
 	b.buf = buf
 	b.isMultiline = isMultiline
 	b.syncCallback = sync
+	b.lastSyncedVersion = -1   // force first sync
+	b.lastRenderedVersion = -1 // force first paint
+	b.lastSyncedOffset = -1    // force first cursor calc
 }
 
 // --- cursor.Provider ---------------------------------------------------------
@@ -115,18 +131,16 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
 	}
 
-	// cx, cy are relative to the ua-div's coordinate system (no border/padding
-	// on the ua-div itself, so they equal the IFC-local column and row).
-	cx, cy, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
-	if ok {
-		// Cache for use when the fragment is stale (e.g. called before layout).
-		b.lastKnownCX, b.lastKnownCY = cx, cy
-	} else {
-		// Fragment is stale: buffer offset exceeds the old fragment's byte range
-		// (e.g. called from a keydown handler right after inserting text, before
-		// the next layout pass). Return the last known good position so the
-		// status bar and other callers do not show a misleading (0,0).
-		cx, cy = b.lastKnownCX, b.lastKnownCY
+	offset := b.buf.ByteOffset()
+	cx, cy := b.lastKnownCX, b.lastKnownCY
+
+	// Recalculate only if offset changed or the fragment is new.
+	if offset != b.lastSyncedOffset {
+		if freshX, freshY, ok := cursor.FromTextFragment(uaDivFrag, offset); ok {
+			cx, cy = freshX, freshY
+			b.lastKnownCX, b.lastKnownCY = cx, cy
+			b.lastSyncedOffset = offset
+		}
 	}
 
 	// Add the host's inset (border + padding) so the returned state is
@@ -136,6 +150,8 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	bw := cs.Border.Widths()
 	insetLeft := bw.Left + cs.Padding.Left
 	insetTop := bw.Top + cs.Padding.Top
+
+	b.lastRenderedVersion = b.buf.Version()
 
 	return cursor.State{
 		Visible: true,
@@ -173,13 +189,17 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 		return
 	}
 
-	cx, cy, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
-	if !ok {
-		return
-	}
-
+	// Ensure we have current coordinates. CursorState() handles caching/recalc.
+	state := b.CursorState()
 	cs := ro.ComputedStyle()
 	bw := cs.Border.Widths()
+	insetLeft := bw.Left + cs.Padding.Left
+	insetTop := bw.Top + cs.Padding.Top
+
+	// Translate state (host-local) back to uaDiv-local.
+	cx := state.X - insetLeft
+	cy := state.Y - insetTop
+
 	contentW := max(0, ro.Fragment().Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right)
 	contentH := max(0, ro.Fragment().Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom)
 
@@ -281,7 +301,17 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 }
 
 // ProvidesCursor implements dom.Element.
-func (b *textControlBase[T]) ProvidesCursor() bool { return true }
+func (b *textControlBase[T]) ProvidesCursor() bool {
+	// If the buffer version has changed since the last time the cursor was
+	// rendered, we must return true so that engine.updateHardwareCursor
+	// triggers a repaint to recalculate the cursor position.
+	if b.buf.Version() != b.lastRenderedVersion {
+		if ro := b.host.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyPaint)
+		}
+	}
+	return true
+}
 
 // handleKeyDown processes a keydown event and routes it to the appropriate
 // buffer operation.

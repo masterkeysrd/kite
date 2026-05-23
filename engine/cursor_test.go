@@ -95,7 +95,7 @@ func TestEngineCursorIntegration(t *testing.T) {
 	}
 
 	// Run updateHardwareCursor
-	e.updateHardwareCursor()
+	e.updateHardwareCursor(true)
 
 	// Verify mock backend received the cursor state.
 	if !b.Cursor.Visible {

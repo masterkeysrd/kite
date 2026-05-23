@@ -38,7 +38,11 @@ func (t *textNode) Data() string { return t.data }
 
 // SetData replaces the text content and notifies the parent's render object.
 func (t *textNode) SetData(data string) {
+	if t.data == data {
+		return
+	}
 	t.data = data
+	t.MarkNeedsSync()
 	if p := t.parent; p != nil {
 		if ro := p.RenderObject(); ro != nil {
 			ro.MarkChildrenDirty()

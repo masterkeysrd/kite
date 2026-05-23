@@ -56,6 +56,13 @@ func TestTextControlBase_ScrollCursorIntoView_UpdatesYScroll(t *testing.T) {
 	// phase has work to do. SyncBuffer mirrors the flag-setting contract used
 	// by keyboard input handlers.
 	txa.SyncBuffer()
+
+	// Verify it is NOT immediate.
+	_, scrollYBefore := txa.Scroll()
+	if scrollYBefore != 0 {
+		t.Errorf("scroll.Y = %d immediately after SyncBuffer, want 0 (must be deferred)", scrollYBefore)
+	}
+
 	eng.Frame()
 
 	_, scrollY := txa.Scroll()

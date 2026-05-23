@@ -224,6 +224,8 @@ func (r *testRender) LayoutChildren() iter.Seq[layout.Node] {
 	}
 }
 func (r *testRender) IsDirtyLayout() bool                                      { return false }
+func (r *testRender) IsDirtyPaint() bool                                       { return false }
+func (r *testRender) HasChildNeedsPaint() bool                                 { return false }
 func (r *testRender) ClearDirtyLayout()                                        {}
 func (r *testRender) Fragment() *layout.Fragment                               { return nil }
 func (r *testRender) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }

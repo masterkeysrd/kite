@@ -207,14 +207,26 @@ func (inp *InputElement) IntrinsicStyle() style.Style {
 // syncText updates the UA text node to mirror the current buffer value and
 // marks the render object dirty for layout and paint.
 func (inp *InputElement) syncText() {
-	inp.uaText.SetData(inp.buf.Value())
 	inp.needsScrollIntoView = true
-	if ro := inp.uaInputDivEl.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-	}
-	if ro := inp.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		ro.MarkChildrenDirty()
+
+	// Only rebuild shadow DOM if the content actually changed.
+	v := inp.buf.Version()
+	if v != inp.lastSyncedVersion {
+		inp.uaText.SetData(inp.buf.Value())
+		inp.lastSyncedVersion = v
+
+		if ro := inp.uaInputDivEl.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+		}
+		if ro := inp.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+			ro.MarkChildrenDirty()
+		}
+	} else {
+		// Just cursor move: only need to repaint to update hardware cursor.
+		if ro := inp.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyPaint)
+		}
 	}
 }
 

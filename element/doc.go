@@ -40,7 +40,8 @@
 //  2. ScrollCursorIntoView() — ensures the caret stays visible after any
 //     buffer mutation or focus acquisition by updating the host's scroll
 //     offset via ScrollTo(). It reads content geometry from the layout
-//     fragment; it never stores its own scrollX/Y.
+//     fragment; it never stores its own scrollX/Y. To prevent lag, this
+//     math is deferred to the engine's auto-scroll frame phase.
 //
 //  3. handleMouseDown / handleKeyDown — generic event handlers that
 //     translate screen-space mouse clicks to buffer byte offsets (accounting

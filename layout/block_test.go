@@ -31,10 +31,12 @@ func (m *mockNode) LayoutChildren() iter.Seq[Node] {
 		}
 	}
 }
-func (m *mockNode) LogicalNode() any    { return nil }
-func (m *mockNode) IsDirtyLayout() bool { return m.dirty }
-func (m *mockNode) ClearDirtyLayout()   { m.dirty = false }
-func (m *mockNode) Fragment() *Fragment { return m.cachedFragment }
+func (m *mockNode) LogicalNode() any         { return nil }
+func (m *mockNode) IsDirtyLayout() bool      { return m.dirty }
+func (m *mockNode) IsDirtyPaint() bool       { return m.dirty }
+func (m *mockNode) HasChildNeedsPaint() bool { return m.dirty }
+func (m *mockNode) ClearDirtyLayout()        { m.dirty = false }
+func (m *mockNode) Fragment() *Fragment      { return m.cachedFragment }
 func (m *mockNode) CachedLayout(space ConstraintSpace) *Fragment {
 	if m.cachedFragment != nil && m.cachedSpace == space {
 		return m.cachedFragment

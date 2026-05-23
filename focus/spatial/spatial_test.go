@@ -231,8 +231,10 @@ func (r *spatialRender) LayoutChildren() iter.Seq[layout.Node] {
 		}
 	}
 }
-func (r *spatialRender) IsDirtyLayout() bool { return false }
-func (r *spatialRender) ClearDirtyLayout()   {}
+func (r *spatialRender) IsDirtyLayout() bool      { return false }
+func (r *spatialRender) IsDirtyPaint() bool       { return false }
+func (r *spatialRender) HasChildNeedsPaint() bool { return false }
+func (r *spatialRender) ClearDirtyLayout()        {}
 func (r *spatialRender) Fragment() *layout.Fragment {
 	// Build a mock fragment tree recursively so that layout.AbsoluteBounds works.
 	frag := &layout.Fragment{

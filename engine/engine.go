@@ -23,6 +23,9 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var eventsCounter uint64
+var batchCounter uint64
+
 // DefaultWorkers is the number of worker goroutines in the pool when not
 // configured explicitly.
 const DefaultWorkers = 4
@@ -150,6 +153,9 @@ type Engine struct {
 	// lastCursorState tracks the hardware cursor state from the previous frame.
 	lastCursorState cursorRecord
 
+	// lastHardwareFocus tracks the focused element from the previous frame.
+	lastHardwareFocus event.EventTarget
+
 	// afterLayoutHooks are called once, after every layout+scroll phase, before
 	// paint. Each call to OnAfterLayout appends one hook; all hooks fire in
 	// registration order and are cleared after they fire (one-shot semantics).
@@ -164,6 +170,12 @@ type Engine struct {
 
 	// eventBuffer holds raw events to be processed before the next frame.
 	eventBuffer []event.RawEvent
+
+	// Reusable buffers for event coalescing to avoid per-frame allocations.
+	rawCoalescedBuf []event.RawEvent
+	structuredBuf   []event.Event
+	coalescedBuf    []event.Event
+	wheelMap        map[event.EventTarget]*event.WheelEvent
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
@@ -238,6 +250,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		shutdownTimeout:   shutdownTimeout,
 		mouseMode:         MouseModeClick,
 		closeCh:           make(chan struct{}),
+		wheelMap:          make(map[event.EventTarget]*event.WheelEvent),
 	}
 
 	e.dispatcher = event.NewDispatcher()
@@ -462,7 +475,8 @@ func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
 	if frag == nil {
 		return nil
 	}
-	if !(layout.Rect{Size: frag.Size}).Contains(p) {
+	// Optimized point-in-rect check for (0,0,width,height)
+	if p.X < 0 || p.Y < 0 || p.X >= frag.Size.Width || p.Y >= frag.Size.Height {
 		return nil
 	}
 	// Walk children in reverse paint order (last child is topmost).
@@ -520,19 +534,23 @@ func (e *Engine) Frame() {
 	e.drainMicroTasks()
 
 	root := e.renderView
+	overlays := root.Overlays()
+	rootFlags := root.Flags()
 
 	// 4. Style phase — gated on DirtyStyle | ChildNeedsStyle.
-	if root.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
+	if rootFlags&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
 		style.ResolveTree(e.resolver, root)
 	}
-	for _, overlay := range root.Overlays() {
+	for _, overlay := range overlays {
 		if overlay.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
 			style.ResolveTree(e.resolver, overlay)
 		}
 	}
 
 	// 5. Layout phase — gated on DirtyLayout | ChildNeedsLayout.
-	if root.Flags()&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+	layoutRan := false
+	if rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+		layoutRan = true
 		viewport := root.ViewportSize()
 		e.logger.Info("engine: layout phase", "viewport", viewport)
 
@@ -543,13 +561,14 @@ func (e *Engine) Frame() {
 		e.logger.Info("engine: layout complete", "duration_ms", duration.Milliseconds())
 
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		for _, overlay := range root.Overlays() {
+		for _, overlay := range overlays {
 			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
 		}
 	}
 
 	// 5b. Auto-scroll phase — if an element is focused, ensure its cursor is visible.
-	if focused := e.focusManager.Current(); focused != nil {
+	focused := e.focusManager.Current()
+	if focused != nil {
 		if el, ok := focused.(dom.Element); ok {
 			el.ScrollCursorIntoView()
 		}
@@ -568,12 +587,12 @@ func (e *Engine) Frame() {
 	// Always update the hardware cursor state after layout but before the
 	// potential paint phase. This ensures that if a frame is produced, it
 	// carries the most recent cursor position.
-	cursorChanged := e.updateHardwareCursor()
+	cursorChanged := e.updateHardwareCursor(layoutRan)
 
 	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
 
 	anyOverlayDirty := false
-	for _, o := range root.Overlays() {
+	for _, o := range overlays {
 		if o.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 			anyOverlayDirty = true
 			break
@@ -586,7 +605,7 @@ func (e *Engine) Frame() {
 		surface := e.backend.BeginFrame()
 		e.logger.Info("engine: painting main content")
 		e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, surface)
-		for _, overlay := range root.Overlays() {
+		for _, overlay := range overlays {
 			e.logger.Info("engine: painting overlay")
 			e.paintEngine.PaintFragment(overlay.Fragment(), overlay.Offset(), surface)
 		}
@@ -597,7 +616,7 @@ func (e *Engine) Frame() {
 			e.logger.Error("engine: EndFrame error", slog.Any("error", err))
 		}
 		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
-		for _, overlay := range root.Overlays() {
+		for _, overlay := range overlays {
 			overlay.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
 		}
 		e.logger.Info("engine: frame committed", slog.Uint64("version", e.frameVersion))
@@ -619,13 +638,22 @@ type cursorRecord struct {
 	Shape   cursor.Shape
 }
 
-func (e *Engine) updateHardwareCursor() bool {
-	next := cursorRecord{}
-
+func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 	focused := e.focusManager.Current()
+
+	// Short-circuit: if focus hasn't changed and the tree is clean, the cursor
+	// physically cannot have moved.
+	root := e.renderView
+	treeDirty := root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0
+	if !layoutRan && !treeDirty && focused == e.lastHardwareFocus {
+		return false
+	}
+	e.lastHardwareFocus = focused
+
+	next := cursorRecord{}
 	var ro render.Object
 	if focused != nil {
-		e.logger.Info("engine: determining cursor for focused target", slog.Any("target", focused))
+		e.logger.Info("engine: determining cursor for focused target")
 		ro = focused.RenderObject()
 		if ro != nil {
 			provider, ok := ro.(cursor.Provider)
@@ -635,8 +663,8 @@ func (e *Engine) updateHardwareCursor() bool {
 			if ok {
 				state := provider.CursorState()
 				if state.Visible {
-					root := e.renderView.Fragment()
-					if bounds, clip, found := layout.ScrolledAbsoluteBounds(root, ro); found {
+					rootFrag := root.Fragment()
+					if bounds, clip, found := layout.ScrolledAbsoluteBounds(rootFrag, ro); found {
 						scrollX, scrollY := 0, 0
 						if el, ok := focused.(dom.Element); ok {
 							rawX, rawY := el.Scroll()
@@ -1059,6 +1087,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				return nil
 			}
 			e.eventBuffer = append(e.eventBuffer, raw)
+			eventsCounter++
 		case <-ticker.C:
 			e.drainEvents()
 			if e.shouldRunFrame() {
@@ -1080,20 +1109,95 @@ func (e *Engine) drainEvents() {
 		return
 	}
 
-	// 1. Synthesize all raw events into structured events.
-	var structured []event.Event
-	for _, raw := range e.eventBuffer {
-		structured = append(structured, e.synthesizer.Process(raw)...)
-	}
+	batchCounter++
+
+	// 1. Coalesce raw events before synthesis to save allocations.
+	rawCoalesced := e.coalesceRawEvents(e.eventBuffer)
 	e.eventBuffer = e.eventBuffer[:0]
 
-	// 2. Coalesce high-frequency events.
-	coalesced := e.coalesceEvents(structured)
+	// 2. Synthesize coalesced raw events into structured events.
+	e.structuredBuf = e.structuredBuf[:0]
+	for _, raw := range rawCoalesced {
+		e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
+	}
 
-	// 3. Dispatch.
+	// 3. Coalesce structured events (handles wheel aggregation per target).
+	coalesced := e.coalesceEvents(e.structuredBuf)
+
+	e.logger.Info("engine: draining events",
+		slog.Int("raw_events", len(rawCoalesced)),
+		slog.Int("coalesced_events", len(coalesced)),
+		slog.Int("dropped_events", int(eventsCounter)-len(coalesced)), // approx since eventsCounter is global
+		slog.Uint64("batchCounter", batchCounter),
+		slog.Uint64("eventsCounter", eventsCounter),
+	)
+
+	// 4. Dispatch.
 	for _, ev := range coalesced {
 		e.dispatchEvent(ev)
 	}
+}
+
+func (e *Engine) coalesceRawEvents(events []event.RawEvent) []event.RawEvent {
+	if len(events) <= 1 {
+		return events
+	}
+
+	// Strategy:
+	// - Keep the LAST MouseMove.
+	// - Accumulate consecutive Wheel events IF they are at the same coordinate and have same modifiers.
+	// - Keep all other events (clicks, keys) in order.
+
+	e.rawCoalescedBuf = e.rawCoalescedBuf[:0]
+
+	// Find index of the absolute last mouse move in the whole batch.
+	lastMoveIdx := -1
+	for i := len(events) - 1; i >= 0; i-- {
+		if m, ok := events[i].(*event.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
+			lastMoveIdx = i
+			break
+		}
+	}
+
+	for i, ev := range events {
+		m, isMouse := ev.(*event.RawMouseEvent)
+		if !isMouse {
+			e.rawCoalescedBuf = append(e.rawCoalescedBuf, ev)
+			continue
+		}
+
+		// It's a mouse event.
+		isWheel := m.DeltaX != 0 || m.DeltaY != 0
+		isMove := m.Move && !isWheel
+
+		if isMove {
+			if i == lastMoveIdx {
+				e.rawCoalescedBuf = append(e.rawCoalescedBuf, ev)
+			}
+			continue
+		}
+
+		if isWheel {
+			// Check if we can merge with the previous event in the result slice.
+			if len(e.rawCoalescedBuf) > 0 {
+				if prev, ok := e.rawCoalescedBuf[len(e.rawCoalescedBuf)-1].(*event.RawMouseEvent); ok {
+					if prev.X == m.X && prev.Y == m.Y && prev.Mod == m.Mod && (prev.DeltaX != 0 || prev.DeltaY != 0) {
+						prev.DeltaX += m.DeltaX
+						prev.DeltaY += m.DeltaY
+						continue
+					}
+				}
+			}
+			// Cannot merge, add new.
+			e.rawCoalescedBuf = append(e.rawCoalescedBuf, ev)
+			continue
+		}
+
+		// Button press/release, keep it.
+		e.rawCoalescedBuf = append(e.rawCoalescedBuf, ev)
+	}
+
+	return e.rawCoalescedBuf
 }
 
 func (e *Engine) coalesceEvents(events []event.Event) []event.Event {
@@ -1109,35 +1213,35 @@ func (e *Engine) coalesceEvents(events []event.Event) []event.Event {
 		}
 	}
 
-	res := make([]event.Event, 0, len(events))
-	wheelMap := make(map[event.EventTarget]*event.WheelEvent)
+	e.coalescedBuf = e.coalescedBuf[:0]
+	clear(e.wheelMap)
 
 	for i, ev := range events {
 		switch evt := ev.(type) {
 		case *event.MouseEvent:
 			if evt.Type() == event.EventMouseMove {
 				if i == lastMouseMoveIdx {
-					res = append(res, evt)
+					e.coalescedBuf = append(e.coalescedBuf, evt)
 				}
 				// discard older moves
 			} else {
-				res = append(res, evt)
+				e.coalescedBuf = append(e.coalescedBuf, evt)
 			}
 		case *event.WheelEvent:
 			target := evt.Target()
-			if existing, ok := wheelMap[target]; ok {
+			if existing, ok := e.wheelMap[target]; ok {
 				existing.DeltaX += evt.DeltaX
 				existing.DeltaY += evt.DeltaY
 			} else {
-				wheelMap[target] = evt
-				res = append(res, evt)
+				e.wheelMap[target] = evt
+				e.coalescedBuf = append(e.coalescedBuf, evt)
 			}
 		default:
-			res = append(res, evt)
+			e.coalescedBuf = append(e.coalescedBuf, evt)
 		}
 	}
 
-	return res
+	return e.coalescedBuf
 }
 
 func (e *Engine) dispatchEvent(ev event.Event) {

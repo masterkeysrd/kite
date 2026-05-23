@@ -147,13 +147,25 @@ func (txa *TextAreaElement) IntrinsicStyle() style.Style {
 
 func (txa *TextAreaElement) syncText() {
 	txa.needsScrollIntoView = true
-	txa.rebuildUASubtree()
-	if ro := txa.uaDiv.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-	}
-	if ro := txa.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		ro.MarkChildrenDirty()
+
+	// Only rebuild shadow DOM if the content actually changed.
+	v := txa.buf.Version()
+	if v != txa.lastSyncedVersion {
+		txa.rebuildUASubtree()
+		txa.lastSyncedVersion = v
+
+		if ro := txa.uaDiv.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+		}
+		if ro := txa.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+			ro.MarkChildrenDirty()
+		}
+	} else {
+		// Just cursor move: only need to repaint to update hardware cursor.
+		if ro := txa.RenderObject(); ro != nil {
+			ro.MarkDirty(render.DirtyPaint)
+		}
 	}
 }
 
@@ -173,52 +185,100 @@ func (txa *TextAreaElement) syncText() {
 //     It ensures the textarea has height for the cursor on the empty last line.
 //   - Lines that are empty strings produce no TextNode (only their <br>).
 //
-// All existing children of ua-div are removed before rebuilding.
-// This is a "nuke and rebuild" strategy — correct but not optimal.
+// rebuildUASubtree rebuilds the ua-div's children to match the current buffer
+// value following the browser's textarea DOM model. It uses an incremental
+// strategy, reusing existing children where possible to avoid massive
+// destruction and re-allocation on every content change.
 func (txa *TextAreaElement) rebuildUASubtree() {
-	// Remove all existing children from the ua-div.
-	for {
-		child := txa.uaDiv.FirstChild()
-		if child == nil {
-			break
-		}
-		txa.uaDiv.RemoveChild(child)
-	}
-
 	value := txa.buf.Value()
 
 	// Empty buffer: just a placeholder <br> so the textarea has height.
 	if value == "" {
-		txa.uaDiv.AppendChild(NewPlaceholderBr(txa.doc))
+		txa.syncChildren([]dom.Node{NewPlaceholderBr(txa.doc)})
 		return
 	}
 
 	// Split by '\n'. Each separator produces a content <br>.
-	// A trailing '\n' produces an extra empty segment at the end.
 	lines := splitLines(value)
 	endsWithNewline := value[len(value)-1] == '\n'
 
+	var newChildren []dom.Node
 	for i, line := range lines {
-		// Add the text content of this line (skip if empty).
 		if line != "" {
-			txa.uaDiv.AppendChild(txa.doc.CreateTextNode(line, nil))
+			newChildren = append(newChildren, txa.doc.CreateTextNode(line, nil))
 		}
 
 		isLastSegment := i == len(lines)-1
-
 		if !isLastSegment {
-			// This segment is followed by a '\n' in the buffer → content <br>.
-			txa.uaDiv.AppendChild(NewBr(txa.doc))
+			newChildren = append(newChildren, NewBr(txa.doc))
 		} else if endsWithNewline {
-			// The final segment is empty (value ends with '\n').
-			// The content <br> for that '\n' was already appended on the
-			// previous iteration. Now add the placeholder so the cursor
-			// can sit on the empty last line.
-			txa.uaDiv.AppendChild(NewPlaceholderBr(txa.doc))
+			newChildren = append(newChildren, NewPlaceholderBr(txa.doc))
 		}
-		// If isLastSegment && !endsWithNewline: the last line has content
-		// and no trailing '\n' → no br needed at all.
 	}
+
+	txa.syncChildren(newChildren)
+}
+
+func (txa *TextAreaElement) syncChildren(newChildren []dom.Node) {
+	uaDiv := txa.uaDiv
+
+	// Strategy:
+	// 1. Iterate over newChildren.
+	// 2. If an existing child at index i exists:
+	//    - If it's the same kind, update it (for TextNode).
+	//    - If different kind, replace it.
+	// 3. If no existing child, append.
+	// 4. Remove any remaining trailing existing children.
+
+	currentChild := uaDiv.FirstChild()
+	for _, newNode := range newChildren {
+		if currentChild != nil {
+			nextChild := currentChild.NextSibling()
+			if !txa.tryUpdateNode(currentChild, newNode) {
+				uaDiv.ReplaceChild(newNode, currentChild)
+			}
+			currentChild = nextChild
+		} else {
+			uaDiv.AppendChild(newNode)
+		}
+	}
+
+	// Remove trailing.
+	for currentChild != nil {
+		nextChild := currentChild.NextSibling()
+		uaDiv.RemoveChild(currentChild)
+		currentChild = nextChild
+	}
+}
+
+func (txa *TextAreaElement) tryUpdateNode(existing, newNode dom.Node) bool {
+	if existing.Kind() != newNode.Kind() {
+		return false
+	}
+	// Also check if BrElement is placeholder vs content.
+	if existing.NodeName() != newNode.NodeName() {
+		return false
+	}
+
+	switch e := existing.(type) {
+	case dom.TextNode:
+		n := newNode.(dom.TextNode)
+		if e.Data() != n.Data() {
+			e.SetData(n.Data())
+		}
+		return true
+	case dom.Element:
+		// If it's a <br>, we must ensure the placeholder status matches.
+		if e.TagName() == "br" {
+			eb, ok := e.(interface{ IsPlaceholderBr() bool })
+			nb, ok2 := newNode.(interface{ IsPlaceholderBr() bool })
+			if ok && ok2 {
+				return eb.IsPlaceholderBr() == nb.IsPlaceholderBr()
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // splitLines splits s by \n and returns the segments. Unlike strings.Split,
@@ -239,6 +299,11 @@ func splitLines(s string) []string {
 
 // OnWheel implements event.Scrollable.
 func (txa *TextAreaElement) OnWheel(e *event.WheelEvent) {
+	oldX, oldY := txa.Scroll()
 	txa.ScrollBy(e.DeltaX, e.DeltaY)
-	e.StopPropagation()
+	newX, newY := txa.Scroll()
+
+	if newX != oldX || newY != oldY {
+		e.StopPropagation()
+	}
 }

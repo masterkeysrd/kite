@@ -31,6 +31,12 @@ type Node interface {
 	// valid.
 	IsDirtyLayout() bool
 
+	// IsDirtyPaint reports whether this node's paint is stale.
+	IsDirtyPaint() bool
+
+	// HasChildNeedsPaint reports whether any descendant needs paint.
+	HasChildNeedsPaint() bool
+
 	// ClearDirtyLayout clears the DirtyLayout flag on this node. Called by
 	// the layout engine after successfully measuring the node so that
 	// subsequent cache lookups are valid.

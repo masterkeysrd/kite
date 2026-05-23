@@ -8,6 +8,7 @@ import (
 type Buffer struct {
 	text       string
 	byteOffset int
+	version    int64
 }
 
 // NewBuffer creates a new Buffer with the given initial text.
@@ -15,12 +16,20 @@ func NewBuffer(text string) *Buffer {
 	return &Buffer{
 		text:       text,
 		byteOffset: len(text),
+		version:    0,
 	}
 }
 
 // Value returns the current string value of the buffer.
 func (b *Buffer) Value() string {
 	return b.text
+}
+
+// Version returns a monotonically increasing number that increments after
+// every text-mutating operation. Moving the cursor does not increment the
+// version.
+func (b *Buffer) Version() int64 {
+	return b.version
 }
 
 // ByteOffset returns the current cursor position in bytes.
@@ -46,6 +55,7 @@ func (b *Buffer) SetOffset(offset int) {
 func (b *Buffer) Insert(s string) {
 	b.text = b.text[:b.byteOffset] + s + b.text[b.byteOffset:]
 	b.byteOffset += len(s)
+	b.version++
 }
 
 // MoveToStart moves the cursor to the beginning of the buffer.
@@ -93,6 +103,7 @@ func (b *Buffer) DeletePrevious() {
 	oldOffset := b.byteOffset
 	b.MoveLeft()
 	b.text = b.text[:b.byteOffset] + b.text[oldOffset:]
+	b.version++
 }
 
 // DeleteNext removes the grapheme cluster after the cursor (Delete).
@@ -103,6 +114,7 @@ func (b *Buffer) DeleteNext() {
 	_, rest, _, _ := uniseg.StepString(b.text[b.byteOffset:], -1)
 	clusterLen := len(b.text[b.byteOffset:]) - len(rest)
 	b.text = b.text[:b.byteOffset] + b.text[b.byteOffset+clusterLen:]
+	b.version++
 }
 
 // MoveWordRight moves the cursor to the end of the current or next word.
@@ -160,6 +172,7 @@ func (b *Buffer) DeleteWordPrevious() {
 	oldOffset := b.byteOffset
 	b.MoveWordLeft()
 	b.text = b.text[:b.byteOffset] + b.text[oldOffset:]
+	b.version++
 }
 
 // DeleteWordNext removes the word after the cursor.
@@ -171,4 +184,5 @@ func (b *Buffer) DeleteWordNext() {
 	b.MoveWordRight()
 	b.text = b.text[:oldOffset] + b.text[b.byteOffset:]
 	b.byteOffset = oldOffset
+	b.version++
 }

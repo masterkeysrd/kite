@@ -364,10 +364,12 @@ func (a *anonymousTableSection) LayoutChildren() iter.Seq[Node] {
 	}
 }
 
-func (a *anonymousTableSection) LogicalNode() any    { return nil }
-func (a *anonymousTableSection) IsDirtyLayout() bool { return true }
-func (a *anonymousTableSection) ClearDirtyLayout()   {}
-func (a *anonymousTableSection) Fragment() *Fragment { return nil }
+func (a *anonymousTableSection) LogicalNode() any         { return nil }
+func (a *anonymousTableSection) IsDirtyLayout() bool      { return true }
+func (a *anonymousTableSection) IsDirtyPaint() bool       { return true }
+func (a *anonymousTableSection) HasChildNeedsPaint() bool { return true }
+func (a *anonymousTableSection) ClearDirtyLayout()        {}
+func (a *anonymousTableSection) Fragment() *Fragment      { return nil }
 
 func (a *anonymousTableSection) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil
@@ -428,10 +430,12 @@ func (a *anonymousTableRow) LayoutChildren() iter.Seq[Node] {
 	}
 }
 
-func (a *anonymousTableRow) LogicalNode() any    { return nil }
-func (a *anonymousTableRow) IsDirtyLayout() bool { return true }
-func (a *anonymousTableRow) ClearDirtyLayout()   {}
-func (a *anonymousTableRow) Fragment() *Fragment { return nil }
+func (a *anonymousTableRow) LogicalNode() any         { return nil }
+func (a *anonymousTableRow) IsDirtyLayout() bool      { return true }
+func (a *anonymousTableRow) IsDirtyPaint() bool       { return true }
+func (a *anonymousTableRow) HasChildNeedsPaint() bool { return true }
+func (a *anonymousTableRow) ClearDirtyLayout()        {}
+func (a *anonymousTableRow) Fragment() *Fragment      { return nil }
 
 func (a *anonymousTableRow) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil

@@ -79,6 +79,8 @@ type Backend struct {
 	// used to stop the world so we can dump internal state for debugging without
 	// concurrent modifications from the render loop.
 	block sync.Mutex
+
+	fbPool sync.Pool
 }
 
 // New creates a UV backend using the default controlling terminal.
@@ -108,6 +110,9 @@ func New() (*Backend, error) {
 		height:   h,
 		eventCh:  make(chan event.RawEvent),
 		renderCh: make(chan renderRequest, 2),
+	}
+	b.fbPool.New = func() any {
+		return paint.NewFrameBuffer(0, 0, b.width, b.height)
 	}
 	b.caps = probeCapabilities(os.Environ())
 	return b, nil
@@ -147,7 +152,13 @@ func (b *Backend) Start() error {
 
 // BeginFrame allocates a fresh FrameBuffer for the current terminal size.
 func (b *Backend) BeginFrame() paint.Surface {
-	b.current = paint.NewFrameBuffer(0, 0, b.width, b.height)
+	fb := b.fbPool.Get().(*paint.FrameBuffer)
+	if fb.Bounds().Size.Width != b.width || fb.Bounds().Size.Height != b.height {
+		fb = paint.NewFrameBuffer(0, 0, b.width, b.height)
+	} else {
+		fb.Reset()
+	}
+	b.current = fb
 	b.current.BumpVersion()
 	return b.current
 }
@@ -301,6 +312,7 @@ func (b *Backend) loopEvents() {
 func (b *Backend) renderFrame(req renderRequest) {
 	b.block.Lock()
 	defer b.block.Unlock()
+	defer b.fbPool.Put(req.fb)
 
 	fb := req.fb
 	slog.Info("uv: renderFrame started", "width", fb.Bounds().Size.Width, "height", fb.Bounds().Size.Height)
@@ -310,11 +322,14 @@ func (b *Backend) renderFrame(req renderRequest) {
 		return
 	}
 
+	// Reuse a single uv.Cell object to avoid thousands of allocations per frame.
+	var uvCell uv.Cell
+
 	for y := 0; y < bounds.Size.Height; y++ {
 		for x := 0; x < bounds.Size.Width; {
 			c := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
-			uvCell := paintCellToUV(c)
-			b.screen.SetCell(x, y, uvCell)
+			populateUVCell(&uvCell, c)
+			b.screen.SetCell(x, y, &uvCell)
 			x += max(1, uvCell.Width)
 		}
 	}
@@ -391,25 +406,28 @@ func translateCursorShape(s cursor.Shape) (uv.CursorShape, bool) {
 	}
 }
 
-func paintCellToUV(c paint.Cell) *uv.Cell {
+func populateUVCell(cell *uv.Cell, c paint.Cell) {
 	content := c.Content
 	if content == "" || content == "\x00" {
 		content = " "
 	}
 
-	cell := &uv.Cell{
-		Content: content,
-		Width:   max(1, c.Width),
-	}
+	cell.Content = content
+	cell.Width = max(1, c.Width)
 
 	cell.Style.Fg = c.FG
 	if c.BG != nil {
 		_, _, _, a := c.BG.RGBA()
 		if a > 0 {
 			cell.Style.Bg = c.BG
+		} else {
+			cell.Style.Bg = nil
 		}
+	} else {
+		cell.Style.Bg = nil
 	}
 
+	cell.Style.Attrs = 0
 	if c.Attrs&paint.AttrBold != 0 {
 		cell.Style.Attrs |= uv.AttrBold
 	}
@@ -418,9 +436,10 @@ func paintCellToUV(c paint.Cell) *uv.Cell {
 	}
 	if c.Attrs&paint.AttrUnderline != 0 {
 		cell.Style.Underline = uv.UnderlineSingle
+	} else {
+		cell.Style.Underline = uv.UnderlineNone
 	}
 	if c.Attrs&paint.AttrInverse != 0 {
 		cell.Style.Attrs |= uv.AttrReverse
 	}
-	return cell
 }

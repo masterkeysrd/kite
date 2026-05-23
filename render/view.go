@@ -148,6 +148,8 @@ func (b *BaseRender) IntrinsicStyle() style.Style {
 
 func (b *BaseRender) IsDirtyStyle() bool                { return b.Flags()&DirtyStyle != 0 }
 func (b *BaseRender) HasDirtyStyleChild() bool          { return b.Flags()&ChildNeedsStyle != 0 }
+func (b *BaseRender) IsDirtyPaint() bool                { return b.Flags()&(DirtyPaint|DirtyScroll) != 0 }
+func (b *BaseRender) HasChildNeedsPaint() bool          { return b.Flags()&ChildNeedsPaint != 0 }
 func (b *BaseRender) ClearDirtyStyle()                  { b.ClearDirty(DirtyStyle) }
 func (b *BaseRender) ClearChildNeedsStyle()             { b.ClearDirty(ChildNeedsStyle) }
 func (b *BaseRender) StyleParent() style.StyleNode      { return b.parent }

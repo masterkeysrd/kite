@@ -152,37 +152,55 @@ func colorsEqual(c1, c2 color.Color) bool {
 	if c1 == nil || c2 == nil {
 		return false
 	}
+
+	// Fast path for common case of RGBA colors.
+	if rgba1, ok := c1.(color.RGBA); ok {
+		if rgba2, ok := c2.(color.RGBA); ok {
+			return rgba1 == rgba2
+		}
+	}
+
 	r1, g1, b1, a1 := c1.RGBA()
 	r2, g2, b2, a2 := c2.RGBA()
 	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
 }
 
+var borderSingle = [16]string{
+	0: "", 1: "─", 2: "─", 3: "─",
+	4: "│", 5: "┌", 6: "┐", 7: "┬",
+	8: "│", 9: "└", 10: "┘", 11: "┴",
+	12: "│", 13: "├", 14: "┤", 15: "┼",
+}
+
+var borderDuble = [16]string{
+	0: "", 1: "═", 2: "═", 3: "═",
+	4: "║", 5: "╔", 6: "╗", 7: "╦",
+	8: "║", 9: "╚", 10: "╝", 11: "╩",
+	12: "║", 13: "╠", 14: "╣", 15: "╬",
+}
+
+var borderThick = [16]string{
+	0: "", 1: "━", 2: "━", 3: "━",
+	4: "┃", 5: "┏", 6: "┓", 7: "┳",
+	8: "┃", 9: "┗", 10: "┛", 11: "┻",
+	12: "┃", 13: "┣", 14: "┫", 15: "╋",
+}
+
+var borderASCII = [16]string{
+	0: "", 1: "-", 2: "-", 3: "-",
+	4: "|", 5: "+", 6: "+", 7: "+",
+	8: "|", 9: "+", 10: "+", 11: "+",
+	12: "|", 13: "+", 14: "+", 15: "+",
+}
+
 func (p *PaintEngine) getJunctionGlyph(style BorderStyle, mask int) string {
 	switch style {
 	case BorderDouble:
-		glyphs := [16]string{
-			0: "", 1: "═", 2: "═", 3: "═",
-			4: "║", 5: "╔", 6: "╗", 7: "╦",
-			8: "║", 9: "╚", 10: "╝", 11: "╩",
-			12: "║", 13: "╠", 14: "╣", 15: "╬",
-		}
-		return glyphs[mask]
+		return borderDuble[mask]
 	case BorderThick:
-		glyphs := [16]string{
-			0: "", 1: "━", 2: "━", 3: "━",
-			4: "┃", 5: "┏", 6: "┓", 7: "┳",
-			8: "┃", 9: "┗", 10: "┛", 11: "┻",
-			12: "┃", 13: "┣", 14: "┫", 15: "╋",
-		}
-		return glyphs[mask]
+		return borderThick[mask]
 	case BorderAscii:
-		glyphs := [16]string{
-			0: "", 1: "-", 2: "-", 3: "-",
-			4: "|", 5: "+", 6: "+", 7: "+",
-			8: "|", 9: "+", 10: "+", 11: "+",
-			12: "|", 13: "+", 14: "+", 15: "+",
-		}
-		return glyphs[mask]
+		return borderASCII[mask]
 	case BorderRounded:
 		// Rounded uses single-line junctions for non-corners
 		if mask == 5 {
@@ -199,13 +217,7 @@ func (p *PaintEngine) getJunctionGlyph(style BorderStyle, mask int) string {
 		}
 		fallthrough
 	default: // BorderSingle
-		glyphs := [16]string{
-			0: "", 1: "─", 2: "─", 3: "─",
-			4: "│", 5: "┌", 6: "┐", 7: "┬",
-			8: "│", 9: "└", 10: "┘", 11: "┴",
-			12: "│", 13: "├", 14: "┤", 15: "┼",
-		}
-		return glyphs[mask]
+		return borderSingle[mask]
 	}
 }
 
@@ -444,6 +456,11 @@ func isTransparent(c color.Color) bool {
 	if c == nil || c == color.Transparent {
 		return true
 	}
+
+	if rgba, ok := c.(color.RGBA); ok {
+		return rgba.A == 0
+	}
+
 	_, _, _, a := c.RGBA()
 	return a == 0
 }

@@ -46,10 +46,12 @@ func (a *AnonymousBlock) LayoutChildren() iter.Seq[Node] {
 	}
 }
 
-func (a *AnonymousBlock) LogicalNode() any    { return nil }
-func (a *AnonymousBlock) IsDirtyLayout() bool { return true }
-func (a *AnonymousBlock) ClearDirtyLayout()   {}
-func (a *AnonymousBlock) Fragment() *Fragment { return nil }
+func (a *AnonymousBlock) LogicalNode() any         { return nil }
+func (a *AnonymousBlock) IsDirtyLayout() bool      { return true }
+func (a *AnonymousBlock) IsDirtyPaint() bool       { return true }
+func (a *AnonymousBlock) HasChildNeedsPaint() bool { return true }
+func (a *AnonymousBlock) ClearDirtyLayout()        {}
+func (a *AnonymousBlock) Fragment() *Fragment      { return nil }
 
 func (a *AnonymousBlock) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil

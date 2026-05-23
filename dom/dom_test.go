@@ -59,6 +59,8 @@ func (f *fakeRO) LayoutChildren() iter.Seq[layout.Node] {
 	return func(yield func(layout.Node) bool) {}
 }
 func (f *fakeRO) IsDirtyLayout() bool                                      { return false }
+func (f *fakeRO) IsDirtyPaint() bool                                       { return false }
+func (f *fakeRO) HasChildNeedsPaint() bool                                 { return false }
 func (f *fakeRO) ClearDirtyLayout()                                        {}
 func (f *fakeRO) Fragment() *layout.Fragment                               { return nil }
 func (f *fakeRO) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { return nil }

@@ -69,6 +69,8 @@ type Object interface {
 	Style() *style.Computed
 	LayoutChildren() iter.Seq[layout.Node]
 	IsDirtyLayout() bool
+	IsDirtyPaint() bool
+	HasChildNeedsPaint() bool
 	ClearDirtyLayout()
 	Fragment() *layout.Fragment
 	CachedLayout(layout.ConstraintSpace) *layout.Fragment

@@ -12,7 +12,7 @@ import (
 //
 // FrameBuffer is not safe for concurrent use.
 type FrameBuffer struct {
-	cells   [][]Cell     // cells[y][x]
+	cells   []Cell       // flat array: cells[y*width + x]
 	bounds  layout.Rect  // absolute position and size of this buffer
 	version uint64       // incremented by each Flush / BeginFrame call
 	dirty   *layout.Rect // nil when no cell has been written this frame
@@ -21,17 +21,21 @@ type FrameBuffer struct {
 // NewFrameBuffer creates a FrameBuffer positioned at origin (ox, oy) with the
 // given width and height. All cells are initialised to zero values.
 func NewFrameBuffer(ox, oy, width, height int) *FrameBuffer {
-	cells := make([][]Cell, height)
-	for i := range cells {
-		cells[i] = make([]Cell, width)
-	}
 	return &FrameBuffer{
-		cells: cells,
+		cells: make([]Cell, width*height),
 		bounds: layout.Rect{
 			Origin: layout.Point{X: ox, Y: oy},
 			Size:   layout.Size{Width: width, Height: height},
 		},
 	}
+}
+
+// Reset clears the buffer content and resets the dirty rect.
+func (fb *FrameBuffer) Reset() {
+	for i := range fb.cells {
+		fb.cells[i] = Cell{}
+	}
+	fb.dirty = nil
 }
 
 // Set writes cell c into position (x, y). The coordinates are absolute
@@ -46,12 +50,13 @@ func (fb *FrameBuffer) Set(x, y int, c Cell) {
 	}
 	lx := x - fb.bounds.Origin.X
 	ly := y - fb.bounds.Origin.Y
+	idx := ly*fb.bounds.Size.Width + lx
 
 	if c.BG == color.Transparent {
-		c.BG = fb.cells[ly][lx].BG
+		c.BG = fb.cells[idx].BG
 	}
 
-	fb.cells[ly][lx] = c
+	fb.cells[idx] = c
 	fb.growDirty(x, y)
 }
 
@@ -63,7 +68,7 @@ func (fb *FrameBuffer) CellAt(x, y int) Cell {
 	}
 	lx := x - fb.bounds.Origin.X
 	ly := y - fb.bounds.Origin.Y
-	return fb.cells[ly][lx]
+	return fb.cells[ly*fb.bounds.Size.Width+lx]
 }
 
 // Bounds returns the full drawable area of the buffer.
