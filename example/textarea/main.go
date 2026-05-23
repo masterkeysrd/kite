@@ -157,9 +157,7 @@ func main() {
 	updateStatus() // Initial status
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8085",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// Exit handlers
 	root.AddEventListener(event.EventKeyDown, func(e event.Event) {

@@ -1,17 +1,6 @@
 package inspector
 
 import (
-	_ "embed"
-	"encoding/json"
-	"fmt"
-	"log/slog"
-	"net"
-	"net/http"
-	"os"
-	"os/exec"
-	"runtime"
-	"sync"
-
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/layout"
@@ -20,156 +9,12 @@ import (
 	"github.com/masterkeysrd/kite/text"
 )
 
-//go:embed dashboard.html
-var dashboardHTML []byte
-
 type Inspector struct {
-	eng     *engine.Engine
-	mu      sync.RWMutex
-	clients []chan []byte
+	eng *engine.Engine
 }
 
-// Options configures the inspector.
-type Options struct {
-}
-
-func Attach(eng *engine.Engine, addr string, opts Options) (string, error) {
-	insp := &Inspector{
-		eng: eng,
-	}
-
-	eng.OnFrameRendered(insp.broadcast)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", insp.handleIndex)
-	mux.HandleFunc("/stream", insp.handleStream)
-	mux.HandleFunc("/dump", insp.handleDump)
-
-	// Try to listen on the requested address.
-	// If the port is 0 or taken, net.Listen will handle it if we are smart.
-	// If it fails with "address already in use", we try port 0.
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		slog.Warn("inspector: requested address failed, trying random port", "addr", addr, "err", err)
-		l, err = net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			return "", fmt.Errorf("inspector: failed to find any available port: %w", err)
-		}
-	}
-
-	actualAddr := l.Addr().String()
-	slog.Info("inspector: server starting", "addr", actualAddr)
-
-	// Start server in a background goroutine
-	go func() {
-		if err := http.Serve(l, mux); err != nil {
-			slog.Error("inspector: server error", "err", err)
-		}
-	}()
-
-	return actualAddr, nil
-}
-
-func openBrowser(url string) {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = "rundll32"
-		args = []string{"url.dll,FileProtocolHandler", url}
-	case "darwin":
-		cmd = "open"
-		args = []string{url}
-	default: // "linux", "freebsd", "openbsd", "netbsd"
-		cmd = "xdg-open"
-		args = []string{url}
-	}
-	_ = exec.Command(cmd, args...).Start()
-}
-
-func (i *Inspector) handleIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(dashboardHTML)
-}
-
-func (i *Inspector) handleDump(w http.ResponseWriter, r *http.Request) {
-	tmpFile := "kite-inspector-dump.json"
-	if err := i.eng.Dump(tmpFile); err != nil {
-		http.Error(w, fmt.Sprintf("failed to create dump: %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer os.Remove(tmpFile)
-
-	data, err := os.ReadFile(tmpFile)
-	if err != nil {
-		http.Error(w, "failed to read dump", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", "attachment; filename=kite-dump.json")
-	w.Write(data)
-}
-
-func (i *Inspector) handleStream(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	ch := make(chan []byte, 1)
-	i.mu.Lock()
-	i.clients = append(i.clients, ch)
-	i.mu.Unlock()
-
-	defer func() {
-		i.mu.Lock()
-		for idx, c := range i.clients {
-			if c == ch {
-				i.clients = append(i.clients[:idx], i.clients[idx+1:]...)
-				break
-			}
-		}
-		i.mu.Unlock()
-	}()
-
-	// Send initial state
-	i.broadcast()
-
-	for {
-		select {
-		case data := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", data)
-			flusher.Flush()
-		case <-r.Context().Done():
-			return
-		}
-	}
-}
-
-func (i *Inspector) broadcast() {
-	payload := i.takeSnapshot()
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-
-	i.mu.RLock()
-	defer i.mu.RUnlock()
-	for _, ch := range i.clients {
-		select {
-		case ch <- data:
-		default:
-			// Client slow, skip or drop
-		}
-	}
+func New(eng *engine.Engine) *Inspector {
+	return &Inspector{eng: eng}
 }
 
 type InspectorPayload struct {
@@ -216,14 +61,13 @@ type NodeSnapshot struct {
 	Children    []*NodeSnapshot `json:"children,omitempty"`
 }
 
-func (i *Inspector) takeSnapshot() *InspectorPayload {
+func (i *Inspector) TakeSnapshot() *InspectorPayload {
 	doc := i.eng.Document()
 	rv := i.eng.RenderView()
 
 	boundsMap := make(map[layout.Node]layout.Rect)
 	i.computeAllBounds(rv.Fragment(), layout.Point{X: 0, Y: 0}, boundsMap)
 
-	// Also compute bounds for overlays
 	for _, overlay := range rv.Overlays() {
 		offset := layout.Point{}
 		if cs := overlay.ComputedStyle(); cs != nil {
@@ -258,7 +102,6 @@ func (i *Inspector) snapshotFragment(f *layout.Fragment, offset layout.Point) *F
 	if f == nil {
 		return nil
 	}
-
 	name := "Anonymous"
 	if f.Node != nil {
 		if ro, ok := f.Node.(render.Object); ok {
@@ -274,13 +117,7 @@ func (i *Inspector) snapshotFragment(f *layout.Fragment, offset layout.Point) *F
 			}
 		}
 	}
-
-	s := &FragmentSnapshot{
-		Name:   name,
-		Offset: offset,
-		Size:   f.Size,
-	}
-
+	s := &FragmentSnapshot{Name: name, Offset: offset, Size: f.Size}
 	if len(f.Text) > 0 {
 		for _, c := range f.Text {
 			s.Clusters = append(s.Clusters, ClusterSnapshot{
@@ -290,17 +127,12 @@ func (i *Inspector) snapshotFragment(f *layout.Fragment, offset layout.Point) *F
 			})
 		}
 	}
-
 	if f.BreakToken != nil {
-		s.BreakToken = &BreakTokenSnapshot{
-			ChildIndex: f.BreakToken.ChildIndex,
-		}
+		s.BreakToken = &BreakTokenSnapshot{ChildIndex: f.BreakToken.ChildIndex}
 	}
-
 	for _, child := range f.Children {
 		s.Children = append(s.Children, i.snapshotFragment(child.Fragment, child.Offset))
 	}
-
 	return s
 }
 
@@ -313,7 +145,6 @@ func (i *Inspector) computeAllBounds(frag *layout.Fragment, origin layout.Point,
 		if _, ok := m[frag.Node]; !ok {
 			m[frag.Node] = rect
 		} else {
-			// Union of fragments for the same node
 			existing := m[frag.Node]
 			newRect := layout.Rect{
 				Origin: layout.Point{
@@ -328,23 +159,14 @@ func (i *Inspector) computeAllBounds(frag *layout.Fragment, origin layout.Point,
 			m[frag.Node] = newRect
 		}
 	}
-
 	for _, child := range frag.Children {
-		childOrigin := layout.Point{
-			X: origin.X + child.Offset.X,
-			Y: origin.Y + child.Offset.Y,
-		}
+		childOrigin := layout.Point{X: origin.X + child.Offset.X, Y: origin.Y + child.Offset.Y}
 		i.computeAllBounds(child.Fragment, childOrigin, m)
 	}
 }
 
 func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]layout.Rect) *NodeSnapshot {
-	s := &NodeSnapshot{
-		Kind:        n.Kind().String(),
-		Name:        n.NodeName(),
-		TextContent: n.TextContent(),
-	}
-
+	s := &NodeSnapshot{Kind: n.Kind().String(), Name: n.NodeName(), TextContent: n.TextContent()}
 	if el, ok := n.(dom.Element); ok {
 		s.ID = el.ID()
 		s.Class = el.Class()
@@ -353,13 +175,11 @@ func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]layout.Re
 			s.Disabled = d.IsDisabled()
 		}
 	}
-
 	if n.Kind() == dom.KindText {
 		if tn, ok := n.(dom.TextNode); ok {
 			s.Text = tn.Data()
 		}
 	}
-
 	if ro := n.RenderObject(); ro != nil {
 		s.Computed = ro.ComputedStyle()
 		s.Default = ro.DefaultStyle()
@@ -369,11 +189,9 @@ func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]layout.Re
 			s.Rect = rect
 		}
 	}
-
 	for child := range n.ChildNodes() {
 		s.Children = append(s.Children, i.snapshotNode(child, boundsMap))
 	}
-
 	return s
 }
 

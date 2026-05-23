@@ -220,7 +220,6 @@ func main() {
 
 	// Install devtools (Inspector + X-Ray)
 	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8082",
 	})
 
 	// ── global key bindings ───────────────────────────────────────────────────

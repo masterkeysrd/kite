@@ -128,7 +128,6 @@ func main() {
 	})
 
 	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8086",
 	})
 
 	if err := eng.Run(ctx); err != nil {
