@@ -44,7 +44,7 @@ func (d *DialogElement) OnConnected() {
 		doc.ShowOverlay(d, d.zIndex)
 
 		if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-			d.scope = &focus.Scope{Root: d.self}
+			d.scope = &focus.Scope{Root: d.self, Autofocus: d.self}
 			fm.PushScope(d.scope)
 		}
 	}
@@ -52,8 +52,13 @@ func (d *DialogElement) OnConnected() {
 
 func (d *DialogElement) OnDisconnected() {
 	if doc := d.OwnerDocument(); doc != nil {
+		doc.HideOverlay(d)
 		if fm, ok := doc.FocusManager().(*focus.Manager); ok {
 			fm.PopScope()
 		}
 	}
+}
+
+func (d *DialogElement) IsFocusable() bool {
+	return true
 }

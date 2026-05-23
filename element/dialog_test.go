@@ -40,8 +40,20 @@ func TestDialog_Lifecycle(t *testing.T) {
 		t.Error("dialog should be in document overlays")
 	}
 
-	// Unmount triggers OnDisconnected
 	eng.Document().RemoveChild(dialog)
+	eng.Frame()
+
+	// Verify it was removed from overlays
+	found = false
+	for ovl := range eng.Document().Overlays() {
+		if ovl == dialog {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Error("expected dialog to be removed from document overlays after unmount")
+	}
 
 	// Verify Focus Scope was popped
 	activeScope = fm.ActiveScope()

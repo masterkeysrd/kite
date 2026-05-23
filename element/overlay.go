@@ -66,4 +66,8 @@ func (o *OverlayElement) OnConnected() {
 }
 
 // OnDisconnected implements dom.Lifecycle.
-func (o *OverlayElement) OnDisconnected() {}
+func (o *OverlayElement) OnDisconnected() {
+	if doc := o.OwnerDocument(); doc != nil {
+		doc.HideOverlay(o)
+	}
+}
