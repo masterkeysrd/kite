@@ -585,12 +585,7 @@ func (e *Engine) Frame() {
 		e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, surface)
 		for _, overlay := range root.Overlays() {
 			e.logger.Info("engine: painting overlay")
-			offset := layout.Point{}
-			if cs := overlay.ComputedStyle(); cs != nil {
-				offset.X = cs.Margin.Left
-				offset.Y = cs.Margin.Top
-			}
-			e.paintEngine.PaintFragment(overlay.Fragment(), offset, surface)
+			e.paintEngine.PaintFragment(overlay.Fragment(), overlay.Offset(), surface)
 		}
 		e.paintEngine.ResolveBorders(surface)
 

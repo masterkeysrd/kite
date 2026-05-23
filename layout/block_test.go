@@ -95,6 +95,7 @@ func TestBlockLayout_VerticalStacking(t *testing.T) {
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
 	frag := algo.Layout()
+	parent.SetCachedLayout(space, frag)
 
 	// Parent should be 100x6 (stretched to available width)
 	if frag.Size.Width != 100 {
@@ -142,6 +143,7 @@ func TestBlockLayout_PaddingAndBorder(t *testing.T) {
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
 	frag := algo.Layout()
+	parent.SetCachedLayout(space, frag)
 
 	// Total width: stretches to available width (100)
 	if frag.Size.Width != 100 {
@@ -177,6 +179,7 @@ func TestBlockLayout_Margins(t *testing.T) {
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
 	frag := algo.Layout()
+	parent.SetCachedLayout(space, frag)
 
 	// Parent width: stretches to available width (100)
 	if frag.Size.Width != 100 {

@@ -26,6 +26,7 @@ func NewDialog(doc dom.Document, content dom.Node, zIndex int) *DialogElement {
 		Display:        style.Some(style.DisplayFlex),
 		JustifyContent: style.Some(style.JustifyCenter),
 		AlignItems:     style.Some(style.AlignCenter),
+		AlignContent:   style.Some(style.AlignCenter),
 	})
 
 	if content != nil {

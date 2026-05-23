@@ -61,10 +61,7 @@ func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement O
 
 	if flip {
 		// Check if it overflows viewport
-		overflows := false
-		if x < 0 || y < 0 || x+size.Width > a.Space.AvailableSize.Width || y+size.Height > a.Space.AvailableSize.Height {
-			overflows = true
-		}
+		overflows := x < 0 || y < 0 || x+size.Width > a.Space.AvailableSize.Width || y+size.Height > a.Space.AvailableSize.Height
 
 		if overflows {
 			// Try opposite placement
@@ -78,9 +75,24 @@ func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement O
 				return nx, ny
 			}
 
-			// If both overflow, we could pick the one with more space,
-			// but for now let's stick to the better one or default.
-			// The requirement says: "If it overflows both, it defaults to the side with the most available space."
+			// If both overflow, we default to the side with the most available space.
+			topSpace := anchor.Origin.Y
+			bottomSpace := max(0, a.Space.AvailableSize.Height-(anchor.Origin.Y+anchor.Size.Height))
+			leftSpace := anchor.Origin.X
+			rightSpace := max(0, a.Space.AvailableSize.Width-(anchor.Origin.X+anchor.Size.Width))
+
+			switch placement {
+			case PlacementTop, PlacementBottom:
+				if topSpace >= bottomSpace {
+					return a.resolvePlacement(anchor, size, PlacementTop)
+				}
+				return a.resolvePlacement(anchor, size, PlacementBottom)
+			case PlacementLeft, PlacementRight:
+				if leftSpace >= rightSpace {
+					return a.resolvePlacement(anchor, size, PlacementLeft)
+				}
+				return a.resolvePlacement(anchor, size, PlacementRight)
+			}
 		}
 	}
 
@@ -118,5 +130,6 @@ func (a *OverlayAlgorithm) oppositePlacement(p OverlayPlacement) OverlayPlacemen
 }
 
 func (a *OverlayAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
-	return IntrinsicMinMaxSizes(a.Node)
+	contentAlgo := &BlockAlgorithm{Node: a.Node, Space: a.Space}
+	return contentAlgo.ComputeMinMaxSizes()
 }

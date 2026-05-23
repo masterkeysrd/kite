@@ -65,7 +65,6 @@ func TestOverlay_Positioning(t *testing.T) {
 }
 
 func TestOverlay_Flipping(t *testing.T) {
-	t.Skip("We need to debug the flipping logic before we can enable this test")
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
 
@@ -104,5 +103,84 @@ func TestOverlay_Flipping(t *testing.T) {
 	expectedOvlOffset := layout.Point{X: 10, Y: 15}
 	if ovlOffset != expectedOvlOffset {
 		t.Errorf("overlay should have flipped to Top: expected %v, got %v", expectedOvlOffset, ovlOffset)
+	}
+}
+
+func TestOverlay_BestFit(t *testing.T) {
+	// Viewport 80x24.
+	// Anchor at Y=10, Height=4. Top space: 10, Bottom space: 24 - 14 = 10.
+	// If we have an overlay of height 15, it overflows both.
+	// We want to test that it picks the side with more space if they are unequal.
+
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+
+	// Anchor at Y=5, Height=2. Top space: 5, Bottom space: 24 - 7 = 17.
+	anchor := element.Box().Style(style.Style{
+		Width:  style.Some(style.Cells(10)),
+		Height: style.Some(style.Cells(2)),
+		Margin: style.Some(style.Edges(5, 0, 0, 10)),
+	})
+	eng.Mount(anchor)
+
+	// Overlay height 20.
+	ovl := element.Overlay(
+		element.Box().Style(style.Style{
+			Width:  style.Some(style.Cells(5)),
+			Height: style.Some(style.Cells(20)),
+		}),
+		element.OverlayConfig{
+			Anchor:    anchor,
+			Placement: layout.PlacementTop, // Start at Top (space 5)
+			Flip:      true,
+		},
+	)
+	eng.Document().AppendChild(ovl)
+	eng.Frame()
+
+	// It should flip to Bottom because it has more space (17 vs 5).
+	ovlRO := ovl.RenderObject()
+	ovlOffset := ovlRO.Offset()
+	expectedY := 5 + 2 // anchor.Y + anchor.Height
+	if ovlOffset.Y != expectedY {
+		t.Errorf("overlay should have flipped to Bottom (more space): expected Y=%d, got %d", expectedY, ovlOffset.Y)
+	}
+}
+
+func TestOverlay_HorizontalBestFit(t *testing.T) {
+	// Viewport 80x24.
+	// Anchor at X=5, Width=2. Left space: 5, Right space: 80 - 7 = 73.
+	// Overlay width 50. Placement Left.
+	// Should flip to Right because it has more space (73 vs 5).
+
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+
+	anchor := element.Box().Style(style.Style{
+		Width:  style.Some(style.Cells(2)),
+		Height: style.Some(style.Cells(3)),
+		Margin: style.Some(style.Edges(10, 0, 0, 5)),
+	})
+	eng.Mount(anchor)
+
+	ovl := element.Overlay(
+		element.Box().Style(style.Style{
+			Width:  style.Some(style.Cells(50)),
+			Height: style.Some(style.Cells(5)),
+		}),
+		element.OverlayConfig{
+			Anchor:    anchor,
+			Placement: layout.PlacementLeft,
+			Flip:      true,
+		},
+	)
+	eng.Document().AppendChild(ovl)
+	eng.Frame()
+
+	ovlRO := ovl.RenderObject()
+	ovlOffset := ovlRO.Offset()
+	expectedX := 5 + 2 // anchor.X + anchor.Width
+	if ovlOffset.X != expectedX {
+		t.Errorf("overlay should have flipped to Right (more space): expected X=%d, got %d", expectedX, ovlOffset.X)
 	}
 }

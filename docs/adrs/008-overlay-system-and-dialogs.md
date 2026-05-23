@@ -22,7 +22,8 @@ We will implement an **Overlay System** managed directly by the logical Document
    - A new generic component that acts as a custom render object (`render.Overlay`).
    - It accepts an `Anchor` element and a `Placement` enum (Top, Bottom, Left, Right).
    - During layout, it calculates its intrinsic size, queries `Anchor.GetBoundingClientRect()`, and calculates physical `X,Y` offsets based on the placement.
-   - If `Flip` is enabled, the render object performs collision detection against the viewport bounds. If the overlay overflows the requested side (e.g., Bottom), it automatically recalculates its position for the opposite side (e.g., Top).
+   - If `Flip` is enabled, the render object performs collision detection against the viewport bounds. If the overlay overflows the requested side (e.g., Bottom), it automatically recalculates its position for the opposite side (e.g., Top). 
+   - **Best Fit Logic:** If the overlay overflows both the primary and opposite placements, it defaults to the side with the most available space (e.g., if Top has 5 cells and Bottom has 10, it picks Bottom).
 
 5. **Dialog Component (`element.Dialog`):**
    - A modal component that attaches itself via `ShowOverlay`.

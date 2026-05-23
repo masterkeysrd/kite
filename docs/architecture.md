@@ -84,3 +84,10 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Inspector (`/devtools/inspector`):** A lightweight HTTP server utilizing Server-Sent Events (SSE) to stream the live logical DOM tree, computed styles, and layout bounding boxes to a web browser interface.
 - **X-Ray Mode:** An optional rendering flag built into the core `paint` engine but toggled via devtools. Overlays colored bounding boxes (margin, padding, content) for visual layout debugging.
 - **Test Environment (`/devtools/testenv`):** A headless testing harness that wraps the existing `backend/mock`. Provides high-level APIs for structural DOM assertions (`GetNodeByID`), simulated input routing (`Type`, `Click`), layout verification, and golden/visual snapshot testing (producing HTML or ANSI dumps).
+
+### 3.9. Overlay System
+- **Responsibility:** Management and rendering of out-of-flow components like dropdowns, tooltips, and modal dialogs.
+- **Document Integration:** The `dom.Document` maintains an explicit list of overlays via `ShowOverlay` and `HideOverlay`. Overlays are sorted by `zIndex`.
+- **Anchored Positioning:** `element.Overlay` uses a custom layout algorithm that queries the physical bounds of an `Anchor` element (via `GetBoundingClientRect`) to position itself.
+- **Smart Flipping:** If an overlay would overflow the viewport, the layout engine automatically flips it to the opposite side or chooses the "best fit" placement with the most available space.
+- **Modal Dialogs:** `element.Dialog` provides a full-screen modal container that automatically traps focus using `focus.Scope`.

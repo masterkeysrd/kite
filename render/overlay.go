@@ -17,6 +17,6 @@ func NewOverlay(logicalNode any, target event.EventTarget) *Overlay {
 	o := &Overlay{}
 	o.Init(o, logicalNode, target)
 	// Overlays are usually block containers for their content
-	o.SetComputedStyle(&style.Computed{Display: style.DisplayBlock})
+	o.SetComputedStyle(&style.Computed{Display: style.DisplayInlineBlock})
 	return o
 }

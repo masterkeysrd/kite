@@ -68,6 +68,8 @@ btn := element.Box("Click Me").
 | `Table` | `table` | A table container. |
 | `TR` | `tr` | A table row. |
 | `TD` | `td` | A table cell. |
+| `Overlay` | `overlay` | An anchored overlay with smart flipping. |
+| `Dialog` | `dialog` | A full-screen modal container. |
 
 ## Implicit Adoption
 

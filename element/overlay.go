@@ -26,7 +26,9 @@ var _ dom.Lifecycle = (*OverlayElement)(nil)
 
 func NewOverlay(doc dom.Document, content dom.Node, config OverlayConfig) *OverlayElement {
 	o := &OverlayElement{config: config}
-	o.initBase(doc.CreateElement("overlay", o), o, style.Style{})
+	o.initBase(doc.CreateElement("overlay", o), o, style.Style{
+		Display: style.Some(style.DisplayInlineBlock),
+	})
 	if content != nil {
 		o.AppendChild(content)
 	}

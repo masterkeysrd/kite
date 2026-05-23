@@ -374,14 +374,41 @@ func LayoutPhase(root Object, available layout.Size) {
 
 	// 4. Layout overlays.
 	if rv, ok := root.(*RenderView); ok {
-		overlaySpace := layout.NewConstraintSpaceBuilder(available).
-			SetContainingSpace(available).
-			SetContainerSpace(available).
-			ToConstraintSpace()
 		for _, overlay := range rv.Overlays() {
+			comp := overlay.ComputedStyle()
+			avail := available
+			if comp != nil {
+				avail.Width = max(0, avail.Width-comp.Margin.Left-comp.Margin.Right)
+				avail.Height = max(0, avail.Height-comp.Margin.Top-comp.Margin.Bottom)
+			}
+
+			osb := layout.NewConstraintSpaceBuilder(avail).
+				SetContainingSpace(available).
+				SetContainerSpace(available)
+
+			if comp != nil {
+				if comp.Width.Kind() == style.KindPercent && comp.Width.PercentValue() == 100 {
+					osb.SetIsFixedInlineSize(true)
+				}
+				if comp.Height.Kind() == style.KindPercent && comp.Height.PercentValue() == 100 {
+					osb.SetIsFixedBlockSize(true)
+				}
+			}
+			overlaySpace := osb.ToConstraintSpace()
+
 			algo := layout.NewAlgorithm(overlay, overlaySpace)
 			frag := algo.Layout()
 			overlay.SetCachedLayout(overlaySpace, frag)
+
+			// If the overlay doesn't have a custom positioner (like OverlayAlgorithm),
+			// we fallback to margin-based positioning relative to the viewport.
+			if _, ok := overlay.LogicalNode().(layout.OverlayLever); !ok {
+				if cs := overlay.ComputedStyle(); cs != nil {
+					// Use margins for absolute positioning relative to viewport.
+					x, y := cs.Margin.Left, cs.Margin.Top
+					overlay.SetOffset(layout.Point{X: x, Y: y})
+				}
+			}
 		}
 	}
 }

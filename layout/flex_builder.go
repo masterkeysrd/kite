@@ -385,14 +385,22 @@ func (b *FlexLineBuilder) AlignCrossAxis(containerCrossSize int, alignContent st
 
 	// 2. align-content: stretch
 	extraCross := containerCrossSize - totalSumLineCross
-	if extraCross > 0 && len(b.lines) > 0 && alignContent == style.AlignStretch {
-		perLineExtra := extraCross / len(b.lines)
-		for _, line := range b.lines {
-			line.CrossSize += perLineExtra
+	currentCrossOffset := 0
+
+	if extraCross > 0 && len(b.lines) > 0 {
+		switch alignContent {
+		case style.AlignStretch:
+			perLineExtra := extraCross / len(b.lines)
+			for _, line := range b.lines {
+				line.CrossSize += perLineExtra
+			}
+		case style.AlignCenter:
+			currentCrossOffset = extraCross / 2
+		case style.AlignEnd:
+			currentCrossOffset = extraCross
 		}
 	}
 
-	currentCrossOffset := 0
 	for _, line := range b.lines {
 		for _, item := range line.Items {
 			childMargin := item.Node.Style().Margin

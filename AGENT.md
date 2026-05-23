@@ -20,7 +20,7 @@ This document provides guidelines and architectural context for AI assistants an
     *   It walks the logical DOM tree and projects it into the render tree.
     *   Structural changes (insertions/removals) in the DOM trigger synchronization flags that propagate to the document root.
     *   The engine creates/removes `render.Box` or `render.Text` objects on the fly during this phase. There is no `render.Block` or `render.Flex`—the engine uses a unified `render.Box` which delegates to the appropriate algorithm at layout time based on `ComputedStyle.Display`.
-    *   **Custom Render Objects:** Logical nodes can implement `render.CustomObjectProvider` to override the default creation logic and provide specialized render objects (e.g., for replaced elements like inputs).
+    *   **Custom Render Objects:** Logical nodes can implement `render.CustomObjectProvider` to override the default creation logic and provide specialized render objects (e.g., for replaced elements like inputs, or the specialized `render.Overlay`).
 3.  **Element Identity & Adoption:**
     *   Every `dom.Element` carries an `outer` back-pointer. This pointer ensures that when widgets wrap standard elements, functions like `event.Target()`, `GetElementByID()`, and `RenderObject.Node()` always return the outermost, user-visible wrapper.
     *   Do not reset the `outer` pointer to `nil` on detach. The identity must remain stable.
@@ -79,6 +79,13 @@ This document provides guidelines and architectural context for AI assistants an
     *   Programmatic scroll is valid on any element; however, paint only applies translation if the computed style indicates the element is a scroll container (`overflow: scroll` or `overflow: auto`).
     *   Paint **clamps on read**: the stored scroll offset is the raw author intent, which paint clamps to the actual content extent at render time.
     *   Mutating scroll marks the render object `DirtyScroll`. Paint clears this flag.
+14. **Overlay System (ADR-008):**
+    *   The `dom.Document` maintains an explicit list of overlays via `ShowOverlay` and `HideOverlay`. Overlays are sorted by `zIndex`.
+    *   `element.Overlay` uses a custom layout algorithm (`OverlayAlgorithm`) that positions itself relative to an `Anchor` element using `GetBoundingClientRect`.
+    *   **Smart Flipping:** Overlays automatically flip to the opposite side if they overflow the viewport. If they overflow both sides, they use **Best Fit** logic, choosing the side with the most available space.
+    *   Overlays must default to `Display: InlineBlock` to ensure they shrink-wrap to their content, preventing false-positive horizontal overflows.
+    *   `element.Dialog` provides a full-screen modal that uses the overlay system and traps keyboard focus via `focus.Scope`.
+    *   The engine respects the calculated physical offsets of overlays during the paint phase. Standard elements used as overlays (without a custom positioner) fall back to margin-based absolute positioning relative to the viewport.
 
 ## 🗺️ Concern → File Map
 
@@ -120,6 +127,8 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Cursor from IFC fragment** | `cursor/from_text_fragment.go` |
 | **Cursor byte-offset hit-test** | `cursor/offset_at_point.go` |
 | **Editor buffer (text model)** | `editor/buffer.go` |
+| **Overlay system & algorithms** | `element/overlay.go`, `layout/overlay.go` (ADR-008) |
+| **Modal Dialogs** | `element/dialog.go` |
 | **Engine frame loop** | `engine/engine.go` |
 | **Engine cursor wiring** | `engine/cursor.go` |
 | **Engine job / microtask queue** | `engine/job.go` |
@@ -205,8 +214,8 @@ This source map summarises the repository packages, their responsibilities, and 
     - Key files: `editor/doc.go`, `buffer.go`, tests
 
 - **element** — Path: `element/`
-    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List) and declarative builders. (See `element/doc.go`)
-    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, tests
+    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List, Overlay, Dialog) and declarative builders. (See `element/doc.go`)
+    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, `overlay.go`, `dialog.go`, tests
 
 - **engine** — Path: `engine/`
     - Description: Main event loop, frame pipeline (Tasks → Style → Layout → Paint → Sync), task queues, and worker pool. Coordinates other packages. (See `engine/doc.go`)
@@ -228,8 +237,8 @@ This source map summarises the repository packages, their responsibilities, and 
     - Key files: `key/key.go`, `mod.go`
 
 - **layout** — Path: `layout/`
-    - Description: Layout algorithms and formatting contexts (Block, Flex, Inline/IFC, List, Table). Produces fragment trees consumed by paint. (See `layout/doc.go`)
-    - Key files: `layout/doc.go`, `flex.go`, `block.go`, `inline.go`, `table.go`, `builders.go`, tests
+    - Description: Layout algorithms and formatting contexts (Block, Flex, Inline/IFC, List, Table, Overlay). Produces fragment trees consumed by paint. (See `layout/doc.go`)
+    - Key files: `layout/doc.go`, `flex.go`, `block.go`, `inline.go`, `table.go`, `overlay.go`, `builders.go`, tests
 
 - **paint** — Path: `paint/`
     - Description: Paint phase: rasterises layout fragments into terminal cells, clipping and border resolution invariants. (See `paint/doc.go`)
