@@ -292,7 +292,7 @@ func NewLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, ve
 	}
 }
 
-func (l *LineBreaker) NextLine() (*LineBox, bool) {
+func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	if l.currentIndex >= len(l.items) {
 		if l.hadForcedBreakAtEnd {
 			l.hadForcedBreakAtEnd = false
@@ -300,6 +300,7 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 		}
 		return nil, false
 	}
+	defer ctx.Begin("Layout(IFC):NextLine")()
 
 	line := &LineBox{}
 	currentX := 0
@@ -351,7 +352,7 @@ func (l *LineBreaker) NextLine() (*LineBox, bool) {
 			childAlgo := NewAlgorithm(item.Node, ConstraintSpace{
 				AvailableSize: Size{Width: l.width, Height: 1000},
 			})
-			frag := childAlgo.Layout()
+			frag := childAlgo.Layout(ctx)
 			itemWidth := frag.Size.Width
 			itemHeight := frag.Size.Height
 
@@ -561,7 +562,7 @@ func (l *LineBreaker) findFittingClusters(item InlineItem, clusters []text.Clust
 	return len(clusters), currentWidth, false
 }
 
-func ComputeInlineMinMaxSizes(items []InlineItem) MinMaxSizes {
+func ComputeInlineMinMaxSizes(ctx *Context, items []InlineItem) MinMaxSizes {
 	var result MinMaxSizes
 	currentLineMax := 0
 
@@ -600,7 +601,7 @@ func ComputeInlineMinMaxSizes(items []InlineItem) MinMaxSizes {
 
 		case InlineAtomic:
 			// Call intrinsic helper on the atomic node.
-			childMinMax := IntrinsicMinMaxSizes(item.Node)
+			childMinMax := IntrinsicMinMaxSizes(ctx, item.Node)
 			result.Min = max(result.Min, childMinMax.Min)
 			currentLineMax += childMinMax.Max
 

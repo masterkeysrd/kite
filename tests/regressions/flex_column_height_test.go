@@ -57,7 +57,7 @@ func TestFlexColumnGrowingHeightWithWrappingChildren(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Each item should have height > 1.
 	for i, childLink := range frag.Children {

@@ -81,7 +81,8 @@ The framework operates via a central nervous system called the **Engine (`/engin
 
 ### 3.8. Developer Tools (`/devtools`)
 - **Responsibility:** Provide utilities to inspect, test, and debug Kite applications without bloating the core runtime.
-- **Inspector (`/devtools/inspector`):** A lightweight HTTP server utilizing Server-Sent Events (SSE) to stream the live logical DOM tree, computed styles, and layout bounding boxes to a web browser interface.
+- **Inspector (`/devtools/inspector`):** A lightweight HTTP server utilizing Server-Sent Events (SSE) to stream the live logical DOM tree and computed styles. The frontend is built with **Preact and Vite** (ADR-020), compiled into a single embedded HTML file to provide a rich, component-based UI without requiring Node.js for end-users.
+- **Profiler:** A built-in performance tracing system using a **Hybrid Architecture** (ADR-019). The core engine delegates phases to a `Pipeline` interface wrapped in a Decorator to capture high-level phase times cleanly. For deep-tree granular timings (like specific layout algorithms), an inlineable `TraceContext` struct is injected into contexts (e.g., `LayoutContext`), ensuring zero allocations when disabled. DevTools features an internal Flamechart/Waterfall view and exports data in the Chrome Trace Event Format (JSON). Startup tracing can be activated via `engine.WithProfiler(true)`.
 - **X-Ray Mode:** An optional rendering flag built into the core `paint` engine but toggled via devtools. Overlays colored bounding boxes (margin, padding, content) for visual layout debugging.
 - **Test Environment (`/devtools/testenv`):** A headless testing harness that wraps the existing `backend/mock`. Provides high-level APIs for structural DOM assertions (`GetNodeByID`), simulated input routing (`Type`, `Click`), layout verification, and golden/visual snapshot testing (producing HTML or ANSI dumps).
 
@@ -91,3 +92,8 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Anchored Positioning:** `element.Overlay` uses a custom layout algorithm that queries the physical bounds of an `Anchor` element (via `GetBoundingClientRect`) to position itself.
 - **Smart Flipping:** If an overlay would overflow the viewport, the layout engine automatically flips it to the opposite side or chooses the "best fit" placement with the most available space.
 - **Modal Dialogs:** `element.Dialog` provides a full-screen modal container that automatically traps focus using `focus.Scope`.
+
+### 3.10. Animation System (`/animation`)
+- **Responsibility:** Providing smooth, time-based property interpolation.
+- **Paradigm:** The framework uses an explicit, imperative animation architecture (ADR-021) rather than declarative CSS transitions. This keeps the Style and Layout engines pure and stateless.
+- **Engine Integration:** Developers register generic `Tween[T]` objects with the `Engine`. The engine ticks active animations at the start of its frame loop. If animations are active, the engine automatically invokes `RequestFrame()` to maintain a continuous 60FPS loop, returning to an idle sleep state once all animations complete.

@@ -34,7 +34,7 @@ func TestListLayout_MarkerSynthesis(t *testing.T) {
 
 			space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
 			algo := &layout.ListAlgorithm{Node: node, Space: space}
-			frag := algo.Layout()
+			frag := algo.Layout(nil)
 
 			if !tt.expectFrag {
 				// Search for text fragment in children
@@ -105,7 +105,7 @@ func TestListLayout_OrdinalCalculation(t *testing.T) {
 
 	for i, node := range nodes {
 		algo := &layout.ListAlgorithm{Node: node, Space: space}
-		frag := algo.Layout()
+		frag := algo.Layout(nil)
 
 		expectedMarker := fmt.Sprintf("%d. ", i+1)
 		markerFrag := frag.Children[0].Fragment
@@ -150,7 +150,7 @@ func TestListLayout_InterruptedOrdinal(t *testing.T) {
 
 	check := func(node layout.Node, expected string) {
 		algo := &layout.ListAlgorithm{Node: node, Space: space}
-		frag := algo.Layout()
+		frag := algo.Layout(nil)
 		markerFrag := frag.Children[0].Fragment
 		got := ""
 		for _, cluster := range markerFrag.Text {
@@ -181,7 +181,7 @@ func TestListLayout_MultiLineWrapping(t *testing.T) {
 	// Available width 10. Marker is 2. Content width is 8.
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 10, Height: 100}).ToConstraintSpace()
 	algo := &layout.ListAlgorithm{Node: node, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Marker should be at (0,0)
 	if frag.Children[0].Offset != (layout.Point{X: 0, Y: 0}) {

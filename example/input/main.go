@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// ── engine ───────────────────────────────────────────────────────────────
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// ── inputs ───────────────────────────────────────────────────────────────
 	// Build inputs against the engine document so they are already in the
@@ -219,9 +219,7 @@ func main() {
 	eng.Mount(root)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8082",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// ── global key bindings ───────────────────────────────────────────────────
 	ctx, cancel := context.WithCancel(context.Background())

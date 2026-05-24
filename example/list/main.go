@@ -36,7 +36,7 @@ func main() {
 		}
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	headerStyle := style.Style{Margin: style.Some(style.Edges(1, 0, 0, 0)), Underline: style.Some(true)}
 
@@ -101,9 +101,7 @@ func main() {
 	eng.Mount(root)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8083",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

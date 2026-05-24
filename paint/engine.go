@@ -34,30 +34,33 @@ func NewPaintEngine() *PaintEngine {
 }
 
 // PaintFragment draws the immutable fragment tree onto the surface at the given origin.
-func (p *PaintEngine) PaintFragment(frag *layout.Fragment, origin layout.Point, surface Surface) {
+func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin layout.Point, surface Surface) {
 	if frag == nil {
 		return
 	}
+	defer ctx.Begin("Paint:PaintFragment")()
 	p.rootSurface = surface
 	p.clipStack = p.clipStack[:0]
 	p.clipStack = append(p.clipStack, surface.Bounds())
-	p.paintFragment(frag, origin)
+	p.paintFragment(ctx, frag, origin)
 }
 
 // ResolveBorders resolves border junctions across the entire surface.
-func (p *PaintEngine) ResolveBorders(surface Surface) {
+func (p *PaintEngine) ResolveBorders(ctx *Context, surface Surface) {
+	defer ctx.Begin("Paint:ResolveBorders")()
 	p.rootSurface = surface
 	p.resolveBorders(surface)
 }
 
 // Paint draws the immutable fragment tree onto the surface and resolves borders.
-func (p *PaintEngine) Paint(frag *layout.Fragment, surface Surface) {
+func (p *PaintEngine) Paint(ctx *Context, frag *layout.Fragment, surface Surface) {
 	if frag == nil {
 		return
 	}
+	defer ctx.Begin("Paint")()
 	p.borderPoints = p.borderPoints[:0]
-	p.PaintFragment(frag, layout.Point{}, surface)
-	p.ResolveBorders(surface)
+	p.PaintFragment(ctx, frag, layout.Point{}, surface)
+	p.ResolveBorders(ctx, surface)
 }
 
 func (p *PaintEngine) setCell(x, y int, c Cell) {
@@ -73,10 +76,11 @@ func (p *PaintEngine) setCell(x, y int, c Cell) {
 	}
 }
 
-func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point) {
+func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin layout.Point) {
 	if frag == nil {
 		return
 	}
+	defer ctx.Begin("Paint:paintFragment")()
 
 	// 0. Frustum Culling: skip if fragment is entirely outside current clip bounds.
 	clip := p.clipStack[len(p.clipStack)-1]
@@ -162,7 +166,7 @@ func (p *PaintEngine) paintFragment(frag *layout.Fragment, origin layout.Point) 
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
-		p.paintFragment(childLink.Fragment, childOrigin)
+		p.paintFragment(ctx, childLink.Fragment, childOrigin)
 	}
 
 	// Pop child clip.

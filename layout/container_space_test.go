@@ -194,7 +194,7 @@ func TestIntrinsicBlockSize_PercentWidthChild(t *testing.T) {
 		},
 	}
 
-	h := IntrinsicBlockSize(node, 30)
+	h := IntrinsicBlockSize(nil, node, 30)
 	if h != 1 {
 		t.Errorf("expected IntrinsicBlockSize=1 for single-line percent-width node, got %d "+
 			"(ContainerSpace not propagated in probe?)", h)
@@ -227,7 +227,7 @@ func TestPercentResolvesAgainstContentBox(t *testing.T) {
 		SetContainerSpace(Size{Width: 100, Height: 100}).
 		ToConstraintSpace()
 
-	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout()
+	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout(nil)
 
 	// Parent content-box = 20 - 2(border) - 4(padding) = 14. Child = 50% of 14 = 7.
 	if len(frag.Children) == 0 {
@@ -265,7 +265,7 @@ func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
 		SetContainerSpace(Size{100, 100}).
 		ToConstraintSpace()
 
-	rootFrag := (&BlockAlgorithm{Node: root, Space: space}).Layout()
+	rootFrag := (&BlockAlgorithm{Node: root, Space: space}).Layout(nil)
 
 	if len(rootFrag.Children) == 0 {
 		t.Fatal("root has no children")
@@ -306,7 +306,7 @@ func TestBlockChildUsesContainerSpace(t *testing.T) {
 		SetContainerSpace(Size{100, 100}).
 		ToConstraintSpace()
 
-	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout()
+	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout(nil)
 
 	if len(frag.Children) == 0 {
 		t.Fatal("expected child fragment")
@@ -384,6 +384,6 @@ func BenchmarkLayoutWithContainerSpace(b *testing.B) {
 			n = n.(sibling).NextSibling()
 		}
 		algo := &BlockAlgorithm{Node: root, Space: space}
-		algo.Layout()
+		algo.Layout(nil)
 	}
 }

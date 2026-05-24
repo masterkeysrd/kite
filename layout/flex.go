@@ -58,14 +58,14 @@ func (a *AnonymousBlock) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil
 }
 
-func (a *AnonymousBlock) Layout() *Fragment {
+func (a *AnonymousBlock) Layout(ctx *Context) *Fragment {
 	// AnonymousBlock uses BlockAlgorithm to layout its IFC.
 	// We need to resolve the algorithm manually because NewAlgorithm would return us (recursive).
 	algo := &BlockAlgorithm{
 		Node:  a,
 		Space: a.cachedSpace,
 	}
-	return algo.Layout()
+	return algo.Layout(ctx)
 }
 
 func (a *AnonymousBlock) SetCachedLayout(space ConstraintSpace, frag *Fragment) {
@@ -84,20 +84,21 @@ func (a *AnonymousBlock) IsAnonymous() bool {
 	return true
 }
 
-func (a *AnonymousBlock) ComputeMinMaxSizes() MinMaxSizes {
+func (a *AnonymousBlock) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	// BlockAlgorithm's ComputeMinMaxSizes logic for IFC:
 	inlineBuilder := NewInlineItemsBuilder(defaultShaper, a)
 	for _, child := range a.children {
 		inlineBuilder.collect(child)
 	}
-	return ComputeInlineMinMaxSizes(inlineBuilder.items)
+	return ComputeInlineMinMaxSizes(ctx, inlineBuilder.items)
 }
 
 // ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
-func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *FlexAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
+	defer ctx.Begin("Layout(Flex):ComputeMinMaxSizes")()
 
 	comp := a.Node.Style()
 	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
@@ -116,7 +117,7 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	isRow := comp.FlexDirection == style.FlexRow || comp.FlexDirection == style.FlexRowReverse
 	geom := flexGeometry{direction: comp.FlexDirection}
 
-	items := a.collectItems(geom)
+	items := a.collectItems(ctx, geom)
 
 	if isRow {
 		// Row: Min = sum(child.min), Max = sum(child.max) + gaps
@@ -124,7 +125,7 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		totalMax := 0
 		count := 0
 		for _, item := range items {
-			childMinMax := IntrinsicMinMaxSizes(item.Node)
+			childMinMax := IntrinsicMinMaxSizes(ctx, item.Node)
 			childMargin := item.Node.Style().Margin
 			totalMin += childMinMax.Min + childMargin.Left + childMargin.Right
 			totalMax += childMinMax.Max + childMargin.Left + childMargin.Right
@@ -140,7 +141,7 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		maxMin := 0
 		maxMax := 0
 		for _, item := range items {
-			childMinMax := IntrinsicMinMaxSizes(item.Node)
+			childMinMax := IntrinsicMinMaxSizes(ctx, item.Node)
 			childMargin := item.Node.Style().Margin
 			maxMin = max(maxMin, childMinMax.Min+childMargin.Left+childMargin.Right)
 			maxMax = max(maxMax, childMinMax.Max+childMargin.Left+childMargin.Right)
@@ -154,17 +155,18 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 }
 
 // Layout executes the flex layout algorithm and returns an immutable Fragment.
-func (a *FlexAlgorithm) Layout() *Fragment {
+func (a *FlexAlgorithm) Layout(ctx *Context) *Fragment {
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
+	defer ctx.Begin("Layout(Flex)")()
 
 	comp := a.Node.Style()
 
 	// 1. Initial Scrollbar Decision
 	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
 
-	frag, contentSize := a.layoutInternal(hasScrollbarX, hasScrollbarY)
+	frag, contentSize := a.layoutInternal(ctx, hasScrollbarX, hasScrollbarY)
 
 	// 2. Check for Auto Scrollbars
 	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
@@ -174,14 +176,14 @@ func (a *FlexAlgorithm) Layout() *Fragment {
 	needX := !hasScrollbarX && comp.Scrollbar.X.UnwrapOr(false) && comp.OverflowX == style.OverflowAuto && contentSize.Width > viewport.Width
 
 	if needY || needX {
-		frag, _ = a.layoutInternal(hasScrollbarX || needX, hasScrollbarY || needY)
+		frag, _ = a.layoutInternal(ctx, hasScrollbarX || needX, hasScrollbarY || needY)
 	}
 
 	a.Node.SetCachedLayout(a.Space, frag)
 	return frag
 }
 
-func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fragment, Size) {
+func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbarY bool) (*Fragment, Size) {
 	comp := a.Node.Style()
 	geom := flexGeometry{direction: comp.FlexDirection}
 	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
@@ -189,7 +191,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 	// 1. Resolve Container Main/Cross Sizes
 	var minMax MinMaxSizes
 	if !a.Space.IsFixedInlineSize {
-		minMax = a.ComputeMinMaxSizes()
+		minMax = a.ComputeMinMaxSizes(ctx)
 	}
 
 	resolvedWidth := a.Space.AvailableSize.Width
@@ -245,7 +247,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 	}
 
 	builder := NewFlexLineBuilder(geom, mainGap, crossGap)
-	items := a.collectItems(geom)
+	items := a.collectItems(ctx, geom)
 
 	for _, item := range items {
 		childStyle := item.Node.Style()
@@ -259,9 +261,9 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 			baseSize = basis.CellsValue()
 		} else if basis.Kind() == style.KindContent {
 			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
-				baseSize = IntrinsicMinMaxSizes(item.Node).Max
+				baseSize = IntrinsicMinMaxSizes(ctx, item.Node).Max
 			} else {
-				baseSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems)
+				baseSize = IntrinsicBlockSize(ctx, item.Node, contentCrossSizeForItems)
 			}
 		} else {
 			// Auto: Use width/height property
@@ -269,7 +271,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 				if childStyle.Width.Kind() == style.KindCells {
 					baseSize = childStyle.Width.CellsValue()
 				} else {
-					baseSize = IntrinsicMinMaxSizes(item.Node).Max
+					baseSize = IntrinsicMinMaxSizes(ctx, item.Node).Max
 				}
 			} else {
 				if childStyle.Height.Kind() == style.KindCells {
@@ -277,9 +279,9 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 				} else {
 					probeWidth := contentCrossSizeForItems
 					if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
-						probeWidth = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
+						probeWidth = min(IntrinsicMinMaxSizes(ctx, item.Node).Max, contentCrossSizeForItems)
 					}
-					baseSize = IntrinsicBlockSize(item.Node, probeWidth)
+					baseSize = IntrinsicBlockSize(ctx, item.Node, probeWidth)
 				}
 			}
 		}
@@ -290,7 +292,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 
 			// Default min-size is min-content (CSS flexbox spec: min-width: auto)
 			if childStyle.MinWidth.Kind() == style.KindAuto {
-				minSize = IntrinsicMinMaxSizes(item.Node).Min + childMargin.Left + childMargin.Right
+				minSize = IntrinsicMinMaxSizes(ctx, item.Node).Min + childMargin.Left + childMargin.Right
 			} else if childStyle.MinWidth.Kind() == style.KindCells {
 				minSize = childStyle.MinWidth.CellsValue() + childMargin.Left + childMargin.Right
 			}
@@ -303,7 +305,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 
 			// Default min-size is min-content (CSS flexbox spec: min-height: auto)
 			if childStyle.MinHeight.Kind() == style.KindAuto {
-				minSize = IntrinsicBlockSize(item.Node, contentCrossSizeForItems) + childMargin.Top + childMargin.Bottom
+				minSize = IntrinsicBlockSize(ctx, item.Node, contentCrossSizeForItems) + childMargin.Top + childMargin.Bottom
 			} else if childStyle.MinHeight.Kind() == style.KindCells {
 				minSize = childStyle.MinHeight.CellsValue() + childMargin.Top + childMargin.Bottom
 			}
@@ -358,7 +360,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 				childSpaceBuilder.SetIsFixedBlockSize(false)
 
 				if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
-					measureCrossSize = min(IntrinsicMinMaxSizes(item.Node).Max, contentCrossSizeForItems)
+					measureCrossSize = min(IntrinsicMinMaxSizes(ctx, item.Node).Max, contentCrossSizeForItems)
 					childSpaceBuilder = NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
 					childSpaceBuilder.SetContainingSpace(flexContainingSpace)
 					childSpaceBuilder.SetContainerSpace(flexContainerSpace)
@@ -368,7 +370,7 @@ func (a *FlexAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Frag
 			}
 
 			childAlgo := NewAlgorithm(item.Node, childSpaceBuilder.ToConstraintSpace())
-			item.Fragment = childAlgo.Layout()
+			item.Fragment = childAlgo.Layout(ctx)
 
 			item.MainSize = geom.MainSize(item.Fragment.Size)
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
@@ -512,7 +514,7 @@ func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
 	return IsInlineLevel(node)
 }
 
-func (a *FlexAlgorithm) collectItems(geom flexGeometry) []*FlexItem {
+func (a *FlexAlgorithm) collectItems(ctx *Context, geom flexGeometry) []*FlexItem {
 	var allItems []*FlexItem
 
 	children := a.Node.LayoutChildren()

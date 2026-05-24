@@ -70,6 +70,6 @@ func BenchmarkTableLayout_50x10(b *testing.B) {
 		table.cachedFragment = nil
 
 		algo := &TableAlgorithm{Node: table, Space: space}
-		_ = algo.Layout()
+		_ = algo.Layout(nil)
 	}
 }

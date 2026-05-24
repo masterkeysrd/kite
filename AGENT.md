@@ -148,6 +148,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Key codes & modifiers** | `key/key.go`, `key/mod.go` |
 | **Regression test suite** | `tests/regressions/` |
 | **ADR documents** | `docs/adrs/` |
+| **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
 
 ## 📋 Task Workflow
 

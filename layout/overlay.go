@@ -10,7 +10,8 @@ type OverlayAlgorithm struct {
 	Space ConstraintSpace
 }
 
-func (a *OverlayAlgorithm) Layout() *Fragment {
+func (a *OverlayAlgorithm) Layout(ctx *Context) *Fragment {
+	defer ctx.Begin("Layout(Overlay)")()
 	// 1. Measure content first (shrink-wrap)
 	// Overlays typically shrink-wrap their content unless they have fixed sizes.
 	csb := NewConstraintSpaceBuilder(a.Space.AvailableSize)
@@ -26,7 +27,7 @@ func (a *OverlayAlgorithm) Layout() *Fragment {
 	// We use BlockAlgorithm for the content of the overlay itself
 	// (it acts as a BFC).
 	contentAlgo := &BlockAlgorithm{Node: a.Node, Space: contentSpace}
-	frag := contentAlgo.Layout()
+	frag := contentAlgo.Layout(ctx)
 
 	// 2. Determine physical position
 	lever, ok := a.Node.LogicalNode().(OverlayLever)
@@ -129,7 +130,7 @@ func (a *OverlayAlgorithm) oppositePlacement(p OverlayPlacement) OverlayPlacemen
 	}
 }
 
-func (a *OverlayAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *OverlayAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	contentAlgo := &BlockAlgorithm{Node: a.Node, Space: a.Space}
-	return contentAlgo.ComputeMinMaxSizes()
+	return contentAlgo.ComputeMinMaxSizes(ctx)
 }

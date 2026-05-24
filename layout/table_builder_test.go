@@ -26,7 +26,7 @@ func TestTableFragmentBuilder_DistributeSpan(t *testing.T) {
 		style:        &style.Computed{Display: style.DisplayTableCell},
 	}
 
-	builder.DistributeSpan(cell, 0, 3)
+	builder.DistributeSpan(nil, cell, 0, 3)
 
 	if builder.colMinMax[0].Min != 14 { // 40 - 30 = 10 extra. 10/3 = 3, rem 1. So 10+4 = 14, 10+3 = 13, 10+3 = 13
 		t.Errorf("Expected col 0 min 14, got %d", builder.colMinMax[0].Min)

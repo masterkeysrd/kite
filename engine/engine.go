@@ -21,6 +21,7 @@ import (
 	"github.com/masterkeysrd/kite/paint"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/trace"
 )
 
 var eventsCounter uint64
@@ -177,6 +178,14 @@ type Engine struct {
 	coalescedBuf    []event.Event
 	wheelMap        map[event.EventTarget]*event.WheelEvent
 
+	profilerMu sync.RWMutex
+	jobIDs     sync.Map
+	jobCounter uint64
+
+	pipeline Pipeline
+
+	tracer *trace.Tracer
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -197,6 +206,8 @@ type Options struct {
 	// ShutdownTimeout bounds how long Stop waits for pending jobs before
 	// forcing exit. Default is 5 seconds.
 	ShutdownTimeout time.Duration
+	// Profiler enables the high-level phase profiling and deep-tree tracing.
+	Profiler bool
 }
 
 // New creates an Engine configured with the given backend and options.
@@ -251,6 +262,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		mouseMode:         MouseModeClick,
 		closeCh:           make(chan struct{}),
 		wheelMap:          make(map[event.EventTarget]*event.WheelEvent),
+		pipeline:          &StandardPipeline{},
 	}
 
 	e.dispatcher = event.NewDispatcher()
@@ -268,13 +280,18 @@ func New(b backend.Backend, opts Options) *Engine {
 		ScrollableResolver: e.resolveScrollable,
 	})
 
+	if opts.Profiler {
+		e.tracer = trace.NewTracer()
+		e.pipeline = &ProfilingPipeline{wrapped: e.pipeline}
+	}
+
 	// Probe capabilities from the backend.
 	e.caps = b.Caps()
 
 	// Start worker goroutines.
-	for range numWorkers {
+	for i := range numWorkers {
 		e.workerWG.Add(1)
-		go e.runWorker(workerCtx)
+		go e.runWorker(workerCtx, i+1)
 	}
 
 	return e
@@ -330,6 +347,48 @@ func (e *Engine) FocusedTarget() event.EventTarget {
 	return e.focusManager.Current()
 }
 
+// Tracer returns the engine's active tracer, or nil if profiling is disabled.
+func (e *Engine) Tracer() *trace.Tracer {
+	e.profilerMu.RLock()
+	defer e.profilerMu.RUnlock()
+	return e.tracer
+}
+
+// WithProfiler enables or disables the engine's built-in profiler.
+func WithProfiler(enabled bool) func(*Options) {
+	return func(o *Options) {
+		o.Profiler = enabled
+	}
+}
+
+// StartProfiling dynamically enables profiling by wrapping the engine's active
+// pipeline with ProfilingPipeline (if not already wrapped) and starting a new tracer.
+func (e *Engine) StartProfiling() {
+	e.profilerMu.Lock()
+	defer e.profilerMu.Unlock()
+
+	e.tracer = trace.NewTracer()
+	if _, ok := e.pipeline.(*ProfilingPipeline); !ok {
+		e.pipeline = &ProfilingPipeline{wrapped: e.pipeline}
+	}
+}
+
+// StopProfiling dynamically disables profiling by reverting the engine's active
+// pipeline to the standard (unwrapped) pipeline and returning the accumulated tracer.
+// If profiling was not active, it returns nil.
+func (e *Engine) StopProfiling() *trace.Tracer {
+	e.profilerMu.Lock()
+	defer e.profilerMu.Unlock()
+
+	t := e.tracer
+	e.tracer = nil
+
+	if pp, ok := e.pipeline.(*ProfilingPipeline); ok {
+		e.pipeline = pp.wrapped
+	}
+	return t
+}
+
 // FocusManager returns the engine's focus.Manager so that tests and
 // application code can drive focus programmatically (e.g. simulate a
 // mousedown-to-focus or query the currently focused node).
@@ -344,7 +403,13 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 	// Walk overlays from the end (topmost) to start.
 	overlays := e.renderView.Overlays()
 	for i := len(overlays) - 1; i >= 0; i-- {
-		if hit := hitTestFragment(overlays[i].Fragment(), p); hit != nil {
+		ov := overlays[i]
+		offset := ov.Offset()
+		localP := layout.Point{
+			X: p.X - offset.X,
+			Y: p.Y - offset.Y,
+		}
+		if hit := hitTestFragment(ov.Fragment(), localP); hit != nil {
 			return hit.EventTarget()
 		}
 	}
@@ -448,6 +513,19 @@ func (e *Engine) RequestFrameAt(t time.Time) {
 //
 // Submit must be called from the main goroutine.
 func (e *Engine) Submit(j Job) {
+	if tracer := e.Tracer(); tracer != nil {
+		e.profilerMu.Lock()
+		e.jobCounter++
+		jobNum := e.jobCounter
+		e.profilerMu.Unlock()
+
+		jobID := fmt.Sprintf("job-%d", jobNum)
+		e.jobIDs.Store(j, jobID)
+
+		name := jobName(j)
+		end := tracer.BeginThread("JobSubmit:"+name+":"+jobID, 1)
+		end()
+	}
 	e.jobQueue <- j
 }
 
@@ -514,129 +592,36 @@ func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
 
 // Frame executes one complete frame pipeline:
 //  1. Drain worker results (onto microtask queue).
-//  2. Drain macrotasks (budget-capped).
-//  3. Drain microtasks.
-//  4. Style phase (gated).
-//  5. Layout phase (gated) + reap detached render objects.
-//  6. Paint phase (gated).
-//  7. Sync (EndFrame).
+//  2. Sync Phase.
+//  3. Task Phase (macrotasks + microtasks).
+//  4. Style phase.
+//  5. Layout phase.
+//  6. Paint phase.
+//  7. Commit.
 //
 // Frame must be called from the main goroutine.
 func (e *Engine) Frame() {
 	defer e.recoverFrame()
 
-	// 0. Collect completed job results into the microtask queue.
 	e.drainWorkerResults()
 
-	// 1. Sync Phase — walk logical DOM and project to render tree.
-	if e.document.NeedsSync() || e.document.ChildNeedsSync() {
-		e.syncRenderTree(e.document, e.renderView)
-		e.syncOverlays(e.document)
+	e.profilerMu.RLock()
+	pipe := e.pipeline
+	tracer := e.tracer
+	e.profilerMu.RUnlock()
+
+	var endFrame func() = noop
+	if tracer != nil {
+		endFrame = tracer.BeginThread("Frame", 1)
 	}
 
-	// 1b. Autofocus Phase — if nothing is focused, try to find the first
-	// focusable element. This ensures that the cursor and focus styles are
-	// visible on the very first render without requiring a keystroke.
-	if e.focusManager.Current() == nil {
-		e.focusManager.Next()
-	}
+	pipe.Sync(e)
+	pipe.Tasks(e)
+	pipe.Style(e)
+	layoutRan := pipe.Layout(e)
+	pipe.Paint(e, layoutRan)
 
-	// 2 & 3. Drain macrotasks (budget-capped), draining microtasks between
-	// each macrotask and at the end.
-	e.drainMacroTasks()
-
-	// 3. Drain microtasks until empty.
-	e.drainMicroTasks()
-
-	root := e.renderView
-	overlays := root.Overlays()
-	rootFlags := root.Flags()
-
-	// 4. Style phase — gated on DirtyStyle | ChildNeedsStyle.
-	if rootFlags&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
-		style.ResolveTree(e.resolver, root)
-	}
-	for _, overlay := range overlays {
-		if overlay.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
-			style.ResolveTree(e.resolver, overlay)
-		}
-	}
-
-	// 5. Layout phase — gated on DirtyLayout | ChildNeedsLayout.
-	layoutRan := false
-	if rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
-		layoutRan = true
-		viewport := root.ViewportSize()
-		e.logger.Info("engine: layout phase", "viewport", viewport)
-
-		start := e.clock.Now()
-		render.LayoutPhase(root, viewport)
-
-		duration := e.clock.Now().Sub(start)
-		e.logger.Info("engine: layout complete", "duration_ms", duration.Milliseconds())
-
-		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		for _, overlay := range overlays {
-			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		}
-	}
-
-	// 5b. Auto-scroll phase — if an element is focused, ensure its cursor is visible.
-	focused := e.focusManager.Current()
-	if focused != nil {
-		if el, ok := focused.(dom.Element); ok {
-			el.ScrollCursorIntoView()
-		}
-	}
-
-	// 5c. After-layout hooks — fire once, then discard. These allow callers
-	// (e.g. status-bar updates) to read freshly computed CursorState values.
-	if len(e.afterLayoutHooks) > 0 {
-		hooks := e.afterLayoutHooks
-		e.afterLayoutHooks = nil
-		for _, fn := range hooks {
-			fn()
-		}
-	}
-
-	// Always update the hardware cursor state after layout but before the
-	// potential paint phase. This ensures that if a frame is produced, it
-	// carries the most recent cursor position.
-	cursorChanged := e.updateHardwareCursor(layoutRan)
-
-	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
-
-	anyOverlayDirty := false
-	for _, o := range overlays {
-		if o.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
-			anyOverlayDirty = true
-			break
-		}
-	}
-
-	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint
-	// OR a cursor change (which requires a Flush even if no cells changed).
-	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
-		surface := e.backend.BeginFrame()
-		e.logger.Info("engine: painting main content")
-		e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, surface)
-		for _, overlay := range overlays {
-			e.logger.Info("engine: painting overlay")
-			e.paintEngine.PaintFragment(overlay.Fragment(), overlay.Offset(), surface)
-		}
-		e.paintEngine.ResolveBorders(surface)
-
-		// 7. Sync — hand the frame to the render goroutine.
-		if err := e.backend.EndFrame(); err != nil {
-			e.logger.Error("engine: EndFrame error", slog.Any("error", err))
-		}
-		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
-		for _, overlay := range overlays {
-			overlay.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
-		}
-		e.logger.Info("engine: frame committed", slog.Uint64("version", e.frameVersion))
-		e.frameVersion++
-	}
+	endFrame()
 
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
@@ -917,25 +902,33 @@ func (e *Engine) recoverFrame() {
 // workerResults.
 //
 // runWorker exits when workerCtx is cancelled (i.e., when Stop() is called).
-func (e *Engine) runWorker(ctx context.Context) {
+func (e *Engine) runWorker(ctx context.Context, workerID int) {
 	defer e.workerWG.Done()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case j := <-e.jobQueue:
-			e.executeJob(ctx, j)
+			e.executeJob(ctx, j, workerID)
 		}
 	}
 }
 
 // executeJob runs j on the calling goroutine (a worker), catching panics and
 // posting the result back to the microtask queue.
-func (e *Engine) executeJob(ctx context.Context, j Job) {
+func (e *Engine) executeJob(ctx context.Context, j Job, workerID int) {
 	var (
 		result any
 		jobErr error
 	)
+	var endRun func() = noop
+	if v, ok := e.jobIDs.LoadAndDelete(j); ok {
+		if tracer := e.Tracer(); tracer != nil {
+			jobID := v.(string)
+			endRun = tracer.BeginThread("JobRun:"+jobName(j)+":"+jobID, workerID+1)
+		}
+	}
+
 	func() {
 		defer func() {
 			if v := recover(); v != nil {
@@ -951,7 +944,18 @@ func (e *Engine) executeJob(ctx context.Context, j Job) {
 	}()
 	_ = result
 
+	endRun()
+
 	e.workerResults <- workerResult{job: j, err: jobErr}
+}
+
+func noop() {}
+
+func jobName(j Job) string {
+	if j == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%T", j)
 }
 
 func (e *Engine) Dump(path string) error {
@@ -962,12 +966,12 @@ func (e *Engine) Dump(path string) error {
 	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
 	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 	root := e.renderView
-	e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, fb)
+	e.paintEngine.PaintFragment(nil, root.Fragment(), layout.Point{}, fb)
 	for _, overlay := range root.Overlays() {
 		offset := overlay.Offset()
-		e.paintEngine.PaintFragment(overlay.Fragment(), offset, fb)
+		e.paintEngine.PaintFragment(nil, overlay.Fragment(), offset, fb)
 	}
-	e.paintEngine.ResolveBorders(fb)
+	e.paintEngine.ResolveBorders(nil, fb)
 
 	for y := 0; y < size.Height; y++ {
 		var line strings.Builder
@@ -1286,7 +1290,7 @@ func (e *Engine) processRawEvent(raw event.RawEvent) {
 }
 
 func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
-	target := ev.Target()
+	target := ev.OriginalTarget()
 	if target == nil {
 		return
 	}
@@ -1358,7 +1362,7 @@ func isScrollContainer(cs *style.Computed) bool {
 }
 
 func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
-	target := ev.Target()
+	target := ev.OriginalTarget()
 	if target == nil {
 		return
 	}
@@ -1386,6 +1390,25 @@ func nodeAncestorPath(n dom.Node) []event.EventTarget {
 		chain = append(chain, cur)
 		parent := cur.Parent()
 		if parent == nil {
+			// 1. Cross UA shadow boundary: jump from UARoot to host element.
+			// EventTarget() on a UAT node returns its host (ADR-0036).
+			if et := cur.EventTarget(); et != nil {
+				if host, ok := et.(dom.Node); ok && host != cur {
+					cur = host
+					continue
+				}
+			}
+
+			// 2. Cross Overlay boundary: jump from Overlay to Anchor.
+			if ov, ok := cur.(interface{ Anchor() dom.Element }); ok {
+				if anchor := ov.Anchor(); anchor != nil {
+					if aNode, ok := anchor.(dom.Node); ok {
+						cur = aNode
+						continue
+					}
+				}
+			}
+
 			// check if it is the document
 			if doc := cur.OwnerDocument(); doc != nil && cur != doc {
 				cur = doc

@@ -50,7 +50,7 @@ func BenchmarkPaint_All(b *testing.B) {
 		b.ReportAllocs()
 		for range b.N {
 			fb.BumpVersion()
-			pe.Paint(root, fb)
+			pe.Paint(nil, root, fb)
 		}
 	})
 }

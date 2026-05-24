@@ -67,7 +67,8 @@ func main() {
 	}
 
 	eng := engine.New(be, engine.Options{
-		Logger: logger,
+		Logger:   logger,
+		Profiler: true,
 	})
 
 	// Build UI declaratively
@@ -150,9 +151,7 @@ func main() {
 	eng.Mount(ui)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8084",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// Context for cancellation
 	ctx, cancel := context.WithCancel(context.Background())

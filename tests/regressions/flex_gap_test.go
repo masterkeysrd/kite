@@ -72,7 +72,7 @@ func TestFlexGapInColumn(t *testing.T) {
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 20, Height: 100}).ToConstraintSpace()
 	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Expected height: 1 (child1) + 1 (gap) + 1 (child2) = 3
 	if frag.Size.Height != 3 {
@@ -127,7 +127,7 @@ func TestFlexJustifyBetweenNegativeSpace(t *testing.T) {
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 15, Height: 1}).ToConstraintSpace()
 	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Check child offsets
 	if len(frag.Children) != 2 {
@@ -173,7 +173,7 @@ func TestFlexSqueezedHeight(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Check if child is present
 	if len(frag.Children) == 0 {
@@ -224,7 +224,7 @@ func TestFlexColumnGap(t *testing.T) {
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 10, Height: 100}).ToConstraintSpace()
 	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.Size.Height != 8 {
 		t.Errorf("Expected height 8, got %d", frag.Size.Height)
@@ -291,7 +291,7 @@ func TestFlexNestedHeight(t *testing.T) {
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 20, Height: 100}).ToConstraintSpace()
 	algo := layout.NewAlgorithm(outer, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Inner should be 3 high. Outer should be 3 high.
 	if frag.Size.Height != 3 {

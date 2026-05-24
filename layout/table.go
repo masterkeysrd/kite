@@ -13,10 +13,11 @@ type TableAlgorithm struct {
 }
 
 // Layout executes the two-pass table layout algorithm and returns an immutable Fragment.
-func (a *TableAlgorithm) Layout() *Fragment {
+func (a *TableAlgorithm) Layout(ctx *Context) *Fragment {
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
+	defer ctx.Begin("Layout(Table)")()
 
 	comp := a.Node.Style()
 	border := comp.Border.Widths()
@@ -41,7 +42,7 @@ func (a *TableAlgorithm) Layout() *Fragment {
 		}
 	}
 
-	builder.BuildGrid()
+	builder.BuildGrid(ctx)
 	colMinMax := builder.colMinMax
 
 	// Resolve the table's inline size.
@@ -144,7 +145,7 @@ func (a *TableAlgorithm) Layout() *Fragment {
 			rowIdx++
 		}
 
-		childFrag := childAlgo.Layout()
+		childFrag := childAlgo.Layout(ctx)
 		offset := Point{
 			X: sectionInsetX,
 			Y: builder.CurrentBlockOffset(),
@@ -178,10 +179,11 @@ func (a *TableAlgorithm) Layout() *Fragment {
 	return frag
 }
 
-func (a *TableAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *TableAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
+	defer ctx.Begin("Layout(Table):ComputeMinMaxSizes")()
 
 	builder := NewTableFragmentBuilder(a.Node, a.Space)
 	for child := range a.Node.LayoutChildren() {
@@ -199,7 +201,7 @@ func (a *TableAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 			builder.AddNonRowChild(child)
 		}
 	}
-	builder.BuildGrid()
+	builder.BuildGrid(ctx)
 
 	comp := a.Node.Style()
 	colMinMax := builder.colMinMax
@@ -244,10 +246,11 @@ type TableSectionAlgorithm struct {
 	RowsData     []*tableRowGrid
 }
 
-func (a *TableSectionAlgorithm) Layout() *Fragment {
+func (a *TableSectionAlgorithm) Layout(ctx *Context) *Fragment {
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
+	defer ctx.Begin("Layout(TableSection)")()
 
 	comp := a.Node.Style()
 	border := comp.Border.Widths()
@@ -279,7 +282,7 @@ func (a *TableSectionAlgorithm) Layout() *Fragment {
 			}
 		}
 
-		childFrag := childAlgo.Layout()
+		childFrag := childAlgo.Layout(ctx)
 		offset := Point{
 			X: 0,
 			Y: builder.CurrentBlockOffset(),
@@ -320,7 +323,7 @@ func (a *TableSectionAlgorithm) Layout() *Fragment {
 	return frag
 }
 
-func (a *TableSectionAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *TableSectionAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	return MinMaxSizes{} // Table level handles sizing
 }
 
@@ -375,7 +378,7 @@ func (a *anonymousTableSection) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil
 }
 
-func (a *anonymousTableSection) Layout() *Fragment {
+func (a *anonymousTableSection) Layout(ctx *Context) *Fragment {
 	return nil
 }
 
@@ -395,7 +398,7 @@ func (a *anonymousTableSection) IsAnonymous() bool {
 	return true
 }
 
-func (a *anonymousTableSection) ComputeMinMaxSizes() MinMaxSizes {
+func (a *anonymousTableSection) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	return MinMaxSizes{}
 }
 
@@ -441,7 +444,7 @@ func (a *anonymousTableRow) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil
 }
 
-func (a *anonymousTableRow) Layout() *Fragment {
+func (a *anonymousTableRow) Layout(ctx *Context) *Fragment {
 	// Handled directly by TableRowAlgorithm invocation in TableAlgorithm.Layout()
 	return nil
 }
@@ -462,12 +465,13 @@ func (a *anonymousTableRow) IsAnonymous() bool {
 	return true
 }
 
-func (a *anonymousTableRow) ComputeMinMaxSizes() MinMaxSizes {
+func (a *anonymousTableRow) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	return MinMaxSizes{}
 }
 
-func (a *TableRowAlgorithm) Layout() *Fragment {
+func (a *TableRowAlgorithm) Layout(ctx *Context) *Fragment {
 	// Disable cache since layout depends on injected properties not in ConstraintSpace
+	defer ctx.Begin("Layout(TableRow)")()
 
 	comp := a.Node.Style()
 	padding := comp.Padding
@@ -525,7 +529,7 @@ func (a *TableRowAlgorithm) Layout() *Fragment {
 			childSpace := childSpaceBuilder.ToConstraintSpace()
 
 			childAlgo := NewAlgorithm(cell.Node, childSpace)
-			childFrag := childAlgo.Layout()
+			childFrag := childAlgo.Layout(ctx)
 
 			// X offset = row's left inset + sum of preceding column widths - collapsed borders.
 			xOffset := cellInsetX
@@ -571,6 +575,6 @@ func (a *TableRowAlgorithm) Layout() *Fragment {
 	return builder.ToFragment()
 }
 
-func (a *TableRowAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *TableRowAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	return MinMaxSizes{} // Intrinsic size is determined by the table pass
 }

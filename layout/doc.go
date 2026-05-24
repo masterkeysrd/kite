@@ -36,4 +36,11 @@
 // which eliminates the decoration subtraction and width/height resolution logic
 // that would otherwise be duplicated across BlockAlgorithm, ListAlgorithm, and
 // similar algorithms.
+//
+// # Trace Context (ADR-019)
+//
+// Every layout operation also receives a [Context] which carries a Tracer for
+// performance monitoring. Algorithms use `defer ctx.Begin("Name")()` to record
+// the duration of their execution. When profiling is disabled, this is a
+// zero-allocation operation.
 package layout

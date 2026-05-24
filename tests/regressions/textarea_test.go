@@ -357,7 +357,7 @@ func TestTextArea_CrashOverflow(t *testing.T) {
 	testenv.Expect(t, txa).ToHaveFragmentHeight(3)
 
 	fb := paint.NewFrameBuffer(0, 0, 80, 20)
-	e.Engine.PaintEngine().Paint(e.Engine.RenderView().Fragment(), fb)
+	e.Engine.PaintEngine().Paint(nil, e.Engine.RenderView().Fragment(), fb)
 }
 
 func TestTextArea_IsFocusable(t *testing.T) {

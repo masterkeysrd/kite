@@ -96,7 +96,7 @@ func TestBlockLayout_VerticalStacking(t *testing.T) {
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 	parent.SetCachedLayout(space, frag)
 
 	// Parent should be 100x6 (stretched to available width)
@@ -144,7 +144,7 @@ func TestBlockLayout_PaddingAndBorder(t *testing.T) {
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 	parent.SetCachedLayout(space, frag)
 
 	// Total width: stretches to available width (100)
@@ -180,7 +180,7 @@ func TestBlockLayout_Margins(t *testing.T) {
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 	parent.SetCachedLayout(space, frag)
 
 	// Parent width: stretches to available width (100)
@@ -215,7 +215,7 @@ func TestBlockLayout_FixedHeightRespected(t *testing.T) {
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Parent height should be exactly 5, despite child wanting 10
 	if frag.Size.Height != 5 {
@@ -242,7 +242,7 @@ func TestBlockLayout_IntrinsicSizeCaching(t *testing.T) {
 	algo := &BlockAlgorithm{Node: parent, Space: space}
 
 	// First layout should compute intrinsic size.
-	algo.Layout()
+	algo.Layout(nil)
 	if !parent.minMaxValid {
 		t.Error("expected intrinsic sizes to be cached after first layout")
 	}
@@ -253,7 +253,7 @@ func TestBlockLayout_IntrinsicSizeCaching(t *testing.T) {
 	space2 := NewConstraintSpaceBuilder(Size{200, 100}).ToConstraintSpace()
 	algo2 := &BlockAlgorithm{Node: parent, Space: space2}
 
-	algo2.Layout()
+	algo2.Layout(nil)
 	if !parent.minMaxValid {
 		t.Error("expected intrinsic sizes to remain valid")
 	}
@@ -293,7 +293,7 @@ func BenchmarkBlockLayout_DeepTree(b *testing.B) {
 		}
 
 		algo := &BlockAlgorithm{Node: root, Space: space}
-		algo.Layout()
+		algo.Layout(nil)
 	}
 }
 
@@ -326,7 +326,7 @@ func TestBlockLayout_PercentageResolution(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Root should be 80x24
 	if frag.Size.Width != 80 || frag.Size.Height != 24 {
@@ -369,7 +369,7 @@ func TestBlockLayout_AutoStretch(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	childFrag := frag.Children[0].Fragment
 	if childFrag.Size.Width != 80 {
@@ -399,7 +399,7 @@ func TestBlockLayout_FixedBlockSizePercentage(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	childFrag := frag.Children[0].Fragment
 	if childFrag.Size.Height != 10 {
@@ -431,7 +431,7 @@ func TestBlockLayout_EmptyIFC_MinimumLineHeight(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
 	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// The block must be exactly 1 row tall (content only, no border/padding).
 	if frag.Size.Height != 1 {
@@ -468,7 +468,7 @@ func TestBlockLayout_EmptyIFC_WithBorder(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
 	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// border.Top(1) + content(1) + border.Bottom(1) = 3.
 	// Before the fix this was 2 (border.Top + border.Bottom only).

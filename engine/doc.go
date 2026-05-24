@@ -18,6 +18,14 @@
 // absolute screen coordinates and updates the terminal backend. This ensures
 // that cursor management remains decoupled from logical element logic.
 //
-// The engine coordinates all other
+// // The engine coordinates all other
 // kitex packages and is the only package that imports all of them.
+//
+// # Profiler
+//
+// Kite includes a built-in performance profiler based on a Hybrid Architecture
+// (ADR-019). High-level engine phases are timed using a Pipeline decorator,
+// while deep-tree granular timings are captured via an inlineable TraceContext
+// injected into layout and paint phases. The profiler can be enabled via
+// engine.WithProfiler(true) and exports data in the Chrome Trace Event Format.
 package engine

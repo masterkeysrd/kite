@@ -104,7 +104,7 @@ func (b *TableFragmentBuilder) Sections() []Node {
 
 // -- Grid Sizing --
 
-func (b *TableFragmentBuilder) BuildGrid() {
+func (b *TableFragmentBuilder) BuildGrid(ctx *Context) {
 	sections := b.Sections()
 
 	// Flatten rows
@@ -122,7 +122,7 @@ func (b *TableFragmentBuilder) BuildGrid() {
 	for _, row := range b.grid.Rows {
 		for _, cell := range row.Cells {
 			if cell.ColSpan == 1 {
-				minMax := IntrinsicMinMaxSizes(cell.Node)
+				minMax := IntrinsicMinMaxSizes(ctx, cell.Node)
 				b.colMinMax[cell.ColStart].Encompass(minMax)
 			}
 		}
@@ -133,7 +133,7 @@ func (b *TableFragmentBuilder) BuildGrid() {
 		for _, row := range b.grid.Rows {
 			for _, cell := range row.Cells {
 				if cell.ColSpan == span {
-					b.DistributeSpan(cell.Node, cell.ColStart, cell.ColSpan)
+					b.DistributeSpan(ctx, cell.Node, cell.ColStart, cell.ColSpan)
 				}
 			}
 		}
@@ -141,8 +141,8 @@ func (b *TableFragmentBuilder) BuildGrid() {
 }
 
 // DistributeSpan handles the complex math of stretching minimum widths across multiple columns.
-func (b *TableFragmentBuilder) DistributeSpan(cell Node, colIndex int, colSpan int) {
-	minMax := IntrinsicMinMaxSizes(cell)
+func (b *TableFragmentBuilder) DistributeSpan(ctx *Context, cell Node, colIndex int, colSpan int) {
+	minMax := IntrinsicMinMaxSizes(ctx, cell)
 
 	currentMin := 0
 	currentMax := 0

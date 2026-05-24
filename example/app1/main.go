@@ -54,7 +54,8 @@ func main() {
 
 	// Initialize the rendering engine
 	opts := engine.Options{
-		Logger: slog.Default(),
+		Logger:   slog.Default(),
+		Profiler: true,
 	}
 	eng := engine.New(b, opts)
 
@@ -171,9 +172,7 @@ func main() {
 	eng.Mount(root)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8080",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// Run the engine
 	ctx, cancel := context.WithCancel(context.Background())

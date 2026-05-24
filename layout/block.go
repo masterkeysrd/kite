@@ -15,18 +15,19 @@ type BlockAlgorithm struct {
 }
 
 // Layout executes the block layout algorithm and returns an immutable Fragment.
-func (a *BlockAlgorithm) Layout() *Fragment {
+func (a *BlockAlgorithm) Layout(ctx *Context) *Fragment {
 	// 1. Cache Check: Return cached fragment if constraints match and the node is clean.
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
+	defer ctx.Begin("Layout(Block)")()
 
 	comp := a.Node.Style()
 
 	// 1. Initial Scrollbar Decision
 	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
 
-	frag, contentHeight := a.layoutInternal(hasScrollbarX, hasScrollbarY)
+	frag, contentHeight := a.layoutInternal(ctx, hasScrollbarX, hasScrollbarY)
 
 	// 2. Check for Auto Scrollbars
 	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
@@ -42,21 +43,21 @@ func (a *BlockAlgorithm) Layout() *Fragment {
 	needX := !hasScrollbarX && comp.Scrollbar.X.UnwrapOr(false) && comp.OverflowX == style.OverflowAuto && contentWidth > viewport.Width
 
 	if needY || needX {
-		frag, _ = a.layoutInternal(hasScrollbarX || needX, hasScrollbarY || needY)
+		frag, _ = a.layoutInternal(ctx, hasScrollbarX || needX, hasScrollbarY || needY)
 	}
 
 	a.Node.SetCachedLayout(a.Space, frag)
 	return frag
 }
 
-func (a *BlockAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fragment, int) {
+func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbarY bool) (*Fragment, int) {
 	comp := a.Node.Style()
 	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
 
 	// 2. Intrinsic Sizing: If inline size is not fixed, use ComputeMinMaxSizes.
 	var minMax MinMaxSizes
 	if !a.Space.IsFixedInlineSize || comp.Width.Kind() == style.KindMaxContent {
-		minMax = a.ComputeMinMaxSizes()
+		minMax = a.ComputeMinMaxSizes(ctx)
 	}
 
 	// Resolve the resolved inline size (width).
@@ -140,7 +141,7 @@ func (a *BlockAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fra
 			breaker := NewLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
 			linesEmitted := 0
 			for {
-				line, ok := breaker.NextLine()
+				line, ok := breaker.NextLine(ctx)
 				if !ok {
 					break
 				}
@@ -187,7 +188,7 @@ func (a *BlockAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fra
 		}
 		childSpace := BuildChildSpace(child, adjustedContainer, containingSpace, a.Space)
 		childAlgo := NewAlgorithm(child, childSpace)
-		childFrag := childAlgo.Layout()
+		childFrag := childAlgo.Layout(ctx)
 
 		offset := Point{
 			X: decor.Insets.Left + childMargin.Left,
@@ -226,11 +227,12 @@ func (a *BlockAlgorithm) layoutInternal(hasScrollbarX, hasScrollbarY bool) (*Fra
 }
 
 // ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
-func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	// 1. Cache Check.
 	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
+	defer ctx.Begin("Layout(Block):ComputeMinMaxSizes")()
 
 	comp := a.Node.Style()
 	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
@@ -275,7 +277,7 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 				}
 			}
 
-			inlineMinMax := ComputeInlineMinMaxSizes(inlineBuilder.items)
+			inlineMinMax := ComputeInlineMinMaxSizes(ctx, inlineBuilder.items)
 			childrenMinMax.Encompass(inlineMinMax)
 
 			if !ok {
@@ -285,7 +287,7 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 		}
 
 		childMargin := child.Style().Margin
-		childMinMax := IntrinsicMinMaxSizes(child)
+		childMinMax := IntrinsicMinMaxSizes(ctx, child)
 
 		childMinMax = childMinMax.Add(childMargin.Left + childMargin.Right)
 		childrenMinMax.Encompass(childMinMax)

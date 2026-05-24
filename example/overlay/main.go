@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// Create a main background element
 	root := element.Box(
@@ -67,9 +67,7 @@ func main() {
 	eng.Mount(root)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8081",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// Create the overlay element (a centered dialog)
 	overlayDialog := element.Box(

@@ -34,10 +34,27 @@ func Button(children ...any) *ButtonElement {
 }
 
 var defaultButtonStyle = style.Style{
-	Padding:    style.Some(style.Edges(0, 1)),
-	Border:     style.SingleBorder().Some(),
-	Background: style.Some[color.Color](style.TerminalDefault),
-	Foreground: style.Some[color.Color](style.TerminalDefault),
+	Display:        style.Some(style.DisplayInlineBlock),
+	AlignItems:     style.Some(style.AlignCenter),
+	JustifyContent: style.Some(style.JustifyCenter),
+	WhiteSpace:     style.Some(style.WhiteSpacePre),
+	TextAlign:      style.Some(style.TextAlignCenter),
+	Padding:        style.Some(style.Edges(0, 1)),
+	Border:         style.SingleBorder().Some(),
+	Background:     style.Some(style.TerminalDefault),
+	Foreground:     style.Some(style.TerminalDefault),
+}
+
+// DefaultStyle returns the element's default style, including dynamic state.
+func (b *ButtonElement) DefaultStyle() style.Style {
+	s := defaultButtonStyle
+	if b.active {
+		s.Reverse = style.Some(true)
+	}
+	if b.disabled {
+		s.Foreground = style.Some[color.Color](color.RGBA{R: 100, G: 100, B: 100, A: 255})
+	}
+	return s
 }
 
 func (b *ButtonElement) wireEvents() {
@@ -47,17 +64,7 @@ func (b *ButtonElement) wireEvents() {
 }
 
 func (b *ButtonElement) IntrinsicStyle() style.Style {
-	s := style.Style{
-		Display:        style.Some(style.DisplayInlineFlex),
-		AlignItems:     style.Some(style.AlignCenter),
-		JustifyContent: style.Some(style.JustifyCenter),
-		WhiteSpace:     style.Some(style.WhiteSpacePre),
-		TextAlign:      style.Some(style.TextAlignCenter),
-	}
-	if b.active {
-		s.Reverse = style.Some(true)
-	}
-	return s
+	return style.Style{}
 }
 
 func (b *ButtonElement) handleMouseDown(e event.Event) {
@@ -131,4 +138,3 @@ func (b *ButtonElement) SetActive(active bool) {
 		ro.MarkDirty(render.DirtyStyle)
 	}
 }
-

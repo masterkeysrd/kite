@@ -27,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// --- Checkbox Section ---
 	cbStatus := element.Text("Unchecked")
@@ -127,9 +127,7 @@ func main() {
 		}
 	})
 
-	devtools.Install(eng, devtools.Options{
-		InspectorAddr: "127.0.0.1:8086",
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	if err := eng.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "engine exited: %v\n", err)

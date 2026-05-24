@@ -54,7 +54,14 @@ type Event interface {
 	Type() EventType
 
 	// Target returns the element that originally received the event.
+	// During dispatch, this may be retargeted as the event crosses
+	// shadow boundaries.
 	Target() EventTarget
+
+	// OriginalTarget returns the raw target that originally received the
+	// event, without retargeting. This is an engine-internal accessor used to
+	// build the dispatch path.
+	OriginalTarget() EventTarget
 
 	// CurrentTarget returns the element whose listener is currently
 	// being invoked.
@@ -106,6 +113,9 @@ func (b *BaseEvent) Type() EventType { return b.typ }
 
 // Target returns the element that originally received the event.
 func (b *BaseEvent) Target() EventTarget { return b.target }
+
+// OriginalTarget returns the raw target that originally received the event.
+func (b *BaseEvent) OriginalTarget() EventTarget { return b.target }
 
 // CurrentTarget returns the element whose listener is currently being invoked.
 func (b *BaseEvent) CurrentTarget() EventTarget { return b.currentTarget }

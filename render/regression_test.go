@@ -78,7 +78,7 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	style.ResolveTree(resolver, view)
 
 	viewport := view.ViewportSize()
-	LayoutPhase(view, viewport)
+	LayoutPhase(nil, view, viewport)
 
 	if flex.Fragment() == nil {
 		t.Fatal("Flex fragment is nil")
@@ -120,7 +120,7 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 	block.InsertChild(child2, nil)
 
 	style.ResolveTree(style.NewResolver(), view)
-	LayoutPhase(view, view.ViewportSize())
+	LayoutPhase(nil, view, view.ViewportSize())
 
 	if len(block.Fragment().Children) != 2 {
 		t.Fatalf("Expected 2 children in block, got %d", len(block.Fragment().Children))
@@ -145,7 +145,7 @@ func TestRegression_ListNoChildrenNoCrash(t *testing.T) {
 	algo := layout.NewAlgorithm(node, space)
 
 	// Should not crash
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag == nil {
 		t.Fatal("Fragment is nil")
