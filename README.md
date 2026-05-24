@@ -6,13 +6,13 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-like deve
 
 Kite is built with a clean separation of concerns, divided into specialized packages that form the rendering pipeline:
 
-*   **DOM (`/dom`)**: The logical node tree representing the user interface. It contains core entities like `Document`, `Element`, and `TextNode`. It implements strict lifecycle hooks (Connected/Disconnected), identity registration, semantic state (e.g., Focus, Disabled), a **closed UA Shadow Subtree** primitive (ADR-009) for private component composition, and a **Top Layer Overlay API** (ADR-008) for out-of-flow elements like dialogs and tooltips.
+*   **DOM (`/dom`)**: The logical node tree representing the user interface. It contains core entities like `Document`, `Element`, and `TextNode`. It implements strict lifecycle hooks (Connected/Disconnected), identity registration, semantic state (e.g., Focus, Disabled), a **closed UA Shadow Subtree** primitive (ADR-009) for private component composition, a **Top Layer Overlay API** (ADR-008) for out-of-flow elements like dialogs and tooltips, and a **Logical Text Selection API** (ADR-022) for tracking text highlights via `dom.Range` and `dom.Selection`.
 *   **Style (`/style`)**: A CSS-like styling engine using an `Optional[T]` pattern to allow sparse style definitions. It supports flexbox, box model dimensions, and terminal-specific text formatting. The resolver applies a **four-layer cascade** (weakest → strongest): inherited values, element-type defaults (`DefaultStyle()`), author styles (`RawStyle()`), and UA-intrinsic styles (`IntrinsicStyle()`). The intrinsic layer lets replaced elements (e.g. `<input>`) enforce UA-mandated properties (like `display: inline-block`) that author code cannot override (ADR-010).
 *   **Layout (`/layout`)**: The high-performance, LayoutNG-inspired engine responsible for computing geometry. It takes computed styles and constraints, and returns immutable `Fragment` trees.
 *   **Paint (`/paint`) & Backend (`/backend`)**: The drawing layer. The `paint` package interfaces with a framebuffer to draw absolute coordinates with clipping, while `backend` decouples the engine from the actual terminal output (using Charmbracelet's `ultraviolet` or a mock backend for tests).
 *   **Render (`/render`)**: The visual bridge. It holds a unified `render.Box` or `render.Text` tree that perfectly mirrors the DOM, carrying lifecycle dirty-flags (`NeedsSync`, `DirtyStyle`, `DirtyLayout`) without doing actual math.
 *   **Engine (`/engine`)**: The central nervous system. It orchestrates the 6-phase pipeline (Task Draining -> Sync -> Style -> Layout -> Paint -> Commit) at 60FPS on the main thread, while managing concurrent asynchronous Jobs.
-*   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks).
+*   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks) and manages high-level lifecycle events like `selectionchange`.
 *   **Animation (`/animation`)**: An imperative property interpolation and tweening system. It allows for smooth transitions of numeric values, colors, and other types over time using customizable easing functions.
 
 ## 🚀 Getting Started
@@ -49,7 +49,7 @@ go test -bench=. ./...
 github.com/masterkeysrd/kite
 ├── animation/  # Imperative property interpolation and tweening
 ├── backend/    # Terminal decoupling, mock, and ultraviolet implementations
-├── dom/        # Logical node tree, Element, Document, TextNode, and TextArea
+├── dom/        # Logical node tree, Element, Document, TextNode, Range, and Selection
 ├── editor/     # Text editing buffers and Unicode-safe string mutation
 ├── event/      # Event dispatching, synthetic events, and keystroke helpers
 ├── focus/      # Focus management and spatial navigation

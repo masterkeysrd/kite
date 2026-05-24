@@ -17,4 +17,9 @@
 //
 // ScrollEvent is dispatched by the DOM when an element's scroll offset is
 // mutated programmatically or via the default wheel handler. ScrollEvent bubbles.
+//
+// # Selection (ADR-022)
+//
+// SelectionChangeEvent is dispatched on the Document whenever the active text
+// selection (dom.Selection) or its ranges (dom.Range) are modified.
 package event

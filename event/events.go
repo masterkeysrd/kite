@@ -31,6 +31,7 @@ const (
 	EventCopy      EventType = "copy"
 	EventCut       EventType = "cut"
 	EventScroll    EventType = "scroll"
+	EventSelectionChange EventType = "selectionchange"
 )
 
 // EventPhase represents the current dispatch phase.
@@ -285,6 +286,15 @@ func NewResizeEvent(width, height int) *ResizeEvent {
 		BaseEvent: BaseEvent{typ: EventResize, bubbles: false},
 		Width:     width,
 		Height:    height,
+	}
+}
+
+// NewBaseEvent creates a BaseEvent with the given type and target.
+func NewBaseEvent(typ EventType, target EventTarget, bubbles bool) *BaseEvent {
+	return &BaseEvent{
+		typ:     typ,
+		target:  target,
+		bubbles: bubbles,
 	}
 }
 

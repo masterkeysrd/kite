@@ -71,4 +71,16 @@
 // Overlays are rendered above the document body and are sorted primarily by
 // zIndex (ascending) and secondarily by insertion order. Because overlays are
 // out-of-flow, they do not affect the layout of the main document body.
+//
+// # Selection (ADR-022)
+//
+// The Document maintains a global Selection state representing the range of
+// text selected by the user or the current caret position. The Selection holds
+// one or more Range objects, each defining a segment of the document between
+// two boundary points (StartContainer/StartOffset and EndContainer/EndOffset).
+//
+// Mutating the selection or its ranges dispatches an event.EventSelectionChange
+// on the Document. The selection state is logical and refers to text nodes;
+// the render and paint engines resolve these logical boundaries into physical
+// screen-space highlights during the rendering pipeline.
 package dom

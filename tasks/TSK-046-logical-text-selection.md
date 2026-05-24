@@ -13,7 +13,7 @@ Implement the logical `Selection` and `Range` APIs on the `dom.Document` to repr
   - Maintained by `dom.Document` via `doc.Selection()`.
   - Can hold at least one `dom.Range`.
   - Methods: `AddRange()`, `RemoveAllRanges()`, `String()` (extracts combined text from the ranges).
-- Dispatch `event.TypeSelectionChange` on the document whenever the active range changes.
+- Dispatch `event.EventSelectionChange` on the document whenever the active range changes.
 - Ensure offsets are strictly validated against `utf8.RuneCountInString` of the underlying text nodes.
 
 ## Tests

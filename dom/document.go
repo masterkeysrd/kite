@@ -30,6 +30,8 @@ type document struct {
 
 	focusManager any
 
+	selection *selectionImpl
+
 	// mutating is the reentrancy guard. It is true while an attach or detach
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
@@ -53,6 +55,7 @@ func NewDocument() Document {
 	d.kind = KindDocument
 	d.name = "#document"
 	d.needsSync = true
+	d.selection = newSelection(d)
 	return d
 }
 
@@ -151,6 +154,10 @@ func (d *document) FocusManager() any {
 
 func (d *document) SetFocusManager(fm any) {
 	d.focusManager = fm
+}
+
+func (d *document) Selection() Selection {
+	return d.selection
 }
 
 func (d *document) sortOverlays() {

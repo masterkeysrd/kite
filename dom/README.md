@@ -17,6 +17,11 @@ The base interface for every node in the tree. It provides methods for tree trav
 ### Element
 Extends `Node` with identity attributes like `TagName` and `ID`.
 
+### Selection & Range (ADR-022)
+Represents text selection state within the document.
+- **Range:** Defines a segment of text between a start and end point.
+- **Selection:** Managed by the `Document`, holds the active ranges and dispatches `selectionchange` events.
+
 ### Disableable
 Indicates that an element can be semantically disabled.
 ```go

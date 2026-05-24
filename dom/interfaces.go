@@ -324,9 +324,58 @@ type Document interface {
 	// layer, sorted by z-index (ascending) and then by insertion order.
 	Overlays() iter.Seq[Element]
 
+	// Selection returns the selection object for this document, which
+	// represents the range of text selected by the user or current caret
+	// position.
+	Selection() Selection
+
 	// FocusManager returns the focus manager for this document.
 	// Typed as any to avoid import cycle with the focus package.
 	FocusManager() any
 	// SetFocusManager sets the focus manager for this document.
 	SetFocusManager(fm any)
+}
+
+// Range represents a fragment of a document that can contain nodes and parts
+// of text nodes.
+type Range interface {
+	// StartContainer returns the Node within which the Range starts.
+	StartContainer() Node
+	// StartOffset returns a number representing where in the StartContainer
+	// the Range starts. For Text nodes, this is the number of runes from
+	// the start of the data.
+	StartOffset() int
+	// EndContainer returns the Node within which the Range ends.
+	EndContainer() Node
+	// EndOffset returns a number representing where in the EndContainer the
+	// Range ends.
+	EndOffset() int
+
+	// SetStart sets the start position of a Range.
+	SetStart(node Node, offset int)
+	// SetEnd sets the end position of a Range.
+	SetEnd(node Node, offset int)
+	// Collapse collapses the Range to one of its boundary points.
+	Collapse(toStart bool)
+	// IsCollapsed reports whether the Range's start and end points are the same.
+	IsCollapsed() bool
+
+	// String returns the text content of the Range.
+	String() string
+}
+
+// Selection represents the range of text selected by the user or the current
+// caret position.
+type Selection interface {
+	// RangeCount returns the number of ranges in the selection.
+	RangeCount() int
+	// GetRangeAt returns the range at the specified index.
+	GetRangeAt(index int) Range
+	// AddRange adds a Range to a Selection.
+	AddRange(r Range)
+	// RemoveAllRanges removes all ranges from the selection.
+	RemoveAllRanges()
+	// String returns a string currently being represented by the selection
+	// (the combined text of all its ranges).
+	String() string
 }
