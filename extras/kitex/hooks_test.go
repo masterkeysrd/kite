@@ -83,7 +83,7 @@ func TestUseStatePersistence(t *testing.T) {
 		setState1 = set1
 
 		get2, set2 := UseState("initial")
-		getState2 = func(s string) string { return get2() }
+		getState2 = func(_ string) string { return get2() }
 		setState2 = set2
 
 		return Box(BoxProps{})

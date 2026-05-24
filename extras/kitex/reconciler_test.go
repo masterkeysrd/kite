@@ -218,6 +218,67 @@ func TestReconcilerKeyedListReverse(t *testing.T) {
 	}
 }
 
+func TestReconcilerComponentListReverse(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	type ItemProps struct {
+		Key string
+		ID  string
+	}
+	ItemComp := FC("ItemComp", func(props ItemProps) Node {
+		return Span(SpanProps{ID: "id-" + props.ID}, Text(props.ID))
+	})
+
+	// Render [A, B, C]
+	Render(Box(BoxProps{},
+		ItemComp(ItemProps{Key: "A", ID: "a"}),
+		ItemComp(ItemProps{Key: "B", ID: "b"}),
+		ItemComp(ItemProps{Key: "C", ID: "c"}),
+	), container)
+
+	appReal := container.FirstChild().(dom.Element)
+	var before []dom.Node
+	for child := range appReal.ChildNodes() {
+		before = append(before, child)
+	}
+	realA, realB, realC := before[0], before[1], before[2]
+
+	// Reverse: [C, B, A]
+	Render(Box(BoxProps{},
+		ItemComp(ItemProps{Key: "C", ID: "c"}),
+		ItemComp(ItemProps{Key: "B", ID: "b"}),
+		ItemComp(ItemProps{Key: "A", ID: "a"}),
+	), container)
+
+	var after []dom.Node
+	for child := range appReal.ChildNodes() {
+		after = append(after, child)
+	}
+
+	if len(after) != 3 {
+		t.Fatalf("expected 3 children after reverse, got %d", len(after))
+	}
+
+	wantOrder := []string{"id-c", "id-b", "id-a"}
+	for i, n := range after {
+		if got := n.(dom.Element).ID(); got != wantOrder[i] {
+			t.Errorf("position %d: want %s, got %s", i, wantOrder[i], got)
+		}
+	}
+
+	// Verify identity: nodes must be moved, not recreated.
+	if after[0] != realC {
+		t.Error("element C was recreated instead of moved")
+	}
+	if after[1] != realB {
+		t.Error("element B was recreated instead of moved")
+	}
+	if after[2] != realA {
+		t.Error("element A was recreated instead of moved")
+	}
+}
+
 func TestReconcilerInsertionsAndDeletions(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
@@ -263,5 +324,80 @@ func TestReconcilerInsertionsAndDeletions(t *testing.T) {
 	}
 	if list2[0].(dom.Element).ID() != "id-c" || list2[1].(dom.Element).ID() != "id-b" {
 		t.Errorf("unexpected elements after deletion")
+	}
+}
+
+func TestReconcilerStateUpdateListReverse(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	type ItemData struct {
+		Key string
+		ID  string
+	}
+	type ItemProps struct {
+		Key string
+		ID  string
+	}
+	ItemComp := FC("ItemComp", func(props ItemProps) Node {
+		return Span(SpanProps{ID: "id-" + props.ID}, Text(props.ID))
+	})
+
+	var setItems func([]ItemData)
+
+	AppComp := FC("AppComp", func(props struct{}) Node {
+		getItems, setIt := UseState([]ItemData{
+			{Key: "1", ID: "a"},
+			{Key: "2", ID: "b"},
+			{Key: "3", ID: "c"},
+		})
+		setItems = setIt
+		renderItem := func(item ItemData, _ int) Node {
+			return ItemComp(ItemProps(item))
+		}
+		return Box(BoxProps{}, Map(getItems(), renderItem)...)
+	})
+
+	Render(AppComp(struct{}{}), container)
+
+	appReal := container.FirstChild().(dom.Element)
+	var before []dom.Node
+	for child := range appReal.ChildNodes() {
+		before = append(before, child)
+	}
+	realA, realB, realC := before[0], before[1], before[2]
+
+	// Reverse
+	setItems([]ItemData{
+		{Key: "3", ID: "c"},
+		{Key: "2", ID: "b"},
+		{Key: "1", ID: "a"},
+	})
+
+	var after []dom.Node
+	for child := range appReal.ChildNodes() {
+		after = append(after, child)
+	}
+
+	if len(after) != 3 {
+		t.Fatalf("expected 3 children after reverse, got %d", len(after))
+	}
+
+	wantOrder := []string{"id-c", "id-b", "id-a"}
+	for i, n := range after {
+		if got := n.(dom.Element).ID(); got != wantOrder[i] {
+			t.Errorf("position %d: want %s, got %s", i, wantOrder[i], got)
+		}
+	}
+
+	// Verify identity: nodes must be moved, not recreated.
+	if after[0] != realC {
+		t.Error("element C was recreated instead of moved")
+	}
+	if after[1] != realB {
+		t.Error("element B was recreated instead of moved")
+	}
+	if after[2] != realA {
+		t.Error("element A was recreated instead of moved")
 	}
 }

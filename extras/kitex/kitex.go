@@ -33,10 +33,18 @@ type Node interface {
 	Key() string
 }
 
+// nodeInternal is an unexported interface for internal framework access to the real DOM node.
+type nodeInternal interface {
+	Node
+	realNode() dom.Node
+}
+
 // Ensure compile-time interface compliance.
 var (
-	_ Node = (*textNode)(nil)
-	_ Node = (*elementNode[struct{}])(nil)
+	_ Node         = (*textNode)(nil)
+	_ nodeInternal = (*textNode)(nil)
+	_ Node         = (*elementNode[struct{}])(nil)
+	_ nodeInternal = (*elementNode[struct{}])(nil)
 )
 
 // ElementProps holds common fields and event listeners present on all DOM element nodes.
@@ -69,53 +77,60 @@ type elementNode[P any] struct {
 	instantiate func(doc dom.Document) dom.Node
 	update      func(el dom.Node, old, new P)
 	key         string
+	liveNode    dom.Node
 }
 
-func (n *elementNode[P]) TagName() string  { return n.tagName }
-func (n *elementNode[P]) Props() any       { return n.props }
-func (n *elementNode[P]) Children() []Node { return n.children }
-func (n *elementNode[P]) Key() string      { return n.key }
+func (n *elementNode[P]) TagName() string    { return n.tagName }
+func (n *elementNode[P]) Props() any         { return n.props }
+func (n *elementNode[P]) Children() []Node   { return n.children }
+func (n *elementNode[P]) Key() string        { return n.key }
+func (n *elementNode[P]) realNode() dom.Node { return n.liveNode }
 
 func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
-	el := n.instantiate(doc)
-	n.update(el, *new(P), n.props)
+	n.liveNode = n.instantiate(doc)
+	n.update(n.liveNode, *new(P), n.props)
 	for _, child := range n.children {
 		if child != nil {
 			childReal := child.Instantiate(doc)
 			if childReal != nil {
-				el.AppendChild(childReal)
+				n.liveNode.AppendChild(childReal)
 			}
 		}
 	}
-	return el
+	return n.liveNode
 }
 
 func (n *elementNode[P]) Update(el dom.Node, old Node) {
+	n.liveNode = el
 	var oldProps P
 	if old != nil {
 		if oldEl, ok := old.(*elementNode[P]); ok {
 			oldProps = oldEl.props
 		}
 	}
-	n.update(el, oldProps, n.props)
-	el.MarkNeedsSync()
+	n.update(n.liveNode, oldProps, n.props)
+	n.liveNode.MarkNeedsSync()
 }
 
 // textNode is the implementation of Node for VDOM text leaf nodes.
 type textNode struct {
-	content string
+	content  string
+	liveNode dom.Node
 }
 
-func (t *textNode) TagName() string  { return "#text" }
-func (t *textNode) Props() any       { return t.content }
-func (t *textNode) Children() []Node { return nil }
-func (t *textNode) Key() string      { return "" }
+func (t *textNode) TagName() string    { return "#text" }
+func (t *textNode) Props() any         { return t.content }
+func (t *textNode) Children() []Node   { return nil }
+func (t *textNode) Key() string        { return "" }
+func (t *textNode) realNode() dom.Node { return t.liveNode }
 func (t *textNode) Instantiate(doc dom.Document) dom.Node {
-	return element.NewText(doc, t.content)
+	t.liveNode = element.NewText(doc, t.content)
+	return t.liveNode
 }
 
 func (t *textNode) Update(el dom.Node, old Node) {
-	txt, ok := el.(*element.TextElement)
+	t.liveNode = el
+	txt, ok := t.liveNode.(*element.TextElement)
 	if !ok {
 		return
 	}
@@ -127,7 +142,7 @@ func (t *textNode) Update(el dom.Node, old Node) {
 	}
 	if oldContent != t.content {
 		txt.SetData(t.content)
-		el.MarkNeedsSync()
+		t.liveNode.MarkNeedsSync()
 	}
 }
 
@@ -335,7 +350,6 @@ func updateElementBase(el element.Element, old, new ElementProps) {
 
 // --- VDOM Factories -----------------------------------------------------------
 
-// BoxProps, SpanProps, BrProps, TableProps, THeadProps, TBodyProps, TFootProps, TRProps are simple containers that use ElementProps directly.
 type BoxProps = ElementProps
 type SpanProps = ElementProps
 type BrProps = ElementProps
@@ -1174,12 +1188,6 @@ type componentRef struct {
 	node componentInstance
 }
 
-type hookState[T any] struct {
-	value T
-	get   func() T
-	set   func(T)
-}
-
 // componentInstance is the internal interface implemented by all ComponentNode instances
 // to manage hooks state and updates.
 type componentInstance interface {
@@ -1190,7 +1198,7 @@ type componentInstance interface {
 	IsDirty() bool
 	ClearDirty()
 	getRef() *componentRef
-	RealNode() dom.Node
+	realNode() dom.Node
 	Rendered() Node
 	ReRender() Node
 }
@@ -1204,7 +1212,7 @@ type ComponentNode[P any] struct {
 
 	// Internal state
 	rendered  Node
-	realNode  dom.Node
+	liveNode  dom.Node
 	hooks     []any
 	hookIndex int
 	isFirst   bool
@@ -1236,9 +1244,9 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
 	popCurrentComponent()
 
 	if c.rendered != nil {
-		c.realNode = c.rendered.Instantiate(doc)
+		c.liveNode = c.rendered.Instantiate(doc)
 	}
-	return c.realNode
+	return c.liveNode
 }
 
 func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
@@ -1249,7 +1257,7 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	// Transfer state
 	c.hooks = oldComp.hooks
 	c.isFirst = false
-	c.realNode = oldComp.realNode
+	c.liveNode = oldComp.liveNode
 	c.ref = oldComp.ref
 	if c.ref == nil {
 		c.ref = &componentRef{node: c}
@@ -1264,12 +1272,6 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
 	popCurrentComponent()
-
-	if c.rendered != nil && oldComp.rendered != nil {
-		if c.rendered.TagName() == oldComp.rendered.TagName() {
-			c.rendered.Update(c.realNode, oldComp.rendered)
-		}
-	}
 }
 
 func (c *ComponentNode[P]) getHookState(index int) (any, bool) {
@@ -1298,8 +1300,8 @@ func (c *ComponentNode[P]) getRef() *componentRef {
 	return c.ref
 }
 
-func (c *ComponentNode[P]) RealNode() dom.Node {
-	return c.realNode
+func (c *ComponentNode[P]) realNode() dom.Node {
+	return c.liveNode
 }
 
 func (c *ComponentNode[P]) Rendered() Node {
@@ -1409,7 +1411,7 @@ func getTypeInfo(t reflect.Type) *structTypeInfo {
 		}
 		// Look for Children field
 		if ch, found := t.FieldByName("Children"); found {
-			if ch.Type == reflect.TypeOf([]Node{}) {
+			if ch.Type == reflect.TypeFor[[]Node]() {
 				info.childrenFieldIdx = ch.Index
 				info.hasChildren = true
 			}
@@ -1426,7 +1428,7 @@ func getKey(props any) string {
 	}
 	t := reflect.TypeOf(props)
 	isPtr := false
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		isPtr = true
 	}
@@ -1488,7 +1490,7 @@ func injectChildren[P any](props P, children []Node) P {
 	}
 	t := reflect.TypeOf(val)
 	isPtr := false
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		isPtr = true
 	}
@@ -1520,57 +1522,4 @@ func injectChildren[P any](props P, children []Node) P {
 		f.Set(reflect.ValueOf(children))
 	}
 	return ptr.Elem().Interface().(P)
-}
-
-// --- Hook primitives ----------------------------------------------------------
-
-// UseState initializes a state variable on first render, persists it across render cycles,
-// and returns a getter and a setter. Setting the state flags the component dirty.
-// If called outside of a component render cycle, it panics.
-func UseState[T any](initial T) (func() T, func(T)) {
-	compVal := getCurrentComponent()
-	if compVal == nil {
-		panic("UseState must be called inside a functional component render phase")
-	}
-	comp := compVal.(componentInstance)
-	idx := comp.incrementHookIndex()
-
-	stateVal, exists := comp.getHookState(idx)
-	if !exists {
-		ref := comp.getRef()
-		if ref == nil {
-			panic("ComponentNode ref is not initialized. Ensure component is rendered via Instantiate/Update.")
-		}
-
-		hs := &hookState[T]{
-			value: initial,
-		}
-
-		get := func() T {
-			ref.mu.Lock()
-			activeNode := ref.node
-			ref.mu.Unlock()
-			val, _ := activeNode.getHookState(idx)
-			return val.(*hookState[T]).value
-		}
-
-		set := func(newVal T) {
-			ref.mu.Lock()
-			activeNode := ref.node
-			ref.mu.Unlock()
-
-			val, _ := activeNode.getHookState(idx)
-			hsPtr := val.(*hookState[T])
-			hsPtr.value = newVal
-			activeNode.MarkDirty()
-		}
-
-		hs.get = get
-		hs.set = set
-		comp.setHookState(idx, hs)
-		return get, set
-	}
-
-	hs := stateVal.(*hookState[T])
-	return hs.get, hs.set
 }

@@ -20,7 +20,7 @@ func init() {
 		if !ok {
 			return
 		}
-		realNode := compInstance.RealNode()
+		realNode := compInstance.realNode()
 		if realNode == nil {
 			return
 		}
@@ -146,13 +146,6 @@ var nodeSlicePool = sync.Pool{
 	},
 }
 
-var domNodeSlicePool = sync.Pool{
-	New: func() any {
-		s := make([]dom.Node, 128)
-		return &s
-	},
-}
-
 var nodeRealMapPool = sync.Pool{
 	New: func() any {
 		return make(map[Node]dom.Node, 32)
@@ -166,10 +159,8 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 	n := len(oldChildren)
 	nodeMap := nodeRealMapPool.Get().(map[Node]dom.Node)
 
-	child := parent.FirstChild()
-	for i := 0; i < n && child != nil; i++ {
-		nodeMap[oldChildren[i]] = child
-		child = child.NextSibling()
+	for i := range n {
+		nodeMap[oldChildren[i]] = oldChildren[i].(nodeInternal).realNode()
 	}
 
 	// Working copy of the old VDOM list so we can nil-out consumed entries.
