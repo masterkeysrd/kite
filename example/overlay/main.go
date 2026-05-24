@@ -67,8 +67,7 @@ func main() {
 	eng.Mount(root)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// Create the overlay element (a centered dialog)
 	overlayDialog := element.Box(

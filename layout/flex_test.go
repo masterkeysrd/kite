@@ -30,7 +30,7 @@ func TestFlexLayout_RowDirection(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Parent should be 60x2
 	if frag.Size.Width != 60 {
@@ -80,7 +80,7 @@ func TestFlexLayout_JustifyCenter(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Children total width = 20. Remaining space = 20. Center offset = 10.
 	if frag.Children[0].Offset.X != 10 {
@@ -114,7 +114,7 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// In RowReverse, c2 comes first at X=0, c1 comes second at X=10.
 	// Wait, actually CSS row-reverse packs them towards the END but starts from the opposite side.
@@ -125,7 +125,7 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 	// BUT my simplified implementation just reverses the items and uses JustifyStart (physical left).
 	// This is probably "good enough" for now, but let's see.
 
-	if frag.Children[0].Fragment.Node != c2 {
+	if frag.Children[0].Fragment.Node != (Node)(c2) {
 		t.Errorf("expected first visual child to be c2")
 	}
 
@@ -221,20 +221,20 @@ func TestFlexLayout_Order(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{30, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Expected visual order: c1 (1), c2 (2), c3 (3)
 	if len(frag.Children) != 3 {
 		t.Fatalf("expected 3 children, got %d", len(frag.Children))
 	}
 
-	if frag.Children[0].Fragment.Node != c1 {
+	if frag.Children[0].Fragment.Node != (Node)(c1) {
 		t.Errorf("expected first visual child to be c1")
 	}
-	if frag.Children[1].Fragment.Node != c2 {
+	if frag.Children[1].Fragment.Node != (Node)(c2) {
 		t.Errorf("expected second visual child to be c2")
 	}
-	if frag.Children[2].Fragment.Node != c3 {
+	if frag.Children[2].Fragment.Node != (Node)(c3) {
 		t.Errorf("expected third visual child to be c3")
 	}
 }
@@ -268,7 +268,7 @@ func TestFlexLayout_InlineFlexWithText(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// The parent is the flex container. It should have one child (the item box).
 	if len(frag.Children) != 1 {
@@ -320,7 +320,7 @@ func TestFlexLayout_InlineFlexShrinkWrap(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Parent should be 10 + 2 + 10 = 22 cells wide.
 	if frag.Size.Width != 22 {
@@ -358,7 +358,7 @@ func TestFlexLayout_NoWrapItems(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if len(frag.Children) != 1 {
 		t.Fatalf("expected 1 child")
@@ -378,7 +378,7 @@ func TestFlexLayout_NoWrapItems(t *testing.T) {
 		firstChild: item,
 	}
 	algo = NewAlgorithm(parent, space)
-	frag = algo.Layout()
+	frag = algo.Layout(nil)
 
 	itemFrag := frag.Children[0].Fragment
 	if itemFrag.Size.Width < 9 {
@@ -408,7 +408,7 @@ func TestFlexLayout_HorizontalPositioning(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if len(frag.Children) != 2 {
 		t.Fatalf("expected 2 children")
@@ -447,7 +447,7 @@ func TestFlexLayout_InlineFlexHorizontalPositioning(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if len(frag.Children) != 2 {
 		t.Fatalf("expected 2 children")
@@ -484,7 +484,7 @@ func TestFlexLayout_ColumnBaseSize(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// In a column flex, the base size should be the height (1).
 	// If it incorrectly uses width (50), the parent height would be huge.
@@ -515,7 +515,7 @@ func TestFlexLayout_Margins(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Child base size should be 10 + 5 + 5 = 20.
 	// Offset.X should be 5 (left margin).
@@ -550,7 +550,7 @@ func TestFlexLayout_AlignEndColumn(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Container width is 100. Child width is 10.
 	// Offset.X should be 100 - 10 = 90.
@@ -581,7 +581,7 @@ func TestFlexLayout_AlignCenterRow(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Container height is 10. Child height is 2.
 	// Offset.Y should be (10 - 2) / 2 = 4.
@@ -614,7 +614,7 @@ func TestFlexLayout_SpaceBetweenRow(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Container width is 100.
 	// Item 1 at X=0.
@@ -640,7 +640,7 @@ func TestFlexLayout_BlockStretch(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{80, 24}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.Size.Width != 80 {
 		t.Errorf("expected container width 80, got %d", frag.Size.Width)
@@ -682,7 +682,7 @@ func BenchmarkFlexLayout_Resolution(b *testing.B) {
 	for b.Loop() {
 		parent.dirty = true
 		algo := NewAlgorithm(parent, space)
-		algo.Layout()
+		algo.Layout(nil)
 	}
 }
 func TestFlexLayout_ReproIssue(t *testing.T) {
@@ -722,7 +722,7 @@ func TestFlexLayout_ReproIssue(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(root, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// If root.AlignItems is AlignStretch (as it should be), rowFlex should have width 100.
 	// If it's AlignStart, rowFlex will be shrink-wrapped to 10.
@@ -765,7 +765,7 @@ func TestFlexLayout_AlignStart_ShrinkWrap(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(root, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.Children[0].Fragment.Size.Width != 10 {
 		t.Errorf("expected rowFlex width 10 when AlignStart, got %d.", frag.Children[0].Fragment.Size.Width)
@@ -806,7 +806,7 @@ func TestFlexLayout_ColumnItemsWrapAndGrow(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Child box should have wrapped text. Width 10, text 15.
 	// "1234567890"
@@ -862,7 +862,7 @@ func TestFlexLayout_ColumnItemsAlignEndWrap(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if len(frag.Children) != 1 {
 		t.Fatalf("expected 1 child, got %d", len(frag.Children))
@@ -903,7 +903,7 @@ func TestFlexLayout_ColumnHeightAuto(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.Size.Height != 6 {
 		t.Errorf("expected height 6, got %d", frag.Size.Height)
@@ -936,7 +936,7 @@ func TestFlexLayout_ColumnHeightAutoWithGap(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.Size.Height != 5 {
 		t.Errorf("expected height 5, got %d", frag.Size.Height)
@@ -969,7 +969,7 @@ func TestFlexLayout_ColumnHeightAutoWithMargins(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.Size.Height != 6 {
 		t.Errorf("expected height 6, got %d", frag.Size.Height)
@@ -1002,7 +1002,7 @@ func TestFlexLayout_ColumnHeightAutoWithMarginsFixed(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Currently failing (got 4).
 	if frag.Size.Height != 6 {
@@ -1038,7 +1038,7 @@ func TestFlexLayout_RowHeightAutoWithGap(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// 2 lines, each 2 high. 1 row gap of 1.
 	// Total height should be 2 + 1 + 2 = 5.
@@ -1073,7 +1073,7 @@ func TestFlexLayout_CenteringWithText(t *testing.T) {
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
 	algo := NewAlgorithm(parent, space)
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	// Text "Center Me" (9) should be wrapped in an AnonymousBlock.
 	// The AnonymousBlock should have Width: Content (9).

@@ -60,10 +60,10 @@ func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 	}
 
 	algoV := &OverlayAlgorithm{Node: nodeV, Space: space}
-	algoV.Layout()
+	algoV.Layout(nil)
 
 	// Expected Y: anchor.Y + anchor.Height = 5 + 2 = 7
-	if nodeV.cachedFragment.Node != nodeV {
+	if nodeV.cachedFragment.Node != (Node)(nodeV) {
 		t.Fatal("Layout did not store fragment on node")
 	}
 	if nodeV.cachedSpace != space {
@@ -157,7 +157,7 @@ func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
 			// will try to use BlockAlgorithm on node.
 			node.SetCachedLayout(space, &Fragment{Size: Size{10, 10}})
 
-			algo.Layout()
+			algo.Layout(nil)
 
 			if node.offset != tt.expected {
 				t.Errorf("expected offset %v, got %v", tt.expected, node.offset)

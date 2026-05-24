@@ -150,8 +150,7 @@ func main() {
 	eng.Mount(ui)
 
 	// Install devtools (Inspector + X-Ray)
-	devtools.Install(eng, devtools.Options{
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	// Context for cancellation
 	ctx, cancel := context.WithCancel(context.Background())

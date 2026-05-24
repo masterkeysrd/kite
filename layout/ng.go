@@ -197,10 +197,10 @@ func (m MinMaxSizes) Subtract(value int) MinMaxSizes {
 // Algorithm is the interface that all LayoutNG-inspired layout formatters must implement.
 type Algorithm interface {
 	// Layout computes and returns an immutable Fragment based on the underlying node and constraints.
-	Layout() *Fragment
+	Layout(ctx *Context) *Fragment
 
 	// ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
-	ComputeMinMaxSizes() MinMaxSizes
+	ComputeMinMaxSizes(ctx *Context) MinMaxSizes
 }
 
 // NewAlgorithm returns the appropriate layout algorithm for the given node and constraints.
@@ -239,31 +239,31 @@ type NoneAlgorithm struct {
 	Space ConstraintSpace
 }
 
-func (a *NoneAlgorithm) Layout() *Fragment {
+func (a *NoneAlgorithm) Layout(ctx *Context) *Fragment {
 	return &Fragment{
 		Node: a.Node,
 	}
 }
 
-func (a *NoneAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *NoneAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	return MinMaxSizes{}
 }
 
 // IntrinsicMinMaxSizes computes the intrinsic min/max widths for a node by selecting
 // the correct algorithm based on its display style.
-func IntrinsicMinMaxSizes(node Node) MinMaxSizes {
+func IntrinsicMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
 	if sizes, ok := node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
 	// Note: We pass an empty ConstraintSpace as intrinsic sizes should not
 	// depend on parent constraints.
 	algo := NewAlgorithm(node, ConstraintSpace{})
-	return algo.ComputeMinMaxSizes()
+	return algo.ComputeMinMaxSizes(ctx)
 }
 
 // IntrinsicBlockSize returns the intrinsic block size (height) of a node given an
 // available inline size (width).
-func IntrinsicBlockSize(node Node, availableWidth int) int {
+func IntrinsicBlockSize(ctx *Context, node Node, availableWidth int) int {
 	// For now, we just run a probe layout. In the future, this should be cached.
 	// ContainerSpace and ContainingSpace must be set to the probe width so that
 	// children with KindPercent widths resolve correctly inside the probe.
@@ -276,7 +276,7 @@ func IntrinsicBlockSize(node Node, availableWidth int) int {
 		SetContainingSpace(probeSize).
 		ToConstraintSpace()
 	algo := NewAlgorithm(node, space)
-	return algo.Layout().Size.Height
+	return algo.Layout(ctx).Size.Height
 }
 
 // AbsoluteBounds traverses the fragment tree starting at root and computes the absolute

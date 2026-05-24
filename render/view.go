@@ -363,7 +363,7 @@ func (v *RenderView) StyleParent() style.StyleNode { return nil }
 func (v *RenderView) SetLogicalNode(n any) { v.logicalNode = n }
 
 // LayoutPhase runs the layout process for the given subtree using the LayoutNG-inspired architecture.
-func LayoutPhase(root Object, available layout.Size) {
+func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
 	// 1. Build the constraint space for the viewport.
 	// The viewport forces a fixed size.
 	// The viewport has no border/padding, so ContainingSpace and ContainerSpace are equal.
@@ -379,7 +379,7 @@ func LayoutPhase(root Object, available layout.Size) {
 
 	// 3. Execute the layout pass.
 	// This will recursively visit children and cache fragments internally.
-	frag := algo.Layout()
+	frag := algo.Layout(ctx)
 	propagateOffsets(frag)
 
 	// 4. Layout overlays.
@@ -407,7 +407,7 @@ func LayoutPhase(root Object, available layout.Size) {
 			overlaySpace := osb.ToConstraintSpace()
 
 			algo := layout.NewAlgorithm(overlay, overlaySpace)
-			frag := algo.Layout()
+			frag := algo.Layout(ctx)
 			overlay.SetCachedLayout(overlaySpace, frag)
 			propagateOffsets(frag)
 

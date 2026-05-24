@@ -161,7 +161,7 @@ func TestPaint_OverflowVisible_NoClip(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// All 10 cells should be painted.
 	for x := 0; x < 10; x++ {
@@ -189,7 +189,7 @@ func TestPaint_OverflowHidden_ClipsToContentBox(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// Only cells 0..4 should be painted; 5..9 must remain empty.
 	for x := 0; x < 5; x++ {
@@ -219,7 +219,7 @@ func TestPaint_OverflowClip_BehavesLikeHidden(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	for x := 0; x < 5; x++ {
 		if fb.CellAt(x, 0).Content == "" {
@@ -258,7 +258,7 @@ func TestPaint_AsymmetricOverflow_HiddenXVisibleY(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 15, 6)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// X >= 5 must be empty (horizontal clip).
 	for row := 0; row < 5; row++ {
@@ -303,7 +303,7 @@ func TestPaint_BorderIntegrity_OverflowHidden(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 15, 5)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// Border top-left corner must be present.
 	if fb.CellAt(0, 0).BorderStyle == BorderNone {
@@ -353,7 +353,7 @@ func TestPaint_PaddingContributesToClipRect(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// Cells 2..7 (content box) must be painted.
 	for x := 2; x < 8; x++ {
@@ -395,7 +395,7 @@ func TestPaint_NestedOverflow_IntersectsClipRects(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 25, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(outerFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, outerFrag, layout.Point{}, fb)
 
 	// inner clip rect: x=[2,7] (outer origin 0 + inner offset 2; width 6 → 2+6=8, but outer
 	// clip starts at 0 and ends at 10, so inner clips to [2,8)).
@@ -435,7 +435,7 @@ func TestPaint_ZeroSizedContentBox(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 10, 2)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// No text content from the child should appear (zero-width content box).
 	for x := 0; x < 10; x++ {
@@ -462,7 +462,7 @@ func TestPaint_Integration_HiddenOverflow10Wide(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 40, 3)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// Cells 0..9 should be painted.
 	for x := 0; x < 10; x++ {
@@ -494,7 +494,7 @@ func TestPaint_Integration_VisibleOverflow10Wide(t *testing.T) {
 
 	fb := NewFrameBuffer(0, 0, 40, 3)
 	pe := NewPaintEngine()
-	pe.PaintFragment(parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
 
 	// All 30 cells should be painted (spill allowed).
 	for x := 0; x < 30; x++ {
@@ -545,7 +545,7 @@ func TestPaint_DebugXRay(t *testing.T) {
 	pe := NewPaintEngine()
 	pe.DebugXRay = true
 
-	pe.PaintFragment(frag, layout.Point{X: 1, Y: 1}, fb)
+	pe.PaintFragment(nil, frag, layout.Point{X: 1, Y: 1}, fb)
 
 	// Check colors
 	// Margin area & Border area: Red (100, 0, 0)
@@ -595,7 +595,7 @@ func TestPaint_DebugXRay_Clipping(t *testing.T) {
 	pe := NewPaintEngine()
 	pe.DebugXRay = true
 
-	pe.PaintFragment(parentFrag, layout.Point{X: 0, Y: 0}, fb)
+	pe.PaintFragment(nil, parentFrag, layout.Point{X: 0, Y: 0}, fb)
 
 	marginColor := color.RGBA{100, 0, 0, 255}
 

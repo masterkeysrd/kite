@@ -16,11 +16,12 @@ type ListAlgorithm struct {
 	Space ConstraintSpace
 }
 
-func (a *ListAlgorithm) Layout() *Fragment {
+func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
 	// 1. Cache Check
 	if cached := a.Node.CachedLayout(a.Space); cached != nil {
 		return cached
 	}
+	defer ctx.Begin("Layout(List)")()
 
 	comp := a.Node.Style()
 	border := comp.Border.Widths()
@@ -29,7 +30,7 @@ func (a *ListAlgorithm) Layout() *Fragment {
 	// 2. Resolve inline size
 	var minMax MinMaxSizes
 	if !a.Space.IsFixedInlineSize {
-		minMax = a.ComputeMinMaxSizes()
+		minMax = a.ComputeMinMaxSizes(ctx)
 	}
 
 	var resolvedInlineSize int
@@ -113,7 +114,7 @@ func (a *ListAlgorithm) Layout() *Fragment {
 			items := inlineBuilder.items
 			breaker := NewLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
 			for {
-				line, ok := breaker.NextLine()
+				line, ok := breaker.NextLine(ctx)
 				if !ok {
 					break
 				}
@@ -143,7 +144,7 @@ func (a *ListAlgorithm) Layout() *Fragment {
 		}
 		childSpace := BuildChildSpace(child, adjustedContainer, containingSpace, a.Space)
 		childAlgo := NewAlgorithm(child, childSpace)
-		childFrag := childAlgo.Layout()
+		childFrag := childAlgo.Layout(ctx)
 
 		offset := Point{
 			X: column2X + childMargin.Left,
@@ -176,10 +177,11 @@ func (a *ListAlgorithm) Layout() *Fragment {
 	return frag
 }
 
-func (a *ListAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
+func (a *ListAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
+	defer ctx.Begin("Layout(List):ComputeMinMaxSizes")()
 
 	comp := a.Node.Style()
 	border := comp.Border.Widths()
@@ -194,7 +196,7 @@ func (a *ListAlgorithm) ComputeMinMaxSizes() MinMaxSizes {
 	sizes := MinMaxSizes{Min: markerWidth, Max: markerWidth}
 
 	for child := range a.Node.LayoutChildren() {
-		childSizes := IntrinsicMinMaxSizes(child)
+		childSizes := IntrinsicMinMaxSizes(ctx, child)
 		childMargin := child.Style().Margin
 		childDecorX := childMargin.Left + childMargin.Right
 

@@ -38,7 +38,7 @@ func TestLayout_ScrollbarSpaceReservation(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if !frag.HasScrollbarY {
 		t.Errorf("expected HasScrollbarY to be true")
@@ -85,7 +85,7 @@ func TestLayout_ScrollbarAutoHidden(t *testing.T) {
 		ToConstraintSpace()
 
 	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout()
+	frag := algo.Layout(nil)
 
 	if frag.HasScrollbarY {
 		t.Errorf("expected HasScrollbarY to be false for non-overflowing content with OverflowAuto")

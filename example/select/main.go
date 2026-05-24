@@ -126,8 +126,7 @@ func main() {
 		}
 	})
 
-	devtools.Install(eng, devtools.Options{
-	})
+	devtools.Install(eng, devtools.Options{})
 
 	if err := eng.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "engine exited: %v\n", err)

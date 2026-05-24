@@ -21,6 +21,7 @@ import (
 	"github.com/masterkeysrd/kite/paint"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/trace"
 )
 
 var eventsCounter uint64
@@ -177,6 +178,10 @@ type Engine struct {
 	coalescedBuf    []event.Event
 	wheelMap        map[event.EventTarget]*event.WheelEvent
 
+	pipeline Pipeline
+
+	tracer *trace.Tracer
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -197,6 +202,8 @@ type Options struct {
 	// ShutdownTimeout bounds how long Stop waits for pending jobs before
 	// forcing exit. Default is 5 seconds.
 	ShutdownTimeout time.Duration
+	// Profiler enables the high-level phase profiling and deep-tree tracing.
+	Profiler bool
 }
 
 // New creates an Engine configured with the given backend and options.
@@ -251,6 +258,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		mouseMode:         MouseModeClick,
 		closeCh:           make(chan struct{}),
 		wheelMap:          make(map[event.EventTarget]*event.WheelEvent),
+		pipeline:          &StandardPipeline{},
 	}
 
 	e.dispatcher = event.NewDispatcher()
@@ -267,6 +275,11 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})
+
+	if opts.Profiler {
+		e.tracer = trace.NewTracer()
+		e.pipeline = &ProfilingPipeline{wrapped: e.pipeline}
+	}
 
 	// Probe capabilities from the backend.
 	e.caps = b.Caps()
@@ -328,6 +341,16 @@ func (e *Engine) FocusedTarget() event.EventTarget {
 		return nil
 	}
 	return e.focusManager.Current()
+}
+
+// Tracer returns the engine's active tracer, or nil if profiling is disabled.
+func (e *Engine) Tracer() *trace.Tracer { return e.tracer }
+
+// WithProfiler enables or disables the engine's built-in profiler.
+func WithProfiler(enabled bool) func(*Options) {
+	return func(o *Options) {
+		o.Profiler = enabled
+	}
 }
 
 // FocusManager returns the engine's focus.Manager so that tests and
@@ -520,129 +543,24 @@ func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
 
 // Frame executes one complete frame pipeline:
 //  1. Drain worker results (onto microtask queue).
-//  2. Drain macrotasks (budget-capped).
-//  3. Drain microtasks.
-//  4. Style phase (gated).
-//  5. Layout phase (gated) + reap detached render objects.
-//  6. Paint phase (gated).
-//  7. Sync (EndFrame).
+//  2. Sync Phase.
+//  3. Task Phase (macrotasks + microtasks).
+//  4. Style phase.
+//  5. Layout phase.
+//  6. Paint phase.
+//  7. Commit.
 //
 // Frame must be called from the main goroutine.
 func (e *Engine) Frame() {
 	defer e.recoverFrame()
 
-	// 0. Collect completed job results into the microtask queue.
 	e.drainWorkerResults()
 
-	// 1. Sync Phase — walk logical DOM and project to render tree.
-	if e.document.NeedsSync() || e.document.ChildNeedsSync() {
-		e.syncRenderTree(e.document, e.renderView)
-		e.syncOverlays(e.document)
-	}
-
-	// 1b. Autofocus Phase — if nothing is focused, try to find the first
-	// focusable element. This ensures that the cursor and focus styles are
-	// visible on the very first render without requiring a keystroke.
-	if e.focusManager.Current() == nil {
-		e.focusManager.Next()
-	}
-
-	// 2 & 3. Drain macrotasks (budget-capped), draining microtasks between
-	// each macrotask and at the end.
-	e.drainMacroTasks()
-
-	// 3. Drain microtasks until empty.
-	e.drainMicroTasks()
-
-	root := e.renderView
-	overlays := root.Overlays()
-	rootFlags := root.Flags()
-
-	// 4. Style phase — gated on DirtyStyle | ChildNeedsStyle.
-	if rootFlags&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
-		style.ResolveTree(e.resolver, root)
-	}
-	for _, overlay := range overlays {
-		if overlay.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
-			style.ResolveTree(e.resolver, overlay)
-		}
-	}
-
-	// 5. Layout phase — gated on DirtyLayout | ChildNeedsLayout.
-	layoutRan := false
-	if rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
-		layoutRan = true
-		viewport := root.ViewportSize()
-		e.logger.Info("engine: layout phase", "viewport", viewport)
-
-		start := e.clock.Now()
-		render.LayoutPhase(root, viewport)
-
-		duration := e.clock.Now().Sub(start)
-		e.logger.Info("engine: layout complete", "duration_ms", duration.Milliseconds())
-
-		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		for _, overlay := range overlays {
-			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		}
-	}
-
-	// 5b. Auto-scroll phase — if an element is focused, ensure its cursor is visible.
-	focused := e.focusManager.Current()
-	if focused != nil {
-		if el, ok := focused.(dom.Element); ok {
-			el.ScrollCursorIntoView()
-		}
-	}
-
-	// 5c. After-layout hooks — fire once, then discard. These allow callers
-	// (e.g. status-bar updates) to read freshly computed CursorState values.
-	if len(e.afterLayoutHooks) > 0 {
-		hooks := e.afterLayoutHooks
-		e.afterLayoutHooks = nil
-		for _, fn := range hooks {
-			fn()
-		}
-	}
-
-	// Always update the hardware cursor state after layout but before the
-	// potential paint phase. This ensures that if a frame is produced, it
-	// carries the most recent cursor position.
-	cursorChanged := e.updateHardwareCursor(layoutRan)
-
-	e.logger.Info("engine: checking paint phase", "flags", root.Flags())
-
-	anyOverlayDirty := false
-	for _, o := range overlays {
-		if o.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
-			anyOverlayDirty = true
-			break
-		}
-	}
-
-	// 6. Paint phase — gated on DirtyPaint | DirtyScroll | ChildNeedsPaint
-	// OR a cursor change (which requires a Flush even if no cells changed).
-	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
-		surface := e.backend.BeginFrame()
-		e.logger.Info("engine: painting main content")
-		e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, surface)
-		for _, overlay := range overlays {
-			e.logger.Info("engine: painting overlay")
-			e.paintEngine.PaintFragment(overlay.Fragment(), overlay.Offset(), surface)
-		}
-		e.paintEngine.ResolveBorders(surface)
-
-		// 7. Sync — hand the frame to the render goroutine.
-		if err := e.backend.EndFrame(); err != nil {
-			e.logger.Error("engine: EndFrame error", slog.Any("error", err))
-		}
-		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
-		for _, overlay := range overlays {
-			overlay.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
-		}
-		e.logger.Info("engine: frame committed", slog.Uint64("version", e.frameVersion))
-		e.frameVersion++
-	}
+	e.pipeline.Sync(e)
+	e.pipeline.Tasks(e)
+	e.pipeline.Style(e)
+	layoutRan := e.pipeline.Layout(e)
+	e.pipeline.Paint(e, layoutRan)
 
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
@@ -968,12 +886,12 @@ func (e *Engine) Dump(path string) error {
 	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
 	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 	root := e.renderView
-	e.paintEngine.PaintFragment(root.Fragment(), layout.Point{}, fb)
+	e.paintEngine.PaintFragment(nil, root.Fragment(), layout.Point{}, fb)
 	for _, overlay := range root.Overlays() {
 		offset := overlay.Offset()
-		e.paintEngine.PaintFragment(overlay.Fragment(), offset, fb)
+		e.paintEngine.PaintFragment(nil, overlay.Fragment(), offset, fb)
 	}
-	e.paintEngine.ResolveBorders(fb)
+	e.paintEngine.ResolveBorders(nil, fb)
 
 	for y := 0; y < size.Height; y++ {
 		var line strings.Builder
