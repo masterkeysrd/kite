@@ -615,6 +615,7 @@ func (p *PaintEngine) drawBorder(r layout.Rect, border style.Border, bg color.Co
 	height := r.Size.Height
 	x := r.Origin.X
 	y := r.Origin.Y
+	clip := p.clipStack[len(p.clipStack)-1]
 
 	// Helper to get glyphs for a side
 	getGlyphs := func(s style.BorderStyle) style.BorderGlyphs {
@@ -644,48 +645,62 @@ func (p *PaintEngine) drawBorder(r layout.Rect, border style.Border, bg color.Co
 	}
 
 	// Draw Edges
-	if border.Edges.Top {
+	if border.Edges.Top && y >= clip.Origin.Y && y < clip.Origin.Y+clip.Size.Height {
 		glyphs := getGlyphs(border.Styles.Top)
 		bs := mapStyle(border.Styles.Top)
 		c := border.Colors.Top
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		for i := range width {
-			p.setCell(x+i, y, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		xStart := max(x, clip.Origin.X)
+		xEnd := min(x+width, clip.Origin.X+clip.Size.Width)
+		for cx := xStart; cx < xEnd; cx++ {
+			p.setCell(cx, y, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 		}
 	}
 	if border.Edges.Bottom {
-		glyphs := getGlyphs(border.Styles.Bottom)
-		bs := mapStyle(border.Styles.Bottom)
-		c := border.Colors.Bottom
-		if c == nil {
-			c = color.RGBA{255, 255, 255, 255}
-		}
-		for i := range width {
-			p.setCell(x+i, y+height-1, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		bottomY := y + height - 1
+		if bottomY >= clip.Origin.Y && bottomY < clip.Origin.Y+clip.Size.Height {
+			glyphs := getGlyphs(border.Styles.Bottom)
+			bs := mapStyle(border.Styles.Bottom)
+			c := border.Colors.Bottom
+			if c == nil {
+				c = color.RGBA{255, 255, 255, 255}
+			}
+			xStart := max(x, clip.Origin.X)
+			xEnd := min(x+width, clip.Origin.X+clip.Size.Width)
+			for cx := xStart; cx < xEnd; cx++ {
+				p.setCell(cx, bottomY, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+			}
 		}
 	}
-	if border.Edges.Left {
+	if border.Edges.Left && x >= clip.Origin.X && x < clip.Origin.X+clip.Size.Width {
 		glyphs := getGlyphs(border.Styles.Left)
 		bs := mapStyle(border.Styles.Left)
 		c := border.Colors.Left
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		for i := range height {
-			p.setCell(x, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		yStart := max(y, clip.Origin.Y)
+		yEnd := min(y+height, clip.Origin.Y+clip.Size.Height)
+		for cy := yStart; cy < yEnd; cy++ {
+			p.setCell(x, cy, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
 		}
 	}
 	if border.Edges.Right {
-		glyphs := getGlyphs(border.Styles.Right)
-		bs := mapStyle(border.Styles.Right)
-		c := border.Colors.Right
-		if c == nil {
-			c = color.RGBA{255, 255, 255, 255}
-		}
-		for i := range height {
-			p.setCell(x+width-1, y+i, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		rightX := x + width - 1
+		if rightX >= clip.Origin.X && rightX < clip.Origin.X+clip.Size.Width {
+			glyphs := getGlyphs(border.Styles.Right)
+			bs := mapStyle(border.Styles.Right)
+			c := border.Colors.Right
+			if c == nil {
+				c = color.RGBA{255, 255, 255, 255}
+			}
+			yStart := max(y, clip.Origin.Y)
+			yEnd := min(y+height, clip.Origin.Y+clip.Size.Height)
+			for cy := yStart; cy < yEnd; cy++ {
+				p.setCell(rightX, cy, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+			}
 		}
 	}
 

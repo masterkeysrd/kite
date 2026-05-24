@@ -217,7 +217,9 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 	if !a.Space.IsFixedBlockSize {
 		switch comp.Height.Kind() {
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+			if a.Space.ContainerSpace.Height < InfiniteBlockSize {
+				resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+			}
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
 		case style.KindAuto:
@@ -429,7 +431,8 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 	}
 
 	if !a.Space.IsFixedBlockSize {
-		if comp.Height.Kind() == style.KindAuto || comp.Height.Kind() == style.KindContent {
+		isIndefinitePercent := comp.Height.Kind() == style.KindPercent && a.Space.ContainerSpace.Height >= InfiniteBlockSize
+		if comp.Height.Kind() == style.KindAuto || comp.Height.Kind() == style.KindContent || isIndefinitePercent {
 			var logicalHeight int
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
 				logicalHeight = totalMaxLineMain

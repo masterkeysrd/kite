@@ -609,3 +609,354 @@ func TestPaint_DebugXRay_Clipping(t *testing.T) {
 		t.Errorf("expected clipped at (5,2), got %v", c)
 	}
 }
+
+// =============================================================================
+// drawBorder clip-stack tests
+//
+// These tests exercise the fix applied in paint/engine.go that clips the four
+// border-drawing loops to the current clipStack rectangle.  Before the fix,
+// every loop iterated over the full fragment width/height regardless of the
+// visible clip region.  When a fragment had a pathologically large height
+// (e.g. Percent(100) resolving to ≈ InfiniteBlockSize ≈ 1 073 741 823) the
+// loops would iterate billions of times, hanging the paint engine.
+//
+// Each test drives PaintFragment so the clipStack is initialised exactly as
+// the engine does in production (initialised to the framebuffer bounds).
+// =============================================================================
+
+// makeBorderedFrag builds a fragment with a single-line border and the given
+// logical size.
+func makeBorderedFrag(size layout.Size) *layout.Fragment {
+	s := &style.Computed{
+		Border: style.SingleBorder(),
+	}
+	return &layout.Fragment{
+		Size: size,
+		Node: &mockNode{s: s},
+	}
+}
+
+// TestDrawBorder_FullyVisible verifies that when a bordered fragment fits
+// entirely within the clip rect all four edges are drawn.
+func TestDrawBorder_FullyVisible(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	fb := NewFrameBuffer(0, 0, 10, 5)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+
+	// Top edge: y=0, x in [0,4]
+	for x := 0; x < 5; x++ {
+		if fb.CellAt(x, 0).BorderStyle == BorderNone {
+			t.Errorf("FullyVisible: expected border at (%d,0)", x)
+		}
+	}
+	// Bottom edge: y=2
+	for x := 0; x < 5; x++ {
+		if fb.CellAt(x, 2).BorderStyle == BorderNone {
+			t.Errorf("FullyVisible: expected border at (%d,2)", x)
+		}
+	}
+	// Left edge: x=0
+	for y := 0; y < 3; y++ {
+		if fb.CellAt(0, y).BorderStyle == BorderNone {
+			t.Errorf("FullyVisible: expected border at (0,%d)", y)
+		}
+	}
+	// Right edge: x=4
+	for y := 0; y < 3; y++ {
+		if fb.CellAt(4, y).BorderStyle == BorderNone {
+			t.Errorf("FullyVisible: expected border at (4,%d)", y)
+		}
+	}
+}
+
+// TestDrawBorder_TopEdgeClipped verifies that the top border row is not drawn
+// when it falls above the clip rect (framebuffer starts at y=1).
+func TestDrawBorder_TopEdgeClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	// Framebuffer starts at absolute y=1; the fragment is painted at y=0.
+	fb := NewFrameBuffer(0, 1, 5, 3)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 0}, fb)
+
+	// y=0 is outside the framebuffer → CellAt returns an empty Cell.
+	for x := 0; x < 5; x++ {
+		if fb.CellAt(x, 0).BorderStyle != BorderNone {
+			t.Errorf("TopEdgeClipped: unexpected border at (%d,0)", x)
+		}
+	}
+	// Bottom edge (y=2) is inside the framebuffer.
+	for x := 0; x < 5; x++ {
+		if fb.CellAt(x, 2).BorderStyle == BorderNone {
+			t.Errorf("TopEdgeClipped: expected bottom border at (%d,2)", x)
+		}
+	}
+}
+
+// TestDrawBorder_BottomEdgeClipped verifies that the bottom border row is not
+// drawn when it falls below the clip rect (framebuffer only 3 rows, fragment 4 tall).
+func TestDrawBorder_BottomEdgeClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 4})
+	fb := NewFrameBuffer(0, 0, 5, 3) // rows 0-2 visible; row 3 clipped
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+
+	// Bottom edge (y=3) must not appear.
+	for x := 0; x < 5; x++ {
+		if fb.CellAt(x, 3).BorderStyle != BorderNone {
+			t.Errorf("BottomEdgeClipped: unexpected border at (%d,3)", x)
+		}
+	}
+	// Top edge (y=0) must still be present.
+	for x := 0; x < 5; x++ {
+		if fb.CellAt(x, 0).BorderStyle == BorderNone {
+			t.Errorf("BottomEdgeClipped: expected top border at (%d,0)", x)
+		}
+	}
+}
+
+// TestDrawBorder_LeftEdgeClipped verifies that the left border column is not
+// drawn when the fragment is painted at x=-1 (left column outside framebuffer).
+func TestDrawBorder_LeftEdgeClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	fb := NewFrameBuffer(0, 0, 10, 5)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{X: -1, Y: 0}, fb)
+
+	// x=-1 is outside framebuffer → empty.
+	for y := 0; y < 3; y++ {
+		if fb.CellAt(-1, y).BorderStyle != BorderNone {
+			t.Errorf("LeftEdgeClipped: unexpected border at (-1,%d)", y)
+		}
+	}
+	// Right edge is at abs x = -1+5-1 = 3, which is inside the framebuffer.
+	for y := 0; y < 3; y++ {
+		if fb.CellAt(3, y).BorderStyle == BorderNone {
+			t.Errorf("LeftEdgeClipped: expected right border at (3,%d)", y)
+		}
+	}
+}
+
+// TestDrawBorder_RightEdgeClipped verifies that the right border column is not
+// drawn when it falls beyond the framebuffer (fragment 8 wide, framebuffer 5 wide).
+func TestDrawBorder_RightEdgeClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 8, Height: 3})
+	fb := NewFrameBuffer(0, 0, 5, 3) // columns 5-7 clipped
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+
+	// Right edge at x=7 must not appear.
+	for y := 0; y < 3; y++ {
+		if fb.CellAt(7, y).BorderStyle != BorderNone {
+			t.Errorf("RightEdgeClipped: unexpected border at (7,%d)", y)
+		}
+	}
+	// Left edge (x=0) must still be present.
+	for y := 0; y < 3; y++ {
+		if fb.CellAt(0, y).BorderStyle == BorderNone {
+			t.Errorf("RightEdgeClipped: expected left border at (0,%d)", y)
+		}
+	}
+}
+
+// TestDrawBorder_HorizontalEdgesPartiallyClipped verifies that horizontal
+// edges (top/bottom) are drawn only for the x-range that overlaps the clip.
+//
+// Fragment: 10 wide × 3 tall, painted at x=0.
+// Framebuffer: 6 wide, starting at absolute x=2 → clip x=[2,7].
+// Expected: top/bottom border only at x=2..7.
+func TestDrawBorder_HorizontalEdgesPartiallyClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 10, Height: 3})
+	fb := NewFrameBuffer(2, 0, 6, 3) // absolute x: 2..7
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 0}, fb)
+
+	// x=2..7 (inside framebuffer) on top row should have borders.
+	for x := 2; x < 8; x++ {
+		if fb.CellAt(x, 0).BorderStyle == BorderNone {
+			t.Errorf("HorizPartialClip: expected top border at (%d,0)", x)
+		}
+	}
+	// x=0..1 are outside framebuffer → empty.
+	for x := 0; x < 2; x++ {
+		if fb.CellAt(x, 0).BorderStyle != BorderNone {
+			t.Errorf("HorizPartialClip: unexpected border at (%d,0)", x)
+		}
+	}
+	// x=8..9 are outside framebuffer → empty.
+	for x := 8; x < 10; x++ {
+		if fb.CellAt(x, 0).BorderStyle != BorderNone {
+			t.Errorf("HorizPartialClip: unexpected border at (%d,0)", x)
+		}
+	}
+}
+
+// TestDrawBorder_VerticalEdgesPartiallyClipped verifies that vertical edges
+// (left/right) are drawn only for the y-range that overlaps the clip.
+//
+// Fragment: 3 wide × 10 tall, painted at y=0.
+// Framebuffer: 3 wide × 6 tall, starting at absolute y=2 → clip y=[2,7].
+// Expected: left/right border only at y=2..7.
+func TestDrawBorder_VerticalEdgesPartiallyClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 3, Height: 10})
+	fb := NewFrameBuffer(0, 2, 3, 6) // absolute y: 2..7
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 0}, fb)
+
+	// Rows 2..7 should have left border.
+	for y := 2; y < 8; y++ {
+		if fb.CellAt(0, y).BorderStyle == BorderNone {
+			t.Errorf("VertPartialClip: expected left border at (0,%d)", y)
+		}
+	}
+	// Rows 0..1 outside framebuffer → empty.
+	for y := 0; y < 2; y++ {
+		if fb.CellAt(0, y).BorderStyle != BorderNone {
+			t.Errorf("VertPartialClip: unexpected border at (0,%d)", y)
+		}
+	}
+	// Rows 8..9 outside framebuffer → empty.
+	for y := 8; y < 10; y++ {
+		if fb.CellAt(0, y).BorderStyle != BorderNone {
+			t.Errorf("VertPartialClip: unexpected border at (0,%d)", y)
+		}
+	}
+}
+
+// TestDrawBorder_HugeHeightClippedToViewport is the direct regression test for
+// the infinite-loop hang: before the fix, a fragment with height ≈ 1 billion
+// caused the vertical border loops to iterate billions of times.
+//
+// This test uses height=1_000_000 inside a 5-row viewport. It MUST complete in
+// milliseconds; a re-introduced regression would cause a multi-second hang that
+// the Go test timeout would catch.
+func TestDrawBorder_HugeHeightClippedToViewport(t *testing.T) {
+	const hugeHeight = 1_000_000
+	const viewportH = 5
+	const viewportW = 20
+
+	frag := makeBorderedFrag(layout.Size{Width: viewportW, Height: hugeHeight})
+	fb := NewFrameBuffer(0, 0, viewportW, viewportH)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+
+	// Top border row (y=0) is within the viewport.
+	for x := 0; x < viewportW; x++ {
+		if fb.CellAt(x, 0).BorderStyle == BorderNone {
+			t.Errorf("HugeHeight: expected top border at (%d,0)", x)
+		}
+	}
+	// Rows 1..viewportH-2 are interior: only left (x=0) and right (x=w-1) borders.
+	for y := 1; y < viewportH-1; y++ {
+		if fb.CellAt(0, y).BorderStyle == BorderNone {
+			t.Errorf("HugeHeight: expected left border at (0,%d)", y)
+		}
+		if fb.CellAt(viewportW-1, y).BorderStyle == BorderNone {
+			t.Errorf("HugeHeight: expected right border at (%d,%d)", viewportW-1, y)
+		}
+		for x := 1; x < viewportW-1; x++ {
+			if fb.CellAt(x, y).BorderStyle != BorderNone {
+				t.Errorf("HugeHeight: unexpected interior border at (%d,%d)", x, y)
+			}
+		}
+	}
+	// Bottom border (y=hugeHeight-1) is far outside the viewport → not written.
+	for x := 0; x < viewportW; x++ {
+		if fb.CellAt(x, hugeHeight-1).BorderStyle != BorderNone {
+			t.Errorf("HugeHeight: unexpected bottom border at (%d,%d)", x, hugeHeight-1)
+		}
+	}
+}
+
+// TestDrawBorder_HugeWidthClippedToViewport mirrors the height regression test
+// for the horizontal axis.
+func TestDrawBorder_HugeWidthClippedToViewport(t *testing.T) {
+	const hugeWidth = 1_000_000
+	const viewportW = 5
+	const viewportH = 20
+
+	frag := makeBorderedFrag(layout.Size{Width: hugeWidth, Height: viewportH})
+	fb := NewFrameBuffer(0, 0, viewportW, viewportH)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+
+	// Left edge (x=0) is in viewport for all rows.
+	for y := 0; y < viewportH; y++ {
+		if fb.CellAt(0, y).BorderStyle == BorderNone {
+			t.Errorf("HugeWidth: expected left border at (0,%d)", y)
+		}
+	}
+	// Top edge: columns 1..viewportW-1 in row 0 should be border.
+	for x := 1; x < viewportW; x++ {
+		if fb.CellAt(x, 0).BorderStyle == BorderNone {
+			t.Errorf("HugeWidth: expected top border at (%d,0)", x)
+		}
+	}
+	// Right border (x=hugeWidth-1) is far outside → not written.
+	for y := 0; y < viewportH; y++ {
+		if fb.CellAt(hugeWidth-1, y).BorderStyle != BorderNone {
+			t.Errorf("HugeWidth: unexpected right border at (%d,%d)", hugeWidth-1, y)
+		}
+	}
+}
+
+// TestDrawBorder_AllEdgesClipped verifies that no cells are written when the
+// entire fragment is painted off-screen (origin far below the framebuffer).
+func TestDrawBorder_AllEdgesClipped(t *testing.T) {
+	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	fb := NewFrameBuffer(0, 0, 10, 5)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 10}, fb) // entirely below viewport
+
+	for y := 0; y < 5; y++ {
+		for x := 0; x < 10; x++ {
+			if fb.CellAt(x, y).BorderStyle != BorderNone {
+				t.Errorf("AllEdgesClipped: unexpected border at (%d,%d)", x, y)
+			}
+		}
+	}
+}
+
+// TestDrawBorder_NestedClipRestrictsBorder verifies that a child border is
+// clipped by the ancestor's overflow:hidden content-box, not just the global
+// framebuffer bounds.
+func TestDrawBorder_NestedClipRestrictsBorder(t *testing.T) {
+	childStyle := &style.Computed{
+		Border: style.SingleBorder(),
+	}
+	childFrag := &layout.Fragment{
+		Size: layout.Size{Width: 8, Height: 4},
+		Node: &mockNode{s: childStyle},
+	}
+
+	outerStyle := &style.Computed{
+		Border:    style.SingleBorder(),
+		OverflowX: style.OverflowHidden,
+		OverflowY: style.OverflowHidden,
+	}
+	outerFrag := &layout.Fragment{
+		Size: layout.Size{Width: 10, Height: 5},
+		Node: &mockNode{s: outerStyle},
+		Children: []layout.FragmentLink{
+			{Offset: layout.Point{X: 1, Y: 1}, Fragment: childFrag},
+		},
+	}
+
+	fb := NewFrameBuffer(0, 0, 15, 8)
+	pe := NewPaintEngine()
+	pe.PaintFragment(nil, outerFrag, layout.Point{}, fb)
+
+	// Child's top border is at abs y=1 (outer origin 0 + child offset 1).
+	// Outer content-box clip starts at y=1 (1-cell border), so y=1 is visible.
+	for x := 1; x < 9; x++ {
+		if fb.CellAt(x, 1).BorderStyle == BorderNone {
+			t.Errorf("NestedClip: expected child top border at (%d,1)", x)
+		}
+	}
+	// Nothing should be painted beyond the outer fragment's bounds (y >= 5).
+	for x := 0; x < 15; x++ {
+		if fb.CellAt(x, 5).BorderStyle != BorderNone {
+			t.Errorf("NestedClip: unexpected border outside outer at (%d,5)", x)
+		}
+	}
+}

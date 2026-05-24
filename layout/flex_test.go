@@ -1047,6 +1047,245 @@ func TestFlexLayout_RowHeightAutoWithGap(t *testing.T) {
 	}
 }
 
+// --- Percentage Height Resolution Tests (regression for flex.go fix) ---
+
+// TestFlexLayout_PercentHeight_FiniteParent verifies that a flex item with
+// height: Percent resolves its size against the parent's finite content height.
+// This is the expected "happy path" for percentage heights in a row-direction flex.
+func TestFlexLayout_PercentHeight_FiniteParent(t *testing.T) {
+	// Child with height: 50% should resolve to 50% of parent's content height.
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Percent(50)
+
+	child := &mockNode{style: &childStyle}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.Width = style.Cells(100)
+	parentStyle.Height = style.Cells(20) // Definite height: 20 cells
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child,
+	}
+
+	// ContainerSpace.Height == 20 (finite), so Percent(50) should resolve to 10.
+	space := NewConstraintSpaceBuilder(Size{100, 20}).
+		SetContainerSpace(Size{100, 20}).
+		SetContainingSpace(Size{100, 20}).
+		ToConstraintSpace()
+
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout(nil)
+
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+	// 50% of 20 = 10
+	childFrag := frag.Children[0].Fragment
+	if childFrag.Size.Height != 10 {
+		t.Errorf("expected child height 10 (50%% of 20), got %d", childFrag.Size.Height)
+	}
+}
+
+// TestFlexLayout_PercentHeight_InfiniteParent_RowFlex verifies that a flex item
+// with height: Percent falls back to content-based auto sizing when the parent
+// has an indefinite (unconstrained) height. This is the bug fixed in flex.go:
+// before the fix, Percent(100) would resolve to InfiniteBlockSize (≈1GB), causing
+// layout overflow and a hang in the paint engine.
+func TestFlexLayout_PercentHeight_InfiniteParent_RowFlex(t *testing.T) {
+	// Child has a fixed cell size so content-based sizing yields a predictable height.
+	innerStyle := style.DefaultStyle()
+	innerStyle.Width = style.Cells(5)
+	innerStyle.Height = style.Cells(3) // Content height = 3 cells
+	inner := &mockNode{style: &innerStyle}
+
+	childStyle := style.DefaultStyle()
+	childStyle.Display = style.DisplayFlex
+	childStyle.FlexDirection = style.FlexColumn
+	childStyle.Width = style.Cells(20)
+	childStyle.Height = style.Percent(100) // 100% of an unconstrained parent
+
+	child := &mockNode{
+		style:      &childStyle,
+		firstChild: inner,
+	}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.Width = style.Cells(100)
+	parentStyle.Height = style.Auto // Indefinite height
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child,
+	}
+
+	// ContainerSpace.Height == 0 (default, i.e. unset / indefinite).
+	// The builder default leaves ContainerSpace at zero, which is < InfiniteBlockSize,
+	// but the real unconstrained scenario comes from IntrinsicBlockSize probes where
+	// AvailableSize.Height == InfiniteBlockSize. We replicate that here.
+	space := NewConstraintSpaceBuilder(Size{100, InfiniteBlockSize}).
+		SetContainerSpace(Size{100, InfiniteBlockSize}).
+		SetContainingSpace(Size{100, InfiniteBlockSize}).
+		ToConstraintSpace()
+
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout(nil)
+
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+
+	childFrag := frag.Children[0].Fragment
+
+	// The child must NOT explode to InfiniteBlockSize.
+	// It should shrink-wrap to its content (the 3-cell inner box).
+	if childFrag.Size.Height >= InfiniteBlockSize {
+		t.Errorf("child height exploded to %d (>= InfiniteBlockSize); percentage height resolution did not fall back to auto-sizing in unconstrained parent", childFrag.Size.Height)
+	}
+	// Content-based sizing should match the inner child's height.
+	if childFrag.Size.Height != 3 {
+		t.Errorf("expected child height 3 (content-based), got %d", childFrag.Size.Height)
+	}
+}
+
+// TestFlexLayout_PercentHeight_InfiniteParent_ColumnFlex verifies the same
+// percentage height fallback for a column-direction flex container when placed
+// inside an unconstrained vertical space.
+func TestFlexLayout_PercentHeight_InfiniteParent_ColumnFlex(t *testing.T) {
+	// Two children each 2 rows tall; the column flex should size to 4.
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+
+	c2 := &mockNode{style: &childStyle}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(50)
+	parentStyle.Height = style.Percent(100) // 100% of an unconstrained container
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(Size{50, InfiniteBlockSize}).
+		SetContainerSpace(Size{50, InfiniteBlockSize}).
+		SetContainingSpace(Size{50, InfiniteBlockSize}).
+		ToConstraintSpace()
+
+	algo := NewAlgorithm(parent, space)
+	frag := algo.Layout(nil)
+
+	// Must not overflow to InfiniteBlockSize.
+	if frag.Size.Height >= InfiniteBlockSize {
+		t.Errorf("parent height exploded to %d (>= InfiniteBlockSize); column flex with height:100%% must fall back to content size in unconstrained space", frag.Size.Height)
+	}
+	// Content-based: 2 children × 2 cells = 4.
+	if frag.Size.Height != 4 {
+		t.Errorf("expected parent height 4 (content-based), got %d", frag.Size.Height)
+	}
+}
+
+// TestFlexLayout_PercentHeight_NestedLayout_SidebarPattern exercises the exact
+// layout pattern from the animation example app that triggered the overflow-to-bottom
+// regression: an outer column-flex root (height auto) containing two row-flex panels
+// (sidebar + content), each with height: 100%. Before the fix the panels resolved
+// their height to ≈1 billion cells, overflowing past the terminal window and causing
+// a hang in the paint engine's border-rendering loops.
+func TestFlexLayout_PercentHeight_NestedLayout_SidebarPattern(t *testing.T) {
+	// Leaf items inside each panel.
+	leafStyle := style.DefaultStyle()
+	leafStyle.Width = style.Cells(5)
+	leafStyle.Height = style.Cells(3)
+	leaf := &mockNode{style: &leafStyle}
+
+	// Sidebar panel: row-flex, height: 100%, one leaf item.
+	sidebarStyle := style.DefaultStyle()
+	sidebarStyle.Display = style.DisplayFlex
+	sidebarStyle.FlexDirection = style.FlexRow
+	sidebarStyle.Width = style.Cells(20)
+	sidebarStyle.Height = style.Percent(100)
+	sidebar := &mockNode{
+		style:      &sidebarStyle,
+		firstChild: leaf,
+	}
+
+	// Content panel: row-flex, height: 100%, flex-grow: 1.
+	contentLeafStyle := style.DefaultStyle()
+	contentLeafStyle.Width = style.Cells(5)
+	contentLeafStyle.Height = style.Cells(2)
+	contentLeaf := &mockNode{style: &contentLeafStyle}
+
+	contentStyle := style.DefaultStyle()
+	contentStyle.Display = style.DisplayFlex
+	contentStyle.FlexDirection = style.FlexRow
+	contentStyle.Width = style.Auto
+	contentStyle.Height = style.Percent(100)
+	contentStyle.Flex = style.FlexItemValue{Grow: 1, Shrink: 0}
+	content := &mockNode{
+		style:      &contentStyle,
+		firstChild: contentLeaf,
+	}
+	sidebar.nextSibling = content
+
+	// Outer panel: row-flex, takes the two panels side-by-side.
+	outerStyle := style.DefaultStyle()
+	outerStyle.Display = style.DisplayFlex
+	outerStyle.FlexDirection = style.FlexRow
+	outerStyle.Width = style.Cells(100)
+	outerStyle.Height = style.Percent(100) // Also 100% of an indefinite root
+	outer := &mockNode{
+		style:      &outerStyle,
+		firstChild: sidebar,
+	}
+
+	// Root: column-flex, height auto (indefinite).
+	rootStyle := style.DefaultStyle()
+	rootStyle.Display = style.DisplayFlex
+	rootStyle.FlexDirection = style.FlexColumn
+	rootStyle.Width = style.Cells(100)
+	rootStyle.Height = style.Auto
+	root := &mockNode{
+		style:      &rootStyle,
+		firstChild: outer,
+	}
+
+	// Simulate terminal viewport: 100×24, indefinite block size for the root.
+	space := NewConstraintSpaceBuilder(Size{100, InfiniteBlockSize}).
+		SetContainerSpace(Size{100, InfiniteBlockSize}).
+		SetContainingSpace(Size{100, InfiniteBlockSize}).
+		ToConstraintSpace()
+
+	algo := NewAlgorithm(root, space)
+	frag := algo.Layout(nil)
+
+	// The root must not overflow to InfiniteBlockSize.
+	if frag.Size.Height >= InfiniteBlockSize {
+		t.Errorf("root height exploded to %d; nested height:100%% panels must fall back to content sizing when root is unconstrained", frag.Size.Height)
+	}
+
+	// The outer panel should have shrunk to the tallest leaf it contains (3 cells).
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 outer panel child of root, got %d", len(frag.Children))
+	}
+	outerFrag := frag.Children[0].Fragment
+	if outerFrag.Size.Height >= InfiniteBlockSize {
+		t.Errorf("outer panel height exploded to %d", outerFrag.Size.Height)
+	}
+	// Root should equal the outer panel's height (no gap, no padding).
+	if frag.Size.Height != outerFrag.Size.Height {
+		t.Errorf("root height %d != outer panel height %d", frag.Size.Height, outerFrag.Size.Height)
+	}
+}
+
 func TestFlexLayout_CenteringWithText(t *testing.T) {
 	// Root is a FlexRow with JustifyContent: Center.
 	// Contains a single text node.
