@@ -96,10 +96,6 @@ func (b *ButtonElement) handleMouseUp(e event.Event) {
 	if ro := b.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyStyle)
 	}
-
-	// Fire EventClick.
-	click := event.NewMouseEvent(event.EventClick, me.Screen, event.ButtonLeft, me.Mods)
-	b.DispatchEvent(click)
 }
 
 func (b *ButtonElement) handleKeyDown(e event.Event) {

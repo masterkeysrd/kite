@@ -29,8 +29,14 @@ func TestButton_Click_Mouse(t *testing.T) {
 	// MouseUp
 	up := event.NewMouseEvent(event.EventMouseUp, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(up, path)
+
+	// In Kite, EventClick is synthesized by the engine's Synthesizer.
+	// Since we are using a raw Dispatcher here, we must dispatch it manually.
+	click := event.NewMouseEvent(event.EventClick, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	d.Dispatch(click, path)
+
 	if !clicked {
-		t.Error("clicked did not fire on MouseUp")
+		t.Error("clicked did not fire")
 	}
 }
 
