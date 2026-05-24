@@ -69,6 +69,9 @@ func NewDocument() Document {
 	d.AddEventListener(event.EventMouseDown, d.handleMouseDown)
 	d.AddEventListener(event.EventMouseMove, d.handleMouseMove)
 	d.AddEventListener(event.EventMouseUp, d.handleMouseUp)
+	d.AddEventListener(event.EventCopy, d.handleCopy)
+	d.AddEventListener(event.EventCut, d.handleCopy) // Cut also copies to clipboard
+	d.AddEventListener(event.EventPaste, d.handlePaste)
 
 	return d
 }
@@ -467,3 +470,44 @@ func (d *document) unregisterID(id string) {
 }
 
 func (d *document) asBase() *baseNode { return &d.baseNode }
+
+// --- Clipboard Handlers -----------------------------------------------------
+
+func (d *document) handleCopy(ev event.Event) {
+	ce, ok := ev.(*event.ClipboardEvent)
+	if !ok {
+		return
+	}
+
+	// If the event doesn't already have text (e.g. from a focused element's
+	// local selection), use the global document selection.
+	if _, hasText := ce.Items[event.MimeTextPlain]; !hasText {
+		if text := d.selection.String(); text != "" {
+			ce.Items[event.MimeTextPlain] = []byte(text)
+		}
+	}
+
+	// Synchronize to the system clipboard if a bridge is available.
+	if ce.Clipboard != nil {
+		if text := ce.Text(); text != "" {
+			ce.Clipboard.SetClipboard(text)
+		}
+	}
+}
+
+func (d *document) handlePaste(ev event.Event) {
+	ce, ok := ev.(*event.ClipboardEvent)
+	if !ok {
+		return
+	}
+
+	// If the items map is empty (e.g. a raw Ctrl+V that hasn't been handled
+	// by a terminal extension), populate text/plain from the system clipboard
+	// as a fallback.
+	if len(ce.Items) == 0 && ce.Clipboard != nil {
+		text := ce.Clipboard.GetClipboard()
+		if text != "" {
+			ce.Items[event.MimeTextPlain] = []byte(text)
+		}
+	}
+}

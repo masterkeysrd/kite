@@ -1,6 +1,7 @@
 package event
 
 import (
+	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/layout"
 )
 
@@ -13,10 +14,13 @@ type FocusReader interface {
 
 // ClipboardBridge provides access to the system clipboard.
 type ClipboardBridge interface {
-	// GetClipboard returns the current clipboard text content.
+	// GetClipboard returns the current cached clipboard text content.
 	GetClipboard() string
 	// SetClipboard stores text into the system clipboard.
 	SetClipboard(text string)
+	// RequestClipboard asks the terminal to send the current system clipboard
+	// content. The response is delivered asynchronously as an event.
+	RequestClipboard()
 }
 
 // SynthesizerOptions configures a Synthesizer.
@@ -119,78 +123,81 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 	var events []Event
 	events = append(events, ke)
 
+	isPaste := raw.MatchString("ctrl+v") || raw.MatchString("cmd+v") || raw.MatchString("alt+v") || ke.Code == key.CtrlV
+	isCopy := raw.MatchString("ctrl+c") || raw.MatchString("cmd+c") || raw.MatchString("alt+c") || ke.Code == key.CtrlC
+	isCut := raw.MatchString("ctrl+x") || raw.MatchString("cmd+x") || raw.MatchString("alt+x") || ke.Code == key.CtrlX
+
 	switch {
-	case raw.MatchString("ctrl+c"):
+	case isCopy:
 		if ce := s.synthesizeCopy(ke); ce != nil {
 			events = append(events, ce)
 		}
-	case raw.MatchString("ctrl+x"):
+	case isCut:
 		if ce := s.synthesizeCut(ke); ce != nil {
 			events = append(events, ce)
 		}
-	case raw.MatchString("ctrl+v"):
-		events = append(events, s.synthesizePasteFromClipboard())
+	case isPaste:
+		pe := s.synthesizePasteFromClipboard()
+		if pe != nil {
+			events = append(events, pe)
+			// If local cache is empty, explicitly request from terminal.
+			if pe.Text() == "" && s.clipboard != nil {
+				s.clipboard.RequestClipboard()
+			}
+		}
 	}
 
 	return events
 }
 
-// synthesizeCopy creates a ClipboardEvent{Copy} if the focused element has a
-// selection.
+// synthesizeCopy creates a ClipboardEvent{Copy}.
 func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
-	focused := s.focus.FocusedTarget()
-	if focused == nil {
-		return nil
+	ce := NewClipboardEvent(EventCopy, ClipboardCopy, s.clipboard)
+	if s.focus != nil {
+		focused := s.focus.FocusedTarget()
+		if focused != nil {
+			ce.setTarget(focused)
+			if sp, ok := focused.(SelectionProvider); ok {
+				text := sp.SelectedText()
+				if text != "" {
+					ce.Items["text/plain"] = []byte(text)
+				}
+			}
+		}
 	}
-	sp, ok := focused.(SelectionProvider)
-	if !ok {
-		return nil
-	}
-	text := sp.SelectedText()
-	if text == "" {
-		return nil
-	}
-	if s.clipboard != nil {
-		s.clipboard.SetClipboard(text)
-	}
-	ce := NewClipboardEvent(EventCopy, ClipboardCopy, text)
-	ce.setTarget(focused)
 	return ce
 }
 
-// synthesizeCut creates a ClipboardEvent{Cut} if the focused element has a
-// selection.
+// synthesizeCut creates a ClipboardEvent{Cut}.
 func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
-	focused := s.focus.FocusedTarget()
-	if focused == nil {
-		return nil
+	ce := NewClipboardEvent(EventCut, ClipboardCut, s.clipboard)
+	if s.focus != nil {
+		focused := s.focus.FocusedTarget()
+		if focused != nil {
+			ce.setTarget(focused)
+			if sp, ok := focused.(SelectionProvider); ok {
+				text := sp.SelectedText()
+				if text != "" {
+					ce.Items["text/plain"] = []byte(text)
+				}
+			}
+		}
 	}
-	sp, ok := focused.(SelectionProvider)
-	if !ok {
-		return nil
-	}
-	text := sp.SelectedText()
-	if text == "" {
-		return nil
-	}
-	if s.clipboard != nil {
-		s.clipboard.SetClipboard(text)
-	}
-	ce := NewClipboardEvent(EventCut, ClipboardCut, text)
-	ce.setTarget(focused)
 	return ce
 }
 
 // synthesizePasteFromClipboard creates a ClipboardEvent{Paste} from the
 // system clipboard.
 func (s *Synthesizer) synthesizePasteFromClipboard() *ClipboardEvent {
-	var data string
-	if s.clipboard != nil {
-		data = s.clipboard.GetClipboard()
-	}
-	ce := NewClipboardEvent(EventPaste, ClipboardPaste, data)
+	ce := NewClipboardEvent(EventPaste, ClipboardPaste, s.clipboard)
 	if s.focus != nil {
 		ce.setTarget(s.focus.FocusedTarget())
+	}
+	// Fallback for non-MIME terminals: eagerly pull plain text if available.
+	if s.clipboard != nil {
+		if text := s.clipboard.GetClipboard(); text != "" {
+			ce.Items["text/plain"] = []byte(text)
+		}
 	}
 	return ce
 }
@@ -276,13 +283,11 @@ func (s *Synthesizer) processBracketedPaste(raw *RawBracketedPaste) []Event {
 	if s.focus != nil {
 		pe.setTarget(s.focus.FocusedTarget())
 	}
-	ce := NewClipboardEvent(EventPaste, ClipboardPaste, raw.Text)
+	ce := NewClipboardEvent(EventPaste, ClipboardPaste, s.clipboard)
 	if s.focus != nil {
 		ce.setTarget(s.focus.FocusedTarget())
 	}
-	if s.clipboard != nil {
-		s.clipboard.SetClipboard(raw.Text)
-	}
+	ce.Items["text/plain"] = []byte(raw.Text)
 	return []Event{pe, ce}
 }
 

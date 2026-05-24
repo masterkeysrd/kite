@@ -95,9 +95,6 @@ func TestInput_IntrinsicStyle_Properties(t *testing.T) {
 	inp := element.Input("")
 	is := inp.IntrinsicStyle()
 
-	if !is.Display.IsSet() || is.Display.Value() != style.DisplayInlineBlock {
-		t.Errorf("IntrinsicStyle.Display = %v, want DisplayInlineBlock", is.Display)
-	}
 	if !is.OverflowX.IsSet() || is.OverflowX.Value() != style.OverflowClip {
 		t.Errorf("IntrinsicStyle.OverflowX = %v, want OverflowClip", is.OverflowX)
 	}
@@ -109,16 +106,15 @@ func TestInput_IntrinsicStyle_Properties(t *testing.T) {
 	}
 }
 
-// TestInput_IntrinsicStyle_ResistsAuthorOverride verifies that after an engine
-// frame, the resolved computed style reflects the intrinsic layer, not the
-// author's DisplayBlock override.
-func TestInput_IntrinsicStyle_ResistsAuthorOverride(t *testing.T) {
+// TestInput_AuthorStyle_OverridesDefault verifies that after an engine
+// frame, the resolved computed style reflects the author's DisplayBlock override.
+func TestInput_AuthorStyle_OverridesDefault(t *testing.T) {
 	b := mock.New(80, 5)
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
 	inp := element.Input("")
-	// Author attempts to set Display:Block — intrinsic layer must win.
+	// Author attempts to set Display:Block — should win over default InlineBlock.
 	inp.Style(style.Style{
 		Display: style.Some(style.DisplayBlock),
 	})
@@ -135,8 +131,8 @@ func TestInput_IntrinsicStyle_ResistsAuthorOverride(t *testing.T) {
 	if cs == nil {
 		t.Fatal("computed style is nil")
 	}
-	if cs.Display != style.DisplayInlineBlock {
-		t.Errorf("Display = %v, want DisplayInlineBlock (intrinsic must win)", cs.Display)
+	if cs.Display != style.DisplayBlock {
+		t.Errorf("Display = %v, want DisplayBlock", cs.Display)
 	}
 	if cs.OverflowX != style.OverflowClip {
 		t.Errorf("OverflowX = %v, want OverflowClip (intrinsic must win)", cs.OverflowX)
@@ -145,6 +141,33 @@ func TestInput_IntrinsicStyle_ResistsAuthorOverride(t *testing.T) {
 		t.Errorf("WhiteSpace = %v, want WhiteSpacePre (intrinsic must win)", cs.WhiteSpace)
 	}
 }
+
+// TestInput_HandlePaste verifies that dispatching a paste event inserts text
+// into the buffer.
+func TestInput_HandlePaste(t *testing.T) {
+	inp := element.Input("hello ")
+	// Manually dispatch a paste event.
+	cb := &mockClipboard{}
+	ce := event.NewClipboardEvent(event.EventPaste, event.ClipboardPaste, cb)
+	ce.Items["text/plain"] = []byte("world")
+
+	// Build path for dispatcher.
+	path := []event.EventTarget{inp}
+	d := event.NewDispatcher()
+	d.Dispatch(ce, path)
+
+	if got := inp.Value(); got != "hello world" {
+		t.Errorf("Value() after paste = %q, want %q", got, "hello world")
+	}
+}
+
+type mockClipboard struct {
+	data string
+}
+
+func (m *mockClipboard) GetClipboard() string     { return m.data }
+func (m *mockClipboard) SetClipboard(text string) { m.data = text }
+func (m *mockClipboard) RequestClipboard()        {}
 
 // ---------------------------------------------------------------------------
 // Unit: Focusable

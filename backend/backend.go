@@ -2,6 +2,7 @@ package backend
 
 import (
 	"image/color"
+	"io"
 
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
@@ -51,6 +52,10 @@ type Backend interface {
 	// Size returns the current dimensions of the backend's output area.
 	Size() layout.Size
 
+	// Writer returns the terminal's output writer. Used by terminal extensions
+	// to send initialization or protocol-specific sequences.
+	Writer() io.Writer
+
 	// ShowCursor sets the cursor visibility.
 	ShowCursor(bool)
 
@@ -63,7 +68,28 @@ type Backend interface {
 	// SetCursorColor sets the terminal hardware cursor color.
 	SetCursorColor(color.Color)
 
+	// GetClipboard returns the current clipboard text content.
+	GetClipboard() string
+	// SetClipboard stores text into the system clipboard.
+	SetClipboard(text string)
+	// RequestClipboard asks the terminal to send the current system clipboard
+	// content. The response is delivered asynchronously as an event.
+	RequestClipboard()
+
 	DumpState()
+}
+
+// TerminalExtension is implemented by terminal-specific protocol handlers
+// (e.g. Kitty advanced paste, graphics protocols).
+type TerminalExtension interface {
+	// Init is called once at backend startup. It should write any necessary
+	// initialization sequences (e.g. enabling DEC modes) to out.
+	Init(out io.Writer)
+
+	// HandleEvent intercepts a raw backend event. If the extension recognizes
+	// the event, it returns handled=true and an optional structured event
+	// to be dispatched.
+	HandleEvent(raw event.RawEvent) (handled bool, ev event.Event)
 }
 
 // MouseSupport describes the level of mouse event support available from the

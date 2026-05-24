@@ -341,24 +341,43 @@ const (
 	ClipboardPaste
 )
 
+const (
+	// MimeTextPlain is the standard MIME type for plain text.
+	MimeTextPlain = "text/plain"
+)
+
 // ClipboardEvent is dispatched for copy, cut, and paste clipboard operations.
-// ClipboardEvent does not bubble.
+// ClipboardEvent bubbles.
 type ClipboardEvent struct {
 	BaseEvent
 
 	// ClipType identifies whether this is a copy, cut, or paste.
 	ClipType ClipboardType
-	// Data is the clipboard text data involved.
-	Data string
+
+	// Items stores payloads keyed by their MIME type.
+	// Common keys include "text/plain".
+	Items map[string][]byte
+
+	// Clipboard provides access to the system clipboard.
+	Clipboard ClipboardBridge
 }
 
 // NewClipboardEvent creates a ClipboardEvent.
-func NewClipboardEvent(typ EventType, ct ClipboardType, data string) *ClipboardEvent {
+func NewClipboardEvent(typ EventType, ct ClipboardType, clipboard ClipboardBridge) *ClipboardEvent {
 	return &ClipboardEvent{
-		BaseEvent: BaseEvent{typ: typ, bubbles: false},
+		BaseEvent: BaseEvent{typ: typ, bubbles: true},
 		ClipType:  ct,
-		Data:      data,
+		Items:     make(map[string][]byte),
+		Clipboard: clipboard,
 	}
+}
+
+// Text returns the "text/plain" item as a string, or an empty string if not present.
+func (c *ClipboardEvent) Text() string {
+	if data, ok := c.Items[MimeTextPlain]; ok {
+		return string(data)
+	}
+	return ""
 }
 
 // Scrollable is implemented by render objects that handle wheel event.
@@ -439,6 +458,14 @@ type RawBracketedPaste struct {
 }
 
 func (RawBracketedPaste) isRawEvent() {}
+
+// RawOscEvent is a raw OSC sequence.
+type RawOscEvent struct {
+	Code int
+	Data string
+}
+
+func (RawOscEvent) isRawEvent() {}
 
 // RawUnknownEvent is a catch-all for backend event that the engine does not
 // recognize or handle explicitly.

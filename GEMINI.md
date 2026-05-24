@@ -52,6 +52,8 @@ Kite is a modern, high-performance DOM-like terminal UI framework for Go. It bri
 *   **Styling:** Use `style.Some(val)` for sparse definitions. Intrinsic UA styles belong in `IntrinsicStyle()`.
 *   **Identity:** Respect the `outer` back-pointer for stable element identity.
 *   **Iterators:** Use `iter.Seq[T]` for collection traversal (Go 1.24+ feature).
+*   **Clipboard:** Use `event.ClipboardEvent.Items` for multi-MIME data. Always allow paste events to bubble for global feedback unless specific data negotiation is required. Use the `ClipboardBridge` via the backend for OSC 52 system synchronization.
+*   **Extensions:** Implement `backend.TerminalExtension` for terminal-specific protocols. Intercept raw sequences in `HandleEvent` and emit high-level framework events.
 *   **Interface Guards:** Mandatory `var _ Interface = (*Concrete)(nil)` for all public implementors.
 
 ### 3. Testing Standards

@@ -83,7 +83,6 @@ func Install(eng *engine.Engine, opts Options) error {
 				return
 			}
 
-			slog.Info("devtools: key event received", "key", ke.Key, "code", ke.Code)
 			if !ke.MatchString(inspectorHotkey) {
 				return
 			}

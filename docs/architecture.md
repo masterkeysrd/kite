@@ -66,7 +66,7 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Responsibility:** Dispatching semantic interactions and input routing.
 - **Event Coalescing:** The engine decouples raw input arrival from DOM dispatch. Incoming events are buffered and coalesced per-frame (e.g., squashing intermediate mouse movements, summing fast scroll wheel deltas) to guarantee UI resilience under high-frequency inputs (ADR-015).
 - **Phases:** Advanced dispatcher supporting Capture, Target, and Bubble phases.
-- **Synthesizer:** Translates raw terminal input (e.g., from Charmbracelet's `ultraviolet`) into semantic events (like key combinations or clicks).
+- **Synthesizer:** Translates raw terminal input (e.g., from Charmbracelet's `ultraviolet`) into semantic events (like key combinations or clicks). Supports multi-MIME rich data (e.g., images) by delegating complex handshakes to terminal extensions.
 
 ### 3.6. Focus & Spatial Navigation (`/focus`)
 - **Responsibility:** Managing interaction focus state.
@@ -81,7 +81,7 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Scrollbar Rendering:** If an element is a scroll container and its `ComputedStyle.Scrollbar.X/Y` is true, the layout phase reserves a 1-column/row gutter. The paint phase automatically computes the viewport-to-content ratio and draws a customizable scrollbar track and thumb in that reserved gutter.
 - **Selection Masking:** The paint context accepts a pre-calculated list of selection bounding rectangles. When rendering cells, it acts as an overlay mask, inverting or restyling colors for any cell that intersects a selection rect.
 - **Border Post-Processing:** To automatically form correct Unicode junctions (e.g., `┼`, `├`) without manual coordinate math in layout, the `PaintEngine` runs a global $O(W \times H)$ post-processing pass over the framebuffer. Every cell explicitly tagged as a border is resolved against its cardinal neighbors. Junction merging for overlapping borders of varying weights is handled via a strict "Heaviest Style Wins" precedence rule (using an explicit `BorderStyle` enum stored per-cell). The resolver runs once on the root surface only; it must never be invoked on a clipped sub-surface.
-- **Backend:** Decouples Kite from the actual terminal emulator. Implementations include an `ultraviolet` backend for real terminals and a `mock` backend for test environments.
+- **Backend:** Decouples Kite from the actual terminal emulator. Implementations include an `ultraviolet` backend for real terminals and a `mock` backend for test environments. The backend exposes a `ClipboardBridge` for system clipboard synchronization.
 
 ### 3.8. Developer Tools (`/devtools`)
 - **Responsibility:** Provide utilities to inspect, test, and debug Kite applications without bloating the core runtime.
@@ -110,3 +110,15 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Memoization:** Like the React Compiler, `kitex` utilizes an automatic, Just-In-Time (JIT) memoization architecture. Components calculate their structural complexity bottom-up during allocation. When a component's complexity exceeds a safe threshold, the engine automatically memoizes it, bypassing future `RenderFn` executions and reconciliation passes by performing a depth-limited reflection check (`deepEqualProps`) on properties. An explicit `UseMemo` hook is also available.
 - **Reconciliation:** On state change, the component re-executes. A VDOM diffing engine compares the new lightweight tree against the previous frame and generates a minimal set of imperative patches (mutations) to the underlying logical `dom.Node` tree.
 - **VDOM Primitives:** The `kitex` package defines lightweight, fully-typed VDOM representations (e.g., `kitex.Button(kitex.ButtonProps{...})`) that map 1:1 to the real, heavy DOM nodes in the root `element` package. The reconciler translates these VDOM nodes into imperative updates on the underlying `element` nodes.
+
+### 3.12. Clipboard System
+- **Responsibility:** Managing global text selection and synchronizing data with the system clipboard.
+- **Multi-MIME Data:** The `event.ClipboardEvent` follows a `DataTransfer`-like model, carrying a map of payloads keyed by MIME type (e.g., `text/plain`, `image/png`). This allows components to negotiate their preferred data format during a paste.
+- **Global Integration:** The `dom.Document` acts as a central coordinator. If a focused element does not handle a copy/paste event, the Document falls back to the global `dom.Selection` to ensure seamless system-wide synchronization.
+- **System Sync:** Uses the **OSC 52** escape sequence in supported backends to securely read from and write to the system clipboard across local and remote (SSH) sessions without external dependencies.
+
+### 3.13. Terminal Extensions (`/backend` & `/internal/term`)
+- **Responsibility:** Providing a pluggable architecture for terminal-specific protocols (e.g., advanced graphics, secure transfers).
+- **Architecture:** The `backend.TerminalExtension` interface allows packages to intercept raw terminal sequences before they reach the main event loop. Extensions can perform multi-step handshakes (like Kitty's OSC 5522) and emit high-level framework events.
+- **Initialization:** The `Engine` initializes registered extensions immediately after the backend starts, providing them direct access to the terminal's raw output writer for protocol negotiation.
+- **Kitty Integration:** Includes a first-class extension for the **Kitty Secure Clipboard Transfer** protocol, enabling rich image and multi-format text pasting through a secure password-protected handshake.

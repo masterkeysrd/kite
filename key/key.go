@@ -42,7 +42,7 @@ func keyMatchString(k Key, s string) bool {
 		text string
 	)
 
-	for part := range strings.SplitSeq(s, "+") {
+	for _, part := range strings.Split(s, "+") {
 		switch {
 		case strings.EqualFold(part, "ctrl"):
 			mod |= ModCtrl
@@ -52,7 +52,7 @@ func keyMatchString(k Key, s string) bool {
 			mod |= ModShift
 		case strings.EqualFold(part, "meta"):
 			mod |= ModMeta
-		case strings.EqualFold(part, "super"):
+		case strings.EqualFold(part, "super") || strings.EqualFold(part, "cmd"):
 			mod |= ModSuper
 		case strings.EqualFold(part, "hyper"):
 			mod |= ModHyper
@@ -592,4 +592,9 @@ const (
 	// Special names in G0.
 
 	KeySpace = rune(0x20)
+
+	// ASCII Control Codes (C0)
+	CtrlC = rune(0x03) // ETX (End of Text)
+	CtrlV = rune(0x16) // SYN (Synchronous Idle)
+	CtrlX = rune(0x18) // CAN (Cancel)
 )

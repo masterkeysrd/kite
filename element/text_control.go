@@ -249,6 +249,22 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 func (b *textControlBase[T]) wireTextControlEvents() {
 	b.host.AddEventListener(event.EventKeyDown, b.handleKeyDown)
 	b.host.AddEventListener(event.EventMouseDown, b.handleMouseDown)
+	b.host.AddEventListener(event.EventPaste, b.handlePaste)
+}
+
+// handlePaste handles an EventPaste by inserting the plain text data into the
+// buffer at the current cursor position.
+func (b *textControlBase[T]) handlePaste(ev event.Event) {
+	ce, ok := ev.(*event.ClipboardEvent)
+	if !ok {
+		return
+	}
+
+	text := ce.Text()
+	if text != "" {
+		b.buf.Insert(text)
+		b.syncCallback()
+	}
 }
 
 // handleMouseDown handles a left-button mouse-down event, translating the

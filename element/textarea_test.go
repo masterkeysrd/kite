@@ -31,9 +31,6 @@ func TestTextArea_IntrinsicStyle_Properties(t *testing.T) {
 	txa := element.TextArea("")
 	is := txa.IntrinsicStyle()
 
-	if !is.Display.IsSet() || is.Display.Value() != style.DisplayInlineBlock {
-		t.Errorf("IntrinsicStyle.Display = %v, want DisplayInlineBlock", is.Display)
-	}
 	if !is.OverflowY.IsSet() || is.OverflowY.Value() != style.OverflowAuto {
 		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowAuto", is.OverflowY)
 	}
@@ -45,6 +42,31 @@ func TestTextArea_IntrinsicStyle_Properties(t *testing.T) {
 	}
 	if is.WhiteSpace.IsSet() {
 		t.Errorf("IntrinsicStyle.WhiteSpace should not be forced, got %v", is.WhiteSpace)
+	}
+}
+
+func TestTextArea_AuthorStyle_OverridesDisplay(t *testing.T) {
+	b := mock.New(80, 10)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	txa := element.TextArea("")
+	// Author attempts to set Display:Block — should win over default InlineBlock.
+	txa.Style(style.Style{
+		Display: style.Some(style.DisplayBlock),
+	})
+
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	ro := txa.RenderObject()
+	if ro == nil {
+		t.Fatal("no render object")
+	}
+	cs := ro.ComputedStyle()
+	if cs.Display != style.DisplayBlock {
+		t.Errorf("Display = %v, want DisplayBlock", cs.Display)
 	}
 }
 

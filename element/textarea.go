@@ -60,7 +60,6 @@ var (
 // Note: WhiteSpace is NOT pre-wrap here because the <br> model handles line
 // breaks via BrElement rather than \n characters in text nodes.
 var intrinsicTextAreaStyle = style.Style{
-	Display:      style.Some(style.DisplayInlineBlock),
 	OverflowX:    style.Some(style.OverflowClip),
 	OverflowY:    style.Some(style.OverflowAuto),
 	OverflowWrap: style.Some(style.OverflowWrapBreakWord),
@@ -68,6 +67,7 @@ var intrinsicTextAreaStyle = style.Style{
 
 // defaultTextAreaStyle holds the author-overridable defaults for a textarea.
 var defaultTextAreaStyle = style.Style{
+	Display:   style.Some(style.DisplayInlineBlock),
 	Width:     style.Some(style.Cells(20)),
 	Height:    style.Some(style.Cells(5)),
 	Padding:   style.Some(style.EdgeValues[int]{}),

@@ -1,8 +1,10 @@
 package uv
 
 import (
+	"encoding/base64"
 	"fmt"
 	"image/color"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -80,8 +82,32 @@ type Backend struct {
 	// concurrent modifications from the render loop.
 	block sync.Mutex
 
+	lastClipboard string
+
 	fbPool sync.Pool
 }
+
+const (
+	// Terminal escape headers.
+	escOSC = "\x1b]"
+	escCSI = "\x1b["
+	escST  = "\x1b\\"
+
+	// OSC Codes.
+	oscBackground = 11
+	oscClipboard  = 52
+
+	// Protocol templates.
+	seqSetClipboard     = escOSC + "52;c;%s" + escST
+	seqRequestClipboard = escOSC + "52;c;?" + escST
+
+	// Internal event prefixes.
+	prefixCSI = "CSI:"
+	prefixDCS = "DCS:"
+	prefixAPC = "APC:"
+	prefixUNK = "UNK:"
+	prefixBGC = "BGC:"
+)
 
 // New creates a UV backend using the default controlling terminal.
 func New() (*Backend, error) {
@@ -215,6 +241,32 @@ func (b *Backend) Resize(size layout.Size) {
 // Size returns the current terminal size.
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
 
+// Writer returns the terminal output writer (the backend itself).
+func (b *Backend) Writer() io.Writer { return b }
+
+func (b *Backend) GetClipboard() string {
+	return b.lastClipboard
+}
+
+func (b *Backend) SetClipboard(text string) {
+	b.lastClipboard = text
+	data := base64.StdEncoding.EncodeToString([]byte(text))
+	// Write OSC 52 sequence to set clipboard.
+	b.writeRaw(fmt.Sprintf(seqSetClipboard, data))
+}
+
+func (b *Backend) RequestClipboard() {
+	b.writeRaw(seqRequestClipboard)
+}
+
+func (b *Backend) writeRaw(s string) {
+	b.Write([]byte(s))
+}
+
+func (b *Backend) Write(p []byte) (n int, err error) {
+	return b.terminal.Write(p)
+}
+
 func (b *Backend) ShowCursor(v bool) {
 	b.cursorState.Visible = v
 }
@@ -315,7 +367,6 @@ func (b *Backend) renderFrame(req renderRequest) {
 	defer b.fbPool.Put(req.fb)
 
 	fb := req.fb
-	slog.Info("uv: renderFrame started", "width", fb.Bounds().Size.Width, "height", fb.Bounds().Size.Height)
 	bounds := fb.Bounds()
 	if bounds.Size.Width <= 0 || bounds.Size.Height <= 0 {
 		slog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", bounds.Size.Width, "height", bounds.Size.Height)

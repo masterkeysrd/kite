@@ -170,6 +170,9 @@ type Engine struct {
 	// onStopHooks are called when the engine is stopping.
 	onStopHooks []func()
 
+	// extensions are terminal-specific protocol handlers.
+	extensions []backend.TerminalExtension
+
 	// eventBuffer holds raw events to be processed before the next frame.
 	eventBuffer []event.RawEvent
 
@@ -212,6 +215,8 @@ type Options struct {
 	ShutdownTimeout time.Duration
 	// Profiler enables the high-level phase profiling and deep-tree tracing.
 	Profiler bool
+	// Extensions are terminal-specific protocol handlers.
+	Extensions []backend.TerminalExtension
 }
 
 // New creates an Engine configured with the given backend and options.
@@ -267,6 +272,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		closeCh:           make(chan struct{}),
 		wheelMap:          make(map[event.EventTarget]*event.WheelEvent),
 		pipeline:          &StandardPipeline{},
+		extensions:        opts.Extensions,
 	}
 
 	e.dispatcher = event.NewDispatcher()
@@ -282,6 +288,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.document.SetFocusManager(e.focusManager)
 	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
+		Clipboard:          b,
 	})
 
 	if opts.Profiler {
@@ -1135,6 +1142,15 @@ func (e *Engine) Run(ctx context.Context) error {
 	if err := e.backend.Start(); err != nil {
 		return err
 	}
+
+	// Initialize terminal extensions.
+	writer := e.backend.Writer()
+	slog.Info("engine: initializing terminal extensions", "count", len(e.extensions))
+	for i, ext := range e.extensions {
+		slog.Info("engine: initializing extension", "index", i, "type", fmt.Sprintf("%T", ext))
+		ext.Init(writer)
+	}
+
 	// Restore terminal state when leaving run loop
 	defer e.backend.Restore()
 	defer e.Stop()
@@ -1186,7 +1202,21 @@ func (e *Engine) drainEvents() {
 	// 2. Synthesize coalesced raw events into structured events.
 	e.structuredBuf = e.structuredBuf[:0]
 	for _, raw := range rawCoalesced {
-		e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
+		handledByExt := false
+		for _, ext := range e.extensions {
+			if handled, ev := ext.HandleEvent(raw); handled {
+				slog.Debug("engine: event handled by extension", "event_type", fmt.Sprintf("%T", raw), "ext_type", fmt.Sprintf("%T", ext))
+				if ev != nil {
+					e.structuredBuf = append(e.structuredBuf, ev)
+				}
+				handledByExt = true
+				break
+			}
+		}
+
+		if !handledByExt {
+			e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
+		}
 	}
 
 	// 3. Coalesce structured events (handles wheel aggregation per target).
@@ -1316,8 +1346,14 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 		e.handleResize(evt)
 	default:
 		// For generic events (paste, etc), dispatch to focused element.
-		if focused := e.focusManager.Current(); focused != nil {
-			path := nodeAncestorPath(focused)
+		target := e.focusManager.Current()
+		if target == nil {
+			// Fallback to document for global events.
+			target = e.document
+		}
+
+		if target != nil {
+			path := nodeAncestorPath(target)
 			e.dispatcher.Dispatch(ev, path)
 		}
 	}

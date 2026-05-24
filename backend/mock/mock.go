@@ -1,7 +1,9 @@
 package mock
 
 import (
+	"bytes"
 	"image/color"
+	"io"
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/cursor"
@@ -46,6 +48,11 @@ type Backend struct {
 
 	// Cursor is the most recent cursor state set via the backend methods.
 	Cursor CursorRecord
+
+	// Output captures all raw sequences written to the backend via Writer().
+	Output bytes.Buffer
+
+	clipboard string
 
 	current *paint.FrameBuffer
 }
@@ -120,6 +127,19 @@ func (b *Backend) Resize(size layout.Size) {
 
 // Size returns the simulated dimensions.
 func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
+
+// Writer returns the mock output buffer.
+func (b *Backend) Writer() io.Writer { return &b.Output }
+
+func (b *Backend) GetClipboard() string {
+	return b.clipboard
+}
+
+func (b *Backend) SetClipboard(text string) {
+	b.clipboard = text
+}
+
+func (b *Backend) RequestClipboard() {}
 
 func (b *Backend) ShowCursor(v bool)             { b.Cursor.Visible = v }
 func (b *Backend) SetCursorPos(x, y int)         { b.Cursor.X, b.Cursor.Y = x, y }

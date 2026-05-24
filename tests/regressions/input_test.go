@@ -48,14 +48,14 @@ func TestInput_Regression_PublicChildrenEmpty(t *testing.T) {
 
 // TestInput_Regression_IntrinsicStyleWins verifies that after an engine frame
 // the computed style for the input reflects the UA-forced properties even when
-// the author sets conflicting values.
+// the author sets conflicting values. Display is NOT intrinsic and can be overridden.
 func TestInput_Regression_IntrinsicStyleWins(t *testing.T) {
 	b := mock.New(80, 5)
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
 	inp := element.Input("hi")
-	// Author attempts Display:Block — intrinsic InlineBlock must win.
+	// Author attempts Display:Block — should now win over default InlineBlock.
 	inp.Style(style.Style{
 		Display:   style.Some(style.DisplayBlock),
 		OverflowX: style.Some(style.OverflowVisible), // must lose to intrinsic Clip
@@ -73,8 +73,8 @@ func TestInput_Regression_IntrinsicStyleWins(t *testing.T) {
 	if cs == nil {
 		t.Fatal("computed style is nil")
 	}
-	if cs.Display != style.DisplayInlineBlock {
-		t.Errorf("Display = %v, want DisplayInlineBlock (intrinsic must win)", cs.Display)
+	if cs.Display != style.DisplayBlock {
+		t.Errorf("Display = %v, want DisplayBlock", cs.Display)
 	}
 	if cs.OverflowX != style.OverflowClip {
 		t.Errorf("OverflowX = %v, want OverflowClip (intrinsic must win)", cs.OverflowX)

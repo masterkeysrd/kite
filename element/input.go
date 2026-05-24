@@ -72,7 +72,6 @@ var (
 // intrinsicInputStyle is the UA-mandated style shared by all InputElement
 // instances. Set once at package init; never mutated.
 var intrinsicInputStyle = style.Style{
-	Display:    style.Some(style.DisplayInlineBlock),
 	OverflowX:  style.Some(style.OverflowClip),
 	OverflowY:  style.Some(style.OverflowClip),
 	WhiteSpace: style.Some(style.WhiteSpacePre),
@@ -84,6 +83,7 @@ var intrinsicInputStyle = style.Style{
 // terminal height for a single-line bordered field. Hard-coding Height(1)
 // would cap the outer box at 1 cell and crush the border rows.
 var defaultInputStyle = style.Style{
+	Display: style.Some(style.DisplayInlineBlock),
 	Width:   style.Some(style.Cells(20)),
 	Padding: style.Some(style.EdgeValues[int]{}),
 }
