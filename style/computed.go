@@ -44,6 +44,11 @@ type Computed struct {
 	Strikethrough bool        `json:"strikethrough"`
 	Reverse       bool        `json:"reverse"`
 
+	// --- Selection ------------------------------------------------------------
+
+	SelectionForeground color.Color `json:"selectionForeground"`
+	SelectionBackground color.Color `json:"selectionBackground"`
+
 	// --- Text -----------------------------------------------------------------
 
 	TextAlign    TextAlign    `json:"textAlign"`
@@ -123,6 +128,8 @@ func (c *Computed) AffectsPaint(other *Computed) bool {
 		c.Underline != other.Underline ||
 		c.Strikethrough != other.Strikethrough ||
 		c.Reverse != other.Reverse ||
+		c.SelectionForeground != other.SelectionForeground ||
+		c.SelectionBackground != other.SelectionBackground ||
 		c.Scrollbar.TrackGlyph != other.Scrollbar.TrackGlyph ||
 		c.Scrollbar.TrackColor != other.Scrollbar.TrackColor ||
 		c.Scrollbar.ThumbGlyph != other.Scrollbar.ThumbGlyph ||

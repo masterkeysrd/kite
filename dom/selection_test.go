@@ -1,8 +1,8 @@
 package dom
 
 import (
-	"testing"
 	"github.com/masterkeysrd/kite/event"
+	"testing"
 )
 
 func TestRange_String(t *testing.T) {
@@ -16,7 +16,7 @@ func TestRange_String(t *testing.T) {
 	div.AppendChild(t2)
 
 	r := &rangeImpl{doc: doc}
-	
+
 	// Case 1: Within same text node
 	r.SetStart(t1, 0)
 	r.SetEnd(t1, 5)
@@ -59,7 +59,7 @@ func TestRange_String_Elements(t *testing.T) {
 	doc.AppendChild(div)
 
 	r := &rangeImpl{doc: doc}
-	
+
 	// Range from div start to child index 2 (before s3)
 	r.SetStart(div, 0)
 	r.SetEnd(div, 2)
@@ -79,7 +79,7 @@ func TestSelection_Events(t *testing.T) {
 	sel := doc.Selection()
 	r := &rangeImpl{doc: doc}
 	r.SetStart(doc, 0) // Should trigger change via notifyChange -> sel.changed
-	
+
 	if fired == 0 {
 		t.Error("expected selectionchange event to fire on SetStart")
 	}

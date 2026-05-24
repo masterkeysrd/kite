@@ -6,7 +6,8 @@ import (
 
 // Context carries state and utilities through the paint tree.
 type Context struct {
-	Tracer *trace.Tracer
+	Tracer    *trace.Tracer
+	Selection []SelectionRect
 }
 
 // Begin is a helper to start a trace span.

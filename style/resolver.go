@@ -11,44 +11,46 @@ import "image/color"
 type Property uint8
 
 const (
-	PropDisplay        Property = iota
-	PropFlexDirection           //nolint:revive
-	PropFlexWrap                //nolint:revive
-	PropJustifyContent          //nolint:revive
-	PropAlignItems              //nolint:revive
-	PropAlignContent            //nolint:revive
-	PropAlignSelf               //nolint:revive
-	PropGap                     //nolint:revive
-	PropFlex                    //nolint:revive
-	PropOrder                   //nolint:revive
-	PropWidth                   //nolint:revive
-	PropHeight                  //nolint:revive
-	PropMinWidth                //nolint:revive
-	PropMaxWidth                //nolint:revive
-	PropMinHeight               //nolint:revive
-	PropMaxHeight               //nolint:revive
-	PropPadding                 //nolint:revive
-	PropMargin                  //nolint:revive
-	PropBorder                  //nolint:revive
-	PropForeground              //nolint:revive
-	PropBackground              //nolint:revive
-	PropBold                    //nolint:revive
-	PropItalic                  //nolint:revive
-	PropUnderline               //nolint:revive
-	PropStrikethrough           //nolint:revive
-	PropReverse                 //nolint:revive
-	PropTextAlign               //nolint:revive
-	PropTextWrap                //nolint:revive
-	PropTextOverflow            //nolint:revive
-	PropWhiteSpace              //nolint:revive
-	PropWordBreak               //nolint:revive
-	PropOverflowWrap            //nolint:revive
-	PropOverflowX               //nolint:revive
-	PropOverflowY               //nolint:revive
-	PropListStyleType           //nolint:revive
-	PropCursorShape             //nolint:revive
-	PropCursorColor             //nolint:revive
-	PropScrollbar               //nolint:revive
+	PropDisplay             Property = iota
+	PropFlexDirection                //nolint:revive
+	PropFlexWrap                     //nolint:revive
+	PropJustifyContent               //nolint:revive
+	PropAlignItems                   //nolint:revive
+	PropAlignContent                 //nolint:revive
+	PropAlignSelf                    //nolint:revive
+	PropGap                          //nolint:revive
+	PropFlex                         //nolint:revive
+	PropOrder                        //nolint:revive
+	PropWidth                        //nolint:revive
+	PropHeight                       //nolint:revive
+	PropMinWidth                     //nolint:revive
+	PropMaxWidth                     //nolint:revive
+	PropMinHeight                    //nolint:revive
+	PropMaxHeight                    //nolint:revive
+	PropPadding                      //nolint:revive
+	PropMargin                       //nolint:revive
+	PropBorder                       //nolint:revive
+	PropForeground                   //nolint:revive
+	PropBackground                   //nolint:revive
+	PropBold                         //nolint:revive
+	PropItalic                       //nolint:revive
+	PropUnderline                    //nolint:revive
+	PropStrikethrough                //nolint:revive
+	PropReverse                      //nolint:revive
+	PropTextAlign                    //nolint:revive
+	PropTextWrap                     //nolint:revive
+	PropTextOverflow                 //nolint:revive
+	PropWhiteSpace                   //nolint:revive
+	PropWordBreak                    //nolint:revive
+	PropOverflowWrap                 //nolint:revive
+	PropOverflowX                    //nolint:revive
+	PropOverflowY                    //nolint:revive
+	PropListStyleType                //nolint:revive
+	PropCursorShape                  //nolint:revive
+	PropCursorColor                  //nolint:revive
+	PropScrollbar                    //nolint:revive
+	PropSelectionForeground          //nolint:revive
+	PropSelectionBackground          //nolint:revive
 )
 
 // Inheritable returns the set of properties that are inherited from a parent
@@ -62,19 +64,21 @@ const (
 // ListStyleType.
 func Inheritable() map[Property]bool {
 	return map[Property]bool{
-		PropForeground:    true,
-		PropBold:          true,
-		PropItalic:        true,
-		PropUnderline:     true,
-		PropStrikethrough: true,
-		PropTextWrap:      true,
-		PropTextOverflow:  true,
-		PropWhiteSpace:    true,
-		PropWordBreak:     true,
-		PropOverflowWrap:  true,
-		PropListStyleType: true,
-		PropCursorShape:   true,
-		PropCursorColor:   true,
+		PropForeground:          true,
+		PropBold:                true,
+		PropItalic:              true,
+		PropUnderline:           true,
+		PropStrikethrough:       true,
+		PropTextWrap:            true,
+		PropTextOverflow:        true,
+		PropWhiteSpace:          true,
+		PropWordBreak:           true,
+		PropOverflowWrap:        true,
+		PropListStyleType:       true,
+		PropCursorShape:         true,
+		PropCursorColor:         true,
+		PropSelectionForeground: true,
+		PropSelectionBackground: true,
 	}
 }
 
@@ -135,8 +139,10 @@ func DefaultStyle() Computed {
 		Scrollbar: Scrollbar{},
 
 		// Cursor ---------------------------------------------------------------
-		CursorShape: CursorShapeBlockBlink,
-		CursorColor: TerminalDefault,
+		CursorShape:         CursorShapeBlockBlink,
+		CursorColor:         TerminalDefault,
+		SelectionForeground: nil, // fallback to inversion
+		SelectionBackground: nil, // fallback to inversion
 	}
 }
 
@@ -276,6 +282,8 @@ func (r *Resolver) Resolve(elem StyleNode, parent *Computed) *Computed {
 		}
 		c.CursorShape = parent.CursorShape
 		c.CursorColor = parent.CursorColor
+		c.SelectionForeground = parent.SelectionForeground
+		c.SelectionBackground = parent.SelectionBackground
 	}
 
 	// Layer 4: element's own author-set style — Optional fields only when IsSet.

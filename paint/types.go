@@ -82,3 +82,10 @@ type Cell struct {
 	// BorderStyle indicates the type of border glyph in this cell.
 	BorderStyle BorderStyle
 }
+
+// SelectionRect represents a physical rectangle of selected content.
+type SelectionRect struct {
+	Rect layout.Rect
+	FG   color.Color
+	BG   color.Color
+}

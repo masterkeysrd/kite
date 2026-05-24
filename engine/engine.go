@@ -1505,6 +1505,97 @@ func (e *Engine) handleResize(ev *event.ResizeEvent) {
 	e.RequestFrame()
 }
 
+func (e *Engine) resolveSelection() []paint.SelectionRect {
+	sel := e.document.Selection()
+	if sel == nil || sel.RangeCount() == 0 {
+		return nil
+	}
+	root := e.renderView.Fragment()
+	if root == nil {
+		return nil
+	}
+
+	nodeOrder := e.computeNodeOrder()
+	source := &selectionSourceAdapter{sel: sel}
+	rs := render.ResolveSelection(root, source, nodeOrder)
+	if len(rs) == 0 {
+		return nil
+	}
+	ps := make([]paint.SelectionRect, len(rs))
+	for i, r := range rs {
+		ps[i] = paint.SelectionRect{
+			Rect: r.Rect,
+			FG:   r.FG,
+			BG:   r.BG,
+		}
+	}
+	return ps
+}
+
+func (e *Engine) computeNodeOrder() map[any]int {
+	order := make(map[any]int)
+	count := 0
+	var walk func(dom.Node)
+	walk = func(n dom.Node) {
+		if n == nil {
+			return
+		}
+
+		// Consistently unwrap to the canonical base node for identity.
+		identity := any(n)
+		curr := n
+		for {
+			if u := curr.Unwrap(); u != nil && u != curr {
+				curr = u
+				identity = u
+				continue
+			}
+			break
+		}
+
+		if _, ok := order[identity]; !ok {
+			order[identity] = count
+			count++
+		}
+
+		for child := range dom.LayoutChildren(n) {
+			walk(child)
+		}
+	}
+	walk(e.document)
+	return order
+}
+
+type selectionSourceAdapter struct {
+	sel dom.Selection
+}
+
+func (a *selectionSourceAdapter) RangeCount() int {
+	return a.sel.RangeCount()
+}
+
+func (a *selectionSourceAdapter) GetRangeAt(idx int) render.SelectionRange {
+	r := a.sel.GetRangeAt(idx)
+	if r == nil {
+		return nil
+	}
+	return &selectionRangeAdapter{r: r}
+}
+
+type selectionRangeAdapter struct {
+	r dom.Range
+}
+
+func (a *selectionRangeAdapter) StartContainerAny() any {
+	return a.r.StartContainer()
+}
+func (a *selectionRangeAdapter) EndContainerAny() any {
+	return a.r.EndContainer()
+}
+func (a *selectionRangeAdapter) StartOffset() int  { return a.r.StartOffset() }
+func (a *selectionRangeAdapter) EndOffset() int    { return a.r.EndOffset() }
+func (a *selectionRangeAdapter) IsCollapsed() bool { return a.r.IsCollapsed() }
+
 func (e *Engine) handleDefaultKeyAction(ev *event.KeyEvent) {
 	// Tab navigation, etc.
 	switch {

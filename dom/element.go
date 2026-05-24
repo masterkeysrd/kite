@@ -199,7 +199,7 @@ func (e *element) GetBoundingClientRect() (layout.Rect, bool) {
 	}
 
 	// Traverse up to find the root node (usually the Document).
-	var root Node = e.self
+	var root = e.self
 	for p := root.Parent(); p != nil; {
 		root = p
 		p = root.Parent()

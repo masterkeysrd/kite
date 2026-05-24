@@ -101,14 +101,24 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		}
 	}
 
-	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+	// Always update selection if it might have changed.
+	// For now, we update it if any paint is needed.
+	// Selection change itself doesn't (yet) mark paint dirty automatically.
+	// We might need to add that to selectionImpl.changed().
+	selection := e.resolveSelection()
+
+	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 || len(selection) > 0 {
 		surface := e.backend.BeginFrame()
-		ctx := &paint.Context{Tracer: e.Tracer()}
+		ctx := &paint.Context{
+			Tracer:    e.Tracer(),
+			Selection: selection,
+		}
 		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), surface)
 		for _, overlay := range overlays {
 			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), surface)
 		}
 		e.paintEngine.ResolveBorders(ctx, surface)
+		e.paintEngine.ApplySelection(surface, ctx.Selection)
 
 		if err := e.backend.EndFrame(); err != nil {
 			// error logging is handled in Engine.Frame if we wanted,

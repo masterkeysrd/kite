@@ -329,6 +329,9 @@ type Document interface {
 	// position.
 	Selection() Selection
 
+	// CreateRange creates a new Range for this document.
+	CreateRange() Range
+
 	// FocusManager returns the focus manager for this document.
 	// Typed as any to avoid import cycle with the focus package.
 	FocusManager() any

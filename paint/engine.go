@@ -61,6 +61,48 @@ func (p *PaintEngine) Paint(ctx *Context, frag *layout.Fragment, surface Surface
 	p.borderPoints = p.borderPoints[:0]
 	p.PaintFragment(ctx, frag, layout.Point{}, surface)
 	p.ResolveBorders(ctx, surface)
+
+	var selection []SelectionRect
+	if ctx != nil {
+		selection = ctx.Selection
+	}
+	p.applySelection(surface, selection)
+}
+
+func (p *PaintEngine) ApplySelection(surface Surface, selection []SelectionRect) {
+	p.applySelection(surface, selection)
+}
+
+func (p *PaintEngine) applySelection(surface Surface, selection []SelectionRect) {
+	if len(selection) == 0 {
+		return
+	}
+
+	bounds := surface.Bounds()
+	for _, sr := range selection {
+		// Intersect with surface bounds
+		rect := sr.Rect.Intersect(bounds)
+		if rect.Size.Width <= 0 || rect.Size.Height <= 0 {
+			continue
+		}
+
+		for y := rect.Origin.Y; y < rect.Origin.Y+rect.Size.Height; y++ {
+			for x := rect.Origin.X; x < rect.Origin.X+rect.Size.Width; x++ {
+				cell := surface.CellAt(x, y)
+				if sr.FG != nil || sr.BG != nil {
+					if sr.FG != nil {
+						cell.FG = sr.FG
+					}
+					if sr.BG != nil {
+						cell.BG = sr.BG
+					}
+				} else {
+					cell.Attrs |= AttrInverse
+				}
+				surface.Set(x, y, cell)
+			}
+		}
+	}
 }
 
 func (p *PaintEngine) setCell(x, y int, c Cell) {

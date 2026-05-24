@@ -160,6 +160,10 @@ func (d *document) Selection() Selection {
 	return d.selection
 }
 
+func (d *document) CreateRange() Range {
+	return &rangeImpl{doc: d}
+}
+
 func (d *document) sortOverlays() {
 	slices.SortFunc(d.overlays, func(a, b overlayRecord) int {
 		if a.zIndex != b.zIndex {

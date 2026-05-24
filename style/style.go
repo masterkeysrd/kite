@@ -79,6 +79,13 @@ type Style struct {
 	// Reverse swaps foreground and background colors.
 	Reverse Optional[bool]
 
+	// --- Selection ------------------------------------------------------------
+
+	// SelectionForeground sets the text color of selected content.
+	SelectionForeground Optional[color.Color]
+	// SelectionBackground sets the background color of selected content.
+	SelectionBackground Optional[color.Color]
+
 	// --- Text -----------------------------------------------------------------
 
 	// TextAlign controls horizontal text alignment within the element.
@@ -200,6 +207,12 @@ func (s Style) Apply(base Computed) Computed {
 	if s.Reverse.IsSet() {
 		base.Reverse = s.Reverse.Value()
 	}
+	if s.SelectionForeground.IsSet() {
+		base.SelectionForeground = s.SelectionForeground.Value()
+	}
+	if s.SelectionBackground.IsSet() {
+		base.SelectionBackground = s.SelectionBackground.Value()
+	}
 	if s.CursorShape.IsSet() {
 		base.CursorShape = s.CursorShape.Value()
 	}
@@ -266,13 +279,15 @@ func (s Style) Merge(override Style) Style {
 		Margin:    s.Margin.Merge(override.Margin),
 		Border:    s.Border.Merge(override.Border),
 
-		Foreground:    s.Foreground.Merge(override.Foreground),
-		Background:    s.Background.Merge(override.Background),
-		Bold:          s.Bold.Merge(override.Bold),
-		Italic:        s.Italic.Merge(override.Italic),
-		Underline:     s.Underline.Merge(override.Underline),
-		Strikethrough: s.Strikethrough.Merge(override.Strikethrough),
-		Reverse:       s.Reverse.Merge(override.Reverse),
+		Foreground:          s.Foreground.Merge(override.Foreground),
+		Background:          s.Background.Merge(override.Background),
+		Bold:                s.Bold.Merge(override.Bold),
+		Italic:              s.Italic.Merge(override.Italic),
+		Underline:           s.Underline.Merge(override.Underline),
+		Strikethrough:       s.Strikethrough.Merge(override.Strikethrough),
+		Reverse:             s.Reverse.Merge(override.Reverse),
+		SelectionForeground: s.SelectionForeground.Merge(override.SelectionForeground),
+		SelectionBackground: s.SelectionBackground.Merge(override.SelectionBackground),
 
 		TextAlign:    s.TextAlign.Merge(override.TextAlign),
 		TextWrap:     s.TextWrap.Merge(override.TextWrap),

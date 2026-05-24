@@ -48,6 +48,15 @@ func (c *CellAssertion) ToHaveContent(expected string) *ScreenAssertion {
 	return c.screen
 }
 
+// ToHaveAttribute asserts that the cell has the given attribute.
+func (c *CellAssertion) ToHaveAttribute(attr paint.CellAttrs) *ScreenAssertion {
+	c.screen.t.Helper()
+	if c.cell.Attrs&attr == 0 {
+		c.screen.t.Errorf("cell at (%d,%d) expected to have attribute %v, got %v", c.x, c.y, attr, c.cell.Attrs)
+	}
+	return c.screen
+}
+
 // RegionAssertion scopes assertions to a rectangular region on the framebuffer.
 type RegionAssertion struct {
 	screen *ScreenAssertion
