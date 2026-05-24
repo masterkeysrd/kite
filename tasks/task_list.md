@@ -60,7 +60,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-045 | Implement Animation System and Engine Integration | Done | `tasks/TSK-045-animation-system.md` |
 | TSK-046 | Logical Text Selection (DOM) | Done | `tasks/TSK-046-logical-text-selection.md` |
 | TSK-047 | Paint Masking for Text Selection | Done | `tasks/TSK-047-paint-selection-mask.md` |
-| TSK-048 | User Interaction and Hit-Testing for Selection | Pending | `tasks/TSK-048-selection-hit-testing.md` |
+| TSK-048 | User Interaction and Hit-Testing for Selection | Done | `tasks/TSK-048-selection-hit-testing.md` |
 | TSK-049 | System Clipboard Integration | Pending | `tasks/TSK-049-clipboard-integration.md` |
 | TSK-050 | Text Control Local Selection | Pending | `tasks/TSK-050-text-control-selection.md` |
 | TSK-051 | Text Control Clipboard Mechanics | Pending | `tasks/TSK-051-text-control-clipboard.md` |

@@ -3,6 +3,11 @@ package dom
 import (
 	"iter"
 	"slices"
+	"unicode/utf8"
+
+	"github.com/masterkeysrd/kite/cursor"
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/style"
 )
 
 // idRegistrar is an unexported interface implemented by *document.
@@ -32,6 +37,10 @@ type document struct {
 
 	selection *selectionImpl
 
+	selectionDragging bool
+	anchorNode        Node
+	anchorOffset      int
+
 	// mutating is the reentrancy guard. It is true while an attach or detach
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
@@ -56,6 +65,11 @@ func NewDocument() Document {
 	d.name = "#document"
 	d.needsSync = true
 	d.selection = newSelection(d)
+
+	d.AddEventListener(event.EventMouseDown, d.handleMouseDown)
+	d.AddEventListener(event.EventMouseMove, d.handleMouseMove)
+	d.AddEventListener(event.EventMouseUp, d.handleMouseUp)
+
 	return d
 }
 
@@ -171,6 +185,201 @@ func (d *document) sortOverlays() {
 		}
 		return a.order - b.order
 	})
+}
+
+// --- Mouse Handlers ---------------------------------------------------------
+
+func (d *document) handleMouseDown(ev event.Event) {
+	mev, ok := ev.(*event.MouseEvent)
+	if !ok || mev.Button != event.ButtonLeft {
+		return
+	}
+
+	rootRO := d.RenderObject()
+	if rootRO == nil {
+		return
+	}
+	rootFrag := rootRO.Fragment()
+	if rootFrag == nil {
+		return
+	}
+
+	byteOffset := cursor.ByteOffsetAtPoint(rootFrag, mev.Screen.X, mev.Screen.Y)
+	node, runeOffset := d.findNodeAtByteOffset(d, byteOffset)
+	if node == nil {
+		return
+	}
+
+	d.anchorNode = node
+	d.anchorOffset = runeOffset
+	d.selectionDragging = true
+
+	// Clear existing selection and create a new collapsed range.
+	d.selection.RemoveAllRanges()
+	rng := d.CreateRange()
+	rng.SetStart(node, runeOffset)
+	rng.Collapse(true)
+	d.selection.AddRange(rng)
+}
+
+func (d *document) handleMouseMove(ev event.Event) {
+	if !d.selectionDragging {
+		return
+	}
+
+	mev, ok := ev.(*event.MouseEvent)
+	if !ok {
+		return
+	}
+
+	rootRO := d.RenderObject()
+	if rootRO == nil {
+		return
+	}
+	rootFrag := rootRO.Fragment()
+	if rootFrag == nil {
+		return
+	}
+
+	byteOffset := cursor.ByteOffsetAtPoint(rootFrag, mev.Screen.X, mev.Screen.Y)
+	currNode, currRuneOffset := d.findNodeAtByteOffset(d, byteOffset)
+	if currNode == nil {
+		return
+	}
+
+	// Update the selection range.
+	if d.selection.RangeCount() > 0 {
+		rng := d.selection.GetRangeAt(0)
+		cmp := d.comparePositions(d.anchorNode, d.anchorOffset, currNode, currRuneOffset)
+		if cmp <= 0 {
+			rng.SetStart(d.anchorNode, d.anchorOffset)
+			rng.SetEnd(currNode, currRuneOffset)
+		} else {
+			rng.SetStart(currNode, currRuneOffset)
+			rng.SetEnd(d.anchorNode, d.anchorOffset)
+		}
+	}
+}
+
+func (d *document) handleMouseUp(ev event.Event) {
+	if !d.selectionDragging {
+		return
+	}
+	d.selectionDragging = false
+
+	if d.selection.RangeCount() > 0 {
+		rng := d.selection.GetRangeAt(0)
+		if rng.IsCollapsed() {
+			d.selection.RemoveAllRanges()
+		}
+	}
+}
+
+func (d *document) findBlockAncestor(n Node) Element {
+	for curr := n; curr != nil; curr = curr.Parent() {
+		if el, ok := curr.(Element); ok {
+			ro := el.RenderObject()
+			if ro == nil {
+				continue
+			}
+			display := ro.ComputedStyle().Display
+			if display == style.DisplayBlock || display == style.DisplayFlex ||
+				display == style.DisplayListItem || display == style.DisplayTableCell {
+				return el
+			}
+		}
+	}
+	return nil
+}
+
+func (d *document) findNodeAtByteOffset(root Node, targetOffset int) (Node, int) {
+	currOffset := 0
+	var walk func(Node) (Node, int, bool)
+	walk = func(n Node) (Node, int, bool) {
+		if t, ok := n.(TextNode); ok {
+			data := t.Data()
+			byteLen := len(data)
+			if currOffset+byteLen >= targetOffset {
+				remaining := targetOffset - currOffset
+				runeOffset := 0
+				byteCount := 0
+				for _, r := range data {
+					if byteCount >= remaining {
+						break
+					}
+					byteCount += utf8.RuneLen(r)
+					runeOffset++
+				}
+				return t, runeOffset, true
+			}
+			currOffset += byteLen
+		}
+
+		for child := range LayoutChildren(n) {
+			if node, offset, found := walk(child); found {
+				return node, offset, true
+			}
+		}
+		return nil, 0, false
+	}
+	node, offset, found := walk(root)
+	if found {
+		return node, offset
+	}
+	// Fallback to the end of the last TextNode in the subtree
+	var lastText TextNode
+	var walkLast func(Node)
+	walkLast = func(n Node) {
+		if t, ok := n.(TextNode); ok {
+			lastText = t
+		}
+		for child := range LayoutChildren(n) {
+			walkLast(child)
+		}
+	}
+	walkLast(root)
+	if lastText != nil {
+		return lastText, utf8.RuneCountInString(lastText.Data())
+	}
+	return nil, 0
+}
+
+func (d *document) comparePositions(nodeA Node, offsetA int, nodeB Node, offsetB int) int {
+	if nodeA == nodeB {
+		return offsetA - offsetB
+	}
+
+	var first Node
+	var walk func(Node) bool
+	walk = func(n Node) bool {
+		if n == nodeA {
+			first = nodeA
+			return false
+		}
+		if n == nodeB {
+			first = nodeB
+			return false
+		}
+		for child := range LayoutChildren(n) {
+			if !walk(child) {
+				return false
+			}
+		}
+		if n == d {
+			for el := range d.Overlays() {
+				if !walk(el) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	walk(d)
+
+	if first == nodeA {
+		return -1
+	}
+	return 1
 }
 
 // --- attach / detach walks --------------------------------------------------

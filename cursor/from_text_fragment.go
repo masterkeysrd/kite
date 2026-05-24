@@ -49,7 +49,7 @@ import (
 // replaces bespoke per-widget cursor math that was duplicated across render
 // objects such as render.Input and render.TextArea.
 func FromTextFragment(root *layout.Fragment, byteOffset int) (x, y int, ok bool) {
-	if root == nil || len(root.Children) == 0 {
+	if root == nil {
 		return 0, 0, false
 	}
 
@@ -58,29 +58,65 @@ func FromTextFragment(root *layout.Fragment, byteOffset int) (x, y int, ok bool)
 		return 0, 0, false
 	}
 
-	runningBytes := 0 // total bytes seen across all lines so far
+	if len(root.Children) == 0 && len(root.Text) > 0 {
+		cx := resolveX(root, byteOffset)
+		return cx, 0, true
+	}
 
-	for lineIdx, lineLink := range root.Children {
-		lineBox := lineLink.Fragment
-		lineBytes := countLineBytes(lineBox)
+	if len(root.Children) == 0 {
+		// Empty fragment: offset 0 is at (0,0) if the fragment has height
+		// (e.g. an empty line box).
+		if byteOffset == 0 && root.Size.Height > 0 {
+			return 0, 0, true
+		}
+		return 0, 0, false
+	}
 
-		// Does this line box enclose byteOffset?
-		//
-		// The condition is satisfied when byteOffset falls within the byte
-		// range [runningBytes, runningBytes+lineBytes), OR when byteOffset
-		// equals runningBytes+lineBytes and we are on the LAST line (trailing
-		// offset case).
-		lineStart := runningBytes
-		lineEnd := runningBytes + lineBytes
-		isLastLine := lineIdx == len(root.Children)-1
+	runningBytes := 0 // total bytes seen across all children so far
 
-		if byteOffset < lineEnd || (isLastLine && byteOffset == lineEnd) {
-			// Found the matching line. Now resolve x within this line.
-			cx := resolveX(lineBox, byteOffset-lineStart)
-			return lineLink.Offset.X + cx, lineLink.Offset.Y, true
+	for _, childLink := range root.Children {
+		child := childLink.Fragment
+
+		// Skip synthesized text fragments (like list markers) that do not
+		// participate in the logical byte-offset model.
+		if isSynthesizedAdornment(child) {
+			continue
 		}
 
-		runningBytes = lineEnd
+		childBytes := countLineBytes(child)
+		childStart := runningBytes
+		childEnd := runningBytes + childBytes
+
+		// Does this child enclose byteOffset?
+		if byteOffset < childEnd {
+			// Found the matching child.
+			if len(child.Text) > 0 && len(child.Children) == 0 {
+				// Leaf text fragment. Resolve x.
+				cx := resolveX(child, byteOffset-childStart)
+				return childLink.Offset.X + cx, childLink.Offset.Y, true
+			}
+			// Recursive call for containers or line boxes.
+			cx, cy, ok := FromTextFragment(child, byteOffset-childStart)
+			if ok {
+				return childLink.Offset.X + cx, childLink.Offset.Y + cy, true
+			}
+		}
+
+		runningBytes = childEnd
+	}
+
+	// Trailing offset case: if byteOffset is exactly at the end of the root,
+	// return the end of the last child.
+	if byteOffset == runningBytes && len(root.Children) > 0 {
+		last := root.Children[len(root.Children)-1]
+		if len(last.Fragment.Text) > 0 && len(last.Fragment.Children) == 0 {
+			cx := resolveX(last.Fragment, countLineBytes(last.Fragment))
+			return last.Offset.X + cx, last.Offset.Y, true
+		}
+		cx, cy, ok := FromTextFragment(last.Fragment, countLineBytes(last.Fragment))
+		if ok {
+			return last.Offset.X + cx, last.Offset.Y + cy, true
+		}
 	}
 
 	// byteOffset exceeds the total byte count.
@@ -88,19 +124,31 @@ func FromTextFragment(root *layout.Fragment, byteOffset int) (x, y int, ok bool)
 }
 
 // countLineBytes returns the total number of UTF-8 bytes contained in all text
-// clusters of a line-box fragment. Atomic-inline children contribute 0 bytes.
+// clusters of a line-box fragment and its descendants. Atomic-inline children
+// contribute 0 bytes. Synthesized fragments are skipped.
 func countLineBytes(lineBox *layout.Fragment) int {
 	if lineBox == nil {
 		return 0
 	}
+
+	// Skip synthesized text fragments (like list markers) that do not
+	// participate in the logical byte-offset model.
+	if isSynthesizedAdornment(lineBox) {
+		return 0
+	}
+
 	total := 0
+	for _, c := range lineBox.Text {
+		total += len(c.Bytes)
+	}
 	for _, childLink := range lineBox.Children {
-		child := childLink.Fragment
-		for _, c := range child.Text {
-			total += len(c.Bytes)
-		}
+		total += countLineBytes(childLink.Fragment)
 	}
 	return total
+}
+
+func isSynthesizedAdornment(f *layout.Fragment) bool {
+	return f.Node == nil && f.ParentNode != nil && len(f.Text) > 0
 }
 
 // resolveX computes the terminal-cell column for a byte offset that is relative
@@ -116,6 +164,20 @@ func resolveX(lineBox *layout.Fragment, relOffset int) int {
 		return 0
 	}
 	bytesSeen := 0
+
+	if len(lineBox.Text) > 0 {
+		x := 0
+		for _, c := range lineBox.Text {
+			if bytesSeen >= relOffset {
+				return x
+			}
+			bytesSeen += len(c.Bytes)
+			x += clusterWidth(c)
+		}
+		if bytesSeen >= relOffset {
+			return x
+		}
+	}
 
 	for _, childLink := range lineBox.Children {
 		child := childLink.Fragment

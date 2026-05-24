@@ -89,11 +89,14 @@ func (p *PaintEngine) applySelection(surface Surface, selection []SelectionRect)
 		for y := rect.Origin.Y; y < rect.Origin.Y+rect.Size.Height; y++ {
 			for x := rect.Origin.X; x < rect.Origin.X+rect.Size.Width; x++ {
 				cell := surface.CellAt(x, y)
-				if sr.FG != nil || sr.BG != nil {
-					if sr.FG != nil {
+				fgSet := sr.FG != nil && !style.IsTerminalDefault(sr.FG)
+				bgSet := sr.BG != nil && !style.IsTerminalDefault(sr.BG)
+
+				if fgSet || bgSet {
+					if fgSet {
 						cell.FG = sr.FG
 					}
-					if sr.BG != nil {
+					if bgSet {
 						cell.BG = sr.BG
 					}
 				} else {

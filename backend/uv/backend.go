@@ -94,7 +94,7 @@ func New() (*Backend, error) {
 
 	// Initial setup of the screen properties.
 	screen.SetMouseEncoding(uv.MouseEncodingSGR)
-	screen.SetMouseMode(uv.MouseModeClick)
+	screen.SetMouseMode(uv.MouseModeMotion)
 	screen.SetSynchronizedUpdates(os.Getenv("TMUX") == "")
 	screen.EnableBracketedPaste()
 

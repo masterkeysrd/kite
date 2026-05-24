@@ -2,7 +2,6 @@ package uv
 
 import (
 	"log"
-	"log/slog"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/masterkeysrd/kite/event"
@@ -12,7 +11,6 @@ import (
 func translateEvent(ev uv.Event) event.RawEvent {
 	switch e := ev.(type) {
 	case uv.KeyPressEvent:
-		slog.Info("key press event", "text", e.Text, "code", e.Code, "isRepeat", e.IsRepeat, "mod", e.Mod, "key", e.Key(), "keystoring", e.Key(), "string", e.String())
 		return &event.RawKeyEvent{
 			Key: key.Key{
 				Text:     e.Text,
@@ -23,7 +21,6 @@ func translateEvent(ev uv.Event) event.RawEvent {
 			Up: false,
 		}
 	case uv.KeyReleaseEvent:
-		slog.Info("key release event", "text", e.Text, "code", e.Code, "mod", e.Mod, "key", e.Key(), "keystoring", e.Key(), "string", e.String())
 		return &event.RawKeyEvent{
 			Key: key.Key{
 				Text: e.Text,

@@ -257,6 +257,10 @@ func (s *selectionImpl) changed() {
 	if s.doc == nil {
 		return
 	}
+	// Trigger a paint update on the document root so that the selection
+	// is redrawn on the next frame.
+	s.doc.MarkNeedsSync()
+
 	// Dispatch selectionchange on the document.
 	s.doc.DispatchToTarget(event.NewBaseEvent(event.EventSelectionChange, s.doc, false))
 }

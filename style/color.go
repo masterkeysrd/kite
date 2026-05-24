@@ -17,3 +17,12 @@ type terminalDefaultColor struct{}
 // RGBA implements color.Color. The backend treats this value specially and
 // never uses the returned components directly.
 func (terminalDefaultColor) RGBA() (r, g, b, a uint32) { return 0, 0, 0, 0 }
+
+// IsTerminalDefault reports whether c is the [TerminalDefault] sentinel.
+func IsTerminalDefault(c color.Color) bool {
+	if c == nil {
+		return false
+	}
+	_, ok := c.(terminalDefaultColor)
+	return ok
+}

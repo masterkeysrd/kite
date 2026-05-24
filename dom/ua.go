@@ -60,23 +60,6 @@ func IsUANode(n Node) bool {
 	return false
 }
 
-// isInSubtree reports whether n is equal to root or a descendant of root
-// (walking only the public child-node links of root's subtree).
-func isInSubtree(n, root Node) bool {
-	if n == nil || root == nil {
-		return false
-	}
-	if n == root {
-		return true
-	}
-	for child := range root.ChildNodes() {
-		if isInSubtree(n, child) {
-			return true
-		}
-	}
-	return false
-}
-
 // UARoot returns the UA shadow subtree root attached to el, or nil if el does
 // not have one. This is an engine-internal accessor used by the Sync phase.
 // It must not be called from author code.

@@ -1192,14 +1192,6 @@ func (e *Engine) drainEvents() {
 	// 3. Coalesce structured events (handles wheel aggregation per target).
 	coalesced := e.coalesceEvents(e.structuredBuf)
 
-	e.logger.Info("engine: draining events",
-		slog.Int("raw_events", len(rawCoalesced)),
-		slog.Int("coalesced_events", len(coalesced)),
-		slog.Int("dropped_events", int(eventsCounter)-len(coalesced)), // approx since eventsCounter is global
-		slog.Uint64("batchCounter", batchCounter),
-		slog.Uint64("eventsCounter", eventsCounter),
-	)
-
 	// 4. Dispatch.
 	for _, ev := range coalesced {
 		e.dispatchEvent(ev)
@@ -1532,13 +1524,13 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 	return ps
 }
 
-func (e *Engine) computeNodeOrder() map[any]int {
-	order := make(map[any]int)
+func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
+	order := make(map[any]render.NodeOrder)
 	count := 0
-	var walk func(dom.Node)
-	walk = func(n dom.Node) {
+	var walk func(dom.Node) int
+	walk = func(n dom.Node) int {
 		if n == nil {
-			return
+			return count
 		}
 
 		// Consistently unwrap to the canonical base node for identity.
@@ -1553,14 +1545,23 @@ func (e *Engine) computeNodeOrder() map[any]int {
 			break
 		}
 
+		first := count
 		if _, ok := order[identity]; !ok {
-			order[identity] = count
+			order[identity] = render.NodeOrder{First: count, Last: count}
 			count++
 		}
 
 		for child := range dom.LayoutChildren(n) {
 			walk(child)
 		}
+
+		last := count - 1
+		o := order[identity]
+		o.First = first
+		o.Last = last
+		order[identity] = o
+
+		return count
 	}
 	walk(e.document)
 	return order

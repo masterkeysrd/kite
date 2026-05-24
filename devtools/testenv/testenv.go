@@ -166,15 +166,34 @@ func (e *Environment) Type(text string) {
 
 // Click simulates a mouse click at (x, y).
 func (e *Environment) Click(x, y int) {
+	e.MouseDown(x, y, event.ButtonLeft)
+	e.MouseUp(x, y, event.ButtonLeft)
+}
+
+// MouseDown simulates a mouse button press at (x, y).
+func (e *Environment) MouseDown(x, y int, button event.MouseButton) {
 	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
 		X:      x,
 		Y:      y,
-		Button: event.ButtonLeft,
+		Button: button,
 	})
+}
+
+// MouseMove simulates a mouse move to (x, y).
+func (e *Environment) MouseMove(x, y int) {
+	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
+		X:    x,
+		Y:    y,
+		Move: true,
+	})
+}
+
+// MouseUp simulates a mouse button release at (x, y).
+func (e *Environment) MouseUp(x, y int, button event.MouseButton) {
 	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
 		X:      x,
 		Y:      y,
-		Button: event.ButtonLeft,
+		Button: button,
 		Up:     true,
 	})
 }

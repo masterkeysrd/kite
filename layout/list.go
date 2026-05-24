@@ -70,7 +70,8 @@ func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
 				Width:  defaultShaper.MeasureRun(markerText),
 				Height: 1,
 			},
-			Text: shaped,
+			Text:       shaped,
+			ParentNode: a.Node,
 		}
 		markerWidth = markerFrag.Size.Width
 	}

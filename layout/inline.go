@@ -140,7 +140,11 @@ func (b *InlineItemsBuilder) collect(node Node) {
 
 	// If it's a content <br>, emit a mandatory line-break item with a '\n' byte.
 	if br, ok := node.LogicalNode().(brElement); ok && br.IsBr() {
-		b.items = append(b.items, InlineItem{Type: InlineBr})
+		b.items = append(b.items, InlineItem{
+			Type:       InlineBr,
+			Node:       node,
+			ParentNode: b.currentParent(),
+		})
 		return
 	}
 
