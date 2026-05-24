@@ -49,7 +49,8 @@ func main() {
 	}
 
 	opts := engine.Options{
-		Logger: slog.Default(),
+		Logger:   slog.Default(),
+		Profiler: true,
 	}
 	eng := engine.New(b, opts)
 

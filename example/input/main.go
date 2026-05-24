@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// ── engine ───────────────────────────────────────────────────────────────
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// ── inputs ───────────────────────────────────────────────────────────────
 	// Build inputs against the engine document so they are already in the

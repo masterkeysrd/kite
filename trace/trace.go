@@ -70,6 +70,36 @@ func (t *Tracer) Begin(name string) func() {
 	}
 }
 
+// BeginThread starts a new synchronous trace event on a specific thread.
+// It returns a function that, when called, records the end of the event.
+func (t *Tracer) BeginThread(name string, tid int) func() {
+	if t == nil {
+		return Noop()
+	}
+
+	t.mu.Lock()
+	t.events = append(t.events, Event{
+		Name: name,
+		Ph:   Begin,
+		Ts:   time.Since(t.start).Microseconds(),
+		Pid:  1,
+		Tid:  tid,
+	})
+	t.mu.Unlock()
+
+	return func() {
+		t.mu.Lock()
+		t.events = append(t.events, Event{
+			Name: name,
+			Ph:   End,
+			Ts:   time.Since(t.start).Microseconds(),
+			Pid:  1,
+			Tid:  tid,
+		})
+		t.mu.Unlock()
+	}
+}
+
 // WriteJSON writes the captured events as a JSON array to w.
 func (t *Tracer) WriteJSON(w io.Writer) error {
 	if t == nil {

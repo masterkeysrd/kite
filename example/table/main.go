@@ -67,7 +67,8 @@ func main() {
 	}
 
 	eng := engine.New(be, engine.Options{
-		Logger: logger,
+		Logger:   logger,
+		Profiler: true,
 	})
 
 	// Build UI declaratively

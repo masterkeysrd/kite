@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	"github.com/masterkeysrd/kite/backend/uv"
+	"github.com/masterkeysrd/kite/devtools"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
@@ -38,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// State for overlay configuration
 	currentPlacement := layout.PlacementBottom
@@ -104,6 +105,7 @@ func main() {
 	})
 
 	eng.Mount(root)
+	devtools.Install(eng, devtools.Options{})
 
 	// Overlay content
 	ovlContent := element.Box(

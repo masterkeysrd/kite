@@ -61,7 +61,7 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 	if rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
 		layoutRan = true
 		viewport := root.ViewportSize()
-		ctx := &layout.Context{Tracer: e.tracer}
+		ctx := &layout.Context{Tracer: e.Tracer()}
 		render.LayoutPhase(ctx, root, viewport)
 
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
@@ -103,7 +103,7 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 
 	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 		surface := e.backend.BeginFrame()
-		ctx := &paint.Context{Tracer: e.tracer}
+		ctx := &paint.Context{Tracer: e.Tracer()}
 		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), surface)
 		for _, overlay := range overlays {
 			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), surface)
@@ -128,26 +128,26 @@ type ProfilingPipeline struct {
 }
 
 func (p *ProfilingPipeline) Sync(e *Engine) {
-	defer e.tracer.Begin("Phase:Sync")()
+	defer e.Tracer().Begin("Phase:Sync")()
 	p.wrapped.Sync(e)
 }
 
 func (p *ProfilingPipeline) Tasks(e *Engine) {
-	defer e.tracer.Begin("Phase:Tasks")()
+	defer e.Tracer().Begin("Phase:Tasks")()
 	p.wrapped.Tasks(e)
 }
 
 func (p *ProfilingPipeline) Style(e *Engine) {
-	defer e.tracer.Begin("Phase:Style")()
+	defer e.Tracer().Begin("Phase:Style")()
 	p.wrapped.Style(e)
 }
 
 func (p *ProfilingPipeline) Layout(e *Engine) bool {
-	defer e.tracer.Begin("Phase:Layout")()
+	defer e.Tracer().Begin("Phase:Layout")()
 	return p.wrapped.Layout(e)
 }
 
 func (p *ProfilingPipeline) Paint(e *Engine, layoutRan bool) {
-	defer e.tracer.Begin("Phase:Paint")()
+	defer e.Tracer().Begin("Phase:Paint")()
 	p.wrapped.Paint(e, layoutRan)
 }

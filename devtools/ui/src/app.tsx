@@ -3,6 +3,12 @@ import { Tree } from './components/Tree';
 import { FragmentTree } from './components/FragmentTree';
 import { Details } from './components/Details';
 import { findNodeByIdInPayload } from './utils';
+import { 
+  ProfilerSidebar, 
+  ProfilerFlamechart, 
+  parseTraceSpans 
+} from './components/Profiler';
+import type { Span } from './components/Profiler';
 import './app.css';
 
 interface Payload {
@@ -15,9 +21,21 @@ interface Payload {
 export function App() {
   const [payload, setPayload] = useState<Payload | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<'dom' | 'fragments'>('dom');
+  const [view, setView] = useState<'dom' | 'fragments' | 'profiler'>('dom');
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
+
+  // Profiler State
+  const [isProfiling, setIsProfiling] = useState(false);
+  const [traceEvents, setTraceEvents] = useState<any[] | null>(null);
+  const [selectedSpan, setSelectedSpan] = useState<Span | null>(null);
+  const [hoveredJobId, setHoveredJobId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Zoom and Timeframe Filter States
+  const [zoom, setZoom] = useState(1);
+  const [filterStart, setFilterStart] = useState(0);
+  const [filterEnd, setFilterEnd] = useState(0);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -63,6 +81,39 @@ export function App() {
     URL.revokeObjectURL(url);
   };
 
+  // Reconstruct spans from trace events
+  const spans = traceEvents ? parseTraceSpans(traceEvents) : [];
+  const minTs = spans.length > 0 ? Math.min(...spans.map(s => s.start)) : 0;
+  const maxTs = spans.length > 0 ? Math.max(...spans.map(s => s.end)) : 0;
+  const totalDuration = maxTs - minTs;
+
+  // Sync zoom and range filters when traceEvents is updated
+  useEffect(() => {
+    if (traceEvents && spans.length > 0) {
+      const durationMs = totalDuration / 1000;
+      setFilterStart(0);
+      setFilterEnd(durationMs);
+      setZoom(1);
+    }
+  }, [traceEvents]);
+
+  // Group spans by thread ID
+  const spansByTid: { [tid: number]: Span[] } = {};
+  for (const span of spans) {
+    if (!spansByTid[span.tid]) {
+      spansByTid[span.tid] = [];
+    }
+    spansByTid[span.tid].push(span);
+  }
+
+  const sortedTids = Object.keys(spansByTid)
+    .map(Number)
+    .sort((a, b) => {
+      if (a === 1) return -1;
+      if (b === 1) return 1;
+      return a - b;
+    });
+
   return (
     <div class={`inspector-container ${isResizing ? 'resizing' : ''}`}>
       <aside class="sidebar" style={{ width: `${sidebarWidth}px` }}>
@@ -81,14 +132,51 @@ export function App() {
               >
                 Fragments
               </button>
+              <button 
+                class={view === 'profiler' ? 'active' : ''} 
+                onClick={() => setView('profiler')}
+              >
+                Profiler
+              </button>
             </div>
-            <button class="icon-btn" onClick={downloadDump} title="Download Dump">
-              ⬇️
-            </button>
+            {view !== 'profiler' && (
+              <button class="icon-btn" onClick={downloadDump} title="Download Dump">
+                ⬇️
+              </button>
+            )}
           </div>
         </header>
         <main id="tree">
-          {payload ? (
+          {view === 'profiler' ? (
+            <ProfilerSidebar
+              isProfiling={isProfiling}
+              setIsProfiling={setIsProfiling}
+              traceEvents={traceEvents}
+              setTraceEvents={setTraceEvents}
+              selectedSpan={selectedSpan}
+              setSelectedSpan={setSelectedSpan}
+              errorMsg={errorMsg}
+              setErrorMsg={setErrorMsg}
+              spans={spans}
+              minTs={minTs}
+              maxTs={maxTs}
+              zoom={zoom}
+              setZoom={setZoom}
+              filterStart={filterStart}
+              setFilterStart={setFilterStart}
+              filterEnd={filterEnd}
+              setFilterEnd={setFilterEnd}
+              clearProfile={() => {
+                setTraceEvents(null);
+                setSelectedSpan(null);
+                setHoveredJobId(null);
+                setErrorMsg(null);
+                setZoom(1);
+                setFilterStart(0);
+                setFilterEnd(0);
+              }}
+            />
+          ) : payload ? (
             view === 'dom' ? (
               <Tree 
                 node={payload.dom} 
@@ -112,7 +200,27 @@ export function App() {
         onMouseDown={() => setIsResizing(true)}
       />
       <main id="details">
-        <Details node={selectedNode} />
+        {view === 'profiler' ? (
+          <ProfilerFlamechart
+            spans={spans}
+            minTs={minTs}
+            spansByTid={spansByTid}
+            sortedTids={sortedTids}
+            hoveredJobId={hoveredJobId}
+            setHoveredJobId={setHoveredJobId}
+            selectedSpan={selectedSpan}
+            setSelectedSpan={setSelectedSpan}
+            isProfiling={isProfiling}
+            zoom={zoom}
+            setZoom={setZoom}
+            filterStart={filterStart}
+            setFilterStart={setFilterStart}
+            filterEnd={filterEnd}
+            setFilterEnd={setFilterEnd}
+          />
+        ) : (
+          <Details node={selectedNode} />
+        )}
       </main>
     </div>
   );

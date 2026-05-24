@@ -178,6 +178,10 @@ type Engine struct {
 	coalescedBuf    []event.Event
 	wheelMap        map[event.EventTarget]*event.WheelEvent
 
+	profilerMu sync.RWMutex
+	jobIDs     sync.Map
+	jobCounter uint64
+
 	pipeline Pipeline
 
 	tracer *trace.Tracer
@@ -285,9 +289,9 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.caps = b.Caps()
 
 	// Start worker goroutines.
-	for range numWorkers {
+	for i := range numWorkers {
 		e.workerWG.Add(1)
-		go e.runWorker(workerCtx)
+		go e.runWorker(workerCtx, i+1)
 	}
 
 	return e
@@ -344,13 +348,45 @@ func (e *Engine) FocusedTarget() event.EventTarget {
 }
 
 // Tracer returns the engine's active tracer, or nil if profiling is disabled.
-func (e *Engine) Tracer() *trace.Tracer { return e.tracer }
+func (e *Engine) Tracer() *trace.Tracer {
+	e.profilerMu.RLock()
+	defer e.profilerMu.RUnlock()
+	return e.tracer
+}
 
 // WithProfiler enables or disables the engine's built-in profiler.
 func WithProfiler(enabled bool) func(*Options) {
 	return func(o *Options) {
 		o.Profiler = enabled
 	}
+}
+
+// StartProfiling dynamically enables profiling by wrapping the engine's active
+// pipeline with ProfilingPipeline (if not already wrapped) and starting a new tracer.
+func (e *Engine) StartProfiling() {
+	e.profilerMu.Lock()
+	defer e.profilerMu.Unlock()
+
+	e.tracer = trace.NewTracer()
+	if _, ok := e.pipeline.(*ProfilingPipeline); !ok {
+		e.pipeline = &ProfilingPipeline{wrapped: e.pipeline}
+	}
+}
+
+// StopProfiling dynamically disables profiling by reverting the engine's active
+// pipeline to the standard (unwrapped) pipeline and returning the accumulated tracer.
+// If profiling was not active, it returns nil.
+func (e *Engine) StopProfiling() *trace.Tracer {
+	e.profilerMu.Lock()
+	defer e.profilerMu.Unlock()
+
+	t := e.tracer
+	e.tracer = nil
+
+	if pp, ok := e.pipeline.(*ProfilingPipeline); ok {
+		e.pipeline = pp.wrapped
+	}
+	return t
 }
 
 // FocusManager returns the engine's focus.Manager so that tests and
@@ -477,6 +513,19 @@ func (e *Engine) RequestFrameAt(t time.Time) {
 //
 // Submit must be called from the main goroutine.
 func (e *Engine) Submit(j Job) {
+	if tracer := e.Tracer(); tracer != nil {
+		e.profilerMu.Lock()
+		e.jobCounter++
+		jobNum := e.jobCounter
+		e.profilerMu.Unlock()
+
+		jobID := fmt.Sprintf("job-%d", jobNum)
+		e.jobIDs.Store(j, jobID)
+
+		name := jobName(j)
+		end := tracer.BeginThread("JobSubmit:"+name+":"+jobID, 1)
+		end()
+	}
 	e.jobQueue <- j
 }
 
@@ -556,11 +605,23 @@ func (e *Engine) Frame() {
 
 	e.drainWorkerResults()
 
-	e.pipeline.Sync(e)
-	e.pipeline.Tasks(e)
-	e.pipeline.Style(e)
-	layoutRan := e.pipeline.Layout(e)
-	e.pipeline.Paint(e, layoutRan)
+	e.profilerMu.RLock()
+	pipe := e.pipeline
+	tracer := e.tracer
+	e.profilerMu.RUnlock()
+
+	var endFrame func() = noop
+	if tracer != nil {
+		endFrame = tracer.BeginThread("Frame", 1)
+	}
+
+	pipe.Sync(e)
+	pipe.Tasks(e)
+	pipe.Style(e)
+	layoutRan := pipe.Layout(e)
+	pipe.Paint(e, layoutRan)
+
+	endFrame()
 
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
@@ -841,25 +902,33 @@ func (e *Engine) recoverFrame() {
 // workerResults.
 //
 // runWorker exits when workerCtx is cancelled (i.e., when Stop() is called).
-func (e *Engine) runWorker(ctx context.Context) {
+func (e *Engine) runWorker(ctx context.Context, workerID int) {
 	defer e.workerWG.Done()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case j := <-e.jobQueue:
-			e.executeJob(ctx, j)
+			e.executeJob(ctx, j, workerID)
 		}
 	}
 }
 
 // executeJob runs j on the calling goroutine (a worker), catching panics and
 // posting the result back to the microtask queue.
-func (e *Engine) executeJob(ctx context.Context, j Job) {
+func (e *Engine) executeJob(ctx context.Context, j Job, workerID int) {
 	var (
 		result any
 		jobErr error
 	)
+	var endRun func() = noop
+	if v, ok := e.jobIDs.LoadAndDelete(j); ok {
+		if tracer := e.Tracer(); tracer != nil {
+			jobID := v.(string)
+			endRun = tracer.BeginThread("JobRun:"+jobName(j)+":"+jobID, workerID+1)
+		}
+	}
+
 	func() {
 		defer func() {
 			if v := recover(); v != nil {
@@ -875,7 +944,18 @@ func (e *Engine) executeJob(ctx context.Context, j Job) {
 	}()
 	_ = result
 
+	endRun()
+
 	e.workerResults <- workerResult{job: j, err: jobErr}
+}
+
+func noop() {}
+
+func jobName(j Job) string {
+	if j == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%T", j)
 }
 
 func (e *Engine) Dump(path string) error {

@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// Create a main background element
 	root := element.Box(

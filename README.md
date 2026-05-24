@@ -164,3 +164,15 @@ For immediate in-terminal layout debugging, X-Ray Mode overlays colored bounding
 - <span style="color:red">■</span> **Red**: Margin Box
 - <span style="color:green">■</span> **Green**: Padding Box
 - <span style="color:blue">■</span> **Blue**: Content Box
+
+### Web-Based Profiler & Flamecharts
+
+Kite includes a built-in interactive Profiler UI accessible directly within the Web Inspector:
+- **Interactive Flamechart**: View execution durations for the rendering pipeline phases (Sync, Tasks, Style, Layout, Paint) and inline deep sub-phases.
+- **Async Job Mapping**: Visually connect asynchronous background `Job` execution blocks back to their initiating main-thread frame. Hovering over a job highlights both the submission and execution events.
+- **Chrome Trace Import**: Stop profiling and download the raw trace JSON directly to inspect it inside `chrome://tracing` or Perfetto.
+
+#### HTTP API Endpoints
+When DevTools is running, you can also programmatically start and stop profiling:
+- `GET/POST /debug/trace/start`: Resets and starts trace recording.
+- `GET/POST /debug/trace/stop`: Stops trace recording and returns Chrome Trace Event JSON.

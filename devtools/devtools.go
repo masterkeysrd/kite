@@ -51,7 +51,7 @@ func Install(eng *engine.Engine, opts Options) error {
 	slog.Info("devtools: installing with options", "xrayHotkey", opts.XRayHotkey, "serverAddr", opts.ServerAddr)
 	if opts.ServerAddr != "" {
 		insp := inspector.New(eng)
-		srv := NewDevToolsServer(insp)
+		srv := NewDevToolsServer(eng, insp)
 		mux := http.NewServeMux()
 		srv.SetupRoutes(mux)
 

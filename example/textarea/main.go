@@ -63,7 +63,7 @@ func main() {
 	}
 
 	// ── engine ───────────────────────────────────────────────────────────────
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// ── textarea ─────────────────────────────────────────────────────────────
 	initialText := "Welcome to Kite TextArea!\n\n" +

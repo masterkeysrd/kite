@@ -36,7 +36,7 @@ func main() {
 		}
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	headerStyle := style.Style{Margin: style.Some(style.Edges(1, 0, 0, 0)), Underline: style.Some(true)}
 
