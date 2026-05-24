@@ -11,14 +11,15 @@ func BenchmarkVDOMConstruction(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = Box(BoxProps{
-			ElementProps: ElementProps{ID: "container", Class: "wrapper"},
+			ID:    "container",
+			Class: "wrapper",
 		},
 			Button(ButtonProps{
-				ElementProps: ElementProps{ID: "btn-ok"},
-				Disabled:     true,
+				ID:       "btn-ok",
+				Disabled: true,
 			}, Text("OK")),
 			Button(ButtonProps{
-				ElementProps: ElementProps{ID: "btn-cancel"},
+				ID: "btn-cancel",
 			}, Text("Cancel")),
 		)
 	}
@@ -34,7 +35,7 @@ func BenchmarkComponentInstantiation(b *testing.B) {
 
 	myButton := FC("MyButton", func(props MyButtonProps) Node {
 		return Button(ButtonProps{
-			ElementProps: ElementProps{Class: "fancy-btn"},
+			Class: "fancy-btn",
 		}, Text(props.Label))
 	})
 

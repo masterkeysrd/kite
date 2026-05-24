@@ -28,6 +28,9 @@ type Node interface {
 
 	// TagName returns the tag name or identifier of this VDOM node type (e.g. "button", "#text").
 	TagName() string
+
+	// Key returns the unique key of this node, used for list reconciliation.
+	Key() string
 }
 
 // Ensure compile-time interface compliance.
@@ -38,6 +41,7 @@ var (
 
 // ElementProps holds common fields and event listeners present on all DOM element nodes.
 type ElementProps struct {
+	Key         string
 	ID          string
 	Class       string
 	Style       style.Style
@@ -64,15 +68,25 @@ type elementNode[P any] struct {
 	children    []Node
 	instantiate func(doc dom.Document) dom.Node
 	update      func(el dom.Node, old, new P)
+	key         string
 }
 
 func (n *elementNode[P]) TagName() string  { return n.tagName }
 func (n *elementNode[P]) Props() any       { return n.props }
 func (n *elementNode[P]) Children() []Node { return n.children }
+func (n *elementNode[P]) Key() string      { return n.key }
 
 func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 	el := n.instantiate(doc)
 	n.update(el, *new(P), n.props)
+	for _, child := range n.children {
+		if child != nil {
+			childReal := child.Instantiate(doc)
+			if childReal != nil {
+				el.AppendChild(childReal)
+			}
+		}
+	}
 	return el
 }
 
@@ -84,6 +98,7 @@ func (n *elementNode[P]) Update(el dom.Node, old Node) {
 		}
 	}
 	n.update(el, oldProps, n.props)
+	el.MarkNeedsSync()
 }
 
 // textNode is the implementation of Node for VDOM text leaf nodes.
@@ -94,6 +109,7 @@ type textNode struct {
 func (t *textNode) TagName() string  { return "#text" }
 func (t *textNode) Props() any       { return t.content }
 func (t *textNode) Children() []Node { return nil }
+func (t *textNode) Key() string      { return "" }
 func (t *textNode) Instantiate(doc dom.Document) dom.Node {
 	return element.NewText(doc, t.content)
 }
@@ -105,12 +121,13 @@ func (t *textNode) Update(el dom.Node, old Node) {
 	}
 	var oldContent string
 	if old != nil {
-		if s, ok := old.Props().(string); ok {
-			oldContent = s
+		if oldTxt, ok := old.(*textNode); ok {
+			oldContent = oldTxt.content
 		}
 	}
 	if oldContent != t.content {
 		txt.SetData(t.content)
+		el.MarkNeedsSync()
 	}
 }
 
@@ -318,17 +335,22 @@ func updateElementBase(el element.Element, old, new ElementProps) {
 
 // --- VDOM Factories -----------------------------------------------------------
 
-// BoxProps specifies attributes for Box elements.
-type BoxProps struct {
-	ElementProps
-}
+// BoxProps, SpanProps, BrProps, TableProps, THeadProps, TBodyProps, TFootProps, TRProps are simple containers that use ElementProps directly.
+type BoxProps = ElementProps
+type SpanProps = ElementProps
+type BrProps = ElementProps
+type TableProps = ElementProps
+type THeadProps = ElementProps
+type TBodyProps = ElementProps
+type TFootProps = ElementProps
+type TRProps = ElementProps
 
 func boxInstantiate(doc dom.Document) dom.Node {
 	return element.NewBox(doc)
 }
 
 func boxUpdate(el dom.Node, old, new BoxProps) {
-	updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+	updateElementBase(el.(element.Element), old, new)
 }
 
 // Box creates a VDOM representation of a BoxElement container.
@@ -339,6 +361,7 @@ func Box(props BoxProps, children ...Node) Node {
 		children:    children,
 		instantiate: boxInstantiate,
 		update:      boxUpdate,
+		key:         props.Key,
 	}
 }
 
@@ -349,17 +372,12 @@ func Div(props BoxProps, children ...Node) Node {
 	return node
 }
 
-// SpanProps specifies attributes for Span elements.
-type SpanProps struct {
-	ElementProps
-}
-
 func spanInstantiate(doc dom.Document) dom.Node {
 	return element.NewSpan(doc)
 }
 
 func spanUpdate(el dom.Node, old, new SpanProps) {
-	updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+	updateElementBase(el.(element.Element), old, new)
 }
 
 // Span creates a VDOM representation of a SpanElement container.
@@ -370,14 +388,42 @@ func Span(props SpanProps, children ...Node) Node {
 		children:    children,
 		instantiate: spanInstantiate,
 		update:      spanUpdate,
+		key:         props.Key,
 	}
 }
 
 // ButtonProps specifies attributes for Button elements.
 type ButtonProps struct {
-	ElementProps
-	Disabled bool
-	Active   bool
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	Disabled    bool
+	Active      bool
+}
+
+func (p ButtonProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 func buttonInstantiate(doc dom.Document) dom.Node {
@@ -386,7 +432,7 @@ func buttonInstantiate(doc dom.Document) dom.Node {
 
 func buttonUpdate(el dom.Node, old, new ButtonProps) {
 	btn := el.(*element.ButtonElement)
-	updateElementBase(btn, old.ElementProps, new.ElementProps)
+	updateElementBase(btn, old.elementProps(), new.elementProps())
 	if old.Disabled != new.Disabled {
 		btn.Disabled(new.Disabled)
 	}
@@ -403,15 +449,43 @@ func Button(props ButtonProps, children ...Node) Node {
 		children:    children,
 		instantiate: buttonInstantiate,
 		update:      buttonUpdate,
+		key:         props.Key,
 	}
 }
 
 // CheckboxProps specifies attributes for Checkbox elements.
 type CheckboxProps struct {
-	ElementProps
+	Key            string
+	ID             string
+	Class          string
+	Style          style.Style
+	Hidden         bool
+	OnKeyDown      func(event.Event)
+	OnKeyUp        func(event.Event)
+	OnKeyPress     func(event.Event)
+	OnMouseDown    func(event.Event)
+	OnMouseUp      func(event.Event)
+	OnMouseMove    func(event.Event)
+	OnClick        func(event.Event)
+	OnDrag         func(event.Event)
+	OnWheel        func(event.Event)
+	OnFocus        func(event.Event)
+	OnBlur         func(event.Event)
+	OnChange       func(event.Event)
+	OnScroll       func(event.Event)
 	Checked        bool
 	UncheckedGlyph string
 	CheckedGlyph   string
+}
+
+func (p CheckboxProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 func checkboxInstantiate(doc dom.Document) dom.Node {
@@ -420,7 +494,7 @@ func checkboxInstantiate(doc dom.Document) dom.Node {
 
 func checkboxUpdate(el dom.Node, old, new CheckboxProps) {
 	cb := el.(*element.CheckboxElement)
-	updateElementBase(cb, old.ElementProps, new.ElementProps)
+	updateElementBase(cb, old.elementProps(), new.elementProps())
 	if old.Checked != new.Checked {
 		cb.SetChecked(new.Checked)
 	}
@@ -445,14 +519,42 @@ func Checkbox(props CheckboxProps) Node {
 		children:    nil,
 		instantiate: checkboxInstantiate,
 		update:      checkboxUpdate,
+		key:         props.Key,
 	}
 }
 
 // RadioGroupProps specifies attributes for RadioGroup elements.
 type RadioGroupProps struct {
-	ElementProps
+	Key           string
+	ID            string
+	Class         string
+	Style         style.Style
+	Hidden        bool
+	OnKeyDown     func(event.Event)
+	OnKeyUp       func(event.Event)
+	OnKeyPress    func(event.Event)
+	OnMouseDown   func(event.Event)
+	OnMouseUp     func(event.Event)
+	OnMouseMove   func(event.Event)
+	OnClick       func(event.Event)
+	OnDrag        func(event.Event)
+	OnWheel       func(event.Event)
+	OnFocus       func(event.Event)
+	OnBlur        func(event.Event)
+	OnChange      func(event.Event)
+	OnScroll      func(event.Event)
 	Value         string
 	OnValueChange func(string)
+}
+
+func (p RadioGroupProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 func radioGroupInstantiate(doc dom.Document) dom.Node {
@@ -461,7 +563,7 @@ func radioGroupInstantiate(doc dom.Document) dom.Node {
 
 func radioGroupUpdate(el dom.Node, old, new RadioGroupProps) {
 	rg := el.(*element.RadioGroupElement)
-	updateElementBase(rg, old.ElementProps, new.ElementProps)
+	updateElementBase(rg, old.elementProps(), new.elementProps())
 	if old.Value != new.Value {
 		rg.SetValue(new.Value)
 	}
@@ -478,15 +580,43 @@ func RadioGroup(props RadioGroupProps, children ...Node) Node {
 		children:    children,
 		instantiate: radioGroupInstantiate,
 		update:      radioGroupUpdate,
+		key:         props.Key,
 	}
 }
 
 // RadioProps specifies attributes for Radio elements.
 type RadioProps struct {
-	ElementProps
+	Key            string
+	ID             string
+	Class          string
+	Style          style.Style
+	Hidden         bool
+	OnKeyDown      func(event.Event)
+	OnKeyUp        func(event.Event)
+	OnKeyPress     func(event.Event)
+	OnMouseDown    func(event.Event)
+	OnMouseUp      func(event.Event)
+	OnMouseMove    func(event.Event)
+	OnClick        func(event.Event)
+	OnDrag         func(event.Event)
+	OnWheel        func(event.Event)
+	OnFocus        func(event.Event)
+	OnBlur         func(event.Event)
+	OnChange       func(event.Event)
+	OnScroll       func(event.Event)
 	Value          string
 	UncheckedGlyph string
 	CheckedGlyph   string
+}
+
+func (p RadioProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 func radioInstantiate(doc dom.Document) dom.Node {
@@ -495,7 +625,7 @@ func radioInstantiate(doc dom.Document) dom.Node {
 
 func radioUpdate(el dom.Node, old, new RadioProps) {
 	r := el.(*element.RadioElement)
-	updateElementBase(r, old.ElementProps, new.ElementProps)
+	updateElementBase(r, old.elementProps(), new.elementProps())
 	if old.Value != new.Value && new.Value != "" {
 		r.SetValue(new.Value)
 	}
@@ -520,14 +650,42 @@ func Radio(props RadioProps) Node {
 		children:    nil,
 		instantiate: radioInstantiate,
 		update:      radioUpdate,
+		key:         props.Key,
 	}
 }
 
 // SelectProps specifies attributes for Select elements.
 type SelectProps struct {
-	ElementProps
+	Key           string
+	ID            string
+	Class         string
+	Style         style.Style
+	Hidden        bool
+	OnKeyDown     func(event.Event)
+	OnKeyUp       func(event.Event)
+	OnKeyPress    func(event.Event)
+	OnMouseDown   func(event.Event)
+	OnMouseUp     func(event.Event)
+	OnMouseMove   func(event.Event)
+	OnClick       func(event.Event)
+	OnDrag        func(event.Event)
+	OnWheel       func(event.Event)
+	OnFocus       func(event.Event)
+	OnBlur        func(event.Event)
+	OnChange      func(event.Event)
+	OnScroll      func(event.Event)
 	Value         string
 	OnValueChange func(string)
+}
+
+func (p SelectProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // Select creates a VDOM representation of a SelectElement.
@@ -541,7 +699,7 @@ func Select(props SelectProps, children ...Node) Node {
 		},
 		update: func(el dom.Node, old, new SelectProps) {
 			s := el.(*element.SelectElement)
-			updateElementBase(s, old.ElementProps, new.ElementProps)
+			updateElementBase(s, old.elementProps(), new.elementProps())
 			if old.Value != new.Value {
 				s.SetValue(new.Value)
 			}
@@ -557,14 +715,42 @@ func Select(props SelectProps, children ...Node) Node {
 			}
 			s.SetOptions(opts)
 		},
+		key: props.Key,
 	}
 }
 
 // OptionProps specifies attributes for Option elements.
 type OptionProps struct {
-	ElementProps
-	Text  string
-	Value string
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	Text        string
+	Value       string
+}
+
+func (p OptionProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // Option creates a VDOM representation of an OptionElement metadata node.
@@ -578,7 +764,7 @@ func Option(props OptionProps) Node {
 		},
 		update: func(el dom.Node, old, new OptionProps) {
 			opt := el.(*element.OptionElement)
-			updateElementBase(opt, old.ElementProps, new.ElementProps)
+			updateElementBase(opt, old.elementProps(), new.elementProps())
 			if old.Text != new.Text {
 				opt.SetText(new.Text)
 			}
@@ -586,13 +772,41 @@ func Option(props OptionProps) Node {
 				opt.SetValue(new.Value)
 			}
 		},
+		key: props.Key,
 	}
 }
 
 // InputProps specifies attributes for Input elements.
 type InputProps struct {
-	ElementProps
-	Value string
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	Value       string
+}
+
+func (p InputProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // Input creates a VDOM representation of an InputElement.
@@ -606,18 +820,46 @@ func Input(props InputProps) Node {
 		},
 		update: func(el dom.Node, old, new InputProps) {
 			inp := el.(*element.InputElement)
-			updateElementBase(inp, old.ElementProps, new.ElementProps)
+			updateElementBase(inp, old.elementProps(), new.elementProps())
 			if old.Value != new.Value {
 				inp.SetValue(new.Value)
 			}
 		},
+		key: props.Key,
 	}
 }
 
 // TextAreaProps specifies attributes for TextArea elements.
 type TextAreaProps struct {
-	ElementProps
-	Value string
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	Value       string
+}
+
+func (p TextAreaProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // TextArea creates a VDOM representation of a TextAreaElement.
@@ -631,17 +873,13 @@ func TextArea(props TextAreaProps) Node {
 		},
 		update: func(el dom.Node, old, new TextAreaProps) {
 			txa := el.(*element.TextAreaElement)
-			updateElementBase(txa, old.ElementProps, new.ElementProps)
+			updateElementBase(txa, old.elementProps(), new.elementProps())
 			if old.Value != new.Value {
 				txa.SetValue(new.Value)
 			}
 		},
+		key: props.Key,
 	}
-}
-
-// TableProps specifies attributes for Table elements.
-type TableProps struct {
-	ElementProps
 }
 
 // Table creates a VDOM representation of a TableElement.
@@ -654,14 +892,10 @@ func Table(props TableProps, children ...Node) Node {
 			return element.NewTable(doc)
 		},
 		update: func(el dom.Node, old, new TableProps) {
-			updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+			updateElementBase(el.(element.Element), old, new)
 		},
+		key: props.Key,
 	}
-}
-
-// THeadProps specifies attributes for THead elements.
-type THeadProps struct {
-	ElementProps
 }
 
 // THead creates a VDOM representation of a TableHeaderElement (thead).
@@ -674,14 +908,10 @@ func THead(props THeadProps, children ...Node) Node {
 			return element.NewTableHeader(doc)
 		},
 		update: func(el dom.Node, old, new THeadProps) {
-			updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+			updateElementBase(el.(element.Element), old, new)
 		},
+		key: props.Key,
 	}
-}
-
-// TBodyProps specifies attributes for TBody elements.
-type TBodyProps struct {
-	ElementProps
 }
 
 // TBody creates a VDOM representation of a TableBodyElement (tbody).
@@ -694,14 +924,10 @@ func TBody(props TBodyProps, children ...Node) Node {
 			return element.NewTableBody(doc)
 		},
 		update: func(el dom.Node, old, new TBodyProps) {
-			updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+			updateElementBase(el.(element.Element), old, new)
 		},
+		key: props.Key,
 	}
-}
-
-// TFootProps specifies attributes for TFoot elements.
-type TFootProps struct {
-	ElementProps
 }
 
 // TFoot creates a VDOM representation of a TableFooterElement (tfoot).
@@ -714,14 +940,10 @@ func TFoot(props TFootProps, children ...Node) Node {
 			return element.NewTableFooter(doc)
 		},
 		update: func(el dom.Node, old, new TFootProps) {
-			updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+			updateElementBase(el.(element.Element), old, new)
 		},
+		key: props.Key,
 	}
-}
-
-// TRProps specifies attributes for TR elements.
-type TRProps struct {
-	ElementProps
 }
 
 // TR creates a VDOM representation of a TableRowElement (tr).
@@ -734,16 +956,44 @@ func TR(props TRProps, children ...Node) Node {
 			return element.NewTableRow(doc)
 		},
 		update: func(el dom.Node, old, new TRProps) {
-			updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+			updateElementBase(el.(element.Element), old, new)
 		},
+		key: props.Key,
 	}
 }
 
 // TDProps specifies attributes for TD elements.
 type TDProps struct {
-	ElementProps
-	ColSpan int
-	RowSpan int
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	ColSpan     int
+	RowSpan     int
+}
+
+func (p TDProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // TD creates a VDOM representation of a TableCellElement (td).
@@ -757,7 +1007,7 @@ func TD(props TDProps, children ...Node) Node {
 		},
 		update: func(el dom.Node, old, new TDProps) {
 			td := el.(*element.TableCellElement)
-			updateElementBase(td, old.ElementProps, new.ElementProps)
+			updateElementBase(td, old.elementProps(), new.elementProps())
 			if old.ColSpan != new.ColSpan {
 				td.SetColSpan(new.ColSpan)
 			}
@@ -765,12 +1015,8 @@ func TD(props TDProps, children ...Node) Node {
 				td.SetRowSpan(new.RowSpan)
 			}
 		},
+		key: props.Key,
 	}
-}
-
-// BrProps specifies attributes for Br elements.
-type BrProps struct {
-	ElementProps
 }
 
 // Br creates a VDOM representation of a BrElement.
@@ -783,18 +1029,46 @@ func Br(props BrProps) Node {
 			return element.NewBr(doc)
 		},
 		update: func(el dom.Node, old, new BrProps) {
-			updateElementBase(el.(element.Element), old.ElementProps, new.ElementProps)
+			updateElementBase(el.(element.Element), old, new)
 		},
+		key: props.Key,
 	}
 }
 
 // OverlayProps specifies attributes for Overlay elements.
 type OverlayProps struct {
-	ElementProps
-	Anchor    dom.Element
-	ZIndex    int
-	Placement layout.OverlayPlacement
-	Flip      bool
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	Anchor      dom.Element
+	ZIndex      int
+	Placement   layout.OverlayPlacement
+	Flip        bool
+}
+
+func (p OverlayProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // Overlay creates a VDOM representation of an OverlayElement.
@@ -818,7 +1092,7 @@ func Overlay(props OverlayProps, content Node) Node {
 		},
 		update: func(el dom.Node, old, new OverlayProps) {
 			o := el.(*element.OverlayElement)
-			updateElementBase(o, old.ElementProps, new.ElementProps)
+			updateElementBase(o, old.elementProps(), new.elementProps())
 			if old.Anchor != new.Anchor || old.ZIndex != new.ZIndex || old.Placement != new.Placement || old.Flip != new.Flip {
 				config := element.OverlayConfig{
 					Anchor:    new.Anchor,
@@ -829,13 +1103,41 @@ func Overlay(props OverlayProps, content Node) Node {
 				o.SetConfig(config)
 			}
 		},
+		key: props.Key,
 	}
 }
 
 // DialogProps specifies attributes for Dialog elements.
 type DialogProps struct {
-	ElementProps
-	ZIndex int
+	Key         string
+	ID          string
+	Class       string
+	Style       style.Style
+	Hidden      bool
+	OnKeyDown   func(event.Event)
+	OnKeyUp     func(event.Event)
+	OnKeyPress  func(event.Event)
+	OnMouseDown func(event.Event)
+	OnMouseUp   func(event.Event)
+	OnMouseMove func(event.Event)
+	OnClick     func(event.Event)
+	OnDrag      func(event.Event)
+	OnWheel     func(event.Event)
+	OnFocus     func(event.Event)
+	OnBlur      func(event.Event)
+	OnChange    func(event.Event)
+	OnScroll    func(event.Event)
+	ZIndex      int
+}
+
+func (p DialogProps) elementProps() ElementProps {
+	return ElementProps{
+		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
+		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
+		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+	}
 }
 
 // Dialog creates a VDOM representation of a DialogElement.
@@ -853,11 +1155,12 @@ func Dialog(props DialogProps, content Node) Node {
 		},
 		update: func(el dom.Node, old, new DialogProps) {
 			d := el.(*element.DialogElement)
-			updateElementBase(d, old.ElementProps, new.ElementProps)
+			updateElementBase(d, old.elementProps(), new.elementProps())
 			if old.ZIndex != new.ZIndex {
 				d.SetZIndex(new.ZIndex)
 			}
 		},
+		key: props.Key,
 	}
 }
 
@@ -887,6 +1190,9 @@ type componentInstance interface {
 	IsDirty() bool
 	ClearDirty()
 	getRef() *componentRef
+	RealNode() dom.Node
+	Rendered() Node
+	ReRender() Node
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -904,12 +1210,14 @@ type ComponentNode[P any] struct {
 	isFirst   bool
 	dirty     bool
 	ref       *componentRef
+	key       string
 }
 
 var _ Node = (*ComponentNode[struct{}])(nil)
 
 func (c *ComponentNode[P]) TagName() string { return c.Name }
 func (c *ComponentNode[P]) Props() any      { return c.PropsVal }
+func (c *ComponentNode[P]) Key() string     { return c.key }
 
 func (c *ComponentNode[P]) Children() []Node {
 	if c.rendered == nil {
@@ -990,6 +1298,22 @@ func (c *ComponentNode[P]) getRef() *componentRef {
 	return c.ref
 }
 
+func (c *ComponentNode[P]) RealNode() dom.Node {
+	return c.realNode
+}
+
+func (c *ComponentNode[P]) Rendered() Node {
+	return c.rendered
+}
+
+func (c *ComponentNode[P]) ReRender() Node {
+	pushCurrentComponent(c)
+	c.hookIndex = 0
+	c.rendered = c.RenderFn(c.PropsVal)
+	popCurrentComponent()
+	return c.rendered
+}
+
 // IsDirty returns whether the component is dirty.
 func (c *ComponentNode[P]) IsDirty() bool {
 	return c.dirty
@@ -1043,6 +1367,91 @@ func getCurrentComponent() any {
 
 // --- FC & FCC wrappers ---------------------------------------------------------
 
+type structTypeInfo struct {
+	keyFieldIdx          []int
+	hasKey               bool
+	elementPropsFieldIdx []int
+	hasElementProps      bool
+	elementPropsKeyIdx   []int
+	hasElementPropsKey   bool
+	childrenFieldIdx     []int
+	hasChildren          bool
+}
+
+var typeInfoCache sync.Map
+
+func getTypeInfo(t reflect.Type) *structTypeInfo {
+	if val, ok := typeInfoCache.Load(t); ok {
+		return val.(*structTypeInfo)
+	}
+
+	info := &structTypeInfo{}
+	if t.Kind() == reflect.Struct {
+		// Look for Key field
+		if f, found := t.FieldByName("Key"); found {
+			if f.Type.Kind() == reflect.String {
+				info.keyFieldIdx = f.Index
+				info.hasKey = true
+			}
+		}
+		// Look for ElementProps field
+		if ep, found := t.FieldByName("ElementProps"); found {
+			if ep.Type.Kind() == reflect.Struct {
+				info.elementPropsFieldIdx = ep.Index
+				info.hasElementProps = true
+				if k, foundKey := ep.Type.FieldByName("Key"); foundKey {
+					if k.Type.Kind() == reflect.String {
+						info.elementPropsKeyIdx = k.Index
+						info.hasElementPropsKey = true
+					}
+				}
+			}
+		}
+		// Look for Children field
+		if ch, found := t.FieldByName("Children"); found {
+			if ch.Type == reflect.TypeOf([]Node{}) {
+				info.childrenFieldIdx = ch.Index
+				info.hasChildren = true
+			}
+		}
+	}
+
+	typeInfoCache.Store(t, info)
+	return info
+}
+
+func getKey(props any) string {
+	if props == nil {
+		return ""
+	}
+	t := reflect.TypeOf(props)
+	isPtr := false
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		isPtr = true
+	}
+	if t.Kind() != reflect.Struct {
+		return ""
+	}
+
+	info := getTypeInfo(t)
+	v := reflect.ValueOf(props)
+	if isPtr {
+		if v.IsNil() {
+			return ""
+		}
+		v = v.Elem()
+	}
+
+	if info.hasKey {
+		return v.FieldByIndex(info.keyFieldIdx).String()
+	}
+	if info.hasElementPropsKey {
+		return v.FieldByIndex(info.elementPropsFieldIdx).FieldByIndex(info.elementPropsKeyIdx).String()
+	}
+	return ""
+}
+
 // FC creates a functional component wrapper that does not take children.
 func FC[P any](name string, render func(P) Node) func(P) Node {
 	return func(props P) Node {
@@ -1051,6 +1460,7 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 			PropsVal: props,
 			RenderFn: render,
 			isFirst:  true,
+			key:      getKey(props),
 		}
 	}
 }
@@ -1066,37 +1476,50 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 			PropsVal: propsWithChildren,
 			RenderFn: render,
 			isFirst:  true,
+			key:      getKey(propsWithChildren),
 		}
 	}
 }
 
 func injectChildren[P any](props P, children []Node) P {
+	var val any = props
+	if val == nil {
+		return props
+	}
+	t := reflect.TypeOf(val)
+	isPtr := false
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		isPtr = true
+	}
+	if t.Kind() != reflect.Struct {
+		return props
+	}
+
+	info := getTypeInfo(t)
+	if !info.hasChildren {
+		return props
+	}
+
 	v := reflect.ValueOf(props)
-	if v.Kind() == reflect.Ptr {
+	if isPtr {
 		if v.IsNil() {
 			return props
 		}
-		elem := v.Elem()
-		if elem.Kind() == reflect.Struct {
-			f := elem.FieldByName("Children")
-			if f.IsValid() && f.CanSet() && f.Type() == reflect.TypeOf([]Node{}) {
-				f.Set(reflect.ValueOf(children))
-			}
+		f := v.Elem().FieldByIndex(info.childrenFieldIdx)
+		if f.CanSet() {
+			f.Set(reflect.ValueOf(children))
 		}
 		return props
 	}
 
-	if v.Kind() == reflect.Struct {
-		ptr := reflect.New(v.Type())
-		ptr.Elem().Set(v)
-		f := ptr.Elem().FieldByName("Children")
-		if f.IsValid() && f.CanSet() && f.Type() == reflect.TypeOf([]Node{}) {
-			f.Set(reflect.ValueOf(children))
-		}
-		return ptr.Elem().Interface().(P)
+	ptr := reflect.New(t)
+	ptr.Elem().Set(v)
+	f := ptr.Elem().FieldByIndex(info.childrenFieldIdx)
+	if f.CanSet() {
+		f.Set(reflect.ValueOf(children))
 	}
-
-	return props
+	return ptr.Elem().Interface().(P)
 }
 
 // --- Hook primitives ----------------------------------------------------------

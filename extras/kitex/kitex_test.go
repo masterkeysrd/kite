@@ -26,8 +26,9 @@ func TestFactoryFunctions(t *testing.T) {
 
 	// Test Element node factory (Button)
 	btnProps := ButtonProps{
-		ElementProps: ElementProps{ID: "btn1", Class: "primary"},
-		Disabled:     true,
+		ID:       "btn1",
+		Class:    "primary",
+		Disabled: true,
 	}
 	childText := Text("click me")
 	btnNode := Button(btnProps, childText)
@@ -45,13 +46,13 @@ func TestFactoryFunctions(t *testing.T) {
 		t.Errorf("unexpected child node in button")
 	}
 
-	// Test Div node factory
-	divProps := BoxProps{
-		ElementProps: ElementProps{ID: "div1"},
+	// Test Box node factory
+	boxProps := BoxProps{
+		ID: "box1",
 	}
-	divNode := Div(divProps)
-	if divNode.TagName() != "div" {
-		t.Errorf("expected tag name div, got %s", divNode.TagName())
+	boxNode := Box(boxProps)
+	if boxNode.TagName() != "box" {
+		t.Errorf("expected tag name box, got %s", boxNode.TagName())
 	}
 }
 
@@ -60,9 +61,11 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Button instantiation and update", func(t *testing.T) {
 		btnProps := ButtonProps{
-			ElementProps: ElementProps{ID: "btn1", Class: "btn-class", Style: style.Style{Bold: style.Some(true)}},
-			Disabled:     true,
-			Active:       true,
+			ID:       "btn1",
+			Class:    "btn-class",
+			Style:    style.Style{Bold: style.Some(true)},
+			Disabled: true,
+			Active:   true,
 		}
 		btnNode := Button(btnProps)
 		realNode := btnNode.Instantiate(doc)
@@ -87,9 +90,11 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// Perform update
 		newBtnProps := ButtonProps{
-			ElementProps: ElementProps{ID: "btn2", Class: "btn-class-new", Style: style.Style{Bold: style.Some(false)}},
-			Disabled:     false,
-			Active:       false,
+			ID:       "btn2",
+			Class:    "btn-class-new",
+			Style:    style.Style{Bold: style.Some(false)},
+			Disabled: false,
+			Active:   false,
 		}
 		newBtnNode := Button(newBtnProps)
 		newBtnNode.Update(realNode, btnNode)
@@ -110,7 +115,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Checkbox instantiation and update", func(t *testing.T) {
 		cbProps := CheckboxProps{
-			ElementProps:   ElementProps{ID: "cb1"},
+			ID:             "cb1",
 			Checked:        false,
 			UncheckedGlyph: "[off]",
 			CheckedGlyph:   "[on]",
@@ -129,7 +134,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// Update checked state and glyphs
 		newCbProps := CheckboxProps{
-			ElementProps:   ElementProps{ID: "cb1"},
+			ID:             "cb1",
 			Checked:        true,
 			UncheckedGlyph: "[off]",
 			CheckedGlyph:   "[on]",
@@ -144,8 +149,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Input and TextArea instantiation and update", func(t *testing.T) {
 		inpProps := InputProps{
-			ElementProps: ElementProps{ID: "inp1"},
-			Value:        "initial input",
+			ID:    "inp1",
+			Value: "initial input",
 		}
 		inpNode := Input(inpProps)
 		realInp := inpNode.Instantiate(doc).(*element.InputElement)
@@ -155,8 +160,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		}
 
 		newInpProps := InputProps{
-			ElementProps: ElementProps{ID: "inp1"},
-			Value:        "updated input",
+			ID:    "inp1",
+			Value: "updated input",
 		}
 		newInpNode := Input(newInpProps)
 		newInpNode.Update(realInp, inpNode)
@@ -167,8 +172,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// TextArea
 		txaProps := TextAreaProps{
-			ElementProps: ElementProps{ID: "txa1"},
-			Value:        "initial text",
+			ID:    "txa1",
+			Value: "initial text",
 		}
 		txaNode := TextArea(txaProps)
 		realTxa := txaNode.Instantiate(doc).(*element.TextAreaElement)
@@ -178,8 +183,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		}
 
 		newTxaProps := TextAreaProps{
-			ElementProps: ElementProps{ID: "txa1"},
-			Value:        "updated text",
+			ID:    "txa1",
+			Value: "updated text",
 		}
 		newTxaNode := TextArea(newTxaProps)
 		newTxaNode.Update(realTxa, txaNode)
@@ -191,8 +196,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Radio and RadioGroup instantiation and update", func(t *testing.T) {
 		rProps := RadioProps{
-			ElementProps: ElementProps{ID: "r1"},
-			Value:        "val1",
+			ID:    "r1",
+			Value: "val1",
 		}
 		rNode := Radio(rProps)
 		realRadio := rNode.Instantiate(doc).(*element.RadioElement)
@@ -203,8 +208,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// Update value via reflection
 		newRProps := RadioProps{
-			ElementProps: ElementProps{ID: "r1"},
-			Value:        "val2",
+			ID:    "r1",
+			Value: "val2",
 		}
 		newRNode := Radio(newRProps)
 		newRNode.Update(realRadio, rNode)
@@ -216,18 +221,18 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Select and Option instantiation and update", func(t *testing.T) {
 		optProps := OptionProps{
-			ElementProps: ElementProps{ID: "opt1"},
-			Text:         "Option 1",
-			Value:        "val1",
+			ID:    "opt1",
+			Text:  "Option 1",
+			Value: "val1",
 		}
 		optNode := Option(optProps)
 		realOpt := optNode.Instantiate(doc).(*element.OptionElement)
 
 		// Reflection updates text/value
 		newOptProps := OptionProps{
-			ElementProps: ElementProps{ID: "opt1"},
-			Text:         "Option 1 New",
-			Value:        "val1_new",
+			ID:    "opt1",
+			Text:  "Option 1 New",
+			Value: "val1_new",
 		}
 		newOptNode := Option(newOptProps)
 		newOptNode.Update(realOpt, optNode)
@@ -243,8 +248,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// SelectElement
 		selProps := SelectProps{
-			ElementProps: ElementProps{ID: "sel1"},
-			Value:        "val1",
+			ID:    "sel1",
+			Value: "val1",
 		}
 		selNode := Select(selProps)
 		realSel := selNode.Instantiate(doc).(*element.SelectElement)
@@ -255,8 +260,8 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// Update select value
 		newSelProps := SelectProps{
-			ElementProps: ElementProps{ID: "sel1"},
-			Value:        "val2",
+			ID:    "sel1",
+			Value: "val2",
 		}
 		newSelNode := Select(newSelProps)
 		newSelNode.Update(realSel, selNode)
@@ -268,9 +273,9 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Table, TD, TR, THead, TBody, TFoot instantiation and update", func(t *testing.T) {
 		tdProps := TDProps{
-			ElementProps: ElementProps{ID: "td1"},
-			ColSpan:      2,
-			RowSpan:      3,
+			ID:      "td1",
+			ColSpan: 2,
+			RowSpan: 3,
 		}
 		tdNode := TD(tdProps)
 		realTd := tdNode.Instantiate(doc).(*element.TableCellElement)
@@ -283,9 +288,9 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		}
 
 		newTdProps := TDProps{
-			ElementProps: ElementProps{ID: "td1"},
-			ColSpan:      1,
-			RowSpan:      1,
+			ID:      "td1",
+			ColSpan: 1,
+			RowSpan: 1,
 		}
 		newTdNode := TD(newTdProps)
 		newTdNode.Update(realTd, tdNode)
@@ -300,10 +305,10 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 	t.Run("Overlay and Dialog instantiation and update", func(t *testing.T) {
 		overlayProps := OverlayProps{
-			ElementProps: ElementProps{ID: "over1"},
-			ZIndex:       10,
-			Placement:    layout.PlacementTop,
-			Flip:         true,
+			ID:        "over1",
+			ZIndex:    10,
+			Placement: layout.PlacementTop,
+			Flip:      true,
 		}
 		overlayNode := Overlay(overlayProps, nil)
 		realOverlay := overlayNode.Instantiate(doc).(*element.OverlayElement)
@@ -313,10 +318,10 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		}
 
 		newOverlayProps := OverlayProps{
-			ElementProps: ElementProps{ID: "over1"},
-			ZIndex:       20,
-			Placement:    layout.PlacementBottom,
-			Flip:         false,
+			ID:        "over1",
+			ZIndex:    20,
+			Placement: layout.PlacementBottom,
+			Flip:      false,
 		}
 		newOverlayNode := Overlay(newOverlayProps, nil)
 		newOverlayNode.Update(realOverlay, overlayNode)
@@ -327,15 +332,15 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		// Dialog
 		dialogProps := DialogProps{
-			ElementProps: ElementProps{ID: "dial1"},
-			ZIndex:       50,
+			ID:     "dial1",
+			ZIndex: 50,
 		}
 		dialogNode := Dialog(dialogProps, nil)
 		realDialog := dialogNode.Instantiate(doc).(*element.DialogElement)
 
 		newDialogProps := DialogProps{
-			ElementProps: ElementProps{ID: "dial1"},
-			ZIndex:       100,
+			ID:     "dial1",
+			ZIndex: 100,
 		}
 		newDialogNode := Dialog(newDialogProps, nil)
 		newDialogNode.Update(realDialog, dialogNode)
@@ -355,7 +360,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	fn2 := func(e event.Event) { clickCount2++ }
 
 	btnNode1 := Button(ButtonProps{
-		ElementProps: ElementProps{OnClick: fn1},
+		OnClick: fn1,
 	})
 	realBtn := btnNode1.Instantiate(doc).(*element.ButtonElement)
 
@@ -367,7 +372,7 @@ func TestEventListenersUpdate(t *testing.T) {
 
 	// Update to fn2
 	btnNode2 := Button(ButtonProps{
-		ElementProps: ElementProps{OnClick: fn2},
+		OnClick: fn2,
 	})
 	btnNode2.Update(realBtn, btnNode1)
 
@@ -382,7 +387,7 @@ func TestEventListenersUpdate(t *testing.T) {
 
 	// Update to nil (remove listener)
 	btnNode3 := Button(ButtonProps{
-		ElementProps: ElementProps{OnClick: nil},
+		OnClick: nil,
 	})
 	btnNode3.Update(realBtn, btnNode2)
 

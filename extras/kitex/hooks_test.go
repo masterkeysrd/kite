@@ -19,7 +19,7 @@ func TestFCAndFCCConstruction(t *testing.T) {
 	// Test FC
 	myComp := FC("myComponent", func(props TestProps) Node {
 		return Box(BoxProps{
-			ElementProps: ElementProps{ID: props.Label},
+			ID: props.Label,
 		})
 	})
 
@@ -39,7 +39,7 @@ func TestFCAndFCCConstruction(t *testing.T) {
 	// Test FCC
 	myCompWithChildren := FCC("myChildrenComponent", func(props TestChildrenProps) Node {
 		return Box(BoxProps{
-			ElementProps: ElementProps{ID: props.Title},
+			ID: props.Title,
 		}, props.Children...)
 	})
 
@@ -116,6 +116,10 @@ func TestUseStatePersistence(t *testing.T) {
 
 	// 3. Mutate state
 	var dirtyNode Node
+	oldDirty := OnComponentDirty
+	defer func() {
+		OnComponentDirty = oldDirty
+	}()
 	OnComponentDirty = func(n Node) {
 		dirtyNode = n
 	}
@@ -145,8 +149,6 @@ func TestUseStatePersistence(t *testing.T) {
 	if getState2("") != "updated" {
 		t.Errorf("expected updated state to be 'updated', got %s", getState2(""))
 	}
-
-	OnComponentDirty = nil
 }
 
 func TestUseStateMarkDirty(t *testing.T) {
