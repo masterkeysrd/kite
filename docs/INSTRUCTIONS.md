@@ -36,6 +36,7 @@ We operate in **Consensus Mode**:
   - Required test cases.
   - Benchmark requirements (if performance-sensitive).
   - Regression tests (must be placed in `./tests/regressions/`).
+  - Create a sample implementation in `./examples/` if the task introduces new elements or APIs that would benefit from demonstration.
   - **Documentation Updates:** Explicit instruction to update `README.md`, `AGENT.md`, or package-level `doc.go` files if the task alters the architecture, public API, or agent context.
 
 ## Workflow

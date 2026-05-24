@@ -57,4 +57,17 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-042 | Refactor Engine to use Pipeline Decorator and Inline TraceContext | Done | `tasks/TSK-042-profiler-pipeline-decorator.md` |
 | TSK-043 | Implement DevTools Profiler Endpoints and Flamechart UI | Done | `tasks/TSK-043-devtools-flamechart-ui.md` |
 | TSK-044 | Migrate DevTools Frontend to Preact and Vite | Done | `tasks/TSK-044-devtools-frontend-preact.md` |
-| TSK-045 | Implement Animation System and Engine Integration | Pending | `tasks/TSK-045-animation-system.md` |
+| TSK-045 | Implement Animation System and Engine Integration | Done | `tasks/TSK-045-animation-system.md` |
+| TSK-046 | Logical Text Selection (DOM) | In Progress | `tasks/TSK-046-logical-text-selection.md` |
+| TSK-047 | Paint Masking for Text Selection | Pending | `tasks/TSK-047-paint-selection-mask.md` |
+| TSK-048 | User Interaction and Hit-Testing for Selection | Pending | `tasks/TSK-048-selection-hit-testing.md` |
+| TSK-049 | System Clipboard Integration | Pending | `tasks/TSK-049-clipboard-integration.md` |
+| TSK-050 | Text Control Local Selection | Pending | `tasks/TSK-050-text-control-selection.md` |
+| TSK-051 | Text Control Clipboard Mechanics | Pending | `tasks/TSK-051-text-control-clipboard.md` |
+| TSK-052 | CSS Grid Style API | Pending | `tasks/TSK-052-grid-style-api.md` |
+| TSK-053 | Grid Builder and Auto-Placement | Pending | `tasks/TSK-053-grid-builder-placement.md` |
+| TSK-054 | Grid Layout Algorithm | Pending | `tasks/TSK-054-grid-algorithm.md` |
+| TSK-055 | Grid Animation Interpolator | Pending | `tasks/TSK-055-grid-animator.md` |
+| TSK-056 | Kitex VDOM Primitive Wrappers | Pending | `tasks/TSK-056-kitex-vdom-primitives.md` |
+| TSK-057 | Kitex Reactive Hooks & Context | Pending | `tasks/TSK-057-kitex-hooks-context.md` |
+| TSK-058 | Kitex VDOM Reconciler Engine | Pending | `tasks/TSK-058-kitex-reconciler.md` |
