@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/masterkeysrd/kite/animation"
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
@@ -185,6 +186,9 @@ type Engine struct {
 	pipeline Pipeline
 
 	tracer *trace.Tracer
+
+	activeAnimations []animation.Animator
+	lastFrameTime    time.Time
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
@@ -477,6 +481,12 @@ func (e *Engine) RequestFrame() {
 	e.frameRequested = true
 }
 
+// RegisterAnimation registers an active animation to be ticked by the engine.
+func (e *Engine) RegisterAnimation(anim animation.Animator) {
+	e.activeAnimations = append(e.activeAnimations, anim)
+	e.RequestFrame()
+}
+
 // OnAfterLayout registers a one-shot callback that fires once, after the next
 // layout and scroll-into-view phase completes but before the paint phase.
 // This is the correct place to read CursorState() when an accurate, freshly
@@ -603,8 +613,6 @@ func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
 func (e *Engine) Frame() {
 	defer e.recoverFrame()
 
-	e.drainWorkerResults()
-
 	e.profilerMu.RLock()
 	pipe := e.pipeline
 	tracer := e.tracer
@@ -614,6 +622,44 @@ func (e *Engine) Frame() {
 	if tracer != nil {
 		endFrame = tracer.BeginThread("Frame", 1)
 	}
+	defer endFrame()
+
+	// Tick active animations at the very top.
+	if len(e.activeAnimations) > 0 {
+		if tracer != nil {
+			defer tracer.BeginWithArgs("Phase:Animations", map[string]any{
+				"activeCount": len(e.activeAnimations),
+			})()
+		}
+		now := e.clock.Now()
+		var dt time.Duration
+		if !e.lastFrameTime.IsZero() {
+			dt = now.Sub(e.lastFrameTime)
+		}
+		e.lastFrameTime = now
+
+		// Iterate backwards to allow safe removal of finished animations.
+		for i := len(e.activeAnimations) - 1; i >= 0; i-- {
+			anim := e.activeAnimations[i]
+			finished := func() bool {
+				if tracer != nil {
+					defer tracer.Begin(fmt.Sprintf("Animation:%T", anim))()
+				}
+				return anim.Tick(dt)
+			}()
+			if finished {
+				e.activeAnimations = append(e.activeAnimations[:i], e.activeAnimations[i+1:]...)
+			}
+		}
+
+		if len(e.activeAnimations) == 0 {
+			e.lastFrameTime = time.Time{}
+		}
+	} else {
+		e.lastFrameTime = time.Time{}
+	}
+
+	e.drainWorkerResults()
 
 	pipe.Sync(e)
 	pipe.Tasks(e)
@@ -621,10 +667,13 @@ func (e *Engine) Frame() {
 	layoutRan := pipe.Layout(e)
 	pipe.Paint(e, layoutRan)
 
-	endFrame()
-
 	e.nextFrameAt = time.Time{}
 	e.frameRequested = false
+
+	// Self-scheduling: keep waking up as long as we have active animations.
+	if len(e.activeAnimations) > 0 {
+		e.RequestFrame()
+	}
 
 	for _, fn := range e.onFrameRenderedHooks {
 		fn()

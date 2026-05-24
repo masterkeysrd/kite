@@ -21,6 +21,14 @@
 // // The engine coordinates all other
 // kitex packages and is the only package that imports all of them.
 //
+// # Animations
+//
+// The engine supports an imperative animation system. Registered animations are
+// tracked in an active registry and ticked at the very top of each frame loop.
+// If any animations remain active at the end of the frame, the engine schedules
+// another frame wake-up (targeting 60FPS) to keep the animation progressing. The
+// animation tick phase is fully integrated with the built-in profiler.
+//
 // # Profiler
 //
 // Kite includes a built-in performance profiler based on a Hybrid Architecture

@@ -13,6 +13,7 @@ Kite is built with a clean separation of concerns, divided into specialized pack
 *   **Render (`/render`)**: The visual bridge. It holds a unified `render.Box` or `render.Text` tree that perfectly mirrors the DOM, carrying lifecycle dirty-flags (`NeedsSync`, `DirtyStyle`, `DirtyLayout`) without doing actual math.
 *   **Engine (`/engine`)**: The central nervous system. It orchestrates the 6-phase pipeline (Task Draining -> Sync -> Style -> Layout -> Paint -> Commit) at 60FPS on the main thread, while managing concurrent asynchronous Jobs.
 *   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks).
+*   **Animation (`/animation`)**: An imperative property interpolation and tweening system. It allows for smooth transitions of numeric values, colors, and other types over time using customizable easing functions.
 
 ## 🚀 Getting Started
 
@@ -46,6 +47,7 @@ go test -bench=. ./...
 
 ```text
 github.com/masterkeysrd/kite
+├── animation/  # Imperative property interpolation and tweening
 ├── backend/    # Terminal decoupling, mock, and ultraviolet implementations
 ├── dom/        # Logical node tree, Element, Document, TextNode, and TextArea
 ├── editor/     # Text editing buffers and Unicode-safe string mutation

@@ -34,6 +34,29 @@ func TestTracer(t *testing.T) {
 	if events[1].Name != "test-event" || events[1].Ph != End {
 		t.Errorf("Unexpected second event: %+v", events[1])
 	}
+
+	t.Run("Args", func(t *testing.T) {
+		tr := NewTracer()
+		args := map[string]any{"key": "value"}
+		func() {
+			defer tr.BeginWithArgs("args-event", args)()
+		}()
+
+		var buf bytes.Buffer
+		tr.WriteJSON(&buf)
+		var events []Event
+		json.Unmarshal(buf.Bytes(), &events)
+
+		if len(events) != 2 {
+			t.Fatalf("Expected 2 events, got %d", len(events))
+		}
+		if events[0].Args["key"] != "value" {
+			t.Errorf("Expected Arg key=value, got %v", events[0].Args["key"])
+		}
+		if events[1].Args["key"] != "value" {
+			t.Errorf("Expected Arg key=value in End event, got %v", events[1].Args["key"])
+		}
+	})
 }
 
 func TestNilTracer(t *testing.T) {

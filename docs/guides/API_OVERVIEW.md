@@ -7,6 +7,7 @@ This overview points to the primary packages and where to find their authoritati
 - `layout` — layout algorithms (block, flex, inline, list, table). See `layout/doc.go`, `layout/flex_builder.go`, `layout/table_builder.go`.
 - `paint` — paint pipeline and framebuffer. See `paint/doc.go`, `paint/framebuffer.go`.
 - `engine` — frame loop and task queues. See `engine/doc.go`, `engine/engine.go`.
+- `animation` — imperative property interpolation and tweening. See `animation/doc.go`, `animation/animation.go`.
 - `element` — declarative components and builders. See `element/doc.go`, `element/element.go`.
 
 When making API-level changes:

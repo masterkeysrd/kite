@@ -425,13 +425,20 @@ func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
 }
 
 func propagateOffsets(frag *layout.Fragment) {
+	propagateOffsetsAccum(frag, layout.Point{})
+}
+
+func propagateOffsetsAccum(frag *layout.Fragment, accum layout.Point) {
 	if frag == nil {
 		return
 	}
 	for _, link := range frag.Children {
+		offset := layout.Point{X: accum.X + link.Offset.X, Y: accum.Y + link.Offset.Y}
 		if ro, ok := link.Fragment.Node.(Object); ok {
-			ro.SetOffset(link.Offset)
-			propagateOffsets(link.Fragment)
+			ro.SetOffset(offset)
+			propagateOffsetsAccum(link.Fragment, layout.Point{})
+		} else {
+			propagateOffsetsAccum(link.Fragment, offset)
 		}
 	}
 }

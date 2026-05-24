@@ -32,5 +32,6 @@ Inspect typical examples:
 - `example/overlay` — basic anchored overlay demo.
 - `example/dialog` — modal dialog demonstration.
 - `example/overlay_tweaks` — interactive configuration of overlay smart-flipping.
+- `example/animation` — demonstration of property interpolation and tweening.
 
 If an example lacks a `main` package, it may be structured as tests or packages; read the `README.md` inside the example subfolder (when present) for details.

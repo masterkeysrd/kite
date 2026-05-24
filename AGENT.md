@@ -86,6 +86,12 @@ This document provides guidelines and architectural context for AI assistants an
     *   Overlays must default to `Display: InlineBlock` to ensure they shrink-wrap to their content, preventing false-positive horizontal overflows.
     *   `element.Dialog` provides a full-screen modal that uses the overlay system and traps keyboard focus via `focus.Scope`.
     *   The engine respects the calculated physical offsets of overlays during the paint phase. Standard elements used as overlays (without a custom positioner) fall back to margin-based absolute positioning relative to the viewport.
+15. **Animation System (ADR-021):**
+    *   The `/animation` package provides imperative property interpolation completely decoupled from the style engine.
+    *   The `engine.Engine` tracks and ticks active animations at the start of every frame loop.
+    *   Animations are self-scheduling: if any animations are active, the engine calls `RequestFrame()` to keep the loop running at 60FPS.
+    *   `Tween[T]` is the primary animator, combining a `Duration`, `EasingFunction`, and `Interpolator[T]` with an `OnUpdate` callback.
+    *   Property updates within an `OnUpdate` callback should typically use `element.RawStyle()` as a base, mutate it, and call `element.Style(s)` to trigger a style-dirty flag.
 
 ## 🗺️ Concern → File Map
 
@@ -130,6 +136,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Overlay system & algorithms** | `element/overlay.go`, `layout/overlay.go` (ADR-008) |
 | **Modal Dialogs** | `element/dialog.go` |
 | **Engine frame loop** | `engine/engine.go` |
+| **Animation system & Tweens** | `animation/animation.go` |
 | **Engine cursor wiring** | `engine/cursor.go` |
 | **Engine job / microtask queue** | `engine/job.go` |
 | **Backend interface** | `backend/backend.go` |
@@ -198,6 +205,10 @@ This makes it immediately clear which source files are relevant without reading 
 This source map summarises the repository packages, their responsibilities, and key files. It is generated from the repository scan and mirrors `SOURCE_MAP.md`.
 
 ### Packages
+
+- **animation** — Path: `animation/`
+    - Description: Imperative property interpolation, easing functions, and tweening utilities. (See `animation/doc.go`)
+    - Key files: `animation/doc.go`, `animation.go`, tests
 
 - **backend** — Path: `backend/`
     - Description: Defines the `Backend` interface and frame lifecycle hooks; supplies `Surface` for paint engine. (See `backend/doc.go`)
