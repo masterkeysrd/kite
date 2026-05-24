@@ -40,6 +40,15 @@ func Dialog(content dom.Node, zIndex int) *DialogElement {
 	return NewDialog(orphanDocument, content, zIndex)
 }
 
+// SetZIndex updates the dialog's overlay z-index.
+func (d *DialogElement) SetZIndex(zIndex int) *DialogElement {
+	d.zIndex = zIndex
+	if doc := d.OwnerDocument(); doc != nil && d.IsConnected() {
+		doc.ShowOverlay(d, zIndex)
+	}
+	return d
+}
+
 func (d *DialogElement) OnConnected() {
 	if doc := d.OwnerDocument(); doc != nil {
 		doc.ShowOverlay(d, d.zIndex)

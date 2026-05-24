@@ -40,6 +40,15 @@ func Overlay(content dom.Node, config OverlayConfig) *OverlayElement {
 	return o
 }
 
+// SetConfig updates the overlay element's configuration.
+func (o *OverlayElement) SetConfig(config OverlayConfig) *OverlayElement {
+	o.config = config
+	if ro := o.RenderObject(); ro != nil {
+		ro.MarkDirty(render.DirtyLayout)
+	}
+	return o
+}
+
 // CreateRenderObject implements render.CustomObjectProvider.
 func (o *OverlayElement) CreateRenderObject() render.Object {
 	return render.NewOverlay(o, o.EventTarget())

@@ -39,6 +39,18 @@ func Option(text, value string) *OptionElement {
 	return NewOption(orphanDocument, text, value)
 }
 
+// SetText sets the display text of the option.
+func (o *OptionElement) SetText(text string) *OptionElement {
+	o.text = text
+	return o
+}
+
+// SetValue sets the value of the option.
+func (o *OptionElement) SetValue(value string) *OptionElement {
+	o.value = value
+	return o
+}
+
 type uaSelectRoot struct {
 	dom.Element
 }
@@ -141,6 +153,13 @@ func (s *SelectElement) SetValue(value string) *SelectElement {
 	s.value = value
 	s.syncValue()
 	s.emitChange()
+	return s
+}
+
+// SetOptions updates the list of options available in the dropdown.
+func (s *SelectElement) SetOptions(options []*OptionElement) *SelectElement {
+	s.options = options
+	s.syncValue()
 	return s
 }
 

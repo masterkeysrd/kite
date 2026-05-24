@@ -14,6 +14,8 @@ Kite is built with a clean separation of concerns, divided into specialized pack
 *   **Engine (`/engine`)**: The central nervous system. It orchestrates the 6-phase pipeline (Task Draining -> Sync -> Style -> Layout -> Paint -> Commit) at 60FPS on the main thread, while managing concurrent asynchronous Jobs.
 *   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks) and manages high-level lifecycle events like `selectionchange`.
 *   **Animation (`/animation`)**: An imperative property interpolation and tweening system. It allows for smooth transitions of numeric values, colors, and other types over time using customizable easing functions.
+*   **Virtual DOM Primitives (`/extras/kitex`)**: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances, serving as the declarative, type-safe API.
+
 
 ## 🚀 Getting Started
 
@@ -58,7 +60,9 @@ github.com/masterkeysrd/kite
 ├── paint/      # Drawing interfaces and framebuffer management
 ├── render/     # The rendering pipeline tying DOM and Layout together
 ├── style/      # Sparse styling, computed values, and resolvers
-└── text/       # Text shaping and grapheme cluster management
+├── text/       # Text shaping and grapheme cluster management
+└── extras/     # Extended packages
+    └── kitex/  # VDOM primitive wrappers
 ```
 
 ## 💻 Usage Example

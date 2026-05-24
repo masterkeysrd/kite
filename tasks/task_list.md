@@ -68,6 +68,6 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-053 | Grid Builder and Auto-Placement | Pending | `tasks/TSK-053-grid-builder-placement.md` |
 | TSK-054 | Grid Layout Algorithm | Pending | `tasks/TSK-054-grid-algorithm.md` |
 | TSK-055 | Grid Animation Interpolator | Pending | `tasks/TSK-055-grid-animator.md` |
-| TSK-056 | Kitex VDOM Primitive Wrappers | Pending | `tasks/TSK-056-kitex-vdom-primitives.md` |
-| TSK-057 | Kitex Reactive Hooks & Context | Pending | `tasks/TSK-057-kitex-hooks-context.md` |
+| TSK-056 | Kitex VDOM Primitive Wrappers | Done | `tasks/TSK-056-kitex-vdom-primitives.md` |
+| TSK-057 | Kitex Reactive Hooks & Context | In Progress | `tasks/TSK-057-kitex-hooks-context.md` |
 | TSK-058 | Kitex VDOM Reconciler Engine | Pending | `tasks/TSK-058-kitex-reconciler.md` |

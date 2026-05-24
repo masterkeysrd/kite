@@ -156,6 +156,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Regression test suite** | `tests/regressions/` |
 | **ADR documents** | `docs/adrs/` |
 | **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
+| **VDOM primitive wrappers & API** | `extras/kitex/kitex.go` |
 
 ## 📋 Task Workflow
 
@@ -240,6 +241,10 @@ This source map summarises the repository packages, their responsibilities, and 
 
 - **example** — Path: `example/`
     - Description: Example applications and usage demos. Subpackages: `app1`, `button`, `flex`, `input`, `list`, `table`, `textarea`.
+
+- **extras/kitex** — Path: `extras/kitex/`
+    - Description: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances. (See `extras/kitex/doc.go`)
+    - Key files: `extras/kitex/doc.go`, `kitex.go`, tests
 
 - **focus** — Path: `focus/`
     - Description: Focus management, `focus.Manager`, reasons, scope stack, and spatial navigation. (See `focus/doc.go`)

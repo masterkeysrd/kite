@@ -139,6 +139,13 @@ func (r *RadioElement) Value() string {
 	return r.value
 }
 
+// SetValue updates the radio button's value.
+func (r *RadioElement) SetValue(value string) *RadioElement {
+	r.value = value
+	r.updateVisual()
+	return r
+}
+
 // SetGlyphs customizes the strings used for unchecked and checked states.
 func (r *RadioElement) SetGlyphs(unchecked, checked string) *RadioElement {
 	r.uncheckedGlyph = unchecked
