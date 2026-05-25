@@ -23,7 +23,7 @@ import (
 	"github.com/masterkeysrd/kite/layout"
 )
 
-type textControlBase[T dom.Element] struct {
+type textControlBase[T Element] struct {
 	host         T
 	uaDiv        dom.Element
 	buf          *editor.Buffer
@@ -95,6 +95,8 @@ func (b *textControlBase[T]) wireTextControlEvents() {
 	b.host.AddEventListener(event.EventMouseDown, b.handleMouseDown)
 	b.host.AddEventListener(event.EventKeyDown, b.handleKeyDown)
 	b.host.AddEventListener(event.EventPaste, b.handlePaste)
+	b.host.AddEventListener(event.EventCopy, b.handleCopy)
+	b.host.AddEventListener(event.EventCut, b.handleCut)
 }
 
 // SetSelectionRange sets the selection to the given byte offsets.
@@ -535,7 +537,48 @@ func (b *textControlBase[T]) handlePaste(ev event.Event) {
 	b.selectionStart = b.buf.ByteOffset()
 	b.selectionEnd = b.buf.ByteOffset()
 	b.syncCallback()
+
+	// Dispatch TypeInput
+	b.host.DispatchEvent(event.NewInput(b.buf.Value()))
+
+	ev.PreventDefault()
 	ev.StopPropagation()
+}
+
+func (b *textControlBase[T]) handleCopy(ev event.Event) {
+	ce, ok := ev.(*event.ClipboardEvent)
+	if !ok {
+		return
+	}
+
+	text := b.SelectedText()
+	if text != "" {
+		ce.SetText(text)
+		ev.PreventDefault()
+	}
+}
+
+func (b *textControlBase[T]) handleCut(ev event.Event) {
+	ce, ok := ev.(*event.ClipboardEvent)
+	if !ok {
+		return
+	}
+
+	text := b.SelectedText()
+	if text == "" {
+		return
+	}
+
+	ce.SetText(text)
+	b.buf.DeleteRange(b.selectionStart, b.selectionEnd)
+	b.selectionStart = b.buf.ByteOffset()
+	b.selectionEnd = b.buf.ByteOffset()
+	b.syncCallback()
+
+	// Dispatch TypeInput
+	b.host.DispatchEvent(event.NewInput(b.buf.Value()))
+
+	ev.PreventDefault()
 }
 
 func (b *textControlBase[T]) maybeDeleteSelection(ke *event.KeyEvent) bool {

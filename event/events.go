@@ -27,6 +27,7 @@ const (
 	EventFocusOut        EventType = "focusout"
 	EventResize          EventType = "resize"
 	EventChange          EventType = "change"
+	EventInput           EventType = "input"
 	EventPaste           EventType = "paste"
 	EventCopy            EventType = "copy"
 	EventCut             EventType = "cut"
@@ -326,6 +327,20 @@ type ChangeEvent struct {
 func NewChange(value string) *ChangeEvent {
 	return &ChangeEvent{
 		BaseEvent: BaseEvent{typ: EventChange, bubbles: true},
+		Value:     value,
+	}
+}
+
+// InputEvent is dispatched for every user-initiated change to an input or textarea value.
+type InputEvent struct {
+	BaseEvent
+	Value string
+}
+
+// NewInput creates an InputEvent.
+func NewInput(value string) *InputEvent {
+	return &InputEvent{
+		BaseEvent: BaseEvent{typ: EventInput, bubbles: true},
 		Value:     value,
 	}
 }

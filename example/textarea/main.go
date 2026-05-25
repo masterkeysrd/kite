@@ -8,7 +8,7 @@
 //   - Emergency breaking via overflow-wrap: break-word
 //   - Programmatic scrolling to keep the cursor in view
 //   - Real-time line and column count in the footer
-//   - Ctrl+C or Q exits the application
+//   - Q exits the application
 package main
 
 import (
@@ -18,11 +18,13 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/uv"
 	"github.com/masterkeysrd/kite/devtools"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/term/osc52"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -63,7 +65,13 @@ func main() {
 	}
 
 	// ── engine ───────────────────────────────────────────────────────────────
-	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
+	eng := engine.New(b, engine.Options{
+		Logger:   logger,
+		Profiler: true,
+		Extensions: []backend.TerminalExtension{
+			osc52.NewExtension(),
+		},
+	})
 
 	// ── textarea ─────────────────────────────────────────────────────────────
 	initialText := "Welcome to Kite TextArea!\n\n" +
@@ -162,7 +170,7 @@ func main() {
 	// Exit handlers
 	root.AddEventListener(event.EventKeyDown, func(e event.Event) {
 		ke := e.(*event.KeyEvent)
-		if ke.MatchString("q") || ke.MatchString("ctrl+c") {
+		if ke.MatchString("q") {
 			eng.Stop()
 		}
 		if ke.MatchString("ctrl+p") {
