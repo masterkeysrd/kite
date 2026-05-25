@@ -29,6 +29,7 @@ type Dimension struct {
 	kind    DimensionKind
 	cells   int
 	percent float32
+	fr      float32
 }
 
 // Kind returns which variant is active.
@@ -42,7 +43,7 @@ func Cells(n int) Dimension { return Dimension{kind: KindCells, cells: n} }
 func Percent(pct float32) Dimension { return Dimension{kind: KindPercent, percent: pct} }
 
 // Fr returns a Dimension measured in fractional units (for flex/grid layouts).
-func Fr(n int) Dimension { return Dimension{kind: KindFr, cells: n} }
+func Fr(f float32) Dimension { return Dimension{kind: KindFr, fr: f} }
 
 // Auto is a Dimension that lets the layout engine choose the size.
 var Auto = Dimension{kind: KindAuto}
@@ -56,10 +57,14 @@ var Content = Dimension{kind: KindContent}
 // subtree inner elements that need to overflow a clip container.
 var MaxContent = Dimension{kind: KindMaxContent}
 
-// CellsValue returns the fixed cell count. Only valid when Kind() == KindCells
-// or KindFr; returns 0 otherwise.
+// CellsValue returns the fixed cell count. Only valid when Kind() == KindCells;
+// returns 0 otherwise.
 func (d Dimension) CellsValue() int { return d.cells }
 
 // PercentValue returns the percentage. Only valid when Kind() == KindPercent;
 // returns 0 otherwise.
 func (d Dimension) PercentValue() float32 { return d.percent }
+
+// FrValue returns the fractional value. Only valid when Kind() == KindFr;
+// returns 0 otherwise.
+func (d Dimension) FrValue() float32 { return d.fr }

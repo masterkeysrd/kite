@@ -1,6 +1,9 @@
 package style
 
-import "image/color"
+import (
+	"image/color"
+	"slices"
+)
 
 // Computed is the fully-resolved style produced by the style resolver (Task 06).
 // Every field has a concrete value; there are no [Optional] wrappers. The
@@ -19,6 +22,15 @@ type Computed struct {
 	Gap            GapValue      `json:"gap"`
 	Flex           FlexItemValue `json:"flex"`
 	Order          int           `json:"order"`
+
+	// --- Grid -----------------------------------------------------------------
+
+	GridTemplateColumns []GridTrackSize `json:"gridTemplateColumns"`
+	GridTemplateRows    []GridTrackSize `json:"gridTemplateRows"`
+	GridColumnGap       int             `json:"gridColumnGap"`
+	GridRowGap          int             `json:"gridRowGap"`
+	GridColumn          GridPlacement   `json:"gridColumn"`
+	GridRow             GridPlacement   `json:"gridRow"`
 
 	// --- Box model ------------------------------------------------------------
 
@@ -89,6 +101,12 @@ func (c *Computed) AffectsLayout(other *Computed) bool {
 		c.Gap != other.Gap ||
 		c.Flex != other.Flex ||
 		c.Order != other.Order ||
+		!slices.Equal(c.GridTemplateColumns, other.GridTemplateColumns) ||
+		!slices.Equal(c.GridTemplateRows, other.GridTemplateRows) ||
+		c.GridColumnGap != other.GridColumnGap ||
+		c.GridRowGap != other.GridRowGap ||
+		c.GridColumn != other.GridColumn ||
+		c.GridRow != other.GridRow ||
 		c.Width != other.Width ||
 		c.Height != other.Height ||
 		c.MinWidth != other.MinWidth ||

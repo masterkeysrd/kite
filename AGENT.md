@@ -109,6 +109,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Computed style (post-resolver values)** | `style/computed.go` |
 | **Style cascade & resolver** | `style/resolver.go`, `style/cascade.go` (ADR-010) |
 | **Border fluent API & metadata** | `style/border.go` |
+| **Grid style properties and aliases** | `style/grid.go` |
 | **Render object interfaces & dirty flags** | `render/object.go`, `render/dirty.go` |
 | **Render box / text nodes** | `render/box.go`, `render/text.go` |
 | **Render view (root container)** | `render/view.go` |

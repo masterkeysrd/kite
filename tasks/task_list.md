@@ -64,7 +64,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-049 | System Clipboard Integration | Done | `tasks/TSK-049-clipboard-integration.md` |
 | TSK-050 | Text Control Local Selection | Done | `tasks/TSK-050-text-control-selection.md` |
 | TSK-051 | Text Control Clipboard Mechanics | Done | `tasks/TSK-051-text-control-clipboard.md` |
-| TSK-052 | CSS Grid Style API | Pending | `tasks/TSK-052-grid-style-api.md` |
+| TSK-052 | CSS Grid Style API | Done | `tasks/TSK-052-grid-style-api.md` |
 | TSK-053 | Grid Builder and Auto-Placement | Pending | `tasks/TSK-053-grid-builder-placement.md` |
 | TSK-054 | Grid Layout Algorithm | Pending | `tasks/TSK-054-grid-algorithm.md` |
 | TSK-055 | Grid Animation Interpolator | Pending | `tasks/TSK-055-grid-animator.md` |

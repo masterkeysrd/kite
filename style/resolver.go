@@ -105,6 +105,13 @@ func DefaultStyle() Computed {
 		Flex:           FlexItemValue{Grow: 0, Shrink: 1, Basis: Auto},
 		Order:          0, // default order
 
+		GridTemplateColumns: nil,
+		GridTemplateRows:    nil,
+		GridColumnGap:       0,
+		GridRowGap:          0,
+		GridColumn:          GridPlacement{},
+		GridRow:             GridPlacement{},
+
 		// Box model ------------------------------------------------------------
 		Width:     Auto,              // width determined by content / parent
 		Height:    Auto,              // height determined by content / parent

@@ -149,7 +149,7 @@ func TestDimension_Kind(t *testing.T) {
 	}{
 		{"Cells", style.Cells(10), style.KindCells},
 		{"Percent", style.Percent(50), style.KindPercent},
-		{"Fr", style.Fr(2), style.KindFr},
+		{"Fr", style.Fr(2.5), style.KindFr},
 		{"Auto", style.Auto, style.KindAuto},
 		{"Content", style.Content, style.KindContent},
 	}

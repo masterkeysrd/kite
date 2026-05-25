@@ -41,6 +41,21 @@ type Style struct {
 	// Order sets the order of a flex item.
 	Order Optional[int]
 
+	// --- Grid -----------------------------------------------------------------
+
+	// GridTemplateColumns defines the line names and track sizing functions of the grid columns.
+	GridTemplateColumns Optional[[]GridTrackSize]
+	// GridTemplateRows defines the line names and track sizing functions of the grid rows.
+	GridTemplateRows Optional[[]GridTrackSize]
+	// GridColumnGap specifies the size of the grid lines between columns.
+	GridColumnGap Optional[int]
+	// GridRowGap specifies the size of the grid lines between rows.
+	GridRowGap Optional[int]
+	// GridColumn specifies a grid item's size and location within the grid column.
+	GridColumn Optional[GridPlacement]
+	// GridRow specifies a grid item's size and location within the grid row.
+	GridRow Optional[GridPlacement]
+
 	// --- Box model ------------------------------------------------------------
 
 	// Width sets the preferred width of the element.
@@ -159,6 +174,24 @@ func (s Style) Apply(base Computed) Computed {
 	if s.Order.IsSet() {
 		base.Order = s.Order.Value()
 	}
+	if s.GridTemplateColumns.IsSet() {
+		base.GridTemplateColumns = s.GridTemplateColumns.Value()
+	}
+	if s.GridTemplateRows.IsSet() {
+		base.GridTemplateRows = s.GridTemplateRows.Value()
+	}
+	if s.GridColumnGap.IsSet() {
+		base.GridColumnGap = s.GridColumnGap.Value()
+	}
+	if s.GridRowGap.IsSet() {
+		base.GridRowGap = s.GridRowGap.Value()
+	}
+	if s.GridColumn.IsSet() {
+		base.GridColumn = s.GridColumn.Value()
+	}
+	if s.GridRow.IsSet() {
+		base.GridRow = s.GridRow.Value()
+	}
 	if s.Width.IsSet() {
 		base.Width = s.Width.Value()
 	}
@@ -268,6 +301,13 @@ func (s Style) Merge(override Style) Style {
 		Gap:            s.Gap.Merge(override.Gap),
 		Flex:           s.Flex.Merge(override.Flex),
 		Order:          s.Order.Merge(override.Order),
+
+		GridTemplateColumns: s.GridTemplateColumns.Merge(override.GridTemplateColumns),
+		GridTemplateRows:    s.GridTemplateRows.Merge(override.GridTemplateRows),
+		GridColumnGap:       s.GridColumnGap.Merge(override.GridColumnGap),
+		GridRowGap:          s.GridRowGap.Merge(override.GridRowGap),
+		GridColumn:          s.GridColumn.Merge(override.GridColumn),
+		GridRow:             s.GridRow.Merge(override.GridRow),
 
 		Width:     s.Width.Merge(override.Width),
 		Height:    s.Height.Merge(override.Height),
