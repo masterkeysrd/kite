@@ -14,7 +14,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/internal/term/kitty"
+	"github.com/masterkeysrd/kite/internal/term/osc52"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -30,13 +30,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 1. Initialize engine with Kitty and OSC 52 Extensions
+	// 1. Initialize engine with OSC 52 Extension
 	eng := engine.New(b, engine.Options{
 		Logger:   logger,
 		Profiler: true,
 		Extensions: []backend.TerminalExtension{
-			kitty.NewExtension(),
-			// osc52.NewExtension(),
+			osc52.NewExtension(),
 		},
 	})
 
