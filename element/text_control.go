@@ -135,12 +135,10 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	cx, cy := b.lastKnownCX, b.lastKnownCY
 
 	// Recalculate only if offset changed or the fragment is new.
-	if offset != b.lastSyncedOffset {
-		if freshX, freshY, ok := cursor.FromTextFragment(uaDivFrag, offset); ok {
-			cx, cy = freshX, freshY
-			b.lastKnownCX, b.lastKnownCY = cx, cy
-			b.lastSyncedOffset = offset
-		}
+	if freshX, freshY, ok := cursor.FromTextFragment(uaDivFrag, offset); ok {
+		cx, cy = freshX, freshY
+		b.lastKnownCX, b.lastKnownCY = cx, cy
+		b.lastSyncedOffset = offset
 	}
 
 	// Add the host's inset (border + padding) so the returned state is

@@ -147,8 +147,7 @@ func TestInput_AuthorStyle_OverridesDefault(t *testing.T) {
 func TestInput_HandlePaste(t *testing.T) {
 	inp := element.Input("hello ")
 	// Manually dispatch a paste event.
-	cb := &mockClipboard{}
-	ce := event.NewClipboardEvent(event.EventPaste, event.ClipboardPaste, cb)
+	ce := event.NewClipboardEvent(event.EventPaste, event.ClipboardPaste)
 	ce.Items["text/plain"] = []byte("world")
 
 	// Build path for dispatcher.

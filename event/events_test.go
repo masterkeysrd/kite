@@ -513,18 +513,18 @@ func TestWheel_NoScrollable_NoOp(t *testing.T) {
 
 // stubClipboard is a simple in-memory clipboard bridge.
 type stubClipboard struct {
-	data string
+	data      string
+	requested bool
 }
 
 func (c *stubClipboard) GetClipboard() string     { return c.data }
 func (c *stubClipboard) SetClipboard(text string) { c.data = text }
-func (c *stubClipboard) RequestClipboard()        {}
+func (c *stubClipboard) RequestClipboard()        { c.requested = true }
 
 func TestPaste_BracketedSequence_BecomesSinglePasteEvent(t *testing.T) {
 	t.Parallel()
 
-	cb := &stubClipboard{}
-	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{Clipboard: cb})
+	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{})
 
 	evts := s.Process(&event.RawBracketedPaste{Text: "hello"})
 
@@ -562,7 +562,7 @@ func TestClipboard_CopyCut_FromSelectionProvider(t *testing.T) {
 	}
 	focus := &stubFocus{target: focusedObj}
 	cb := &stubClipboard{}
-	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{Clipboard: cb})
+	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{})
 
 	// Ctrl+C.
 	evts := s.Process(&event.RawKeyEvent{Key: key.Key{Code: 'c', Mod: key.ModCtrl}})
@@ -604,9 +604,8 @@ func TestClipboard_CopyCut_FromSelectionProvider(t *testing.T) {
 func TestClipboard_Synthesizer_PlatformShortcuts(t *testing.T) {
 	t.Parallel()
 
-	cb := &stubClipboard{data: "system clipboard"}
 	focus := &stubFocus{}
-	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{Clipboard: cb})
+	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{})
 
 	tests := []struct {
 		name string
@@ -632,11 +631,6 @@ func TestClipboard_Synthesizer_PlatformShortcuts(t *testing.T) {
 			if ce == nil {
 				t.Fatalf("expected ClipboardEvent{%v} for %s", tt.want, tt.name)
 			}
-			if tt.want == event.ClipboardPaste {
-				if got := ce.Text(); got != "system clipboard" {
-					t.Errorf("paste text = %q, want %q", got, "system clipboard")
-				}
-			}
 		})
 	}
 }
@@ -644,29 +638,24 @@ func TestClipboard_Synthesizer_PlatformShortcuts(t *testing.T) {
 func TestClipboard_Paste_FromCtrlV_AndBracketedPaste(t *testing.T) {
 	t.Parallel()
 
-	cb := &stubClipboard{data: "clipboard content"}
-	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{Clipboard: cb})
+	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{})
 
-	// Ctrl+V → ClipboardEvent{Paste}.
+	// Ctrl+V → emits ClipboardEvent immediately.
 	evts := s.Process(&event.RawKeyEvent{Key: key.Key{Code: 'v', Mod: key.ModCtrl}})
-	var pasteEvt *event.ClipboardEvent
+	var foundPaste bool
 	for _, ev := range evts {
 		if ce, ok := ev.(*event.ClipboardEvent); ok && ce.ClipType == event.ClipboardPaste {
-			pasteEvt = ce
+			foundPaste = true
 			break
 		}
 	}
-	if pasteEvt == nil {
+	if !foundPaste {
 		t.Fatal("expected ClipboardEvent{Paste} on Ctrl+V")
-	}
-	// Note: Synthesizer now eagerly pulls from clipboard for basic shortcuts.
-	if got := pasteEvt.Text(); got != "clipboard content" {
-		t.Errorf("paste text = %q, want %q", got, "clipboard content")
 	}
 
 	// Bracketed paste → ClipboardEvent{Paste}.
 	evts = s.Process(&event.RawBracketedPaste{Text: "pasted"})
-	pasteEvt = nil
+	var pasteEvt *event.ClipboardEvent
 	for _, ev := range evts {
 		if ce, ok := ev.(*event.ClipboardEvent); ok && ce.ClipType == event.ClipboardPaste {
 			pasteEvt = ce

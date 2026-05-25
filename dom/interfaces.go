@@ -337,6 +337,11 @@ type Document interface {
 	FocusManager() any
 	// SetFocusManager sets the focus manager for this document.
 	SetFocusManager(fm any)
+
+	// Clipboard returns the high-level clipboard provider for this document.
+	Clipboard() event.ClipboardProvider
+	// SetClipboardProvider sets the high-level clipboard provider for this document.
+	SetClipboardProvider(p event.ClipboardProvider)
 }
 
 // Range represents a fragment of a document that can contain nodes and parts

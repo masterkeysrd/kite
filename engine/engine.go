@@ -288,7 +288,6 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.document.SetFocusManager(e.focusManager)
 	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
-		Clipboard:          b,
 	})
 
 	if opts.Profiler {
@@ -1136,6 +1135,30 @@ func (e *Engine) Stop() {
 	})
 }
 
+type systemClipboard struct {
+	backend backend.Backend
+}
+
+var _ event.ClipboardProvider = (*systemClipboard)(nil)
+
+func (s *systemClipboard) Name() string { return "system" }
+
+func (s *systemClipboard) SetClipboard(text string) {
+	for _, ext := range s.backend.Extensions() {
+		if cp, ok := ext.(event.ClipboardProvider); ok {
+			cp.SetClipboard(text)
+		}
+	}
+}
+
+func (s *systemClipboard) RequestClipboard() {
+	for _, ext := range s.backend.Extensions() {
+		if cp, ok := ext.(event.ClipboardProvider); ok {
+			cp.RequestClipboard()
+		}
+	}
+}
+
 // Run starts the engine's main event loop. It blocks until Stop is called or
 // the backend signals exit.
 func (e *Engine) Run(ctx context.Context) error {
@@ -1143,13 +1166,27 @@ func (e *Engine) Run(ctx context.Context) error {
 		return err
 	}
 
-	// Initialize terminal extensions.
+	// 1. Initialize terminal extensions.
 	writer := e.backend.Writer()
+	// Sync engine extensions to backend if they were provided to Engine.Options
+	if len(e.extensions) > 0 {
+		if uvb, ok := e.backend.(interface {
+			SetExtensions([]backend.TerminalExtension)
+		}); ok {
+			uvb.SetExtensions(e.extensions)
+		}
+	}
+
 	slog.Info("engine: initializing terminal extensions", "count", len(e.extensions))
 	for i, ext := range e.extensions {
 		slog.Info("engine: initializing extension", "index", i, "type", fmt.Sprintf("%T", ext))
 		ext.Init(writer)
 	}
+
+	// 2. Setup high-level services for the Document.
+	e.document.SetClipboardProvider(&systemClipboard{backend: e.backend})
+
+	// ... rest of Run ...
 
 	// Restore terminal state when leaving run loop
 	defer e.backend.Restore()

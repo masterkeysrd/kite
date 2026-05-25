@@ -68,15 +68,11 @@ type Backend interface {
 	// SetCursorColor sets the terminal hardware cursor color.
 	SetCursorColor(color.Color)
 
-	// GetClipboard returns the current clipboard text content.
-	GetClipboard() string
-	// SetClipboard stores text into the system clipboard.
-	SetClipboard(text string)
-	// RequestClipboard asks the terminal to send the current system clipboard
-	// content. The response is delivered asynchronously as an event.
-	RequestClipboard()
-
+	// DumpState writes a debug dump of the backend state to a file.
 	DumpState()
+
+	// Extensions returns the list of terminal extensions active on this backend.
+	Extensions() []TerminalExtension
 }
 
 // TerminalExtension is implemented by terminal-specific protocol handlers

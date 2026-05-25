@@ -1,7 +1,6 @@
 package uv
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -12,7 +11,7 @@ import (
 	"github.com/masterkeysrd/kite/key"
 )
 
-func translateEvent(ev uv.Event) event.RawEvent {
+func translateEvent(ev uv.Event) (out event.RawEvent) {
 	switch e := ev.(type) {
 	case uv.KeyPressEvent:
 		return &event.RawKeyEvent{
@@ -93,17 +92,29 @@ func translateEvent(ev uv.Event) event.RawEvent {
 		return &event.RawBracketedPaste{
 			Text: e.Content,
 		}
+	case uv.ClipboardEvent:
+		if ev, ok := translateClipboardEvent(e); ok {
+			return ev
+		}
+	case *uv.ClipboardEvent:
+		if ev, ok := translateClipboardEvent(*e); ok {
+			return ev
+		}
 	case uv.UnknownOscEvent:
 		s := string(e)
+		slog.Info("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))
 		return parseOsc(s)
 	case *uv.UnknownOscEvent:
 		s := string(*e)
+		slog.Info("UV: Received Unknown OSC (ptr)", "raw", fmt.Sprintf("%q", s))
 		return parseOsc(s)
 	case uv.UnknownCsiEvent:
 		s := string(e)
+		slog.Info("UV: Received Unknown CSI", "raw", fmt.Sprintf("%q", s))
 		return &event.RawUnknownEvent{Payload: prefixCSI + s}
 	case uv.UnknownDcsEvent:
 		s := string(e)
+		slog.Info("UV: Received Unknown DCS", "raw", fmt.Sprintf("%q", s))
 		return &event.RawUnknownEvent{Payload: prefixDCS + s}
 	case uv.UnknownApcEvent:
 		s := string(e)
@@ -115,6 +126,12 @@ func translateEvent(ev uv.Event) event.RawEvent {
 		return &event.RawUnknownEvent{Payload: prefixBGC + e.String()}
 	case uv.PixelSizeEvent:
 		return &event.RawUnknownEvent{Payload: e}
+	case uv.ModeReportEvent:
+		s := fmt.Sprintf("\x1b[?%d;%d$y", e.Mode, e.Value)
+		return &event.RawUnknownEvent{Payload: s}
+	case *uv.ModeReportEvent:
+		s := fmt.Sprintf("\x1b[?%d;%d$y", e.Mode, e.Value)
+		return &event.RawUnknownEvent{Payload: s}
 	}
 
 	slog.Info("UV: Unhandled event type", "type", fmt.Sprintf("%T", ev), "val", fmt.Sprintf("%#v", ev))
@@ -143,19 +160,6 @@ func parseOsc(s string) event.RawEvent {
 		data = parts[1]
 	} else {
 		data = s
-	}
-
-	// Handle OSC 52 response (Clipboard read)
-	if code == oscClipboard {
-		// Data format is "c;<base64>" or "p;<base64>" etc.
-		oscParts := strings.SplitN(data, ";", 2)
-		if len(oscParts) == 2 {
-			b64 := oscParts[1]
-			decoded, err := base64.StdEncoding.DecodeString(b64)
-			if err == nil {
-				return &event.RawBracketedPaste{Text: string(decoded)}
-			}
-		}
 	}
 
 	return &event.RawOscEvent{
@@ -207,4 +211,23 @@ func translateMouseButton(button uv.MouseButton) event.MouseButton {
 	default:
 		return event.ButtonNone
 	}
+}
+
+func translateClipboardEvent(e uv.ClipboardEvent) (event.RawEvent, bool) {
+	var selection rune = 0
+	switch e.Selection {
+	case uv.PrimaryClipboard:
+		selection = event.PrimaryClipboard
+	case uv.SystemClipboard:
+		selection = event.SystemClipboard
+	case 0:
+		selection = event.UnknownClipboard
+	default:
+		slog.Info("UV: Unknown clipboard selection", "selection", e.Selection)
+		return nil, false
+	}
+	return &event.RawClipboardEvent{
+		Selection: selection,
+		Content:   e.Content,
+	}, true
 }

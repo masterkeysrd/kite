@@ -30,6 +30,7 @@ const (
 	EventPaste           EventType = "paste"
 	EventCopy            EventType = "copy"
 	EventCut             EventType = "cut"
+	EventClipboard       EventType = "clipboard"
 	EventScroll          EventType = "scroll"
 	EventSelectionChange EventType = "selectionchange"
 )
@@ -346,6 +347,12 @@ const (
 	MimeTextPlain = "text/plain"
 )
 
+const (
+	UnknownClipboard = 0   // An unknown or unsupported clipboard type.
+	SystemClipboard  = 'c' // The system clipboard (e.g. Ctrl+C/Ctrl+V).
+	PrimaryClipboard = 'p' // The primary selection (e.g. mouse selection on Linux).
+)
+
 // ClipboardEvent is dispatched for copy, cut, and paste clipboard operations.
 // ClipboardEvent bubbles.
 type ClipboardEvent struct {
@@ -357,19 +364,31 @@ type ClipboardEvent struct {
 	// Items stores payloads keyed by their MIME type.
 	// Common keys include "text/plain".
 	Items map[string][]byte
+}
 
-	// Clipboard provides access to the system clipboard.
-	Clipboard ClipboardBridge
+// ClipboardProvider is implemented by objects that provide system clipboard access.
+type ClipboardProvider interface {
+	// Name returns a unique name for the provider (e.g. "osc52", "kitty").
+	Name() string
+	// SetClipboard stores text into the system clipboard.
+	SetClipboard(text string)
+	// RequestClipboard asks the terminal to send the current system clipboard
+	// content. The response is typically delivered asynchronously as a RawEvent.
+	RequestClipboard()
 }
 
 // NewClipboardEvent creates a ClipboardEvent.
-func NewClipboardEvent(typ EventType, ct ClipboardType, clipboard ClipboardBridge) *ClipboardEvent {
+func NewClipboardEvent(typ EventType, ct ClipboardType) *ClipboardEvent {
 	return &ClipboardEvent{
 		BaseEvent: BaseEvent{typ: typ, bubbles: true},
 		ClipType:  ct,
 		Items:     make(map[string][]byte),
-		Clipboard: clipboard,
 	}
+}
+
+// SetText sets the "text/plain" item.
+func (c *ClipboardEvent) SetText(text string) {
+	c.Items[MimeTextPlain] = []byte(text)
 }
 
 // Text returns the "text/plain" item as a string, or an empty string if not present.
@@ -474,3 +493,10 @@ type RawUnknownEvent struct {
 }
 
 func (RawUnknownEvent) isRawEvent() {}
+
+type RawClipboardEvent struct {
+	Selection rune // e.g. 0 = primary, 1 = secondary, 2 = clipboard
+	Content   string
+}
+
+func (RawClipboardEvent) isRawEvent() {}

@@ -30,11 +30,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 1. Initialize engine with Kitty Extension for rich clipboard support
+	// 1. Initialize engine with Kitty and OSC 52 Extensions
 	eng := engine.New(b, engine.Options{
-		Logger:     logger,
-		Profiler:   true,
-		Extensions: []backend.TerminalExtension{kitty.NewExtension()},
+		Logger:   logger,
+		Profiler: true,
+		Extensions: []backend.TerminalExtension{
+			kitty.NewExtension(),
+			// osc52.NewExtension(),
+		},
 	})
 
 	// 2. UI Components

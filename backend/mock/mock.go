@@ -52,9 +52,9 @@ type Backend struct {
 	// Output captures all raw sequences written to the backend via Writer().
 	Output bytes.Buffer
 
-	clipboard string
-
 	current *paint.FrameBuffer
+
+	extensions []backend.TerminalExtension
 }
 
 // CursorRecord captures one call to the cursor-management methods.
@@ -131,15 +131,13 @@ func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height
 // Writer returns the mock output buffer.
 func (b *Backend) Writer() io.Writer { return &b.Output }
 
-func (b *Backend) GetClipboard() string {
-	return b.clipboard
+func (b *Backend) Extensions() []backend.TerminalExtension {
+	return b.extensions
 }
 
-func (b *Backend) SetClipboard(text string) {
-	b.clipboard = text
+func (b *Backend) SetExtensions(exts []backend.TerminalExtension) {
+	b.extensions = exts
 }
-
-func (b *Backend) RequestClipboard() {}
 
 func (b *Backend) ShowCursor(v bool)             { b.Cursor.Visible = v }
 func (b *Backend) SetCursorPos(x, y int)         { b.Cursor.X, b.Cursor.Y = x, y }

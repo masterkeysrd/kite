@@ -1,7 +1,6 @@
 package uv
 
 import (
-	"encoding/base64"
 	"fmt"
 	"image/color"
 	"io"
@@ -82,24 +81,15 @@ type Backend struct {
 	// concurrent modifications from the render loop.
 	block sync.Mutex
 
-	lastClipboard string
-
 	fbPool sync.Pool
+
+	extensions []backend.TerminalExtension
 }
 
 const (
 	// Terminal escape headers.
 	escOSC = "\x1b]"
-	escCSI = "\x1b["
 	escST  = "\x1b\\"
-
-	// OSC Codes.
-	oscBackground = 11
-	oscClipboard  = 52
-
-	// Protocol templates.
-	seqSetClipboard     = escOSC + "52;c;%s" + escST
-	seqRequestClipboard = escOSC + "52;c;?" + escST
 
 	// Internal event prefixes.
 	prefixCSI = "CSI:"
@@ -112,6 +102,7 @@ const (
 // New creates a UV backend using the default controlling terminal.
 func New() (*Backend, error) {
 	opts := uv.DefaultOptions()
+	opts.Logger = logWriter{}
 	// Match the working integration's event timeout.
 	opts.EventTimeout = 8 * time.Millisecond
 
@@ -243,20 +234,12 @@ func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height
 
 // Writer returns the terminal output writer (the backend itself).
 func (b *Backend) Writer() io.Writer { return b }
-
-func (b *Backend) GetClipboard() string {
-	return b.lastClipboard
+func (b *Backend) Extensions() []backend.TerminalExtension {
+	return b.extensions
 }
 
-func (b *Backend) SetClipboard(text string) {
-	b.lastClipboard = text
-	data := base64.StdEncoding.EncodeToString([]byte(text))
-	// Write OSC 52 sequence to set clipboard.
-	b.writeRaw(fmt.Sprintf(seqSetClipboard, data))
-}
-
-func (b *Backend) RequestClipboard() {
-	b.writeRaw(seqRequestClipboard)
+func (b *Backend) SetExtensions(exts []backend.TerminalExtension) {
+	b.extensions = exts
 }
 
 func (b *Backend) writeRaw(s string) {
@@ -264,6 +247,8 @@ func (b *Backend) writeRaw(s string) {
 }
 
 func (b *Backend) Write(p []byte) (n int, err error) {
+	s := strings.ReplaceAll(string(p), "\x1b", "\\x1b")
+	slog.Debug("UV TRACING: ", "message", fmt.Sprintf("output: %q", s))
 	return b.terminal.Write(p)
 }
 
@@ -356,8 +341,11 @@ func (b *Backend) renderLoop() {
 
 func (b *Backend) loopEvents() {
 	for ev := range b.terminal.Events() {
+		slog.Info("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
 		KiteEv := translateEvent(ev)
-		b.eventCh <- KiteEv
+		if KiteEv != nil {
+			b.eventCh <- KiteEv
+		}
 	}
 }
 
@@ -492,4 +480,12 @@ func populateUVCell(cell *uv.Cell, c paint.Cell) {
 	if c.Attrs&paint.AttrInverse != 0 {
 		cell.Style.Attrs |= uv.AttrReverse
 	}
+}
+
+type logWriter struct{}
+
+func (w logWriter) Printf(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	msg = strings.ReplaceAll(msg, "\x1b", "\\x1b")
+	slog.Debug("UV TRACING: ", "message", msg)
 }

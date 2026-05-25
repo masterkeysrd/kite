@@ -1,6 +1,8 @@
 package event
 
 import (
+	"strings"
+
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/layout"
 )
@@ -12,27 +14,12 @@ type FocusReader interface {
 	FocusedTarget() EventTarget
 }
 
-// ClipboardBridge provides access to the system clipboard.
-type ClipboardBridge interface {
-	// GetClipboard returns the current cached clipboard text content.
-	GetClipboard() string
-	// SetClipboard stores text into the system clipboard.
-	SetClipboard(text string)
-	// RequestClipboard asks the terminal to send the current system clipboard
-	// content. The response is delivered asynchronously as an event.
-	RequestClipboard()
-}
-
 // SynthesizerOptions configures a Synthesizer.
 type SynthesizerOptions struct {
 	// ClickRadius is the maximum cell distance that the mouse may move
 	// between mousedown and mouseup and still be synthesized as a click.
 	// Default is 3.
 	ClickRadius int
-
-	// Clipboard provides read/write access to the system clipboard.
-	// If nil, clipboard events are synthesized without backend I/O.
-	Clipboard ClipboardBridge
 
 	// ScrollableResolver maps a target to its Scrollable, or nil.
 	// Used by DispatchWheel.
@@ -47,7 +34,6 @@ type SynthesizerOptions struct {
 type Synthesizer struct {
 	hit                HitTester
 	focus              FocusReader
-	clipboard          ClipboardBridge
 	clickRadius        int
 	scrollableResolver func(EventTarget) Scrollable
 
@@ -67,40 +53,39 @@ func NewSynthesizer(hit HitTester, focus FocusReader, opts SynthesizerOptions) *
 	return &Synthesizer{
 		hit:                hit,
 		focus:              focus,
-		clipboard:          opts.Clipboard,
 		clickRadius:        radius,
 		scrollableResolver: opts.ScrollableResolver,
 	}
 }
 
-// ResolveScrollables walks the ancestor path of target and returns a map of
-// targets to their resolved Scrollable implementations.
+// ResolveScrollables takes a path of event targets and returns a map of those
+// that implement Scrollable.
 func (s *Synthesizer) ResolveScrollables(path []EventTarget) map[EventTarget]Scrollable {
 	if s.scrollableResolver == nil {
 		return nil
 	}
 	res := make(map[EventTarget]Scrollable)
-	for _, et := range path {
-		if sc := s.scrollableResolver(et); sc != nil {
-			res[et] = sc
+	for _, t := range path {
+		if s := s.scrollableResolver(t); s != nil {
+			res[t] = s
 		}
 	}
 	return res
 }
 
-// Process converts a RawEvent into zero or more structured events. The
-// returned slice may be empty (e.g. if no listeners are interested) or
-// contain multiple events (e.g. a mouseup that produces both MouseUp and Click).
+// Process converts a raw backend event into zero or more high-level events.
 func (s *Synthesizer) Process(raw RawEvent) []Event {
 	switch e := raw.(type) {
-	case *RawKeyEvent:
-		return s.processKey(e)
 	case *RawMouseEvent:
 		return s.processMouse(e)
+	case *RawKeyEvent:
+		return s.processKey(e)
 	case *RawResizeEvent:
 		return s.processResize(e)
 	case *RawBracketedPaste:
 		return s.processBracketedPaste(e)
+	case *RawClipboardEvent:
+		return s.processClipboard(e)
 	}
 	return nil
 }
@@ -123,9 +108,9 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 	var events []Event
 	events = append(events, ke)
 
-	isPaste := raw.MatchString("ctrl+v") || raw.MatchString("cmd+v") || raw.MatchString("alt+v") || ke.Code == key.CtrlV
-	isCopy := raw.MatchString("ctrl+c") || raw.MatchString("cmd+c") || raw.MatchString("alt+c") || ke.Code == key.CtrlC
-	isCut := raw.MatchString("ctrl+x") || raw.MatchString("cmd+x") || raw.MatchString("alt+x") || ke.Code == key.CtrlX
+	isPaste := !raw.Up && (raw.MatchString("ctrl+v") || raw.MatchString("cmd+v") || raw.MatchString("alt+v") || ke.Code == key.CtrlV)
+	isCopy := !raw.Up && (raw.MatchString("ctrl+c") || raw.MatchString("cmd+c") || raw.MatchString("alt+c") || ke.Code == key.CtrlC)
+	isCut := !raw.Up && (raw.MatchString("ctrl+x") || raw.MatchString("cmd+x") || raw.MatchString("alt+x") || ke.Code == key.CtrlX)
 
 	switch {
 	case isCopy:
@@ -137,14 +122,13 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 			events = append(events, ce)
 		}
 	case isPaste:
-		pe := s.synthesizePasteFromClipboard()
-		if pe != nil {
-			events = append(events, pe)
-			// If local cache is empty, explicitly request from terminal.
-			if pe.Text() == "" && s.clipboard != nil {
-				s.clipboard.RequestClipboard()
-			}
+		// Emit a paste event. The engine or document will handle fetching
+		// data from providers if the Items map is empty.
+		ce := NewClipboardEvent(EventPaste, ClipboardPaste)
+		if s.focus != nil {
+			ce.setTarget(s.focus.FocusedTarget())
 		}
+		events = append(events, ce)
 	}
 
 	return events
@@ -152,7 +136,7 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 
 // synthesizeCopy creates a ClipboardEvent{Copy}.
 func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
-	ce := NewClipboardEvent(EventCopy, ClipboardCopy, s.clipboard)
+	ce := NewClipboardEvent(EventCopy, ClipboardCopy)
 	if s.focus != nil {
 		focused := s.focus.FocusedTarget()
 		if focused != nil {
@@ -170,7 +154,7 @@ func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
 
 // synthesizeCut creates a ClipboardEvent{Cut}.
 func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
-	ce := NewClipboardEvent(EventCut, ClipboardCut, s.clipboard)
+	ce := NewClipboardEvent(EventCut, ClipboardCut)
 	if s.focus != nil {
 		focused := s.focus.FocusedTarget()
 		if focused != nil {
@@ -181,22 +165,6 @@ func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
 					ce.Items["text/plain"] = []byte(text)
 				}
 			}
-		}
-	}
-	return ce
-}
-
-// synthesizePasteFromClipboard creates a ClipboardEvent{Paste} from the
-// system clipboard.
-func (s *Synthesizer) synthesizePasteFromClipboard() *ClipboardEvent {
-	ce := NewClipboardEvent(EventPaste, ClipboardPaste, s.clipboard)
-	if s.focus != nil {
-		ce.setTarget(s.focus.FocusedTarget())
-	}
-	// Fallback for non-MIME terminals: eagerly pull plain text if available.
-	if s.clipboard != nil {
-		if text := s.clipboard.GetClipboard(); text != "" {
-			ce.Items["text/plain"] = []byte(text)
 		}
 	}
 	return ce
@@ -283,12 +251,39 @@ func (s *Synthesizer) processBracketedPaste(raw *RawBracketedPaste) []Event {
 	if s.focus != nil {
 		pe.setTarget(s.focus.FocusedTarget())
 	}
-	ce := NewClipboardEvent(EventPaste, ClipboardPaste, s.clipboard)
+	ce := NewClipboardEvent(EventPaste, ClipboardPaste)
 	if s.focus != nil {
 		ce.setTarget(s.focus.FocusedTarget())
 	}
 	ce.Items["text/plain"] = []byte(raw.Text)
 	return []Event{pe, ce}
+}
+
+// processClipboard converts a RawClipboardEvent into a ClipboardEvent.
+//
+// This happend when the terminal sends us clipboard content directly in response of an OSC 52 request.
+func (s *Synthesizer) processClipboard(raw *RawClipboardEvent) []Event {
+	content := strings.TrimSpace(raw.Content)
+	if len(content) == 0 {
+		// OSC 52 response with empty content is sent when the clipboard is empty or
+		// unsupported. We ignore these.
+		return nil
+	}
+
+	if raw.Selection != SystemClipboard && raw.Selection != UnknownClipboard {
+		// We don't synthesize primary selection events, as they are not user-initiated.
+		// Primary is just mouse-driven and doesn't have a standard paste
+		//shortcut, so we can safely ignore it.
+		return nil
+	}
+
+	ce := NewClipboardEvent(EventPaste, ClipboardPaste)
+	if s.focus != nil {
+		ce.setTarget(s.focus.FocusedTarget())
+	}
+	// We use the raw content to preserve any newlines or other whitespace.
+	ce.Items["text/plain"] = []byte(raw.Content)
+	return []Event{ce}
 }
 
 // hitTest resolves the target at p, or nil if the hit tester is unset.
@@ -299,8 +294,7 @@ func (s *Synthesizer) hitTest(p layout.Point) EventTarget {
 	return s.hit.HitTest(p.X, p.Y)
 }
 
-// beyondTolerance reports whether the distance between a and b exceeds the
-// configured clickRadius in either axis (Chebyshev distance).
+// beyondTolerance reports whether b is outside the click radius relative to a.
 func (s *Synthesizer) beyondTolerance(a, b layout.Point) bool {
 	dx := a.X - b.X
 	if dx < 0 {

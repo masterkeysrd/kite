@@ -2,79 +2,177 @@ package kitty
 
 import (
 	"bytes"
-	"encoding/base64"
-	"fmt"
 	"testing"
 
 	"github.com/masterkeysrd/kite/event"
 )
 
-func TestKittyExtension_Handshake(t *testing.T) {
+func TestKittyExtension_Init(t *testing.T) {
 	ext := NewExtension()
 	var out bytes.Buffer
 	ext.Init(&out)
 
-	// Check if Init sent the enable sequence
-	expectedEnable := fmt.Sprintf("\x1b[?%dh", ModeSecureClipboard)
-	if out.String() != expectedEnable {
-		t.Errorf("expected enable sequence, got %q", out.String())
+	expected := "\x1b[?5522h\x1b[?5522$p"
+	if out.String() != expected {
+		t.Errorf("expected %q, got %q", expected, out.String())
 	}
+}
+
+func TestKittyExtension_TmuxWrapping(t *testing.T) {
+	t.Setenv("TMUX", "1")
+	ext := NewExtension()
+	var out bytes.Buffer
+	ext.Init(&out)
+
+	// Wrapping: \x1bPtmux;\x1b + doubled ESC + \x1b\\
+	expected := "\x1bPtmux;\x1b\x1b[?5522h\x1b\x1b[?5522$p\x1b\\"
+	if out.String() != expected {
+		t.Errorf("expected %q, got %q", expected, out.String())
+	}
+}
+
+func TestKittyExtension_CapabilityReport(t *testing.T) {
+	ext := NewExtension()
+	var out bytes.Buffer
+	ext.Init(&out)
+
+	// Capability report should mark as initialized and be handled
+	// Test various forms seen in the wild/tmux
+	reports := []string{
+		"CSI:?5522;1$y",
+		"?5522;1$y",
+		"\x1b[?5522;1$y",
+		"5522;1$y",
+		" ?5522;1$y ",         // With spaces
+		"CSI:?5522;1$y\x1b\\", // With terminator
+	}
+
+	for _, r := range reports {
+		ext.initialized = false
+		handled, ev := ext.HandleEvent(&event.RawUnknownEvent{
+			Payload: r,
+		})
+
+		if !handled {
+			t.Errorf("expected capability report %q to be handled", r)
+		}
+		if ev != nil {
+			t.Errorf("expected no event from capability report %q, got %v", r, ev)
+		}
+		if !ext.initialized {
+			t.Errorf("expected initialized to be true for report %q", r)
+		}
+	}
+}
+
+func TestKittyExtension_Handshake(t *testing.T) {
+	ext := NewExtension()
+	var out bytes.Buffer
+	ext.Init(&out)
 	out.Reset()
 
-	// Step 1: Terminal sends password
-	ext.HandleEvent(&event.RawOscEvent{
-		Code: OSCSecureClipboard,
-		Data: fmt.Sprintf("%s=%s:%s=%s:%s=cGFzc3dvcmQ=", paramType, typeRead, paramStatus, statusOK, paramPassword), // "password"
-	})
-	if ext.password != "cGFzc3dvcmQ=" {
-		t.Errorf("expected password to be set, got %q", ext.password)
-	}
-	out.Reset() // Clear the persistent enable sequence triggered by HandleEvent
-
-	// Step 2: Terminal sends available MIME type
-	mimeType := base64.StdEncoding.EncodeToString([]byte("text/plain"))
-	ext.HandleEvent(&event.RawOscEvent{
-		Code: OSCSecureClipboard,
-		Data: fmt.Sprintf("%s=%s:%s=%s:%s=%s", paramType, typeRead, paramStatus, statusData, paramMime, mimeType),
-	})
-
-	// Check if extension requested data for this MIME type
-	expectedReq := fmt.Sprintf("\x1b]%d;%s=%s:%s=%s:%s=cGFzc3dvcmQ=\x1b\\",
-		OSCSecureClipboard, paramType, typeRead, paramMime, mimeType, paramPassword)
-	if out.String() != expectedReq {
-		t.Errorf("expected request sequence, got %q", out.String())
-	}
-	out.Reset()
-
-	// Step 3: Terminal sends data chunks
-	chunk1 := base64.StdEncoding.EncodeToString([]byte("hello "))
-	ext.HandleEvent(&event.RawOscEvent{
-		Code: OSCSecureClipboard,
-		Data: fmt.Sprintf("%s=%s:%s=%s:%s=%s;%s", paramType, typeRead, paramStatus, statusData, paramMime, mimeType, chunk1),
-	})
-	chunk2 := base64.StdEncoding.EncodeToString([]byte("world"))
-	ext.HandleEvent(&event.RawOscEvent{
-		Code: OSCSecureClipboard,
-		Data: fmt.Sprintf("%s=%s:%s=%s:%s=%s;%s", paramType, typeRead, paramStatus, statusData, paramMime, mimeType, chunk2),
-	})
-
-	// Step 4: Terminal sends DONE
+	// 1. Initial password notification
 	handled, ev := ext.HandleEvent(&event.RawOscEvent{
-		Code: OSCSecureClipboard,
-		Data: fmt.Sprintf("%s=%s:%s=%s", paramType, typeRead, paramStatus, statusDone),
+		Code: 5522,
+		Data: "type=read:status=OK:pw=cGFzc3dvcmQ=",
 	})
+	if !handled || ev != nil {
+		t.Errorf("expected OK to be handled without event")
+	}
+	// Clear the lazy init sequences from the buffer
+	out.Reset()
 
-	if !handled {
-		t.Fatal("expected event to be handled")
+	// 2. MIME type notification
+	handled, ev = ext.HandleEvent(&event.RawOscEvent{
+		Code: 5522,
+		Data: "type=read:status=DATA:mime=dGV4dC9wbGFpbg==",
+	})
+	if !handled || ev != nil {
+		t.Errorf("expected DATA (mime notification) to be handled without event")
 	}
+
+	// Check that read request was NOT YET sent (waiting for DONE)
+	if out.Len() > 0 {
+		t.Errorf("expected no read request yet, got %q", out.String())
+	}
+
+	// 3. DONE (finish mime listing -> trigger read request)
+	handled, ev = ext.HandleEvent(&event.RawOscEvent{
+		Code: 5522,
+		Data: "type=read:status=DONE",
+	})
+	if !handled || ev != nil {
+		t.Fatalf("expected DONE to emit NO event yet, got handled=%v, ev=%v", handled, ev)
+	}
+
+	expectedReq := "\x1b]5522;type=read:id=kite:pw=cGFzc3dvcmQ=:name=UGFzdGUgZXZlbnQ=;dGV4dC9wbGFpbg==\x1b\\"
+	if out.String() != expectedReq {
+		t.Errorf("expected read request %q, got %q", expectedReq, out.String())
+	}
+	out.Reset()
+
+	// 3b. Read request acknowledgment
+	handled, ev = ext.HandleEvent(&event.RawOscEvent{
+		Code: 5522,
+		Data: "type=read:status=OK",
+	})
+	if !handled || ev != nil {
+		t.Errorf("expected OK acknowledgment to be handled without event")
+	}
+	if !ext.requesting {
+		t.Error("expected ext.requesting to remain true after OK acknowledgment")
+	}
+
+	// 4. Chunk delivery
+	handled, ev = ext.HandleEvent(&event.RawOscEvent{
+		Code: 5522,
+		Data: "type=read:status=DATA:mime=dGV4dC9wbGFpbg==;aGVsbG8gd29ybGQ=",
+	})
+	if !handled || ev != nil {
+		t.Errorf("expected DATA (chunk) to be handled without event")
+	}
+
+	// 5. Final DONE (finish transfer -> emit event)
+	handled, ev = ext.HandleEvent(&event.RawOscEvent{
+		Code: 5522,
+		Data: "type=read:status=DONE",
+	})
+	if !handled || ev == nil {
+		t.Fatalf("expected DONE to emit event, got handled=%v, ev=%v", handled, ev)
+	}
+
 	ce, ok := ev.(*event.ClipboardEvent)
-	if !ok {
-		t.Fatalf("expected ClipboardEvent, got %T", ev)
+	if !ok || ce.ClipType != event.ClipboardPaste {
+		t.Fatalf("expected ClipboardEvent with ClipType ClipboardPaste, got %T", ev)
 	}
-	if ce.ClipType != event.ClipboardPaste {
-		t.Errorf("expected Paste type, got %v", ce.ClipType)
+	if string(ce.Items["text/plain"]) != "hello world" {
+		t.Errorf("expected buffer 'hello world', got %q", ce.Items["text/plain"])
 	}
-	if got := ce.Text(); got != "hello world" {
-		t.Errorf("expected text 'hello world', got %q", got)
+}
+
+func TestKittyExtension_BracketedPasteFallback(t *testing.T) {
+	ext := NewExtension()
+	var out bytes.Buffer
+	ext.Init(&out)
+
+	ext.HandleEvent(&event.RawBracketedPaste{Text: "fallback"})
+	if !ext.initialized {
+		t.Error("expected initialized to be true upon bracketed paste")
+	}
+}
+
+func TestKittyExtension_UnknownEventParsing(t *testing.T) {
+	ext := NewExtension()
+	var out bytes.Buffer
+	ext.Init(&out)
+
+	handled, ev := ext.HandleEvent(&event.RawUnknownEvent{
+		Payload: "OSC:5522;type=read:status=OK\x07",
+	})
+	if !handled || ev != nil {
+		t.Errorf("expected OK via unknown event to be handled")
+	}
+	if !ext.initialized {
+		t.Error("expected initialized to be true")
 	}
 }

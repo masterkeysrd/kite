@@ -34,6 +34,7 @@ type document struct {
 	nextOrder int
 
 	focusManager any
+	clipboard    event.ClipboardProvider
 
 	selection *selectionImpl
 
@@ -176,6 +177,9 @@ func (d *document) SetFocusManager(fm any) {
 func (d *document) Selection() Selection {
 	return d.selection
 }
+
+func (d *document) Clipboard() event.ClipboardProvider             { return d.clipboard }
+func (d *document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard = p }
 
 func (d *document) CreateRange() Range {
 	return &rangeImpl{doc: d}
@@ -487,10 +491,10 @@ func (d *document) handleCopy(ev event.Event) {
 		}
 	}
 
-	// Synchronize to the system clipboard if a bridge is available.
-	if ce.Clipboard != nil {
+	// Synchronize to the system clipboard if a provider is available.
+	if d.clipboard != nil {
 		if text := ce.Text(); text != "" {
-			ce.Clipboard.SetClipboard(text)
+			d.clipboard.SetClipboard(text)
 		}
 	}
 }
@@ -502,12 +506,8 @@ func (d *document) handlePaste(ev event.Event) {
 	}
 
 	// If the items map is empty (e.g. a raw Ctrl+V that hasn't been handled
-	// by a terminal extension), populate text/plain from the system clipboard
-	// as a fallback.
-	if len(ce.Items) == 0 && ce.Clipboard != nil {
-		text := ce.Clipboard.GetClipboard()
-		if text != "" {
-			ce.Items[event.MimeTextPlain] = []byte(text)
-		}
+	// by a terminal extension), populate from system clipboard provider.
+	if len(ce.Items) == 0 && d.clipboard != nil {
+		d.clipboard.RequestClipboard()
 	}
 }
