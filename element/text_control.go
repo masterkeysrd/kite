@@ -3,19 +3,13 @@ package element
 // textControlBase is a generic base struct shared by InputElement and
 // TextAreaElement. It centralises terminal coordinate math, scroll-cursor
 // tracking, and default event handling so that fixes need only be applied
-// in one place.
+// once.
 //
-// The type parameter T is the concrete element type (e.g. InputElement or
-// TextAreaElement). This allows the base to hold a properly-typed host
-// pointer for RenderObject / ComputedStyle / Scroll queries.
-//
-// Designed for TSK-029 / ADR-013.
-//
-// Rules:
-//  1. textControlBase MUST NOT assume the structure of the text nodes inside
-//     uaDiv. It purely uses uaDiv.RenderObject().Fragment() to ask the layout
-//     engine for the resulting text-fragment geometry.
-//  2. All scroll state is owned by the host element via the TSK-028 Scroll /
+// Constraints:
+//  1. textControlBase does not know about the UA shadow subtree structure;
+//     it only knows about a single "uaDiv" element which holds the IFC line boxes.
+//  2. It relies on the host element's Scroll/ScrollTo methods for actual
+//     scroll state, as mandated by ADR-012. It must never call txa.Scroll/
 //     ScrollTo DOM methods. textControlBase MUST NOT store scrollX/Y fields.
 //  3. syncCallback MUST be called after any buffer mutation so that the
 //     concrete element can rebuild its UA subtree and mark the render tree dirty.
@@ -27,50 +21,40 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/layout"
-	"github.com/masterkeysrd/kite/render"
 )
 
-// textControlBase[T] holds the state shared by single-line and multi-line
-// text controls. It must be embedded (not used standalone) by a concrete
-// element that also embeds elementBase[T].
-//
-// Construction helpers: use initTextControlBase to populate the fields.
 type textControlBase[T dom.Element] struct {
-	// buf is the 1-D logical text model for this control.
-	buf *editor.Buffer
-
-	// uaDiv is the inner UA block element whose render object's fragment has
-	// IFC line-boxes as direct children. cursor.FromTextFragment and
-	// cursor.ByteOffsetAtPoint both require this level of the tree.
-	uaDiv dom.Element
-
-	// host is the outer dom.Element (the shadow host). We use it to query
-	// RenderObject, ComputedStyle, and the Scroll/ScrollTo APIs.
-	host T
-
-	// needsScrollIntoView is true when the cursor has moved or text has
-	// changed. ScrollCursorIntoView reads and clears this flag.
-	needsScrollIntoView bool
-
-	// isMultiline controls Up/Down/Enter handling. When false (Input), those
-	// keys are either ignored or consumed so that the focus engine's default
-	// spatial-navigation does not leave the field.
-	isMultiline bool
-
-	// syncCallback is called after every buffer mutation to let the concrete
-	// element rebuild its UA subtree and mark the render tree dirty.
+	host         T
+	uaDiv        dom.Element
+	buf          *editor.Buffer
+	isMultiline  bool
 	syncCallback func()
 
-	// lastKnownCX, lastKnownCY cache the most recent valid cursor position in
-	// uaDiv-local coordinates. CursorState() updates these whenever
-	// FromTextFragment returns ok=true, and falls back to them when the
-	// fragment is stale (e.g. when called from a keydown handler before the
-	// layout phase has run after a buffer mutation).
-	lastKnownCX, lastKnownCY int
+	// lastKnownCX/Y track the caret position in content-box coordinates at the
+	// time of the last layout.
+	lastKnownCX int
+	lastKnownCY int
+
+	// needsScrollIntoView is a flag set after a mutation or cursor move;
+	// it triggers a ScrollCursorIntoView call during the commit/paint phase.
+	needsScrollIntoView bool
 
 	// lastSyncedOffset tracks the buffer offset at the time lastKnownCX/Y
 	// were computed.
 	lastSyncedOffset int
+
+	// selectionStart and selectionEnd track the current local selection in
+	// byte offsets. If selectionStart == selectionEnd, there is no selection.
+	selectionStart int
+	selectionEnd   int
+
+	// isDragging is true during a mouse selection drag.
+	isDragging bool
+
+	// mouseMoveSub and mouseUpSub track the global document listeners during
+	// a drag operation.
+	mouseMoveSub event.Subscription
+	mouseUpSub   event.Subscription
 
 	// lastSyncedVersion tracks the buffer.Version() at the time of the last
 	// full shadow-DOM rebuild.
@@ -102,6 +86,59 @@ func (b *textControlBase[T]) initTextControlBase(
 	b.lastSyncedVersion = -1   // force first sync
 	b.lastRenderedVersion = -1 // force first paint
 	b.lastSyncedOffset = -1    // force first cursor calc
+	b.selectionStart = buf.ByteOffset()
+	b.selectionEnd = buf.ByteOffset()
+}
+
+// wireTextControlEvents wires up default key bindings and mouse events.
+func (b *textControlBase[T]) wireTextControlEvents() {
+	b.host.AddEventListener(event.EventMouseDown, b.handleMouseDown)
+	b.host.AddEventListener(event.EventKeyDown, b.handleKeyDown)
+	b.host.AddEventListener(event.EventPaste, b.handlePaste)
+}
+
+// SetSelectionRange sets the selection to the given byte offsets.
+// It moves the cursor to end and triggers a sync.
+func (b *textControlBase[T]) SetSelectionRange(start, end int) {
+	maxLen := len(b.buf.Value())
+	if start < 0 {
+		start = 0
+	}
+	if start > maxLen {
+		start = maxLen
+	}
+	if end < 0 {
+		end = 0
+	}
+	if end > maxLen {
+		end = maxLen
+	}
+
+	b.selectionStart = start
+	b.selectionEnd = end
+	b.buf.SetOffset(end)
+	b.syncCallback()
+}
+
+// SelectionRange returns the current selection start and end byte offsets.
+func (b *textControlBase[T]) SelectionRange() (int, int) {
+	return b.selectionStart, b.selectionEnd
+}
+
+// SelectedText returns the text currently covered by the local selection.
+func (b *textControlBase[T]) SelectedText() string {
+	if b.selectionStart == b.selectionEnd {
+		return ""
+	}
+	start, end := b.selectionStart, b.selectionEnd
+	if start > end {
+		start, end = end, start
+	}
+	val := b.buf.Value()
+	if start < 0 || end > len(val) {
+		return ""
+	}
+	return val[start:end]
 }
 
 // --- cursor.Provider ---------------------------------------------------------
@@ -109,159 +146,50 @@ func (b *textControlBase[T]) initTextControlBase(
 // CursorState implements cursor.Provider. It returns the terminal-cell
 // coordinate of the caret within the host's content box, derived from the
 // IFC fragment tree via cursor.FromTextFragment.
-//
-// The coordinate is expressed relative to the host's border-box origin so
-// that engine.updateHardwareCursor can subtract the host's absolute origin
-// and the element's scroll offset to arrive at the physical screen position.
-//
-// If the host has not been laid out yet (no fragment), the cursor is placed
-// at the top-left corner (0, 0) with Visible=true.
 func (b *textControlBase[T]) CursorState() cursor.State {
+	// If the buffer version has changed since the last time the cursor was
+	// rendered, we must return true so that engine.updateHardwareCursor
+	// triggers a repaint to recalculate the cursor position.
+	if b.buf.Version() != b.lastRenderedVersion || b.buf.ByteOffset() != b.lastSyncedOffset {
+		// Update cached coordinates from the live fragment tree.
+		uaDivFrag := b.uaDivFragment()
+		if uaDivFrag != nil {
+			// Use the FromTextFragment helper to find cell coordinates for the
+			// current buffer offset.
+			cx, cy, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
+			if ok {
+				b.lastKnownCX = cx
+				b.lastKnownCY = cy
+				b.lastSyncedOffset = b.buf.ByteOffset()
+				b.lastRenderedVersion = b.buf.Version()
+			}
+		}
+	}
+
+	// Hardware cursor is only visible if the host element is focused.
+	focused := false
+	if doc := b.host.OwnerDocument(); doc != nil {
+		if fm, ok := doc.FocusManager().(interface{ IsFocused(dom.Node) bool }); ok {
+			focused = fm.IsFocused(b.host)
+		}
+	}
+
+	// Add the host's border and padding insets.
 	ro := b.host.RenderObject()
-	if ro == nil || ro.Fragment() == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
+	if ro == nil {
+		return cursor.State{Visible: false}
 	}
-
-	uaDivRO := b.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-	uaDivFrag := uaDivRO.Fragment()
-	if uaDivFrag == nil {
-		return cursor.State{Visible: true, X: 0, Y: 0, Shape: cursor.ShapeBarBlink}
-	}
-
-	offset := b.buf.ByteOffset()
-	cx, cy := b.lastKnownCX, b.lastKnownCY
-
-	// Recalculate only if offset changed or the fragment is new.
-	if freshX, freshY, ok := cursor.FromTextFragment(uaDivFrag, offset); ok {
-		cx, cy = freshX, freshY
-		b.lastKnownCX, b.lastKnownCY = cx, cy
-		b.lastSyncedOffset = offset
-	}
-
-	// Add the host's inset (border + padding) so the returned state is
-	// expressed relative to the host's border-box origin — matching the
-	// convention expected by engine.updateHardwareCursor.
 	cs := ro.ComputedStyle()
 	bw := cs.Border.Widths()
 	insetLeft := bw.Left + cs.Padding.Left
 	insetTop := bw.Top + cs.Padding.Top
 
-	b.lastRenderedVersion = b.buf.Version()
-
+	// Coordinates are relative to the host's content box origin.
 	return cursor.State{
-		Visible: true,
-		X:       insetLeft + cx,
-		Y:       insetTop + cy,
+		Visible: focused,
+		X:       insetLeft + b.lastKnownCX,
+		Y:       insetTop + b.lastKnownCY,
 		Shape:   cursor.ShapeBarBlink,
-	}
-}
-
-// --- Scroll engine -----------------------------------------------------------
-
-// ScrollCursorIntoView ensures the caret is visible within the host's content
-// viewport by adjusting the host's scroll offset. It is a no-op if
-// needsScrollIntoView is false, or if the host has not been laid out yet.
-//
-// For single-line controls (isMultiline == false), contentH is effectively 1
-// and Y-scrolling becomes a natural no-op without any special-case code.
-func (b *textControlBase[T]) ScrollCursorIntoView() {
-	if !b.needsScrollIntoView {
-		return
-	}
-	b.needsScrollIntoView = false
-
-	ro := b.host.RenderObject()
-	if ro == nil || ro.Fragment() == nil {
-		return
-	}
-
-	uaDivRO := b.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return
-	}
-	uaDivFrag := uaDivRO.Fragment()
-	if uaDivFrag == nil {
-		return
-	}
-
-	// Ensure we have current coordinates. CursorState() handles caching/recalc.
-	state := b.CursorState()
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	insetLeft := bw.Left + cs.Padding.Left
-	insetTop := bw.Top + cs.Padding.Top
-
-	// Translate state (host-local) back to uaDiv-local.
-	cx := state.X - insetLeft
-	cy := state.Y - insetTop
-
-	contentW := max(0, ro.Fragment().Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right)
-	contentH := max(0, ro.Fragment().Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom)
-
-	scrollX, scrollY := b.host.Scroll()
-	newX, newY := scrollX, scrollY
-
-	// 1. Ensure cursor is visible in X.
-	if cx < scrollX {
-		newX = cx
-	} else if cx >= scrollX+contentW {
-		newX = cx - contentW + 1
-	}
-
-	// 2. Ensure cursor is visible in Y.
-	if cy < scrollY {
-		newY = cy
-	} else if cy >= scrollY+contentH {
-		newY = cy - contentH + 1
-	}
-
-	// 3. Clamp to allowed scroll range.
-	maxScrollX, maxScrollY := layout.MaxScroll(ro.Fragment())
-
-	if newX > maxScrollX {
-		newX = maxScrollX
-	}
-	if newX < 0 {
-		newX = 0
-	}
-	if newY > maxScrollY {
-		newY = maxScrollY
-	}
-	if newY < 0 {
-		newY = 0
-	}
-
-	if newX != scrollX || newY != scrollY {
-		b.host.ScrollTo(newX, newY)
-	}
-}
-
-// --- Event handlers ----------------------------------------------------------
-
-// wireTextControlEvents registers the default keystroke and mouse handlers on
-// the host element. This must be called once from the concrete element's
-// constructor after initTextControlBase.
-func (b *textControlBase[T]) wireTextControlEvents() {
-	b.host.AddEventListener(event.EventKeyDown, b.handleKeyDown)
-	b.host.AddEventListener(event.EventMouseDown, b.handleMouseDown)
-	b.host.AddEventListener(event.EventPaste, b.handlePaste)
-}
-
-// handlePaste handles an EventPaste by inserting the plain text data into the
-// buffer at the current cursor position.
-func (b *textControlBase[T]) handlePaste(ev event.Event) {
-	ce, ok := ev.(*event.ClipboardEvent)
-	if !ok {
-		return
-	}
-
-	text := ce.Text()
-	if text != "" {
-		b.buf.Insert(text)
-		b.syncCallback()
 	}
 }
 
@@ -276,6 +204,10 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	if me.Button != event.ButtonLeft {
 		return
 	}
+
+	// Stop propagation to prevent the Document from starting its own generic
+	// selection drag.
+	ev.StopPropagation()
 
 	ro := b.host.RenderObject()
 	if ro == nil || ro.Fragment() == nil {
@@ -307,102 +239,416 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	}
 
 	b.buf.SetOffset(offset)
+	b.selectionStart = offset
+	b.selectionEnd = offset
+	b.isDragging = true
+
+	// Register global document listeners for dragging.
+	doc := b.host.OwnerDocument()
+	b.clearDragSubscriptions()
+	b.mouseMoveSub = doc.AddEventListener(event.EventMouseMove, b.handleMouseMove)
+	b.mouseUpSub = doc.AddEventListener(event.EventMouseUp, b.handleMouseUp)
+
 	b.syncCallback()
+}
+
+func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
+	if !b.isDragging {
+		return
+	}
+	me, ok := ev.(*event.MouseEvent)
+	if !ok {
+		return
+	}
+
+	ro := b.host.RenderObject()
+	if ro == nil || ro.Fragment() == nil {
+		return
+	}
+
+	uaDivRO := b.uaDiv.RenderObject()
+	if uaDivRO == nil || uaDivRO.Fragment() == nil {
+		return
+	}
+
+	cs := ro.ComputedStyle()
+	bw := cs.Border.Widths()
+	insetLeft := bw.Left + cs.Padding.Left
+	insetTop := bw.Top + cs.Padding.Top
+
+	scrollX, scrollY := b.host.Scroll()
+
+	// Convert global mouse position to local coordinates.
+	// We need to account for the host's absolute screen position.
+	hostRect, ok := b.host.GetBoundingClientRect()
+	if !ok {
+		return
+	}
+
+	targetX := me.Screen.X - hostRect.Origin.X - insetLeft + scrollX
+	targetY := me.Screen.Y - hostRect.Origin.Y - insetTop + scrollY
+
+	offset := cursor.ByteOffsetAtPoint(uaDivRO.Fragment(), targetX, targetY)
+	if maxLen := len(b.buf.Value()); offset > maxLen {
+		offset = maxLen
+	}
+
+	b.selectionEnd = offset
+	b.buf.SetOffset(offset)
+	b.needsScrollIntoView = true
+	b.syncCallback()
+}
+
+func (b *textControlBase[T]) handleMouseUp(ev event.Event) {
+	if !b.isDragging {
+		return
+	}
+	b.isDragging = false
+	b.clearDragSubscriptions()
+}
+
+func (b *textControlBase[T]) clearDragSubscriptions() {
+	if b.mouseMoveSub != nil {
+		b.mouseMoveSub.Cancel()
+		b.mouseMoveSub = nil
+	}
+	if b.mouseUpSub != nil {
+		b.mouseUpSub.Cancel()
+		b.mouseUpSub = nil
+	}
 }
 
 // ProvidesCursor implements dom.Element.
 func (b *textControlBase[T]) ProvidesCursor() bool {
-	// If the buffer version has changed since the last time the cursor was
-	// rendered, we must return true so that engine.updateHardwareCursor
-	// triggers a repaint to recalculate the cursor position.
-	if b.buf.Version() != b.lastRenderedVersion {
-		if ro := b.host.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyPaint)
-		}
-	}
 	return true
+}
+
+// ScrollCursorIntoView implements dom.Element.
+func (b *textControlBase[T]) ScrollCursorIntoView() {
+	if !b.needsScrollIntoView {
+		return
+	}
+	b.needsScrollIntoView = false
+
+	// Ensure lastKnownCX/CY are up to date.
+	b.CursorState()
+	cx, cy := b.lastKnownCX, b.lastKnownCY
+
+	// Host bounds.
+	ro := b.host.RenderObject()
+	if ro == nil {
+		return
+	}
+	cs := ro.ComputedStyle()
+	bw := cs.Border.Widths()
+	width := ro.Fragment().Size.Width - bw.Left - bw.Right - cs.Padding.Left - cs.Padding.Right
+	height := ro.Fragment().Size.Height - bw.Top - bw.Bottom - cs.Padding.Top - cs.Padding.Bottom
+
+	// Current scroll.
+	sx, sy := b.host.Scroll()
+
+	// New scroll.
+	nsx, nsy := sx, sy
+
+	if cx < sx {
+		nsx = cx
+	} else if cx >= sx+width {
+		nsx = cx - width + 1
+	}
+
+	if cy < sy {
+		nsy = cy
+	} else if cy >= sy+height {
+		nsy = cy - height + 1
+	}
+
+	// Clamp to max possible scroll to handle shrinking content.
+	maxSX, maxSY := layout.MaxScroll(ro.Fragment())
+	nsx = max(0, min(nsx, maxSX))
+	nsy = max(0, min(nsy, maxSY))
+
+	if nsx != sx || nsy != sy {
+		b.host.ScrollTo(nsx, nsy)
+	}
 }
 
 // handleKeyDown processes a keydown event and routes it to the appropriate
 // buffer operation.
-//
-// Up, Down, and Enter are guarded by isMultiline:
-//   - For single-line controls, Up and Down are consumed (PreventDefault) so
-//     the engine's spatial-navigation does not shift focus away.
-//   - Enter is silently ignored by single-line controls (not prevented, so the
-//     engine may handle form submission in the future).
 func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 	ke, ok := ev.(*event.KeyEvent)
 	if !ok {
 		return
 	}
 
+	shift := ke.Mod&key.ModShift != 0
+	ctrl := ke.Mod&key.ModCtrl != 0
+
 	switch {
 	case ke.MatchString("backspace"):
-		b.buf.DeletePrevious()
+		if !b.maybeDeleteSelection(ke) {
+			b.buf.DeletePrevious()
+		}
+		b.selectionStart = b.buf.ByteOffset()
+		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
 		ke.PreventDefault()
 	case ke.MatchString("delete"):
-		b.buf.DeleteNext()
+		if !b.maybeDeleteSelection(ke) {
+			b.buf.DeleteNext()
+		}
+		b.selectionStart = b.buf.ByteOffset()
+		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
 		ke.PreventDefault()
-	case ke.MatchString("left"):
+	case ke.Code == key.KeyLeft:
 		b.buf.MoveLeft()
+		if shift {
+			b.selectionEnd = b.buf.ByteOffset()
+		} else {
+			b.selectionStart = b.buf.ByteOffset()
+			b.selectionEnd = b.buf.ByteOffset()
+		}
 		b.syncCallback()
 		ke.PreventDefault()
-	case ke.MatchString("right"):
+	case ke.Code == key.KeyRight:
 		b.buf.MoveRight()
+		if shift {
+			b.selectionEnd = b.buf.ByteOffset()
+		} else {
+			b.selectionStart = b.buf.ByteOffset()
+			b.selectionEnd = b.buf.ByteOffset()
+		}
 		b.syncCallback()
 		ke.PreventDefault()
-	case ke.MatchString("up"):
+	case ke.Code == key.KeyUp:
 		if b.isMultiline {
 			b.moveUp()
+			if shift {
+				b.selectionEnd = b.buf.ByteOffset()
+			} else {
+				b.selectionStart = b.buf.ByteOffset()
+				b.selectionEnd = b.buf.ByteOffset()
+			}
 			b.syncCallback()
 		}
 		ke.PreventDefault()
-	case ke.MatchString("down"):
+	case ke.Code == key.KeyDown:
 		if b.isMultiline {
 			b.moveDown()
+			if shift {
+				b.selectionEnd = b.buf.ByteOffset()
+			} else {
+				b.selectionStart = b.buf.ByteOffset()
+				b.selectionEnd = b.buf.ByteOffset()
+			}
 			b.syncCallback()
 		}
 		ke.PreventDefault()
-	case ke.MatchString("enter"):
+	case ke.Code == key.KeyEnter:
 		if b.isMultiline {
+			b.maybeDeleteSelection(ke)
 			b.buf.Insert("\n")
+			b.selectionStart = b.buf.ByteOffset()
+			b.selectionEnd = b.buf.ByteOffset()
 			b.syncCallback()
 			ke.PreventDefault()
 		}
 		// single-line: do not prevent so the engine can handle submit
-	case ke.MatchString("home"), ke.MatchString("ctrl+a"):
+	case ke.Code == key.KeyHome:
 		b.buf.MoveToStart()
+		if shift {
+			b.selectionEnd = b.buf.ByteOffset()
+		} else {
+			b.selectionStart = b.buf.ByteOffset()
+			b.selectionEnd = b.buf.ByteOffset()
+		}
 		b.syncCallback()
 		ke.PreventDefault()
-	case ke.MatchString("end"), ke.MatchString("ctrl+e"):
+	case ke.Code == key.KeyEnd:
 		b.buf.MoveToEnd()
+		if shift {
+			b.selectionEnd = b.buf.ByteOffset()
+		} else {
+			b.selectionStart = b.buf.ByteOffset()
+			b.selectionEnd = b.buf.ByteOffset()
+		}
+		b.syncCallback()
+		ke.PreventDefault()
+	case (ke.Code == 'a' || ke.Code == 'A') && ctrl:
+		b.selectionStart = 0
+		b.selectionEnd = len(b.buf.Value())
+		b.buf.SetOffset(b.selectionEnd)
 		b.syncCallback()
 		ke.PreventDefault()
 	case ke.MatchString("ctrl+w"), ke.MatchString("alt+backspace"):
-		b.buf.DeleteWordPrevious()
+		if !b.maybeDeleteSelection(ke) {
+			b.buf.DeleteWordPrevious()
+		}
+		b.selectionStart = b.buf.ByteOffset()
+		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
 		ke.PreventDefault()
 	case ke.MatchString("ctrl+k"):
 		// Delete from cursor to end of buffer.
-		b.buf.DeleteWordNext()
+		if !b.maybeDeleteSelection(ke) {
+			b.buf.DeleteWordNext()
+		}
+		b.selectionStart = b.buf.ByteOffset()
+		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
 		ke.PreventDefault()
 	case ke.MatchString("ctrl+u"):
 		// Delete from start of buffer to cursor.
-		b.buf.DeleteWordPrevious()
+		if !b.maybeDeleteSelection(ke) {
+			b.buf.DeleteWordPrevious()
+		}
+		b.selectionStart = b.buf.ByteOffset()
+		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
 		ke.PreventDefault()
 	default:
 		// Printable character: insert if non-empty Text field and no ctrl/alt.
-		if ke.Text != "" && (ke.Mod&key.ModCtrl == 0) && (ke.Mod&key.ModAlt == 0) {
+		if ke.Text != "" && !ctrl && ke.Mod&key.ModAlt == 0 && ke.Mod&key.ModMeta == 0 {
+			b.maybeDeleteSelection(ke)
 			b.buf.Insert(ke.Text)
+			b.selectionStart = b.buf.ByteOffset()
+			b.selectionEnd = b.buf.ByteOffset()
 			b.syncCallback()
 			ke.PreventDefault()
 		}
 	}
+}
+
+func (b *textControlBase[T]) handlePaste(ev event.Event) {
+	ce, ok := ev.(*event.ClipboardEvent)
+	if !ok {
+		return
+	}
+
+	text := ce.Text()
+	if text == "" {
+		return
+	}
+
+	b.maybeDeleteSelection(nil)
+	b.buf.Insert(text)
+	b.selectionStart = b.buf.ByteOffset()
+	b.selectionEnd = b.buf.ByteOffset()
+	b.syncCallback()
+	ev.StopPropagation()
+}
+
+func (b *textControlBase[T]) maybeDeleteSelection(ke *event.KeyEvent) bool {
+	if b.selectionStart == b.selectionEnd {
+		return false
+	}
+	b.buf.DeleteRange(b.selectionStart, b.selectionEnd)
+	return true
+}
+
+// UpdateSelectionRange programmatically updates the document's selection
+// based on the control's local selectionStart/selectionEnd offsets.
+// It maps byte offsets to (Node, runeOffset) pairs within the UA subtree.
+func (b *textControlBase[T]) UpdateSelectionRange() {
+	doc := b.host.OwnerDocument()
+	if doc == nil {
+		return
+	}
+
+	sel := doc.Selection()
+	if b.selectionStart == b.selectionEnd {
+		// Ensure local selection state stays in sync with the buffer's cursor
+		// position for programmatic moves (SetValue, manual Buffer().SetOffset).
+		b.selectionStart = b.buf.ByteOffset()
+		b.selectionEnd = b.buf.ByteOffset()
+
+		// If we own the selection, clear it.
+		// A simple way is to check if the first range starts in our uaDiv.
+		if sel.RangeCount() > 0 {
+			r := sel.GetRangeAt(0)
+			if b.isNodeInUASubtree(r.StartContainer()) {
+				sel.RemoveAllRanges()
+			}
+		}
+		return
+	}
+
+	startOffset := b.selectionStart
+	endOffset := b.selectionEnd
+	if startOffset > endOffset {
+		startOffset, endOffset = endOffset, startOffset
+	}
+
+	startNode, startRune := b.resolveOffset(startOffset)
+	endNode, endRune := b.resolveOffset(endOffset)
+
+	if startNode == nil || endNode == nil {
+		return
+	}
+
+	// Optimization: Create the range and set its bounds BEFORE adding it to the
+	// selection. This ensures we only trigger one 'selectionchange' event and
+	// avoid redundant snapshot allocations in the dispatcher.
+	r := doc.CreateRange()
+	r.SetStart(startNode, startRune)
+	r.SetEnd(endNode, endRune)
+
+	sel.RemoveAllRanges()
+	sel.AddRange(r)
+}
+
+func (b *textControlBase[T]) isNodeInUASubtree(n dom.Node) bool {
+	return dom.IsUANode(n)
+}
+
+func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int) {
+	currByte := 0
+	childIdx := 0
+
+	for child := b.uaDiv.FirstChild(); child != nil; child = child.NextSibling() {
+		if t, ok := child.(dom.TextNode); ok {
+			data := t.Data()
+			byteLen := len(data)
+
+			if targetByteOffset >= currByte && targetByteOffset < currByte+byteLen {
+				// At start or strictly inside.
+				rel := targetByteOffset - currByte
+				runeOffset := 0
+				for i := range data {
+					if i >= rel {
+						break
+					}
+					runeOffset++
+				}
+				return t, runeOffset
+			}
+			currByte += byteLen
+		} else if el, ok := child.(dom.Element); ok && el.TagName() == "br" {
+			// Content <br> represents exactly 1 byte (\n).
+			// Placeholder <br> is 0 bytes.
+			isPlaceholder := false
+			if p, ok := el.(interface{ IsPlaceholderBr() bool }); ok {
+				isPlaceholder = p.IsPlaceholderBr()
+			}
+
+			if !isPlaceholder {
+				if currByte == targetByteOffset {
+					// Position before this \n.
+					return b.uaDiv, childIdx
+				}
+				currByte++ // \n
+			} else {
+				// Placeholder <br>.
+				if currByte == targetByteOffset {
+					return b.uaDiv, childIdx
+				}
+			}
+		}
+		childIdx++
+	}
+
+	// Fallback to end of uaDiv.
+	return b.uaDiv, childIdx
 }
 
 // --- Vertical navigation helpers --------------------------------------------
@@ -410,59 +656,56 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 // uaDivFragment returns the fragment for the inner ua-div, whose direct
 // children are IFC line-boxes suitable for cursor.FromTextFragment.
 func (b *textControlBase[T]) uaDivFragment() *layout.Fragment {
-	if b.uaDiv == nil {
+	ro := b.uaDiv.RenderObject()
+	if ro == nil {
 		return nil
 	}
-	uaDivRO := b.uaDiv.RenderObject()
-	if uaDivRO == nil {
-		return nil
-	}
-	return uaDivRO.Fragment()
+	return ro.Fragment()
 }
 
-// moveUp moves the buffer cursor up one visual line in the IFC fragment tree.
 func (b *textControlBase[T]) moveUp() {
 	uaDivFrag := b.uaDivFragment()
-	if uaDivFrag == nil || len(uaDivFrag.Children) == 0 {
+	if uaDivFrag == nil {
 		return
 	}
 
-	curX, curY, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
-	if !ok {
-		return
-	}
+	// We need a fresh cursor state calculation to ensure lastKnownCX/Y are up to date.
+	b.CursorState()
+	curX, curY := b.lastKnownCX, b.lastKnownCY
 
-	// Use the Y offset of the first line as the boundary for "Top of buffer".
-	if curY <= uaDivFrag.Children[0].Offset.Y {
-		b.buf.MoveToStart()
+	// Standard IFC fragments: children are line-boxes.
+	// Line 0 is at Y=0.
+	if curY <= 0 {
+		// Already on the first line.
 		return
 	}
 
 	targetY := curY - 1
 	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
-	if maxLen := len(b.buf.Value()); offset > maxLen {
-		offset = maxLen
-	}
 	b.buf.SetOffset(offset)
 }
 
-// moveDown moves the buffer cursor down one visual line in the IFC fragment tree.
 func (b *textControlBase[T]) moveDown() {
 	uaDivFrag := b.uaDivFragment()
-	if uaDivFrag == nil || len(uaDivFrag.Children) == 0 {
+	if uaDivFrag == nil {
 		return
 	}
 
-	curX, curY, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
-	if !ok {
-		return
+	// We need a fresh cursor state calculation to ensure lastKnownCX/Y are up to date.
+	b.CursorState()
+	curX, curY := b.lastKnownCX, b.lastKnownCY
+
+	// Check if target line exists.
+	// IFC produces one fragment per line.
+	lastLineY := 0
+	for _, childLink := range uaDivFrag.Children {
+		if childLink.Offset.Y > lastLineY {
+			lastLineY = childLink.Offset.Y
+		}
 	}
 
-	// Guard: stop at the last content line. cursor.FromTextFragment at
-	// len(buf.Value()) returns the Y of the last line that has actual content.
-	// When curY is already there, pressing Down is a no-op.
-	_, lastLineY, okLast := cursor.FromTextFragment(uaDivFrag, len(b.buf.Value()))
-	if okLast && curY >= lastLineY {
+	if curY >= lastLineY {
+		// Already on the last line.
 		return
 	}
 

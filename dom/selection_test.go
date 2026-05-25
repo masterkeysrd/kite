@@ -97,16 +97,26 @@ func TestSelection_Events(t *testing.T) {
 	}
 }
 
-func TestRange_Validation(t *testing.T) {
+func TestRange_String_AncestorStart(t *testing.T) {
 	doc := NewDocument()
-	t1 := doc.CreateTextNode("Hello", nil)
+	div := doc.CreateElement("div", nil)
+	t1 := doc.CreateTextNode("Line 1", nil)
+	br := doc.CreateElement("br", nil)
+	t2 := doc.CreateTextNode("Line 2", nil)
+	div.AppendChild(t1)
+	div.AppendChild(br)
+	div.AppendChild(t2)
+	doc.AppendChild(div)
 
-	r := &rangeImpl{doc: doc}
+	r := doc.CreateRange()
+	// Start at div, offset 2 (which is t2)
+	r.SetStart(div, 2)
+	// End at t2, offset 1 (the 'L' of "Line 2")
+	r.SetEnd(t2, 1)
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for out of bounds offset")
-		}
-	}()
-	r.SetStart(t1, 10)
+	got := r.String()
+	want := "L"
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
 }

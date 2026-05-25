@@ -50,8 +50,21 @@ func (b *baseNode) adopt(newDoc Document) {
 		return
 	}
 	b.ownerDocument = newDoc
+
+	// Standard children.
 	for n := b.firstChild; n != nil; n = n.NextSibling() {
 		asBase(n).adopt(newDoc)
+	}
+
+	// ADR-009: If this is an element with a UA shadow subtree, adopt it too.
+	if b.kind == KindElement {
+		// Use a type assertion to check for element-specific uaRoot.
+		// We use the same pattern as asBase() to pierce wrappers.
+		if el, ok := b.self.(interface{ UARoot() Node }); ok {
+			if uaRoot := el.UARoot(); uaRoot != nil {
+				asBase(uaRoot).adopt(newDoc)
+			}
+		}
 	}
 }
 

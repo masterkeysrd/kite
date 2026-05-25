@@ -140,6 +140,51 @@ func (e *Environment) SendKey(k key.Key) {
 	})
 }
 
+// KeyPress simulates a key press by string name (e.g. "left", "a") with optional modifiers.
+func (e *Environment) KeyPress(keyOrChar string, mods ...key.Mod) {
+	var k key.Key
+	if len(keyOrChar) == 1 {
+		k = key.Key{
+			Code: rune(keyOrChar[0]),
+			Text: keyOrChar,
+		}
+	} else {
+		// Map common key names
+		switch strings.ToLower(keyOrChar) {
+		case "left":
+			k.Code = key.KeyLeft
+		case "right":
+			k.Code = key.KeyRight
+		case "up":
+			k.Code = key.KeyUp
+		case "down":
+			k.Code = key.KeyDown
+		case "home":
+			k.Code = key.KeyHome
+		case "end":
+			k.Code = key.KeyEnd
+		case "backspace":
+			k.Code = key.KeyBackspace
+		case "delete":
+			k.Code = key.KeyDelete
+		case "enter":
+			k.Code = key.KeyEnter
+		default:
+			// Fallback to literal if it's longer than 1 but not matched
+			if len(keyOrChar) > 0 {
+				k.Code = rune(keyOrChar[0])
+				k.Text = keyOrChar
+			}
+		}
+	}
+
+	for _, m := range mods {
+		k.Mod |= m
+	}
+
+	e.SendKey(k)
+}
+
 // HasFocus reports whether the given logical node currently has focus.
 func (e *Environment) HasFocus(n dom.Node) bool {
 	return e.Engine.FocusManager().Current() == n

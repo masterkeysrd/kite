@@ -27,7 +27,9 @@ func (r *rangeImpl) SetStart(node Node, offset int) {
 	r.validate(node, offset)
 	r.startContainer = node
 	r.startOffset = offset
-	// Ensure start <= end if containers are the same
+	// Ensure start <= end if containers are the same.
+	// For different containers, we rely on the caller to maintain order or
+	// a future implementation of document-order comparison.
 	if r.startContainer == r.endContainer && r.startOffset > r.endOffset {
 		r.endOffset = r.startOffset
 	}
@@ -38,7 +40,6 @@ func (r *rangeImpl) SetEnd(node Node, offset int) {
 	r.validate(node, offset)
 	r.endContainer = node
 	r.endOffset = offset
-	// Ensure start <= end if containers are the same
 	if r.startContainer == r.endContainer && r.endOffset < r.startOffset {
 		r.startOffset = r.endOffset
 	}
@@ -77,9 +78,10 @@ func (r *rangeImpl) validate(node Node, offset int) {
 			panic(fmt.Sprintf("dom: range offset %d exceeds text length %d", offset, count))
 		}
 	} else {
-		// For non-text nodes, offset is child index.
+		// ADR-009: Use LayoutChildren for validation so that UA shadow nodes
+		// (used by text controls for selection) are correctly counted.
 		count := 0
-		for range node.ChildNodes() {
+		for range LayoutChildren(node) {
 			count++
 		}
 		if offset > count {
@@ -102,11 +104,26 @@ func (r *rangeImpl) String() string {
 		return ""
 	}
 
+	var sb strings.Builder
+
+	// Helper to write text including \n for <br>.
+	var writeText func(Node)
+	writeText = func(n Node) {
+		if t, ok := n.(TextNode); ok {
+			sb.WriteString(t.Data())
+		} else if el, ok := n.(interface{ IsBr() bool }); ok && el.IsBr() {
+			sb.WriteString("\n")
+		}
+		for child := range LayoutChildren(n) {
+			writeText(child)
+		}
+	}
+
+	// 1. Same-container fast path.
 	if r.startContainer == r.endContainer {
 		if t, ok := r.startContainer.(TextNode); ok {
 			runes := []rune(t.Data())
-			start := r.startOffset
-			end := r.endOffset
+			start, end := r.startOffset, r.endOffset
 			if start < 0 {
 				start = 0
 			}
@@ -119,11 +136,10 @@ func (r *rangeImpl) String() string {
 			return string(runes[start:end])
 		} else {
 			// Element container.
-			var sb strings.Builder
 			idx := 0
-			for child := range r.startContainer.ChildNodes() {
+			for child := range LayoutChildren(r.startContainer) {
 				if idx >= r.startOffset && idx < r.endOffset {
-					sb.WriteString(child.TextContent())
+					writeText(child)
 				}
 				idx++
 			}
@@ -131,77 +147,85 @@ func (r *rangeImpl) String() string {
 		}
 	}
 
-	var sb strings.Builder
+	// 2. Slow path: different containers.
+	// We use a strictly one-pass, pre-order walk to accumulate text between
+	// the two boundary points.
 	started := false
 	var walk func(Node) bool
 	walk = func(n Node) bool {
-		if !started {
-			if n == r.startContainer {
-				started = true
-				if t, ok := n.(TextNode); ok {
-					runes := []rune(t.Data())
-					if r.startOffset < len(runes) {
-						sb.WriteString(string(runes[r.startOffset:]))
-					}
-				} else {
-					idx := 0
-					for child := range n.ChildNodes() {
-						if idx == r.startOffset {
-							started = true
-						}
-						if started {
-							if !walk(child) {
-								return false
-							}
-						}
-						idx++
-					}
+		isStart := n == r.startContainer
+		isEnd := n == r.endContainer
+
+		// 2a. Handle Start Container.
+		if !started && isStart {
+			started = true
+			if t, ok := n.(TextNode); ok {
+				runes := []rune(t.Data())
+				if r.startOffset < len(runes) {
+					sb.WriteString(string(runes[r.startOffset:]))
 				}
-				return true
+				// Handled start; walk() will return true and continue.
 			} else {
-				for child := range n.ChildNodes() {
-					if !walk(child) {
-						return false
+				idx := 0
+				for child := range LayoutChildren(n) {
+					if idx >= r.startOffset {
+						if !walk(child) {
+							return false
+						}
 					}
+					idx++
 				}
-				return true
+				return true // Done with this subtree.
 			}
 		}
 
-		// started == true
-		if n == r.endContainer {
+		// 2b. Handle End Container.
+		if isEnd {
 			if t, ok := n.(TextNode); ok {
-				runes := []rune(t.Data())
-				end := r.endOffset
-				if end > len(runes) {
-					end = len(runes)
+				if started {
+					runes := []rune(t.Data())
+					end := r.endOffset
+					if end > len(runes) {
+						end = len(runes)
+					}
+					if end > 0 {
+						sb.WriteString(string(runes[:end]))
+					}
 				}
-				if end > 0 {
-					sb.WriteString(string(runes[:end]))
-				}
+				return false // Stop walking altogether.
 			} else {
 				idx := 0
-				for child := range n.ChildNodes() {
-					if idx >= r.endOffset {
-						break
+				for child := range LayoutChildren(n) {
+					if started && idx >= r.endOffset {
+						return false // Stop.
 					}
 					if !walk(child) {
 						return false
 					}
 					idx++
 				}
+				return false // Finished end container.
 			}
-			return false
 		}
 
-		if t, ok := n.(TextNode); ok {
-			sb.WriteString(t.Data())
-		}
-		for child := range n.ChildNodes() {
-			if !walk(child) {
-				return false
+		// 2c. Contribution of nodes fully inside the range.
+		if started && !isStart {
+			if t, ok := n.(TextNode); ok {
+				sb.WriteString(t.Data())
+			} else if el, ok := n.(interface{ IsBr() bool }); ok && el.IsBr() {
+				sb.WriteString("\n")
 			}
 		}
+
+		// 2d. Recurse (unless already handled by specific logic above).
+		if !isStart && !isEnd {
+			for child := range LayoutChildren(n) {
+				if !walk(child) {
+					return false
+				}
+			}
+		}
+
 		return true
 	}
 
@@ -231,8 +255,6 @@ func (s *selectionImpl) AddRange(r Range) {
 	if r == nil {
 		return
 	}
-	// In standard DOM, it usually supports only one range.
-	// Requirement says "Can hold at least one dom.Range".
 	s.ranges = append(s.ranges, r)
 	s.changed()
 }
@@ -257,11 +279,7 @@ func (s *selectionImpl) changed() {
 	if s.doc == nil {
 		return
 	}
-	// Trigger a paint update on the document root so that the selection
-	// is redrawn on the next frame.
 	s.doc.MarkNeedsSync()
-
-	// Dispatch selectionchange on the document.
 	s.doc.DispatchToTarget(event.NewBaseEvent(event.EventSelectionChange, s.doc, false))
 }
 

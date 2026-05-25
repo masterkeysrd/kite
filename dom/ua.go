@@ -33,13 +33,13 @@ func LayoutChildren(n Node) iter.Seq[Node] {
 	// Slow path: union of public children and UA root's children.
 	return func(yield func(Node) bool) {
 		// Public children first.
-		for child := range n.ChildNodes() {
+		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 			if !yield(child) {
 				return
 			}
 		}
 		// UA root's children second.
-		for child := range uaRoot.ChildNodes() {
+		for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
 			if !yield(child) {
 				return
 			}

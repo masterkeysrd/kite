@@ -51,6 +51,27 @@ func (b *Buffer) SetOffset(offset int) {
 	b.byteOffset = offset
 }
 
+// DeleteRange removes the text between start and end (byte offsets).
+// The cursor is moved to start.
+func (b *Buffer) DeleteRange(start, end int) {
+	if start > end {
+		start, end = end, start
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end > len(b.text) {
+		end = len(b.text)
+	}
+	if start == end {
+		return
+	}
+
+	b.text = b.text[:start] + b.text[end:]
+	b.byteOffset = start
+	b.version++
+}
+
 // Insert adds the given string at the current cursor position.
 func (b *Buffer) Insert(s string) {
 	b.text = b.text[:b.byteOffset] + s + b.text[b.byteOffset:]

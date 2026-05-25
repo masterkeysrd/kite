@@ -129,6 +129,9 @@ func (e *element) AttachUARoot(root Node) {
 	e.self.MarkNeedsSync()
 }
 
+// UARoot returns the closed UA shadow subtree root, or nil.
+func (e *element) UARoot() Node { return e.uaRoot }
+
 func (e *element) Scroll() (x, y int) {
 	if e.scroll == nil {
 		return 0, 0

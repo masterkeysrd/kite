@@ -228,6 +228,7 @@ func (inp *InputElement) syncText() {
 			ro.MarkDirty(render.DirtyPaint)
 		}
 	}
+	inp.UpdateSelectionRange()
 }
 
 // OnWheel implements event.Scrollable. Input disables wheel scrolling.

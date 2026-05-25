@@ -33,10 +33,6 @@ import (
 type TextAreaElement struct {
 	elementBase[TextAreaElement]
 	textControlBase[*TextAreaElement]
-
-	// doc is the owning document, stored for creating new child nodes in
-	// rebuildUASubtree() without needing to walk the DOM tree.
-	doc dom.Document
 }
 
 // uaTextAreaDiv is the inner UA block element that wraps the text content.
@@ -79,9 +75,7 @@ var defaultTextAreaStyle = style.Style{
 func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	buf := editor.NewBuffer(initialValue)
 
-	txa := &TextAreaElement{
-		doc: doc,
-	}
+	txa := &TextAreaElement{}
 
 	// Create the host DOM element.
 	el := doc.CreateElement("textarea", txa)
@@ -180,6 +174,7 @@ func (txa *TextAreaElement) syncText() {
 			ro.MarkDirty(render.DirtyPaint)
 		}
 	}
+	txa.UpdateSelectionRange()
 }
 
 // rebuildUASubtree rebuilds the ua-div's children to match the current buffer
@@ -205,9 +200,14 @@ func (txa *TextAreaElement) syncText() {
 func (txa *TextAreaElement) rebuildUASubtree() {
 	value := txa.buf.Value()
 
+	doc := txa.OwnerDocument()
+	if doc == nil {
+		doc = orphanDocument
+	}
+
 	// Empty buffer: just a placeholder <br> so the textarea has height.
 	if value == "" {
-		txa.syncChildren([]dom.Node{NewPlaceholderBr(txa.doc)})
+		txa.syncChildren([]dom.Node{NewPlaceholderBr(doc)})
 		return
 	}
 
@@ -218,14 +218,14 @@ func (txa *TextAreaElement) rebuildUASubtree() {
 	var newChildren []dom.Node
 	for i, line := range lines {
 		if line != "" {
-			newChildren = append(newChildren, txa.doc.CreateTextNode(line, nil))
+			newChildren = append(newChildren, doc.CreateTextNode(line, nil))
 		}
 
 		isLastSegment := i == len(lines)-1
 		if !isLastSegment {
-			newChildren = append(newChildren, NewBr(txa.doc))
+			newChildren = append(newChildren, NewBr(doc))
 		} else if endsWithNewline {
-			newChildren = append(newChildren, NewPlaceholderBr(txa.doc))
+			newChildren = append(newChildren, NewPlaceholderBr(doc))
 		}
 	}
 
