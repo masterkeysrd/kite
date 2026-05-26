@@ -39,6 +39,11 @@ We operate in **Consensus Mode**:
   - Create a sample implementation in `./examples/` if the task introduces new elements or APIs that would benefit from demonstration.
   - **Documentation Updates:** Explicit instruction to update `README.md`, `AGENT.md`, or package-level `doc.go` files if the task alters the architecture, public API, or agent context.
 
+## Before We Begin
+- Read the existing `docs/architecture.md` to understand the current design and components of Kite.
+- Read the existing `docs/decisions.md` to understand the design decisions that have already been made.
+- Review the existing tasks listed in `./tasks/task_list.md` to understand the current workflow and task management process.
+
 ## Workflow
 1. Discuss and analyze the problem. Proactively ask follow-up questions to clarify doubts, uncover edge cases, and ensure a complete understanding of the requirements.
 2. Reach consensus on the solution.
