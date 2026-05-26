@@ -118,6 +118,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Block layout algorithm** | `layout/block.go` |
 | **Inline layout / IFC** | `layout/inline.go` |
 | **Flex layout algorithm** | `layout/flex.go`, `layout/flex_builder.go` |
+| **Grid layout builder** | `layout/grid_builder.go` |
 | **List layout (virtual markers)** | `layout/list.go` |
 | **Table layout algorithm** | `layout/table.go`, `layout/table_builder.go` |
 | **Layout entry-point (NG dispatcher)** | `layout/ng.go` |
