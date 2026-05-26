@@ -70,8 +70,9 @@ type mockTextNode struct {
 	data string
 }
 
-func (m *mockTextNode) Data() string     { return m.data }
-func (m *mockTextNode) LogicalNode() any { return m }
+func (m *mockTextNode) Data() string        { return m.data }
+func (m *mockTextNode) LogicalNode() any    { return m }
+func (m *mockTextNode) IsInlineLevel() bool { return true }
 
 func TestBlockLayout_VerticalStacking(t *testing.T) {
 	// Create a parent with 3 children, each 10x2

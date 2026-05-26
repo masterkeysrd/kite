@@ -24,7 +24,10 @@ func (d *uaInputDiv) Unwrap() dom.Node { return d.Element }
 // DefaultStyle returns Width:MaxContent so the div grows to accommodate its
 // text content rather than stretching to the host's available width.
 func (d *uaInputDiv) DefaultStyle() style.Style {
-	return style.Style{Width: style.Some(style.MaxContent)}
+	return style.Style{
+		MinWidth: style.Some(style.Cells(20)), // ensure the div is always at least 1 cell wide, even when empty
+		Width:    style.Some(style.MaxContent),
+	}
 }
 
 // InputElement is a single-line text-input widget implemented as a UA shadow

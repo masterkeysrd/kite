@@ -511,7 +511,8 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 }
 
 func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
-	return IsInlineLevel(node)
+	_, ok := node.(InlineLever)
+	return ok
 }
 
 func (a *FlexAlgorithm) collectItems(ctx *Context, node Node, space ConstraintSpace, geom flexGeometry) []*FlexItem {
