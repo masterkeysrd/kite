@@ -10,6 +10,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 🏎️ **60FPS Pipeline**: Orchestrated 6-phase pipeline (Sync -> Style -> Layout -> Paint -> Commit).
 - 🖱️ **Advanced Events**: Support for capture, target, and bubble phases, plus synthetic event management.
 - 🧪 **Headless Testing**: Simulate user input and assert on DOM state or visual regression (golden files).
+- ✨ **Animations**: Imperative property interpolation and tweening system for smooth transitions.
 - 🛠️ **Developer Tools**: Web-based DOM inspector, in-terminal X-Ray mode, and performance profiler.
 - ⚛️ **Reactive Primitives**: Lightweight Virtual DOM (VDOM) for declarative, type-safe API (via [`extras/kitex`](extras/kitex/)).
 
