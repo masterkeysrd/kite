@@ -3,6 +3,7 @@ package kitex
 import (
 	"reflect"
 	"sync"
+	"sync/atomic"
 
 	"github.com/masterkeysrd/kite/dom"
 )
@@ -171,6 +172,29 @@ func depsEqual(a, b []any) bool {
 		}
 	}
 	return true
+}
+
+// UseReducer initializes a state variable with a reducer function, returning
+// a getter function and a dispatch function. Setting the state via dispatch flags
+// the component dirty and schedules a re-render.
+func UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A)) {
+	getState, setState := UseState[S](initial)
+	dispatch := func(action A) {
+		setState(reducer(getState(), action))
+	}
+	return getState, dispatch
+}
+
+var useCallbackSeq uint64
+
+// UseCallback memoizes a function callback reference across renders, re-evaluating
+// it only when the dependency slice changes.
+func UseCallback[T any](callback T, deps []any) T {
+	if deps == nil {
+		seq := atomic.AddUint64(&useCallbackSeq, 1)
+		return UseMemo[T](func() T { return callback }, []any{seq})
+	}
+	return UseMemo[T](func() T { return callback }, deps)
 }
 
 type effectHookState struct {

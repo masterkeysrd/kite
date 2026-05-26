@@ -75,6 +75,6 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-060 | Kitex DevTools Integration | Done | `tasks/TSK-060-kitex-devtools-integration.md` |
 | TSK-061 | Kitex Automatic Component Memoization | Done | `tasks/TSK-061-kitex-memoization.md` |
 | TSK-062 | Kitex Effect Hooks and Destroy Lifecycle | Done | `tasks/TSK-062-kitex-effect-hooks.md` |
-| TSK-063 | Kitex UseReducer and UseCallback Hooks | Pending | `tasks/TSK-063-kitex-reducer-callback.md` |
+| TSK-063 | Kitex UseReducer and UseCallback Hooks | Done | `tasks/TSK-063-kitex-reducer-callback.md` |
 | TSK-064 | Kitex Context System | Pending | `tasks/TSK-064-kitex-context-system.md` |
 | TSK-065 | Kitex Terminal Convenience Hooks | Pending | `tasks/TSK-065-kitex-convenience-hooks.md` |

@@ -5,7 +5,7 @@ Kitex is a lightweight, reactive Virtual DOM (VDOM) framework for Kite. It provi
 ## ✨ Features
 
 - 🧩 **Functional Components**: Define reusable UI logic using `kitex.FC` (or `kitex.FCC` for components with children). For components without props, use `kitex.SimpleFC` or `kitex.SimpleFCC`.
-- 🪝 **Hooks**: Manage state and lifecycle with `UseState`, `UseRef`, and `UseMemo`.
+- 🪝 **Hooks**: Manage state and lifecycle with `UseState`, `UseRef`, `UseMemo`, `UseReducer`, and `UseCallback`.
 - 🔄 **Efficient Reconciliation**: A high-performance diffing algorithm that updates only what changed in the real DOM.
 - 🔑 **Keyed Lists**: Optimized list updates using unique keys to track element identity.
 - 🛠 **DevTools Integration**: Deep integration with the Kite Web Inspector, including a dedicated **Components** tab.
@@ -87,6 +87,12 @@ Kitex provides several standard hooks to manage component logic:
 - **`UseState[T](initial T) (func() T, func(T))`**: Returns a getter and a setter for a state variable. Updating state triggers a re-render of the component.
 - **`UseRef[T](initial T) Ref[T]`**: Returns a persistent, mutable reference that doesn't trigger re-renders when modified.
 - **`UseMemo[T](factory func() T, deps []any) T`**: Memoizes an expensive calculation and re-runs it only when dependencies change.
+- **`UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A))`**: Manages complex state logic using a reducer pattern. Returns a getter and a dispatch function.
+- **`UseCallback[T any](callback T, deps []any) T`**: Memoizes a callback function and returns the cached reference unless dependencies change.
+- **`UseEffect(effect func(), deps []any)`**: Schedules a side effect to run asynchronously after the render is committed.
+- **`UseEffectCleanup(effect func() func(), deps []any)`**: Schedules a side effect with a cleanup function that runs before the next effect run or on component destroy.
+- **`UseLayoutEffect(effect func(), deps []any)`**: Schedules a side effect that runs synchronously after reconciliation but before the layout is painted.
+- **`UseLayoutEffectCleanup(effect func() func(), deps []any)`**: Schedules a layout side effect with a cleanup function.
 
 ## 🛠 Developer Tools
 

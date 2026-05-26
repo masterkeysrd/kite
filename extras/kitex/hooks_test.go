@@ -1,6 +1,7 @@
 package kitex
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -272,5 +273,286 @@ func TestCreateRef(t *testing.T) {
 	r.Current = "test"
 	if r.Current != "test" {
 		t.Errorf("expected Current to be test, got %s", r.Current)
+	}
+}
+
+func TestUseReducer_InitialState(t *testing.T) {
+	doc := dom.NewDocument()
+	var getState func() int
+
+	myComp := FC("testReducerComp", func(props struct{}) Node {
+		getState, _ = UseReducer(func(s int, a string) int {
+			return s
+		}, 42)
+		return Box(BoxProps{})
+	})
+
+	node := myComp(struct{}{})
+	_ = node.Instantiate(doc)
+
+	if getState() != 42 {
+		t.Errorf("expected initial state 42, got %d", getState())
+	}
+}
+
+func TestUseReducer_Dispatch(t *testing.T) {
+	doc := dom.NewDocument()
+	var getState func() int
+	var dispatch func(string)
+
+	reducer := func(state int, action string) int {
+		switch action {
+		case "inc":
+			return state + 1
+		case "dec":
+			return state - 1
+		default:
+			return state
+		}
+	}
+
+	myComp := FC("testReducerComp", func(props struct{}) Node {
+		getState, dispatch = UseReducer(reducer, 10)
+		return Box(BoxProps{})
+	})
+
+	node := myComp(struct{}{})
+	realNode := node.Instantiate(doc)
+
+	dispatch("inc")
+
+	// Simulate re-render
+	node2 := myComp(struct{}{})
+	node2.Update(realNode, node)
+
+	if getState() != 11 {
+		t.Errorf("expected state to be 11 after inc dispatch, got %d", getState())
+	}
+}
+
+func TestUseReducer_MultipleDispatches(t *testing.T) {
+	doc := dom.NewDocument()
+	var getState func() int
+	var dispatch func(string)
+
+	reducer := func(state int, action string) int {
+		switch action {
+		case "inc":
+			return state + 1
+		case "dec":
+			return state - 1
+		default:
+			return state
+		}
+	}
+
+	myComp := FC("testReducerComp", func(props struct{}) Node {
+		getState, dispatch = UseReducer(reducer, 10)
+		return Box(BoxProps{})
+	})
+
+	node := myComp(struct{}{})
+	realNode := node.Instantiate(doc)
+
+	dispatch("inc")
+	dispatch("inc")
+	dispatch("dec")
+	dispatch("inc")
+
+	// Simulate re-render
+	node2 := myComp(struct{}{})
+	node2.Update(realNode, node)
+
+	if getState() != 12 {
+		t.Errorf("expected state to be 12 after multiple dispatches, got %d", getState())
+	}
+}
+
+func TestUseReducer_DispatchTriggersReRender(t *testing.T) {
+	doc := dom.NewDocument()
+	var dispatch func(string)
+
+	myComp := FC("testReducerComp", func(props struct{}) Node {
+		_, dispatch = UseReducer(func(state int, action string) int {
+			return state + 1
+		}, 0)
+		return Box(BoxProps{})
+	})
+
+	node := myComp(struct{}{})
+	_ = node.Instantiate(doc)
+
+	var dirtyNode Node
+	oldDirty := OnComponentDirty
+	defer func() {
+		OnComponentDirty = oldDirty
+	}()
+	OnComponentDirty = func(n Node) {
+		dirtyNode = n
+	}
+
+	dispatch("inc")
+
+	if dirtyNode != node {
+		t.Errorf("expected OnComponentDirty to be triggered with component node")
+	}
+	compNode := node.(*ComponentNode[struct{}])
+	if !compNode.IsDirty() {
+		t.Errorf("expected component node to be marked dirty after dispatch")
+	}
+}
+
+func TestUseReducer_StableGetterAcrossRenders(t *testing.T) {
+	doc := dom.NewDocument()
+	var getStates []func() int
+
+	myComp := FC("testReducerComp", func(props struct{}) Node {
+		getState, _ := UseReducer(func(state int, action string) int {
+			return state
+		}, 0)
+		getStates = append(getStates, getState)
+		return Box(BoxProps{})
+	})
+
+	node1 := myComp(struct{}{})
+	realNode := node1.Instantiate(doc)
+
+	node2 := myComp(struct{}{})
+	node2.Update(realNode, node1)
+
+	if len(getStates) != 2 {
+		t.Fatalf("expected 2 renders, got %d", len(getStates))
+	}
+
+	ptr1 := reflect.ValueOf(getStates[0]).Pointer()
+	ptr2 := reflect.ValueOf(getStates[1]).Pointer()
+	if ptr1 != ptr2 {
+		t.Errorf("expected stable getState closure across renders, got different pointers")
+	}
+}
+
+func TestUseCallback_ReturnsSameRef(t *testing.T) {
+	doc := dom.NewDocument()
+	var callbacks []func()
+
+	func1 := func() {}
+	func2 := func() {}
+
+	myComp := FC("testCallbackComp", func(props struct {
+		useSecond bool
+		x         int
+	}) Node {
+		var cb func()
+		if props.useSecond {
+			cb = func2
+		} else {
+			cb = func1
+		}
+		cbCached := UseCallback(cb, []any{props.x})
+		callbacks = append(callbacks, cbCached)
+		return Box(BoxProps{})
+	})
+
+	node1 := myComp(struct {
+		useSecond bool
+		x         int
+	}{useSecond: false, x: 1})
+	realNode := node1.Instantiate(doc)
+
+	node2 := myComp(struct {
+		useSecond bool
+		x         int
+	}{useSecond: true, x: 1})
+	node2.Update(realNode, node1)
+
+	if len(callbacks) != 2 {
+		t.Fatalf("expected 2 renders, got %d", len(callbacks))
+	}
+
+	ptr1 := reflect.ValueOf(callbacks[0]).Pointer()
+	ptr2 := reflect.ValueOf(callbacks[1]).Pointer()
+	if ptr1 != ptr2 {
+		t.Errorf("expected same callback reference with same deps, got different pointers")
+	}
+}
+
+func TestUseCallback_UpdatesOnDepsChange(t *testing.T) {
+	doc := dom.NewDocument()
+	var callbacks []func()
+
+	func1 := func() {}
+	func2 := func() {}
+
+	myComp := FC("testCallbackComp", func(props struct {
+		useSecond bool
+		x         int
+	}) Node {
+		var cb func()
+		if props.useSecond {
+			cb = func2
+		} else {
+			cb = func1
+		}
+		cbCached := UseCallback(cb, []any{props.x})
+		callbacks = append(callbacks, cbCached)
+		return Box(BoxProps{})
+	})
+
+	node1 := myComp(struct {
+		useSecond bool
+		x         int
+	}{useSecond: false, x: 1})
+	realNode := node1.Instantiate(doc)
+
+	node2 := myComp(struct {
+		useSecond bool
+		x         int
+	}{useSecond: true, x: 2})
+	node2.Update(realNode, node1)
+
+	if len(callbacks) != 2 {
+		t.Fatalf("expected 2 renders, got %d", len(callbacks))
+	}
+
+	ptr1 := reflect.ValueOf(callbacks[0]).Pointer()
+	ptr2 := reflect.ValueOf(callbacks[1]).Pointer()
+	if ptr1 == ptr2 {
+		t.Errorf("expected different callback references with different deps, got same pointers")
+	}
+}
+
+func TestUseCallback_NilDeps(t *testing.T) {
+	doc := dom.NewDocument()
+	var callbacks []func()
+
+	func1 := func() {}
+	func2 := func() {}
+
+	myComp := FC("testCallbackComp", func(props struct{ useSecond bool }) Node {
+		var cb func()
+		if props.useSecond {
+			cb = func2
+		} else {
+			cb = func1
+		}
+		cbCached := UseCallback(cb, nil)
+		callbacks = append(callbacks, cbCached)
+		return Box(BoxProps{})
+	})
+
+	node1 := myComp(struct{ useSecond bool }{useSecond: false})
+	realNode := node1.Instantiate(doc)
+
+	node2 := myComp(struct{ useSecond bool }{useSecond: true})
+	node2.Update(realNode, node1)
+
+	if len(callbacks) != 2 {
+		t.Fatalf("expected 2 renders, got %d", len(callbacks))
+	}
+
+	ptr1 := reflect.ValueOf(callbacks[0]).Pointer()
+	ptr2 := reflect.ValueOf(callbacks[1]).Pointer()
+	if ptr1 == ptr2 {
+		t.Errorf("expected different callback references with nil deps every render, got same pointer")
 	}
 }

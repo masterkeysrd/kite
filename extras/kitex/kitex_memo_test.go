@@ -236,6 +236,8 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 		t.Fatalf("shouldMemo should be true (score=%d)", comp1.complexityScore)
 	}
 
+	oldRendered := comp1.rendered
+
 	// Update with identical props → memoization should kick in, no RenderFn call.
 	node2 := myComp(RichProps{Title: "hello"})
 	node2.Update(realNode, node1)
@@ -244,7 +246,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 	}
 
 	comp2 := node2.(*ComponentNode[RichProps])
-	if comp2.rendered != comp1.rendered {
+	if comp2.rendered != oldRendered {
 		t.Errorf("memoized component should reuse the old rendered node")
 	}
 
