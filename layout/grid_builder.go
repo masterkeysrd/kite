@@ -1,6 +1,8 @@
 package layout
 
 import (
+	"sync"
+
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -11,6 +13,27 @@ type gridItem struct {
 	colSpan  int
 	rowStart int
 	rowSpan  int
+}
+
+var gridBuilderPool = sync.Pool{
+	New: func() any {
+		return &GridBuilder{
+			items: make([]gridItem, 0, 16),
+		}
+	},
+}
+
+// AcquireGridBuilder gets a builder from the pool and initializes it.
+func AcquireGridBuilder(node Node, space ConstraintSpace) *GridBuilder {
+	b := gridBuilderPool.Get().(*GridBuilder)
+	b.Init(node, space)
+	return b
+}
+
+// ReleaseGridBuilder returns a builder to the pool.
+func ReleaseGridBuilder(b *GridBuilder) {
+	b.node = nil
+	gridBuilderPool.Put(b)
 }
 
 // GridBuilder handles the auto-placement algorithm and track sizing for CSS Grid.

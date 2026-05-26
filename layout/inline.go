@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"sync"
 	"unicode"
 
 	"github.com/masterkeysrd/kite/style"
@@ -8,6 +9,31 @@ import (
 )
 
 var defaultShaper = text.NewShaper(0)
+
+var inlineBuilderPool = sync.Pool{
+	New: func() any {
+		return &InlineItemsBuilder{
+			items:       make([]InlineItem, 0, 32),
+			parentStack: make([]Node, 0, 8),
+		}
+	},
+}
+
+// AcquireInlineItemsBuilder gets a builder from the pool and initializes it.
+func AcquireInlineItemsBuilder(shaper *text.Shaper, block Node) *InlineItemsBuilder {
+	b := inlineBuilderPool.Get().(*InlineItemsBuilder)
+	b.shaper = shaper
+	b.blockContainer = block
+	b.Reset()
+	return b
+}
+
+// ReleaseInlineItemsBuilder returns a builder to the pool.
+func ReleaseInlineItemsBuilder(b *InlineItemsBuilder) {
+	b.shaper = nil
+	b.blockContainer = nil
+	inlineBuilderPool.Put(b)
+}
 
 // LineBox represents a single horizontal line of positioned inline fragments.
 type LineBox struct {

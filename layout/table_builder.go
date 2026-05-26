@@ -2,6 +2,7 @@ package layout
 
 import (
 	"math"
+	"sync"
 
 	"github.com/masterkeysrd/kite/style"
 )
@@ -31,16 +32,55 @@ type TableFragmentBuilder struct {
 	lastCellBorderRight map[int]bool // track right border of last cell per column
 }
 
-func NewTableFragmentBuilder(node Node, space ConstraintSpace) *TableFragmentBuilder {
+var tableBuilderPool = sync.Pool{
+	New: func() any {
+		return &TableFragmentBuilder{
+			headers:             make([]Node, 0, 1),
+			bodies:              make([]Node, 0, 1),
+			footers:             make([]Node, 0, 1),
+			colMinMax:           make([]MinMaxSizes, 0, 8),
+			colWidths:           make([]int, 0, 8),
+			lastCellBorderRight: make(map[int]bool),
+		}
+	},
+}
+
+// AcquireTableFragmentBuilder gets a builder from the pool and initializes it.
+func AcquireTableFragmentBuilder(node Node, space ConstraintSpace) *TableFragmentBuilder {
 	comp := node.Style()
 	hasTopBorder := comp.Border.Edges.Top
-	return &TableFragmentBuilder{
-		node:                node,
-		space:               space,
-		boxBuilder:          NewBoxFragmentBuilder(node, space),
-		lastCellBorderRight: make(map[int]bool),
-		lastRowBorderBottom: hasTopBorder, // Snap first row to table top if it exists
+
+	b := tableBuilderPool.Get().(*TableFragmentBuilder)
+	b.node = node
+	b.space = space
+	b.boxBuilder = AcquireBoxFragmentBuilder(node, space)
+
+	b.headers = b.headers[:0]
+	b.bodies = b.bodies[:0]
+	b.footers = b.footers[:0]
+	b.currentAnonBody = nil
+
+	b.colMinMax = b.colMinMax[:0]
+	b.resolvedWidth = 0
+	b.colWidths = b.colWidths[:0]
+	b.grid.Reset()
+
+	b.lastRowBorderBottom = hasTopBorder
+	for k := range b.lastCellBorderRight {
+		delete(b.lastCellBorderRight, k)
 	}
+
+	return b
+}
+
+// ReleaseTableFragmentBuilder returns a builder to the pool.
+func ReleaseTableFragmentBuilder(b *TableFragmentBuilder) {
+	b.node = nil
+	tableBuilderPool.Put(b)
+}
+
+func NewTableFragmentBuilder(node Node, space ConstraintSpace) *TableFragmentBuilder {
+	return AcquireTableFragmentBuilder(node, space)
 }
 
 // -- Grouping --
@@ -276,6 +316,14 @@ type tableGrid struct {
 	ColJunctionOverlap  []bool // len = NumCols-1
 	LeftEdgeHasOverlap  bool
 	RightEdgeHasOverlap bool
+}
+
+func (g *tableGrid) Reset() {
+	g.Rows = g.Rows[:0]
+	g.NumCols = 0
+	g.ColJunctionOverlap = g.ColJunctionOverlap[:0]
+	g.LeftEdgeHasOverlap = false
+	g.RightEdgeHasOverlap = false
 }
 
 func (b *TableFragmentBuilder) buildTableGrid(rows []Node) tableGrid {

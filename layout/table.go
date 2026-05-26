@@ -25,7 +25,8 @@ func (a *TableAlgorithm) Layout(ctx *Context) *Fragment {
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
 
 	// Pass 1: Grid Sizing
-	builder := NewTableFragmentBuilder(a.Node, a.Space)
+	builder := AcquireTableFragmentBuilder(a.Node, a.Space)
+	defer ReleaseTableFragmentBuilder(builder)
 	for child := range a.Node.LayoutChildren() {
 		display := child.Style().Display
 		switch display {

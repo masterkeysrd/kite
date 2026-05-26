@@ -248,7 +248,9 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 		crossGap = comp.Gap.Column
 	}
 
-	builder := NewFlexLineBuilder(geom, mainGap, crossGap)
+	builder := AcquireFlexLineBuilder(geom, mainGap, crossGap)
+	defer ReleaseFlexLineBuilder(builder)
+
 	items := a.collectItems(ctx, geom)
 
 	for _, item := range items {
@@ -491,7 +493,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 		}
 	}
 
-	fragBuilder := NewBoxFragmentBuilder(a.Node, a.Space)
+	fragBuilder := AcquireBoxFragmentBuilder(a.Node, a.Space)
 	fragBuilder.SetInlineSize(resolvedWidth)
 	fragBuilder.SetBlockSize(resolvedHeight)
 	fragBuilder.SetBreakToken(breakToken)

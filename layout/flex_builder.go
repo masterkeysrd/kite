@@ -2,6 +2,7 @@ package layout
 
 import (
 	"sort"
+	"sync"
 
 	"github.com/masterkeysrd/kite/style"
 )
@@ -93,6 +94,31 @@ type FlexLine struct {
 	CrossSize int
 }
 
+var flexBuilderPool = sync.Pool{
+	New: func() any {
+		return &FlexLineBuilder{
+			items: make([]*FlexItem, 0, 16),
+			lines: make([]*FlexLine, 0, 4),
+		}
+	},
+}
+
+// AcquireFlexLineBuilder gets a builder from the pool and initializes it.
+func AcquireFlexLineBuilder(geom flexGeometry, mainGap, crossGap int) *FlexLineBuilder {
+	b := flexBuilderPool.Get().(*FlexLineBuilder)
+	b.geom = geom
+	b.mainGap = mainGap
+	b.crossGap = crossGap
+	b.items = b.items[:0]
+	b.lines = b.lines[:0]
+	return b
+}
+
+// ReleaseFlexLineBuilder returns a builder to the pool.
+func ReleaseFlexLineBuilder(b *FlexLineBuilder) {
+	flexBuilderPool.Put(b)
+}
+
 // FlexLineBuilder encapsulates the mutable state required for resolving flex lines.
 // It acts as the state machine for the flex layout algorithm, handling item collection,
 // line breaking, space distribution (growing/shrinking), and alignment.
@@ -105,11 +131,7 @@ type FlexLineBuilder struct {
 }
 
 func NewFlexLineBuilder(geom flexGeometry, mainGap, crossGap int) *FlexLineBuilder {
-	return &FlexLineBuilder{
-		geom:     geom,
-		mainGap:  mainGap,
-		crossGap: crossGap,
-	}
+	return AcquireFlexLineBuilder(geom, mainGap, crossGap)
 }
 
 func (b *FlexLineBuilder) AddItem(node Node, baseSize, minSize, maxSize, grow, shrink, order int) {
@@ -341,7 +363,8 @@ func (b *FlexLineBuilder) AlignLine(lineIndex int, containerMainSize int, justif
 
 	currentMainOffset := startMainOffset
 	for i, item := range line.Items {
-		childMargin := item.Node.Style().Margin
+		childStyle := item.Node.Style()
+		childMargin := childStyle.Margin
 
 		// Add the "before" margin on the main axis.
 		if b.geom.direction == style.FlexRow || b.geom.direction == style.FlexRowReverse {

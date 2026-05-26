@@ -1,5 +1,10 @@
 package layout
 
+import (
+	"slices"
+	"sync"
+)
+
 // ConstraintSpaceBuilder is a helper to construct a ConstraintSpace.
 type ConstraintSpaceBuilder struct {
 	space ConstraintSpace
@@ -58,14 +63,32 @@ type BoxFragmentBuilder struct {
 	hasScrollbarY      bool
 }
 
+var boxBuilderPool = sync.Pool{
+	New: func() any {
+		return &BoxFragmentBuilder{
+			children: make([]FragmentLink, 0, 16),
+		}
+	},
+}
+
+// AcquireBoxFragmentBuilder gets a builder from the pool and initializes it.
+func AcquireBoxFragmentBuilder(node Node, space ConstraintSpace) *BoxFragmentBuilder {
+	comp := node.Style()
+	b := boxBuilderPool.Get().(*BoxFragmentBuilder)
+	b.node = node
+	b.space = space
+	b.size = Size{}
+	b.children = b.children[:0]
+	b.currentBlockOffset = comp.Border.Widths().Top + comp.Padding.Top
+	b.breakToken = nil
+	b.hasScrollbarX = false
+	b.hasScrollbarY = false
+	return b
+}
+
 // NewBoxFragmentBuilder creates a new builder for the given node and constraint space.
 func NewBoxFragmentBuilder(node Node, space ConstraintSpace) *BoxFragmentBuilder {
-	comp := node.Style()
-	return &BoxFragmentBuilder{
-		node:               node,
-		space:              space,
-		currentBlockOffset: comp.Border.Widths().Top + comp.Padding.Top,
-	}
+	return AcquireBoxFragmentBuilder(node, space)
 }
 
 // SetBreakToken sets the break token for the fragment.
@@ -117,15 +140,16 @@ func (b *BoxFragmentBuilder) AddChild(frag *Fragment, offset Point) {
 }
 
 // ToFragment finalizes the builder and returns an immutable Fragment.
+// It also returns the builder to the pool.
 func (b *BoxFragmentBuilder) ToFragment() *Fragment {
-	// TODO: Apply Min/Max constraints from style if needed,
-	// though they are often already handled by the algorithm.
-	return &Fragment{
+	frag := &Fragment{
 		Node:          b.node,
 		Size:          b.size,
-		Children:      b.children,
+		Children:      slices.Clone(b.children),
 		BreakToken:    b.breakToken,
 		HasScrollbarX: b.hasScrollbarX,
 		HasScrollbarY: b.hasScrollbarY,
 	}
+	boxBuilderPool.Put(b)
+	return frag
 }

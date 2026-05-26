@@ -93,7 +93,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollba
 	resolvedInlineSize = max(resolvedInlineSize, decor.Insets.Left+decor.Insets.Right)
 
 	// 3. Setup Builder: Initialize BoxFragmentBuilder and resolve FragmentGeometry.
-	builder := NewBoxFragmentBuilder(a.Node, a.Space)
+	builder := AcquireBoxFragmentBuilder(a.Node, a.Space)
 	builder.SetInlineSize(resolvedInlineSize)
 	builder.SetHasScrollbarX(hasScrollbarX)
 	builder.SetHasScrollbarY(hasScrollbarY)
@@ -105,6 +105,11 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollba
 
 	// 4. Child Iteration: Loop through in-flow layout children.
 	var inlineBuilder *InlineItemsBuilder
+	defer func() {
+		if inlineBuilder != nil {
+			ReleaseInlineItemsBuilder(inlineBuilder)
+		}
+	}()
 	var bufferedInlines []Node
 
 	processInlines := func() {
@@ -113,7 +118,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollba
 		}
 
 		if inlineBuilder == nil {
-			inlineBuilder = NewInlineItemsBuilder(defaultShaper, a.Node)
+			inlineBuilder = AcquireInlineItemsBuilder(defaultShaper, a.Node)
 		}
 
 		inlineBuilder.Reset()

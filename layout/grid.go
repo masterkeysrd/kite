@@ -23,9 +23,9 @@ func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
 	decor := ResolveDecorations(a.Node, false, false)
 
 	if a.builder == nil {
-		a.builder = &GridBuilder{}
-		a.builder.Init(a.Node, a.Space)
+		a.builder = AcquireGridBuilder(a.Node, a.Space)
 		a.builder.PlaceItems()
+		defer ReleaseGridBuilder(a.builder)
 	}
 	builder := a.builder
 
@@ -92,7 +92,7 @@ func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
 	}
 
 	// 3. Layout Pass
-	boxBuilder := NewBoxFragmentBuilder(a.Node, a.Space)
+	boxBuilder := AcquireBoxFragmentBuilder(a.Node, a.Space)
 	boxBuilder.SetInlineSize(resolvedWidth)
 	boxBuilder.SetBlockSize(resolvedHeight)
 
@@ -249,9 +249,9 @@ func (a *GridAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	}
 
 	if a.builder == nil {
-		a.builder = &GridBuilder{}
-		a.builder.Init(a.Node, a.Space)
+		a.builder = AcquireGridBuilder(a.Node, a.Space)
 		a.builder.PlaceItems()
+		defer ReleaseGridBuilder(a.builder)
 	}
 	builder := a.builder
 
