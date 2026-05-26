@@ -7,44 +7,109 @@ import (
 )
 
 var (
-	renderMutex sync.Mutex
-	activeRoots = make(map[dom.Element]Node)
+	renderMutex        sync.Mutex
+	activeRoots        = make(map[dom.Element]Node)
+	inOnComponentDirty bool
+	dirtyComponents    []componentInstance
+	dirtyBuffer        []componentInstance
 )
 
 func init() {
-	OnComponentDirty = func(node Node) {
-		renderMutex.Lock()
-		defer renderMutex.Unlock()
+	dirtyComponents = make([]componentInstance, 0, 16)
+	dirtyBuffer = make([]componentInstance, 0, 16)
 
+	OnComponentDirty = func(node Node) {
 		compInstance, ok := node.(componentInstance)
 		if !ok {
 			return
 		}
-		realNode := compInstance.realNode()
-		if realNode == nil {
-			return
-		}
-		parent := realNode.Parent()
-		if parent == nil {
-			return
-		}
-		parentEl, ok := parent.(dom.Element)
-		if !ok {
+		if compInstance.realNode() == nil {
 			return
 		}
 
-		oldRendered := compInstance.Rendered()
-		newRendered := compInstance.ReRender()
-		compInstance.ClearDirty()
+		effectsMutex.Lock()
+		exists := false
+		for _, c := range dirtyComponents {
+			if c == compInstance {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			dirtyComponents = append(dirtyComponents, compInstance)
+		}
+		effectsMutex.Unlock()
 
-		reconcile(parentEl, oldRendered, newRendered, realNode)
+		if inOnComponentDirty {
+			return
+		}
+
+		renderMutex.Lock()
+		inOnComponentDirty = true
+		defer func() {
+			inOnComponentDirty = false
+			renderMutex.Unlock()
+		}()
+
+		flushPendingEffects()
+		processDirtyLoop()
+	}
+}
+
+func processDirtyLoop() {
+	for iteration := 0; iteration < 10; iteration++ {
+		if len(dirtyComponents) == 0 {
+			break
+		}
+		effectsMutex.Lock()
+		if len(dirtyComponents) == 0 {
+			effectsMutex.Unlock()
+			break
+		}
+		currentDirty := dirtyComponents
+		if cap(dirtyBuffer) < len(currentDirty) {
+			dirtyBuffer = make([]componentInstance, 0, len(currentDirty))
+		}
+		dirtyComponents = dirtyBuffer
+		dirtyBuffer = currentDirty[:0]
+		effectsMutex.Unlock()
+
+		for _, comp := range currentDirty {
+			if !comp.IsDirty() {
+				continue
+			}
+			realNode := comp.realNode()
+			if realNode == nil {
+				continue
+			}
+			parent := realNode.Parent()
+			if parent == nil {
+				continue
+			}
+			parentEl, ok := parent.(dom.Element)
+			if !ok {
+				continue
+			}
+
+			oldRendered := comp.Rendered()
+			newRendered := comp.ReRender()
+			comp.ClearDirty()
+
+			reconcile(parentEl, oldRendered, newRendered, realNode)
+		}
+
+		drainLayoutEffects()
 	}
 }
 
 // Render mounts or reconciles a Virtual DOM root node into the specified host container.
 func Render(root Node, container dom.Element) {
 	renderMutex.Lock()
-	defer renderMutex.Unlock()
+	inOnComponentDirty = true
+	defer func() {
+		inOnComponentDirty = false
+		renderMutex.Unlock()
+	}()
 
 	if container == nil {
 		return
@@ -56,6 +121,7 @@ func Render(root Node, container dom.Element) {
 		if oldRoot != nil {
 			firstChild := container.FirstChild()
 			if firstChild != nil {
+				destroyNode(oldRoot)
 				container.RemoveChild(firstChild)
 				ClearAllSubscriptions(firstChild)
 			}
@@ -72,6 +138,9 @@ func Render(root Node, container dom.Element) {
 			container.AppendChild(realNode)
 		}
 	}
+
+	drainLayoutEffects()
+	processDirtyLoop()
 }
 
 func reconcile(parent dom.Element, oldNode, newNode Node, realNode dom.Node) dom.Node {
@@ -91,6 +160,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNode dom.Node) dom
 	// 2. Unmount
 	if oldNode != nil && newNode == nil {
 		if realNode != nil {
+			destroyNode(oldNode)
 			parent.RemoveChild(realNode)
 			ClearAllSubscriptions(realNode)
 		}
@@ -101,6 +171,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNode dom.Node) dom
 	if oldNode.TagName() != newNode.TagName() {
 		newReal := newNode.Instantiate(parent.OwnerDocument())
 		if realNode != nil {
+			destroyNode(oldNode)
 			parent.ReplaceChild(newReal, realNode)
 			ClearAllSubscriptions(realNode)
 		} else {
@@ -153,15 +224,49 @@ var nodeRealMapPool = sync.Pool{
 }
 
 func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
+	if len(oldChildren) == 0 {
+		for i := range newChildren {
+			if newChildren[i] != nil {
+				newReal := newChildren[i].Instantiate(parent.OwnerDocument())
+				if newReal != nil {
+					parent.AppendChild(newReal)
+				}
+			}
+		}
+		return
+	}
+
+	if len(newChildren) == 0 {
+		for i := range oldChildren {
+			if oldChildren[i] != nil {
+				realNode := oldChildren[i].(nodeInternal).realNode()
+				if realNode != nil {
+					destroyNode(oldChildren[i])
+					parent.RemoveChild(realNode)
+					ClearAllSubscriptions(realNode)
+				}
+			}
+		}
+		return
+	}
+
+	if len(oldChildren) == 1 && len(newChildren) == 1 {
+		oldChild := oldChildren[0]
+		newChild := newChildren[0]
+		if sameNode(oldChild, newChild) {
+			var realNode dom.Node
+			if oldChild != nil {
+				realNode = oldChild.(nodeInternal).realNode()
+			}
+			reconcile(parent, oldChild, newChild, realNode)
+			return
+		}
+	}
+
 	// Build a stable map from VDOM node pointer → its current live DOM node.
 	// This is immune to DOM-move invalidation: when InsertBefore moves a node,
 	// the mapping (vdom → dom) remains valid regardless of sibling-list changes.
 	n := len(oldChildren)
-	nodeMap := nodeRealMapPool.Get().(map[Node]dom.Node)
-
-	for i := range n {
-		nodeMap[oldChildren[i]] = oldChildren[i].(nodeInternal).realNode()
-	}
 
 	// Working copy of the old VDOM list so we can nil-out consumed entries.
 	var oldS []Node
@@ -183,6 +288,8 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 	// inserted before. Updated when Case 2 consumes an old-end match.
 	var insertBeforeRef dom.Node
 
+	var nodeMap map[Node]dom.Node
+
 	for oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx {
 		for oldStartIdx <= oldEndIdx && oldS[oldStartIdx] == nil {
 			oldStartIdx++
@@ -190,7 +297,13 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 		for oldEndIdx >= oldStartIdx && oldS[oldEndIdx] == nil {
 			oldEndIdx--
 		}
-		if oldStartIdx > oldEndIdx {
+		for newStartIdx <= newEndIdx && newChildren[newStartIdx] == nil {
+			newStartIdx++
+		}
+		for newEndIdx >= newStartIdx && newChildren[newEndIdx] == nil {
+			newEndIdx--
+		}
+		if oldStartIdx > oldEndIdx || newStartIdx > newEndIdx {
 			break
 		}
 
@@ -201,7 +314,13 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 1: Old Start == New Start (no move needed)
 		if sameNode(oldStartNode, newStartNode) {
-			reconcile(parent, oldStartNode, newStartNode, getRealNode(oldStartIdx, oldS, nodeMap))
+			var realNode dom.Node
+			if nodeMap != nil {
+				realNode = nodeMap[oldStartNode]
+			} else {
+				realNode = oldChildren[oldStartIdx].(nodeInternal).realNode()
+			}
+			reconcile(parent, oldStartNode, newStartNode, realNode)
 			oldStartIdx++
 			newStartIdx++
 			continue
@@ -209,20 +328,35 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 2: Old End == New End (no move needed)
 		if sameNode(oldEndNode, newEndNode) {
-			domNode := getRealNode(oldEndIdx, oldS, nodeMap)
-			reconcile(parent, oldEndNode, newEndNode, domNode)
+			var realNode dom.Node
+			if nodeMap != nil {
+				realNode = nodeMap[oldEndNode]
+			} else {
+				realNode = oldChildren[oldEndIdx].(nodeInternal).realNode()
+			}
+			reconcile(parent, oldEndNode, newEndNode, realNode)
 			// Any new nodes inserted between start and end must go before this.
-			insertBeforeRef = domNode
+			insertBeforeRef = realNode
 			oldEndIdx--
 			newEndIdx--
 			continue
 		}
 
+		// Case 3-5: Move needed. Ensure map is populated.
+		if nodeMap == nil {
+			nodeMap = nodeRealMapPool.Get().(map[Node]dom.Node)
+			for i := range n {
+				if oldChildren[i] != nil {
+					nodeMap[oldChildren[i]] = oldChildren[i].(nodeInternal).realNode()
+				}
+			}
+		}
+
 		// Case 3: Old Start goes to New End → move it after current oldEnd
 		if sameNode(oldStartNode, newEndNode) {
-			domNode := getRealNode(oldStartIdx, oldS, nodeMap)
+			domNode := nodeMap[oldStartNode]
 			reconcile(parent, oldStartNode, newEndNode, domNode)
-			afterEnd := getRealNode(oldEndIdx, oldS, nodeMap)
+			afterEnd := nodeMap[oldEndNode]
 			if afterEnd != nil {
 				parent.InsertBefore(domNode, afterEnd.NextSibling())
 			} else {
@@ -236,9 +370,9 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 4: Old End goes to New Start → move it before current oldStart
 		if sameNode(oldEndNode, newStartNode) {
-			domNode := getRealNode(oldEndIdx, oldS, nodeMap)
+			domNode := nodeMap[oldEndNode]
 			reconcile(parent, oldEndNode, newStartNode, domNode)
-			parent.InsertBefore(domNode, getRealNode(oldStartIdx, oldS, nodeMap))
+			parent.InsertBefore(domNode, nodeMap[oldStartNode])
 			oldS[oldEndIdx] = nil
 			oldEndIdx--
 			newStartIdx++
@@ -275,11 +409,11 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 		if matchedIdx != -1 {
 			matchedReal := nodeMap[oldS[matchedIdx]]
 			reconcile(parent, oldS[matchedIdx], newStartNode, matchedReal)
-			parent.InsertBefore(matchedReal, getRealNode(oldStartIdx, oldS, nodeMap))
+			parent.InsertBefore(matchedReal, nodeMap[oldStartNode])
 			oldS[matchedIdx] = nil
 		} else {
 			newReal := newStartNode.Instantiate(parent.OwnerDocument())
-			parent.InsertBefore(newReal, getRealNode(oldStartIdx, oldS, nodeMap))
+			parent.InsertBefore(newReal, nodeMap[oldStartNode])
 		}
 		newStartIdx++
 	}
@@ -290,7 +424,11 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 		// First try: any surviving old node in range is the natural anchor.
 		for i := oldStartIdx; i <= oldEndIdx; i++ {
 			if oldS[i] != nil {
-				refNode = nodeMap[oldS[i]]
+				if nodeMap != nil {
+					refNode = nodeMap[oldS[i]]
+				} else {
+					refNode = oldChildren[i].(nodeInternal).realNode()
+				}
 				break
 			}
 		}
@@ -299,8 +437,10 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 			refNode = insertBeforeRef
 		}
 		for newStartIdx <= newEndIdx {
-			newReal := newChildren[newStartIdx].Instantiate(parent.OwnerDocument())
-			parent.InsertBefore(newReal, refNode)
+			if newChildren[newStartIdx] != nil {
+				newReal := newChildren[newStartIdx].Instantiate(parent.OwnerDocument())
+				parent.InsertBefore(newReal, refNode)
+			}
 			newStartIdx++
 		}
 	}
@@ -308,8 +448,14 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 	// Remove remaining unmatched old nodes
 	for i := oldStartIdx; i <= oldEndIdx; i++ {
 		if oldS[i] != nil {
-			realNode := nodeMap[oldS[i]]
+			var realNode dom.Node
+			if nodeMap != nil {
+				realNode = nodeMap[oldS[i]]
+			} else {
+				realNode = oldChildren[i].(nodeInternal).realNode()
+			}
 			if realNode != nil {
+				destroyNode(oldS[i])
 				parent.RemoveChild(realNode)
 				ClearAllSubscriptions(realNode)
 			}
@@ -323,8 +469,10 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 		}
 		nodeSlicePool.Put(pooledOldS)
 	}
-	clear(nodeMap)
-	nodeRealMapPool.Put(nodeMap)
+	if nodeMap != nil {
+		clear(nodeMap)
+		nodeRealMapPool.Put(nodeMap)
+	}
 }
 
 func sameNode(n1, n2 Node) bool {
@@ -332,11 +480,4 @@ func sameNode(n1, n2 Node) bool {
 		return false
 	}
 	return n1.TagName() == n2.TagName() && n1.Key() == n2.Key()
-}
-
-func getRealNode(idx int, oldS []Node, nodeMap map[Node]dom.Node) dom.Node {
-	if idx < 0 || idx >= len(oldS) || oldS[idx] == nil {
-		return nil
-	}
-	return nodeMap[oldS[idx]]
 }

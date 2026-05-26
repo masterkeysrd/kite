@@ -412,6 +412,17 @@ func funcEquals(f1, f2 any) bool {
 	if n1 || n2 {
 		return n1 == n2
 	}
+
+	// Try type assertion for common listener type to avoid reflection
+	if fn1, ok1 := f1.(func(event.Event)); ok1 {
+		if fn2, ok2 := f2.(func(event.Event)); ok2 {
+			// Functions are only equal if they are both nil or the same pointer.
+			// Comparison of non-nil functions is not allowed in Go directly,
+			// but we can use reflection pointer comparison.
+			return reflect.ValueOf(fn1).Pointer() == reflect.ValueOf(fn2).Pointer()
+		}
+	}
+
 	v1 := reflect.ValueOf(f1)
 	v2 := reflect.ValueOf(f2)
 	if v1.Kind() != reflect.Func || v2.Kind() != reflect.Func {
@@ -423,6 +434,9 @@ func funcEquals(f1, f2 any) bool {
 func isNilFunc(f any) bool {
 	if f == nil {
 		return true
+	}
+	if fn, ok := f.(func(event.Event)); ok {
+		return fn == nil
 	}
 	v := reflect.ValueOf(f)
 	return v.Kind() == reflect.Func && v.IsNil()
@@ -529,10 +543,12 @@ func setHidden(el element.Element, h bool) {
 	}
 }
 
+var emptyElementProps ElementProps
+
 // updateElementBase syncs core style, identity and listeners on any element.
 func updateElementBase(el element.Element, old, new *ElementProps) {
 	if old == nil {
-		old = &ElementProps{}
+		old = &emptyElementProps
 	}
 	if old.ID != new.ID {
 		el.SetID(new.ID)
@@ -1338,10 +1354,10 @@ func TD(props TDProps, children ...Node) Node {
 			}
 			newEp := new.elementProps()
 			updateElementBase(td, &oldEp, &newEp)
-			if (old == nil || old.ColSpan != new.ColSpan) {
+			if old == nil || old.ColSpan != new.ColSpan {
 				td.SetColSpan(new.ColSpan)
 			}
-			if (old == nil || old.RowSpan != new.RowSpan) {
+			if old == nil || old.RowSpan != new.RowSpan {
 				td.SetRowSpan(new.RowSpan)
 			}
 		},
@@ -1535,6 +1551,7 @@ type componentInstance interface {
 	realNode() dom.Node
 	Rendered() Node
 	ReRender() Node
+	Destroy()
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -1787,6 +1804,36 @@ func (c *ComponentNode[P]) MarkDirty() {
 	c.dirty = true
 	if OnComponentDirty != nil {
 		OnComponentDirty(c)
+	}
+}
+
+// Destroy cleans up component state, runs effect cleanups, and recursively destroys rendered subtree.
+func (c *ComponentNode[P]) Destroy() {
+	for _, h := range c.hooks {
+		if eff, ok := h.(*effectHookState); ok {
+			if eff.cleanup != nil {
+				eff.cleanup()
+				eff.cleanup = nil
+			}
+			eff.pending = false
+		}
+	}
+	if c.rendered != nil {
+		destroyNode(c.rendered)
+	}
+}
+
+// destroyNode recursively walks the subtree and destroys any component instances.
+func destroyNode(n Node) {
+	if n == nil {
+		return
+	}
+	if comp, ok := n.(componentInstance); ok {
+		comp.Destroy()
+	} else {
+		for _, child := range n.Children() {
+			destroyNode(child)
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package kitex
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -399,5 +400,74 @@ func TestReconcilerStateUpdateListReverse(t *testing.T) {
 	}
 	if after[2] != realA {
 		t.Error("element A was recreated instead of moved")
+	}
+}
+
+func TestReconcilerConditionalNilChildren(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	var setCondition func(bool)
+
+	Comp := FC("ConditionalComp", func(props struct{}) Node {
+		cond, setCond := UseState(true)
+		setCondition = setCond
+
+		return Box(BoxProps{ID: "parent"},
+			Span(SpanProps{ID: "always-here"}),
+			If(cond(), Span(SpanProps{ID: "conditional-span"})),
+			Span(SpanProps{ID: "also-always-here"}),
+		)
+	})
+
+	// 1. Initial Render (conditional is true)
+	Render(Comp(struct{}{}), container)
+
+	parent := container.FirstChild().(dom.Element)
+	if parent.FirstChild() == nil {
+		t.Fatalf("expected parent to have children")
+	}
+
+	// Should have always-here, conditional-span, and also-always-here
+	childCount := 0
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		childCount++
+	}
+	if childCount != 3 {
+		t.Errorf("expected 3 children initially, got %d", childCount)
+	}
+
+	// 2. Toggle condition to false (conditional-span unmounts, leaves nil child in new children)
+	setCondition(false)
+
+	childCount = 0
+	var childIDs []string
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		childCount++
+		childIDs = append(childIDs, child.(dom.Element).ID())
+	}
+	if childCount != 2 {
+		t.Errorf("expected 2 children after condition false, got %d", childCount)
+	}
+	expectedIDs := []string{"always-here", "also-always-here"}
+	if !reflect.DeepEqual(childIDs, expectedIDs) {
+		t.Errorf("expected remaining children %v, got %v", expectedIDs, childIDs)
+	}
+
+	// 3. Toggle back to true (conditional-span remounts)
+	setCondition(true)
+
+	childCount = 0
+	childIDs = nil
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		childCount++
+		childIDs = append(childIDs, child.(dom.Element).ID())
+	}
+	if childCount != 3 {
+		t.Errorf("expected 3 children after condition true, got %d", childCount)
+	}
+	expectedIDs2 := []string{"always-here", "conditional-span", "also-always-here"}
+	if !reflect.DeepEqual(childIDs, expectedIDs2) {
+		t.Errorf("expected children %v, got %v", expectedIDs2, childIDs)
 	}
 }

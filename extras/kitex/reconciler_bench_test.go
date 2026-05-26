@@ -9,9 +9,10 @@ import (
 
 // BenchmarkReconcilerMount measures the cost of mounting a medium-sized VDOM tree.
 func BenchmarkReconcilerMount(b *testing.B) {
+	EnableDevMode = false
 	doc := dom.NewDocument()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
 		root := Box(BoxProps{ID: "app"},
 			Span(SpanProps{ID: "s1"}, Text("text 1")),
@@ -27,25 +28,25 @@ func BenchmarkReconcilerMount(b *testing.B) {
 
 // BenchmarkReconcilerNonKeyedUpdate measures list update performance when NO keys are used.
 func BenchmarkReconcilerNonKeyedUpdate(b *testing.B) {
+	EnableDevMode = false
 	doc := dom.NewDocument()
 	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
 
 	// Pre-create some lists
 	listA := make([]Node, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		listA[i] = Span(SpanProps{ID: fmt.Sprintf("id-%d", i)}, Text(fmt.Sprintf("Item %d", i)))
 	}
 	rootA := Box(BoxProps{}, listA...)
 
 	listB := make([]Node, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		idx := 99 - i
 		listB[i] = Span(SpanProps{ID: fmt.Sprintf("id-%d", idx)}, Text(fmt.Sprintf("Item %d-updated", idx)))
 	}
 	rootB := Box(BoxProps{}, listB...)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Render(rootA, container)
 		Render(rootB, container)
 	}
@@ -53,26 +54,26 @@ func BenchmarkReconcilerNonKeyedUpdate(b *testing.B) {
 
 // BenchmarkReconcilerKeyedUpdate measures list update and reordering performance when keys ARE used.
 func BenchmarkReconcilerKeyedUpdate(b *testing.B) {
+	EnableDevMode = false
 	doc := dom.NewDocument()
 	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
 
 	listA := make([]Node, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Sprintf("key-%d", i)
 		listA[i] = Span(SpanProps{Key: key, ID: fmt.Sprintf("id-%d", i)}, Text(fmt.Sprintf("Item %d", i)))
 	}
 	rootA := Box(BoxProps{}, listA...)
 
 	listB := make([]Node, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		idx := 99 - i
 		key := fmt.Sprintf("key-%d", idx)
 		listB[i] = Span(SpanProps{Key: key, ID: fmt.Sprintf("id-%d", idx)}, Text(fmt.Sprintf("Item %d-updated", idx)))
 	}
 	rootB := Box(BoxProps{}, listB...)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Render(rootA, container)
 		Render(rootB, container)
 	}

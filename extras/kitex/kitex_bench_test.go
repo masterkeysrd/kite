@@ -8,6 +8,7 @@ import (
 
 // BenchmarkVDOMConstruction measures the performance of constructing a standard VDOM tree.
 func BenchmarkVDOMConstruction(b *testing.B) {
+	EnableDevMode = false
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = Box(BoxProps{
@@ -27,6 +28,7 @@ func BenchmarkVDOMConstruction(b *testing.B) {
 
 // BenchmarkComponentInstantiation measures functional component rendering and instantiation overhead.
 func BenchmarkComponentInstantiation(b *testing.B) {
+	EnableDevMode = false
 	doc := dom.NewDocument()
 
 	type MyButtonProps struct {
@@ -158,8 +160,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 	node1 := myComp(RichProps{Label: "hello"})
 	realNode := node1.Instantiate(doc)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		// Alternate labels so props always differ, defeating the memo.
 		label := "hello"
 		if i%2 == 0 {

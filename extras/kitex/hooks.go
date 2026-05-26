@@ -2,6 +2,7 @@ package kitex
 
 import (
 	"reflect"
+	"sync"
 
 	"github.com/masterkeysrd/kite/dom"
 )
@@ -170,4 +171,251 @@ func depsEqual(a, b []any) bool {
 		}
 	}
 	return true
+}
+
+type effectHookState struct {
+	deps      []any
+	cleanup   func()
+	isLayout  bool
+	pending   bool
+	simpleFn  func()
+	cleanupFn func() func()
+}
+
+var (
+	pendingLayoutEffects []*effectHookState
+	layoutEffectsBuffer  []*effectHookState
+	pendingEffects       []*effectHookState
+	effectsBuffer        []*effectHookState
+	effectsMutex         sync.Mutex
+	postMacroFn          func(func())
+)
+
+// SetPostMacroFn sets the post-macro enqueuing function used by kitex.
+func SetPostMacroFn(fn func(func())) {
+	postMacroFn = fn
+}
+
+func scheduleEffectFlush() {
+	if postMacroFn != nil {
+		postMacroFn(flushPendingEffects)
+	}
+}
+
+// UseEffect schedules a post-commit side effect that runs asynchronously after the frame is committed.
+func UseEffect(effect func(), deps []any) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseEffect must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+	idx := comp.incrementHookIndex()
+
+	stateVal, exists := comp.getHookState(idx)
+	if !exists {
+		hs := &effectHookState{
+			deps:     deps,
+			pending:  true,
+			isLayout: false,
+			simpleFn: effect,
+		}
+		comp.setHookState(idx, hs)
+		effectsMutex.Lock()
+		pendingEffects = append(pendingEffects, hs)
+		effectsMutex.Unlock()
+		scheduleEffectFlush()
+		return
+	}
+
+	hs := stateVal.(*effectHookState)
+	changed := false
+	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
+		changed = true
+	}
+	hs.simpleFn = effect // Update closure anyway
+	if changed {
+		hs.deps = deps
+		hs.pending = true
+		effectsMutex.Lock()
+		pendingEffects = append(pendingEffects, hs)
+		effectsMutex.Unlock()
+		scheduleEffectFlush()
+	}
+}
+
+// UseEffectCleanup schedules a post-commit side effect with a cleanup function.
+func UseEffectCleanup(effect func() func(), deps []any) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseEffectCleanup must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+	idx := comp.incrementHookIndex()
+
+	stateVal, exists := comp.getHookState(idx)
+	if !exists {
+		hs := &effectHookState{
+			deps:      deps,
+			pending:   true,
+			isLayout:  false,
+			cleanupFn: effect,
+		}
+		comp.setHookState(idx, hs)
+		effectsMutex.Lock()
+		pendingEffects = append(pendingEffects, hs)
+		effectsMutex.Unlock()
+		scheduleEffectFlush()
+		return
+	}
+
+	hs := stateVal.(*effectHookState)
+	changed := false
+	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
+		changed = true
+	}
+	hs.cleanupFn = effect // Update closure anyway
+	if changed {
+		hs.deps = deps
+		hs.pending = true
+		effectsMutex.Lock()
+		pendingEffects = append(pendingEffects, hs)
+		effectsMutex.Unlock()
+		scheduleEffectFlush()
+	}
+}
+
+// UseLayoutEffect schedules a layout side effect that runs synchronously after reconciliation.
+func UseLayoutEffect(effect func(), deps []any) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseLayoutEffect must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+	idx := comp.incrementHookIndex()
+
+	stateVal, exists := comp.getHookState(idx)
+	if !exists {
+		hs := &effectHookState{
+			deps:     deps,
+			pending:  true,
+			isLayout: true,
+			simpleFn: effect,
+		}
+		comp.setHookState(idx, hs)
+		effectsMutex.Lock()
+		pendingLayoutEffects = append(pendingLayoutEffects, hs)
+		effectsMutex.Unlock()
+		return
+	}
+
+	hs := stateVal.(*effectHookState)
+	changed := false
+	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
+		changed = true
+	}
+	hs.simpleFn = effect // Update closure anyway
+	if changed {
+		hs.deps = deps
+		hs.pending = true
+		effectsMutex.Lock()
+		pendingLayoutEffects = append(pendingLayoutEffects, hs)
+		effectsMutex.Unlock()
+	}
+}
+
+// UseLayoutEffectCleanup schedules a layout side effect with a cleanup function.
+func UseLayoutEffectCleanup(effect func() func(), deps []any) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseLayoutEffectCleanup must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+	idx := comp.incrementHookIndex()
+
+	stateVal, exists := comp.getHookState(idx)
+	if !exists {
+		hs := &effectHookState{
+			deps:      deps,
+			pending:   true,
+			isLayout:  true,
+			cleanupFn: effect,
+		}
+		comp.setHookState(idx, hs)
+		effectsMutex.Lock()
+		pendingLayoutEffects = append(pendingLayoutEffects, hs)
+		effectsMutex.Unlock()
+		return
+	}
+
+	hs := stateVal.(*effectHookState)
+	changed := false
+	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
+		changed = true
+	}
+	hs.cleanupFn = effect // Update closure anyway
+	if changed {
+		hs.deps = deps
+		hs.pending = true
+		effectsMutex.Lock()
+		pendingLayoutEffects = append(pendingLayoutEffects, hs)
+		effectsMutex.Unlock()
+	}
+}
+
+// flushPendingEffects runs all pending post-commit effect functions and registers their cleanups.
+func flushPendingEffects() {
+	if len(pendingEffects) == 0 {
+		return
+	}
+	effectsMutex.Lock()
+	queue := pendingEffects
+	if cap(effectsBuffer) < len(queue) {
+		effectsBuffer = make([]*effectHookState, 0, len(queue))
+	}
+	pendingEffects = effectsBuffer
+	effectsBuffer = queue[:0]
+	effectsMutex.Unlock()
+
+	for _, state := range queue {
+		if state.pending {
+			if state.cleanup != nil {
+				state.cleanup()
+			}
+			if state.simpleFn != nil {
+				state.simpleFn()
+			} else if state.cleanupFn != nil {
+				state.cleanup = state.cleanupFn()
+			}
+			state.pending = false
+		}
+	}
+}
+
+// drainLayoutEffects runs all pending layout effect functions synchronously and registers their cleanups.
+func drainLayoutEffects() {
+	if len(pendingLayoutEffects) == 0 {
+		return
+	}
+	effectsMutex.Lock()
+	queue := pendingLayoutEffects
+	if cap(layoutEffectsBuffer) < len(queue) {
+		layoutEffectsBuffer = make([]*effectHookState, 0, len(queue))
+	}
+	pendingLayoutEffects = layoutEffectsBuffer
+	layoutEffectsBuffer = queue[:0]
+	effectsMutex.Unlock()
+
+	for _, state := range queue {
+		if state.pending {
+			if state.cleanup != nil {
+				state.cleanup()
+			}
+			if state.simpleFn != nil {
+				state.simpleFn()
+			} else if state.cleanupFn != nil {
+				state.cleanup = state.cleanupFn()
+			}
+			state.pending = false
+		}
+	}
 }
