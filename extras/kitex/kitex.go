@@ -67,6 +67,7 @@ type ElementProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 }
 
 // elementNode is the base implementation of Node for element VDOM nodes.
@@ -77,60 +78,66 @@ type elementNode[P any] struct {
 	instantiate func(doc dom.Document) dom.Node
 	update      func(el dom.Node, old, new P)
 	key         string
-	liveNode    dom.Node
+	ref         dom.Node
 }
 
 func (n *elementNode[P]) TagName() string    { return n.tagName }
 func (n *elementNode[P]) Props() any         { return n.props }
 func (n *elementNode[P]) Children() []Node   { return n.children }
 func (n *elementNode[P]) Key() string        { return n.key }
-func (n *elementNode[P]) realNode() dom.Node { return n.liveNode }
+func (n *elementNode[P]) realNode() dom.Node { return n.ref }
 
 func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
-	n.liveNode = n.instantiate(doc)
-	n.update(n.liveNode, *new(P), n.props)
+	n.ref = n.instantiate(doc)
+	n.update(n.ref, *new(P), n.props)
 	for _, child := range n.children {
 		if child != nil {
 			childReal := child.Instantiate(doc)
 			if childReal != nil {
-				n.liveNode.AppendChild(childReal)
+				n.ref.AppendChild(childReal)
 			}
 		}
 	}
-	return n.liveNode
+	if setter := getRefSetter(n.props); setter != nil {
+		setter.set(n.ref)
+	}
+	return n.ref
 }
 
 func (n *elementNode[P]) Update(el dom.Node, old Node) {
-	n.liveNode = el
+	n.ref = el
 	var oldProps P
 	if old != nil {
 		if oldEl, ok := old.(*elementNode[P]); ok {
 			oldProps = oldEl.props
 		}
 	}
-	n.update(n.liveNode, oldProps, n.props)
-	n.liveNode.MarkNeedsSync()
+	n.update(n.ref, oldProps, n.props)
+	n.ref.MarkNeedsSync()
+	if setter := getRefSetter(n.props); setter != nil {
+		setter.set(n.ref)
+	}
 }
 
 // textNode is the implementation of Node for VDOM text leaf nodes.
 type textNode struct {
-	content  string
-	liveNode dom.Node
+	content string
+	ref     dom.Node
 }
 
 func (t *textNode) TagName() string    { return "#text" }
 func (t *textNode) Props() any         { return t.content }
 func (t *textNode) Children() []Node   { return nil }
 func (t *textNode) Key() string        { return "" }
-func (t *textNode) realNode() dom.Node { return t.liveNode }
+func (t *textNode) realNode() dom.Node { return t.ref }
 func (t *textNode) Instantiate(doc dom.Document) dom.Node {
-	t.liveNode = element.NewText(doc, t.content)
-	return t.liveNode
+	t.ref = element.NewText(doc, t.content)
+	return t.ref
 }
 
 func (t *textNode) Update(el dom.Node, old Node) {
-	t.liveNode = el
-	txt, ok := t.liveNode.(*element.TextElement)
+	t.ref = el
+	txt, ok := t.ref.(*element.TextElement)
 	if !ok {
 		return
 	}
@@ -142,7 +149,7 @@ func (t *textNode) Update(el dom.Node, old Node) {
 	}
 	if oldContent != t.content {
 		txt.SetData(t.content)
-		t.liveNode.MarkNeedsSync()
+		t.ref.MarkNeedsSync()
 	}
 }
 
@@ -426,6 +433,7 @@ type ButtonProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	Disabled    bool
 	Active      bool
 }
@@ -437,6 +445,7 @@ func (p ButtonProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -487,6 +496,7 @@ type CheckboxProps struct {
 	OnBlur         func(event.Event)
 	OnChange       func(event.Event)
 	OnScroll       func(event.Event)
+	Ref            refSetter
 	Checked        bool
 	UncheckedGlyph string
 	CheckedGlyph   string
@@ -499,6 +509,7 @@ func (p CheckboxProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -557,6 +568,7 @@ type RadioGroupProps struct {
 	OnBlur        func(event.Event)
 	OnChange      func(event.Event)
 	OnScroll      func(event.Event)
+	Ref           refSetter
 	Value         string
 	OnValueChange func(string)
 }
@@ -568,6 +580,7 @@ func (p RadioGroupProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -618,6 +631,7 @@ type RadioProps struct {
 	OnBlur         func(event.Event)
 	OnChange       func(event.Event)
 	OnScroll       func(event.Event)
+	Ref            refSetter
 	Value          string
 	UncheckedGlyph string
 	CheckedGlyph   string
@@ -630,6 +644,7 @@ func (p RadioProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -688,6 +703,7 @@ type SelectProps struct {
 	OnBlur        func(event.Event)
 	OnChange      func(event.Event)
 	OnScroll      func(event.Event)
+	Ref           refSetter
 	Value         string
 	OnValueChange func(string)
 }
@@ -699,6 +715,7 @@ func (p SelectProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -753,6 +770,7 @@ type OptionProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	Text        string
 	Value       string
 }
@@ -764,6 +782,7 @@ func (p OptionProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -810,6 +829,7 @@ type InputProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	Value       string
 }
 
@@ -820,6 +840,7 @@ func (p InputProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -863,6 +884,7 @@ type TextAreaProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	Value       string
 }
 
@@ -873,6 +895,7 @@ func (p TextAreaProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -996,6 +1019,7 @@ type TDProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	ColSpan     int
 	RowSpan     int
 }
@@ -1007,6 +1031,7 @@ func (p TDProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -1069,6 +1094,7 @@ type OverlayProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	Anchor      dom.Element
 	ZIndex      int
 	Placement   layout.OverlayPlacement
@@ -1082,6 +1108,7 @@ func (p OverlayProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -1141,6 +1168,7 @@ type DialogProps struct {
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
 	OnScroll    func(event.Event)
+	Ref         refSetter
 	ZIndex      int
 }
 
@@ -1151,6 +1179,7 @@ func (p DialogProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		Ref: p.Ref,
 	}
 }
 
@@ -1211,14 +1240,14 @@ type ComponentNode[P any] struct {
 	RenderFn func(P) Node
 
 	// Internal state
-	rendered  Node
-	liveNode  dom.Node
-	hooks     []any
-	hookIndex int
-	isFirst   bool
-	dirty     bool
-	ref       *componentRef
-	key       string
+	rendered     Node
+	ref          dom.Node
+	hooks        []any
+	hookIndex    int
+	isFirst      bool
+	dirty        bool
+	componentRef *componentRef
+	key          string
 }
 
 var _ Node = (*ComponentNode[struct{}])(nil)
@@ -1235,7 +1264,7 @@ func (c *ComponentNode[P]) Children() []Node {
 }
 
 func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
-	c.ref = &componentRef{node: c}
+	c.componentRef = &componentRef{node: c}
 	pushCurrentComponent(c)
 	c.isFirst = true
 	c.hookIndex = 0
@@ -1244,9 +1273,9 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
 	popCurrentComponent()
 
 	if c.rendered != nil {
-		c.liveNode = c.rendered.Instantiate(doc)
+		c.ref = c.rendered.Instantiate(doc)
 	}
-	return c.liveNode
+	return c.ref
 }
 
 func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
@@ -1257,15 +1286,15 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	// Transfer state
 	c.hooks = oldComp.hooks
 	c.isFirst = false
-	c.liveNode = oldComp.liveNode
 	c.ref = oldComp.ref
-	if c.ref == nil {
-		c.ref = &componentRef{node: c}
-		oldComp.ref = c.ref
+	c.componentRef = oldComp.componentRef
+	if c.componentRef == nil {
+		c.componentRef = &componentRef{node: c}
+		oldComp.componentRef = c.componentRef
 	} else {
-		c.ref.mu.Lock()
-		c.ref.node = c
-		c.ref.mu.Unlock()
+		c.componentRef.mu.Lock()
+		c.componentRef.node = c
+		c.componentRef.mu.Unlock()
 	}
 
 	pushCurrentComponent(c)
@@ -1297,11 +1326,11 @@ func (c *ComponentNode[P]) incrementHookIndex() int {
 }
 
 func (c *ComponentNode[P]) getRef() *componentRef {
-	return c.ref
+	return c.componentRef
 }
 
 func (c *ComponentNode[P]) realNode() dom.Node {
-	return c.liveNode
+	return c.ref
 }
 
 func (c *ComponentNode[P]) Rendered() Node {
@@ -1452,6 +1481,50 @@ func getKey(props any) string {
 		return v.FieldByIndex(info.elementPropsFieldIdx).FieldByIndex(info.elementPropsKeyIdx).String()
 	}
 	return ""
+}
+
+func getRefSetter(props any) refSetter {
+	if props == nil {
+		return nil
+	}
+	v := reflect.ValueOf(props)
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+
+	f := v.FieldByName("Ref")
+	if f.IsValid() {
+		switch f.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			if !f.IsNil() {
+				if setter, ok := f.Interface().(refSetter); ok {
+					return setter
+				}
+			}
+		}
+	}
+
+	ep := v.FieldByName("ElementProps")
+	if ep.IsValid() && ep.Kind() == reflect.Struct {
+		f = ep.FieldByName("Ref")
+		if f.IsValid() {
+			switch f.Kind() {
+			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+				if !f.IsNil() {
+					if setter, ok := f.Interface().(refSetter); ok {
+						return setter
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // FC creates a functional component wrapper that does not take children.

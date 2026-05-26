@@ -33,5 +33,7 @@ Inspect typical examples:
 - `example/dialog` — modal dialog demonstration.
 - `example/overlay_tweaks` — interactive configuration of overlay smart-flipping.
 - `example/animation` — demonstration of property interpolation and tweening.
+- `example/kitex_demo` — functional VDOM components, reactive hooks, list reconciliation, and state.
+- `example/kitex_ref_demo` — VDOM hook refs, persistent non-rendering states, and DOM element ref wiring.
 
 If an example lacks a `main` package, it may be structured as tests or packages; read the `README.md` inside the example subfolder (when present) for details.

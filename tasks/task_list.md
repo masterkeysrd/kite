@@ -71,6 +71,6 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-056 | Kitex VDOM Primitive Factories | Done | `tasks/TSK-056-kitex-vdom-primitives.md` |
 | TSK-057 | Kitex FC & Implicit Hooks Context | Done | `tasks/TSK-057-kitex-hooks-context.md` |
 | TSK-058 | Kitex VDOM Reconciler Engine | Done | `tasks/TSK-058-kitex-reconciler.md` |
-| TSK-059 | Kitex Ref Standardization | Todo | `tasks/TSK-059-kitex-ref-standardization.md` |
-| TSK-060 | Kitex DevTools Integration | Todo | `tasks/TSK-060-kitex-devtools-integration.md` |
-| TSK-061 | Kitex Automatic Component Memoization | Todo | `tasks/TSK-061-kitex-memoization.md` |
+| TSK-059 | Kitex Ref Standardization | In Progress | `tasks/TSK-059-kitex-ref-standardization.md` |
+| TSK-060 | Kitex DevTools Integration | Pending | `tasks/TSK-060-kitex-devtools-integration.md` |
+| TSK-061 | Kitex Automatic Component Memoization | Pending | `tasks/TSK-061-kitex-memoization.md` |

@@ -247,7 +247,7 @@ This source map summarises the repository packages, their responsibilities, and 
 
 - **extras/kitex** — Path: `extras/kitex/`
     - Description: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances. (See `extras/kitex/doc.go`)
-    - Key files: `extras/kitex/doc.go`, `kitex.go`, tests
+    - Key files: `extras/kitex/doc.go`, `kitex.go`, `hooks.go`, tests
 
 - **focus** — Path: `focus/`
     - Description: Focus management, `focus.Manager`, reasons, scope stack, and spatial navigation. (See `focus/doc.go`)

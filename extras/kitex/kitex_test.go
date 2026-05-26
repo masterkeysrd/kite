@@ -400,3 +400,52 @@ func TestEventListenersUpdate(t *testing.T) {
 	// Clear all subscriptions
 	ClearAllSubscriptions(realBtn)
 }
+
+func TestElementRefWiring(t *testing.T) {
+	doc := dom.NewDocument()
+
+	// 1. Test Ref with Box (uses BoxProps = ElementProps)
+	boxRef := CreateRef[dom.Element]()
+	boxNode := Box(BoxProps{
+		Ref: boxRef,
+		ID:  "my-box",
+	})
+	realBox := boxNode.Instantiate(doc)
+	if boxRef.Current == nil {
+		t.Fatalf("expected boxRef.Current to be populated")
+	}
+	if boxRef.Current != realBox {
+		t.Errorf("expected boxRef.Current to be realBox, got %v", boxRef.Current)
+	}
+
+	// 2. Test Ref with Button (uses custom ButtonProps struct)
+	btnRef := CreateRef[*element.ButtonElement]()
+	btnNode := Button(ButtonProps{
+		Ref: btnRef,
+		ID:  "my-btn",
+	})
+	realBtn := btnNode.Instantiate(doc)
+	if btnRef.Current == nil {
+		t.Fatalf("expected btnRef.Current to be populated")
+	}
+	if btnRef.Current != realBtn {
+		t.Errorf("expected btnRef.Current to be realBtn, got %v", btnRef.Current)
+	}
+
+	// 3. Test Ref with reconciler Render()
+	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	reconcileRef := CreateRef[dom.Element]()
+
+	Render(Box(BoxProps{
+		Ref: reconcileRef,
+		ID:  "reconciled-box",
+	}), container)
+
+	if reconcileRef.Current == nil {
+		t.Fatalf("expected reconcileRef.Current to be populated after Render")
+	}
+	realReconciledBox := container.FirstChild().(dom.Element)
+	if reconcileRef.Current != realReconciledBox {
+		t.Errorf("expected reconcileRef.Current to match container first child, got %v", reconcileRef.Current)
+	}
+}

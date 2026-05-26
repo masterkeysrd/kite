@@ -1,5 +1,7 @@
 package kitex
 
+import "github.com/masterkeysrd/kite/dom"
+
 type hookState[T any] struct {
 	value T
 	get   func() T
@@ -55,4 +57,47 @@ func UseState[T any](initial T) (func() T, func(T)) {
 
 	hs := stateVal.(*hookState[T])
 	return hs.get, hs.set
+}
+
+// refSetter is an unexported interface implemented by Ref[T] where T is a DOM Node.
+type refSetter interface {
+	set(dom.Node)
+}
+
+// RefObject is the container that holds the mutable Current value.
+type RefObject[T any] struct {
+	Current T
+}
+
+func (r *RefObject[T]) set(node dom.Node) {
+	if val, ok := any(node).(T); ok {
+		r.Current = val
+	}
+}
+
+// Ref is a type alias for *RefObject[T].
+type Ref[T any] = *RefObject[T]
+
+// CreateRef creates a Ref outside of the render cycle.
+func CreateRef[T any]() Ref[T] {
+	return &RefObject[T]{}
+}
+
+// UseRef returns a persistent Ref using the component hook state mechanism.
+// Modifying the Ref does not trigger component dirty/re-render.
+func UseRef[T any](initial T) Ref[T] {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseRef must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+	idx := comp.incrementHookIndex()
+
+	stateVal, exists := comp.getHookState(idx)
+	if !exists {
+		r := &RefObject[T]{Current: initial}
+		comp.setHookState(idx, r)
+		return r
+	}
+	return stateVal.(*RefObject[T])
 }

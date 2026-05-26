@@ -193,3 +193,84 @@ func TestUseStatePanicOutsideRender(t *testing.T) {
 	// Call UseState outside of any functional component rendering context
 	UseState(100)
 }
+
+func TestUseRef(t *testing.T) {
+	doc := dom.NewDocument()
+
+	var myRef Ref[int]
+	renderCount := 0
+
+	myComp := FC("testRefComp", func(props struct{}) Node {
+		renderCount++
+		myRef = UseRef(100)
+		return Box(BoxProps{})
+	})
+
+	// 1. Initial instantiate
+	node1 := myComp(struct{}{})
+	realNode := node1.Instantiate(doc)
+
+	if renderCount != 1 {
+		t.Fatalf("expected renderCount to be 1, got %d", renderCount)
+	}
+	if myRef == nil {
+		t.Fatalf("expected ref to be initialized")
+	}
+	if myRef.Current != 100 {
+		t.Errorf("expected ref current to be 100, got %d", myRef.Current)
+	}
+
+	// 2. Mutate ref current value
+	var dirtyCalled bool
+	oldDirty := OnComponentDirty
+	defer func() {
+		OnComponentDirty = oldDirty
+	}()
+	OnComponentDirty = func(n Node) {
+		dirtyCalled = true
+	}
+
+	myRef.Current = 200
+
+	compNode := node1.(*ComponentNode[struct{}])
+	if compNode.IsDirty() {
+		t.Errorf("expected modifying ref value not to mark component dirty")
+	}
+	if dirtyCalled {
+		t.Errorf("expected modifying ref value not to trigger OnComponentDirty callback")
+	}
+
+	// 3. Simulate update/re-render and verify persistence
+	node2 := myComp(struct{}{})
+	node2.Update(realNode, node1)
+
+	if renderCount != 2 {
+		t.Fatalf("expected renderCount to be 2, got %d", renderCount)
+	}
+	if myRef.Current != 200 {
+		t.Errorf("expected ref current to persist as 200, got %d", myRef.Current)
+	}
+}
+
+func TestUseRefPanicOutsideRender(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected UseRef to panic when called outside a component render cycle")
+		}
+	}()
+	UseRef(100)
+}
+
+func TestCreateRef(t *testing.T) {
+	r := CreateRef[string]()
+	if r == nil {
+		t.Fatalf("expected CreateRef to return non-nil")
+	}
+	if r.Current != "" {
+		t.Errorf("expected initial Current to be empty, got %s", r.Current)
+	}
+	r.Current = "test"
+	if r.Current != "test" {
+		t.Errorf("expected Current to be test, got %s", r.Current)
+	}
+}
