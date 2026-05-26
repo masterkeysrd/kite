@@ -89,6 +89,8 @@ func NewInlineItemsBuilder(shaper *text.Shaper, block Node) *InlineItemsBuilder 
 	return &InlineItemsBuilder{
 		shaper:         shaper,
 		blockContainer: block,
+		items:          make([]InlineItem, 0, 32),
+		parentStack:    make([]Node, 0, 8),
 	}
 }
 
@@ -117,10 +119,14 @@ func (b *InlineItemsBuilder) currentParent() Node {
 	return b.parentStack[len(b.parentStack)-1]
 }
 
+func (b *InlineItemsBuilder) Reset() {
+	b.items = b.items[:0]
+	b.lastWasSpace = true
+	b.parentStack = b.parentStack[:0]
+}
+
 func (b *InlineItemsBuilder) Build(root Node) []InlineItem {
-	b.items = nil
-	b.lastWasSpace = true // Start by assuming a space to collapse leading whitespace
-	b.parentStack = nil
+	b.Reset()
 	b.collect(root)
 	return b.items
 }

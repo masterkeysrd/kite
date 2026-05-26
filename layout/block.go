@@ -104,76 +104,70 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollba
 	builder.SetBlockOffset(decor.Insets.Top)
 
 	// 4. Child Iteration: Loop through in-flow layout children.
-	children := a.Node.LayoutChildren()
-	nextChild, stop := iter.Pull(children)
-	defer stop()
+	var inlineBuilder *InlineItemsBuilder
+	var bufferedInlines []Node
 
-	child, ok := nextChild()
-	for ok {
+	processInlines := func() {
+		if len(bufferedInlines) == 0 {
+			return
+		}
+
+		if inlineBuilder == nil {
+			inlineBuilder = NewInlineItemsBuilder(defaultShaper, a.Node)
+		}
+
+		inlineBuilder.Reset()
+		for _, child := range bufferedInlines {
+			inlineBuilder.collect(child)
+		}
+		bufferedInlines = bufferedInlines[:0]
+
+		items := inlineBuilder.items
+		blockStyle := a.Node.Style()
+		breaker := NewLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
+		linesEmitted := 0
+		for {
+			line, ok := breaker.NextLine(ctx)
+			if !ok {
+				break
+			}
+			lineFrag := line.ToFragment()
+			offset := Point{
+				X: decor.Insets.Left,
+				Y: builder.CurrentBlockOffset(),
+			}
+			builder.AddChild(lineFrag, offset)
+			builder.AdvanceBlockOffset(lineFrag.Size.Height)
+			linesEmitted++
+		}
+		// An IFC with no visible text (e.g. an empty input) still occupies
+		// one content row — just like a browser renders an empty line box.
+		if linesEmitted == 0 {
+			line := &LineBox{
+				Size: Size{Width: 0, Height: 1},
+			}
+			lineFrag := line.ToFragment()
+			offset := Point{
+				X: decor.Insets.Left,
+				Y: builder.CurrentBlockOffset(),
+			}
+			builder.AddChild(lineFrag, offset)
+			builder.AdvanceBlockOffset(1)
+		}
+	}
+
+	for child := range a.Node.LayoutChildren() {
 		if child.Style().Display == style.DisplayNone {
-			child, ok = nextChild()
 			continue
 		}
 
 		if IsInlineLevel(child) {
-			// Sequence of inline children: group into Anonymous Block (IFC).
-			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)
-			inlineBuilder.collect(child)
-
-			for {
-				peek, peekOk := nextChild()
-				if !peekOk {
-					child = nil
-					ok = false
-					break
-				}
-				if IsInlineLevel(peek) {
-					inlineBuilder.collect(peek)
-				} else {
-					child = peek
-					ok = true
-					break
-				}
-			}
-
-			items := inlineBuilder.items
-			blockStyle := a.Node.Style()
-			breaker := NewLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
-			linesEmitted := 0
-			for {
-				line, ok := breaker.NextLine(ctx)
-				if !ok {
-					break
-				}
-				lineFrag := line.ToFragment()
-				offset := Point{
-					X: decor.Insets.Left,
-					Y: builder.CurrentBlockOffset(),
-				}
-				builder.AddChild(lineFrag, offset)
-				builder.AdvanceBlockOffset(lineFrag.Size.Height)
-				linesEmitted++
-			}
-			// An IFC with no visible text (e.g. an empty input) still occupies
-			// one content row — just like a browser renders an empty line box.
-			if linesEmitted == 0 {
-				line := &LineBox{
-					Size: Size{Width: 0, Height: 1},
-				}
-				lineFrag := line.ToFragment()
-				offset := Point{
-					X: decor.Insets.Left,
-					Y: builder.CurrentBlockOffset(),
-				}
-				builder.AddChild(lineFrag, offset)
-				builder.AdvanceBlockOffset(1)
-			}
-
-			if !ok {
-				break
-			}
-			continue // Process current 'child' (first block after inlines)
+			bufferedInlines = append(bufferedInlines, child)
+			continue
 		}
+
+		// Block child encountered: flush buffered inlines first.
+		processInlines()
 
 		// Standard Block Child Layout
 		childMargin := child.Style().Margin
@@ -196,9 +190,10 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollba
 		}
 		builder.AddChild(childFrag, offset)
 		builder.AdvanceBlockOffset(childMargin.Top + childFrag.Size.Height + childMargin.Bottom)
-
-		child, ok = nextChild()
 	}
+
+	// Final flush
+	processInlines()
 
 	contentHeight := builder.CurrentBlockOffset() - decor.Insets.Top
 
@@ -214,7 +209,11 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollba
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
 		case style.KindPercent:
-			resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+			if a.Space.ContainerSpace.Height < InfiniteBlockSize {
+				resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+			} else {
+				resolvedHeight = builder.CurrentBlockOffset()
+			}
 			resolvedHeight = max(resolvedHeight, builder.CurrentBlockOffset())
 		default:
 			resolvedHeight = builder.CurrentBlockOffset()

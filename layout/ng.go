@@ -216,6 +216,8 @@ func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
 	switch comp.Display {
 	case style.DisplayFlex, style.DisplayInlineFlex:
 		return &FlexAlgorithm{Node: node, Space: space}
+	case style.DisplayGrid:
+		return &GridAlgorithm{Node: node, Space: space}
 	case style.DisplayTable:
 		return &TableAlgorithm{Node: node, Space: space}
 	case style.DisplayTableHeaderGroup, style.DisplayTableRowGroup, style.DisplayTableFooterGroup:

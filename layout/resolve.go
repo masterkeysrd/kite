@@ -21,27 +21,29 @@ func BuildChildSpace(child Node, containerSpace Size, containingSpace Size, pare
 	childAvailWidth := max(0, containerSpace.Width-childMargin.Left-childMargin.Right)
 	childAvailHeight := max(0, containerSpace.Height-childMargin.Top-childMargin.Bottom)
 
-	b := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-	b.SetContainingSpace(containingSpace)
-	b.SetContainerSpace(containerSpace)
+	space := ConstraintSpace{
+		AvailableSize:   Size{Width: childAvailWidth, Height: childAvailHeight},
+		ContainingSpace: containingSpace,
+		ContainerSpace:  containerSpace,
+	}
 
 	// Resolve inline (width) size.
 	switch childStyle.Width.Kind() {
 	case style.KindCells:
-		b.SetIsFixedInlineSize(true)
-		b.space.AvailableSize.Width = childStyle.Width.CellsValue()
+		space.IsFixedInlineSize = true
+		space.AvailableSize.Width = childStyle.Width.CellsValue()
 	case style.KindPercent:
 		// Percentage widths resolve against the parent's content-box (containerSpace).
 		// In CSS, the "containing block" for percentage resolution is the parent's
 		// content area — not its border-box. Using the border-box would cause
 		// width:100% children to overflow past the parent's border/padding.
-		b.SetIsFixedInlineSize(true)
-		b.space.AvailableSize.Width = int(float32(containerSpace.Width) * childStyle.Width.PercentValue() / 100.0)
+		space.IsFixedInlineSize = true
+		space.AvailableSize.Width = int(float32(containerSpace.Width) * childStyle.Width.PercentValue() / 100.0)
 	case style.KindAuto:
 		// Tables shrink-wrap; all other block-level elements stretch to fill.
 		if childStyle.Display != style.DisplayTable {
-			b.SetIsFixedInlineSize(true)
-			b.space.AvailableSize.Width = childAvailWidth
+			space.IsFixedInlineSize = true
+			space.AvailableSize.Width = childAvailWidth
 		}
 	case style.KindMaxContent:
 		// Do NOT set IsFixedInlineSize — the child's own algorithm calls
@@ -51,20 +53,20 @@ func BuildChildSpace(child Node, containerSpace Size, containingSpace Size, pare
 	// Resolve block (height) size.
 	switch childStyle.Height.Kind() {
 	case style.KindCells:
-		b.SetIsFixedBlockSize(true)
-		b.space.AvailableSize.Height = childStyle.Height.CellsValue()
+		space.IsFixedBlockSize = true
+		space.AvailableSize.Height = childStyle.Height.CellsValue()
 	case style.KindPercent:
 		// Percentage heights resolve against the parent's content-box height, same
 		// as percentage widths. Only defined when the parent has a fixed block size.
 		if parentSpace.IsFixedBlockSize {
-			b.SetIsFixedBlockSize(true)
-			b.space.AvailableSize.Height = int(float32(containerSpace.Height) * childStyle.Height.PercentValue() / 100.0)
+			space.IsFixedBlockSize = true
+			space.AvailableSize.Height = int(float32(containerSpace.Height) * childStyle.Height.PercentValue() / 100.0)
 		}
 	}
 
 	if parentSpace.BreakToken != nil {
-		b.space.BreakToken = parentSpace.BreakToken
+		space.BreakToken = parentSpace.BreakToken
 	}
 
-	return b.ToConstraintSpace()
+	return space
 }

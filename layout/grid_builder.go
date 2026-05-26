@@ -17,24 +17,65 @@ type gridItem struct {
 type GridBuilder struct {
 	node     Node
 	space    ConstraintSpace
-	items    []*gridItem
-	occupied map[Point]bool
+	items    []gridItem
+	occupied []uint64 // bitset: (row * occCols + col)
+	occCols  int
+	occRows  int
 	maxCol   int
 	maxRow   int
+
+	colTemplate []style.GridTrackSize
+	rowTemplate []style.GridTrackSize
+}
+
+// Init initializes the GridBuilder for the given node and space.
+// This allows for stack allocation or reuse.
+func (b *GridBuilder) Init(node Node, space ConstraintSpace) {
+	comp := node.Style()
+	b.node = node
+	b.space = space
+	b.colTemplate = comp.GridTemplateColumns
+	b.rowTemplate = comp.GridTemplateRows
+
+	// Reset or pre-allocate
+	if b.items == nil {
+		b.items = make([]gridItem, 0, 16)
+	} else {
+		b.items = b.items[:0]
+	}
+
+	cols := len(b.colTemplate)
+	if cols == 0 {
+		cols = 4
+	}
+	rows := len(b.rowTemplate)
+	if rows == 0 {
+		rows = 4
+	}
+
+	if b.occupied == nil || b.occCols*b.occRows < cols*rows {
+		b.occupied = make([]uint64, (cols*rows+63)/64)
+		b.occCols = cols
+		b.occRows = rows
+	} else {
+		// Clear bitset
+		for i := range b.occupied {
+			b.occupied[i] = 0
+		}
+	}
+
+	b.maxCol = 0
+	b.maxRow = 0
 }
 
 // NewGridBuilder creates a new GridBuilder for the given node and space.
 func NewGridBuilder(node Node, space ConstraintSpace) *GridBuilder {
-	return &GridBuilder{
-		node:     node,
-		space:    space,
-		occupied: make(map[Point]bool),
-	}
+	b := &GridBuilder{}
+	b.Init(node, space)
+	return b
 }
 
 // ResolveTrackSizes resolves fixed and percentage track sizes against the available space.
-// Auto and Fr tracks are not fully resolved here (they require a measure pass),
-// but we determine the initial sizes for fixed-length tracks.
 func ResolveTrackSizes(templates []style.GridTrackSize, available int, gap int) []int {
 	if len(templates) == 0 {
 		return nil
@@ -42,7 +83,6 @@ func ResolveTrackSizes(templates []style.GridTrackSize, available int, gap int) 
 
 	resolved := make([]int, len(templates))
 
-	// Calculate total gaps
 	totalGap := (len(templates) - 1) * gap
 	contentAvailable := max(0, available-totalGap)
 
@@ -51,9 +91,12 @@ func ResolveTrackSizes(templates []style.GridTrackSize, available int, gap int) 
 		case style.KindCells:
 			resolved[i] = t.CellsValue()
 		case style.KindPercent:
-			resolved[i] = int(float32(contentAvailable) * t.PercentValue() / 100.0)
+			if available < InfiniteBlockSize {
+				resolved[i] = int(float32(contentAvailable) * t.PercentValue() / 100.0)
+			} else {
+				resolved[i] = 0
+			}
 		default:
-			// Auto and Fr are handled later in the full algorithm (TSK-054).
 			resolved[i] = 0
 		}
 	}
@@ -63,70 +106,102 @@ func ResolveTrackSizes(templates []style.GridTrackSize, available int, gap int) 
 
 // PlaceItems performs the two-pass grid placement algorithm.
 func (b *GridBuilder) PlaceItems() {
-	var children []Node
-	for child := range b.node.LayoutChildren() {
-		children = append(children, child)
-	}
+	children := b.node.LayoutChildren()
 
-	// Pass 1: Fully explicit (both row and col defined)
-	for _, child := range children {
+	for child := range children {
 		comp := child.Style()
-		startCol, _ := resolvePlacement(comp.GridColumn)
-		startRow, _ := resolvePlacement(comp.GridRow)
+		startCol, colSpan := resolvePlacement(comp.GridColumn)
+		startRow, rowSpan := resolvePlacement(comp.GridRow)
 
 		if startCol >= 0 && startRow >= 0 {
-			item := b.resolveExplicitPlacement(child)
-			b.placeItem(item)
+			b.placeItem(child, startCol, colSpan, startRow, rowSpan)
 		}
 	}
 
-	// Pass 2: Implicit (one or both are auto)
 	cursorCol, cursorRow := 0, 0
-	for _, child := range children {
+	for child := range b.node.LayoutChildren() {
 		if b.isPlaced(child) {
 			continue
 		}
-		item := b.resolveImplicitPlacement(child, &cursorCol, &cursorRow)
-		b.placeItem(item)
+		b.resolveAndPlaceImplicit(child, &cursorCol, &cursorRow)
 	}
 }
 
 func (b *GridBuilder) isPlaced(node Node) bool {
-	for _, item := range b.items {
-		if item.node == node {
+	for i := range b.items {
+		if b.items[i].node == node {
 			return true
 		}
 	}
 	return false
 }
 
-func (b *GridBuilder) placeItem(item *gridItem) {
-	b.items = append(b.items, item)
+func (b *GridBuilder) ensureCapacity(col, row int) {
+	if col < b.occCols && row < b.occRows {
+		return
+	}
 
-	// Mark all occupied cells
-	for r := item.rowStart; r < item.rowStart+item.rowSpan; r++ {
-		for c := item.colStart; c < item.colStart+item.colSpan; c++ {
-			b.occupied[Point{X: c, Y: r}] = true
-			if c >= b.maxCol {
-				b.maxCol = c + 1
+	newCols := b.occCols
+	if col >= newCols {
+		newCols = max(newCols*2, col+1)
+	}
+	newRows := b.occRows
+	if row >= newRows {
+		newRows = max(newRows*2, row+1)
+	}
+
+	needed := (newCols*newRows + 63) / 64
+	newOccupied := make([]uint64, needed)
+
+	for r := 0; r < b.occRows; r++ {
+		for c := 0; c < b.occCols; c++ {
+			idx := r*b.occCols + c
+			if (b.occupied[idx/64] & (1 << (uint(idx) % 64))) != 0 {
+				newIdx := r*newCols + c
+				newOccupied[newIdx/64] |= (1 << (uint(newIdx) % 64))
 			}
-			if r >= b.maxRow {
-				b.maxRow = r + 1
-			}
+		}
+	}
+
+	b.occupied = newOccupied
+	b.occCols = newCols
+	b.occRows = newRows
+}
+
+func (b *GridBuilder) markOccupied(col, row, colSpan, rowSpan int) {
+	b.ensureCapacity(col+colSpan-1, row+rowSpan-1)
+	for r := row; r < row+rowSpan; r++ {
+		for c := col; c < col+colSpan; c++ {
+			idx := r*b.occCols + c
+			b.occupied[idx/64] |= (1 << (uint(idx) % 64))
 		}
 	}
 }
 
-func (b *GridBuilder) resolveExplicitPlacement(node Node) *gridItem {
-	comp := node.Style()
-	startCol, colSpan := resolvePlacement(comp.GridColumn)
-	startRow, rowSpan := resolvePlacement(comp.GridRow)
-	return &gridItem{
+func (b *GridBuilder) isOccupied(col, row int) bool {
+	if col >= b.occCols || row >= b.occRows {
+		return false
+	}
+	idx := row*b.occCols + col
+	return (b.occupied[idx/64] & (1 << (uint(idx) % 64))) != 0
+}
+
+func (b *GridBuilder) placeItem(node Node, colStart, colSpan, rowStart, rowSpan int) {
+	b.items = append(b.items, gridItem{
 		node:     node,
-		colStart: startCol,
+		colStart: colStart,
 		colSpan:  colSpan,
-		rowStart: startRow,
+		rowStart: rowStart,
 		rowSpan:  rowSpan,
+	})
+
+	b.markOccupied(colStart, rowStart, colSpan, rowSpan)
+
+	if colStart+colSpan > b.maxCol {
+		b.maxCol = colStart + colSpan
+	}
+	if rowStart+rowSpan > b.maxRow {
+		b.maxRow = rowStart + rowSpan
 	}
 }
 
@@ -156,17 +231,14 @@ func resolvePlacement(p style.GridPlacement) (start, span int) {
 	return start, span
 }
 
-func (b *GridBuilder) resolveImplicitPlacement(node Node, cursorCol, cursorRow *int) *gridItem {
+func (b *GridBuilder) resolveAndPlaceImplicit(node Node, cursorCol, cursorRow *int) {
 	comp := node.Style()
-
-	// Normalized placement info
 	startCol, colSpan := resolvePlacement(comp.GridColumn)
 	startRow, rowSpan := resolvePlacement(comp.GridRow)
 
-	tmplCols := len(b.node.Style().GridTemplateColumns)
+	tmplCols := len(b.colTemplate)
 
 	if startCol >= 0 && startRow < 0 {
-		// Column is fixed, row is auto
 		r := 0
 		for {
 			if b.fits(startCol, r, colSpan, rowSpan) {
@@ -176,7 +248,6 @@ func (b *GridBuilder) resolveImplicitPlacement(node Node, cursorCol, cursorRow *
 			r++
 		}
 	} else if startRow >= 0 && startCol < 0 {
-		// Row is fixed, column is auto
 		c := 0
 		for {
 			if b.fits(c, startRow, colSpan, rowSpan) {
@@ -186,7 +257,6 @@ func (b *GridBuilder) resolveImplicitPlacement(node Node, cursorCol, cursorRow *
 			c++
 		}
 	} else {
-		// Fully auto
 		c, r := *cursorCol, *cursorRow
 		for {
 			if b.fits(c, r, colSpan, rowSpan) {
@@ -199,18 +269,11 @@ func (b *GridBuilder) resolveImplicitPlacement(node Node, cursorCol, cursorRow *
 				r++
 			}
 		}
-		// Update cursor for next item
 		*cursorCol = c
 		*cursorRow = r
 	}
 
-	return &gridItem{
-		node:     node,
-		colStart: startCol,
-		colSpan:  colSpan,
-		rowStart: startRow,
-		rowSpan:  rowSpan,
-	}
+	b.placeItem(node, startCol, colSpan, startRow, rowSpan)
 }
 
 func (b *GridBuilder) fits(col, row, colSpan, rowSpan int) bool {
@@ -219,7 +282,7 @@ func (b *GridBuilder) fits(col, row, colSpan, rowSpan int) bool {
 	}
 	for r := row; r < row+rowSpan; r++ {
 		for c := col; c < col+colSpan; c++ {
-			if b.occupied[Point{X: c, Y: r}] {
+			if b.isOccupied(c, r) {
 				return false
 			}
 		}
