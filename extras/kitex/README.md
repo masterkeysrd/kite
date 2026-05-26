@@ -1,0 +1,105 @@
+# ⚛️ Kitex
+
+Kitex is a lightweight, reactive Virtual DOM (VDOM) framework for Kite. It provides a declarative, type-safe API for building complex terminal UIs using functional components and hooks, similar to React.
+
+## ✨ Features
+
+- 🧩 **Functional Components**: Define reusable UI logic using `kitex.FC` (or `kitex.FCC` for components with children).
+- 🪝 **Hooks**: Manage state and lifecycle with `UseState`, `UseRef`, and `UseMemo`.
+- 🔄 **Efficient Reconciliation**: A high-performance diffing algorithm that updates only what changed in the real DOM.
+- 🔑 **Keyed Lists**: Optimized list updates using unique keys to track element identity.
+- 🛠 **DevTools Integration**: Deep integration with the Kite Web Inspector, including a dedicated **Components** tab.
+
+## 🚀 Getting Started
+
+### Basic Usage
+
+```go
+package main
+
+import (
+    "github.com/masterkeysrd/kite/extras/kitex"
+    "github.com/masterkeysrd/kite/style"
+)
+
+// Define a functional component
+var Counter = kitex.FC("Counter", func(props struct{}) kitex.Node {
+    // Use state hook
+    count, setCount := kitex.UseState(0)
+
+    return kitex.Box(kitex.BoxProps{
+        Style: style.Style{ Padding: style.Some(style.Edges(1, 1)) },
+    },
+        kitex.Text(fmt.Sprintf("Count: %d", count())),
+        kitex.Button(kitex.ButtonProps{
+            OnClick: func(e event.Event) { setCount(count() + 1) },
+        }, kitex.Text("Increment")),
+    )
+})
+
+// Define a component that accepts children using FCC
+type ContainerProps struct {
+    Title    string
+    Children []kitex.Node // Required field name for FCC injection
+}
+
+var TitledContainer = kitex.FCC("TitledContainer", func(props ContainerProps) kitex.Node {
+    return kitex.Box(kitex.BoxProps{
+        Style: style.Style{ Border: style.SingleBorder().Some() },
+    },
+        kitex.Box(kitex.BoxProps{
+            Style: style.Style{ Bold: style.Some(true) },
+        }, kitex.Text(props.Title)),
+        kitex.Box(kitex.BoxProps{}, props.Children...),
+    )
+})
+
+func main() {
+    // Render the component into a container element
+    ui := TitledContainer(ContainerProps{Title: "My App"},
+        Counter(struct{}{}),
+    )
+    kitex.Render(ui, containerNode)
+}
+```
+
+## 🪝 Hooks
+
+Kitex provides several standard hooks to manage component logic:
+
+- **`UseState[T](initial T) (func() T, func(T))`**: Returns a getter and a setter for a state variable. Updating state triggers a re-render of the component.
+- **`UseRef[T](initial T) Ref[T]`**: Returns a persistent, mutable reference that doesn't trigger re-renders when modified.
+- **`UseMemo[T](factory func() T, deps []any) T`**: Memoizes an expensive calculation and re-runs it only when dependencies change.
+
+## 🛠 Developer Tools
+
+When using Kitex, you can enable the **Components** inspector in the Kite Web Inspector. This provides a live view of your VDOM tree, including:
+
+- **Component Hierarchy**: Inspect the nesting of functional components.
+- **Hook State**: View the current values of all `UseState` and `UseRef` hooks.
+- **Props**: See the properties passed to each component.
+- **Source Tracking**: Jump directly to the file and line where a component or element was instantiated.
+
+### Enabling DevTools
+
+```go
+import (
+    "github.com/masterkeysrd/kite/extras/kitex"
+    "github.com/masterkeysrd/kite/extras/kitex/kitexdt"
+)
+
+func main() {
+    // 1. Enable source tracking
+    kitex.EnableDevMode = true
+
+    // 2. Register the bridge with your inspector
+    insp, _ := devtools.Install(eng, devtools.Options{})
+    kitexdt.Register(insp)
+}
+```
+
+## 📖 Best Practices
+
+- **Use Keys**: Always provide a unique `Key` prop when rendering lists of elements to ensure optimal reconciliation.
+- **Keep Components Small**: Break down complex UIs into smaller, focused functional components.
+- **Memoize Expensive Renders**: Use `UseMemo` for heavy computations or complex subtrees that don't change often.

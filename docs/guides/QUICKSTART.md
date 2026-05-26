@@ -17,16 +17,16 @@ go list ./... >/dev/null
 
 Running examples:
 
-The `example/` directory contains sample apps. If an example contains a `main` package you can run it directly:
+The `examples/` directory contains sample apps. If an example contains a `main` package you can run it directly:
 
 ```bash
-go run ./example/app1
+go run ./examples/app1
 ```
 
 If an example is a test-driven demo, run:
 
 ```bash
-go test ./example/...
+go test ./examples/...
 ```
 
 Reading the source:

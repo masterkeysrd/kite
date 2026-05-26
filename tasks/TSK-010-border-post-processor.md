@@ -40,7 +40,7 @@ Replace the hardcoded `+` corner logic with a global post-processing pass. This 
 - [x] Verify that a `FlagIsBorder` cell next to a normal text `|` cell does *not* form a junction.
 
 ### 4.2. Integration Tests
-- [x] Run the examples (like `example/app1`) and verify that sibling boxes placed flush against each other form `┬` and `┴` junctions seamlessly.
+- [x] Run the examples (like `examples/app1`) and verify that sibling boxes placed flush against each other form `┬` and `┴` junctions seamlessly.
 
 ### 4.5. Documentation
 - [x] Update `paint/README.md` to explain the two-phase pipeline (Recursive Fragment Paint -> Screen-Space Border Resolution).

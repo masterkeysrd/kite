@@ -17,7 +17,7 @@ func TestExampleApp1Golden(t *testing.T) {
 	env := testenv.Default(80, 50)
 	defer env.Close()
 
-	// Replicate root from example/app1/main.go
+	// Replicate root from examples/app1/main.go
 	flexItems := make([]any, 0, 6)
 	for i := 1; i <= 6; i++ {
 		item := element.Box(fmt.Sprintf("Flex Item %d", i)).Style(style.Style{

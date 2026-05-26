@@ -45,4 +45,4 @@ Create the logical DOM components for Tables (`Table`, `TableRow`, `TableCell`) 
 
 ### 4.6. Examples
 - [ ] Create an example in `examples/` demonstrating the creation of tables (including malformed ones) and how the layout engine handles them.
-- [ ] Update the `example/app1` to include a demonstration of table creation and rendering.
+- [ ] Update the `examples/app1` to include a demonstration of table creation and rendering.

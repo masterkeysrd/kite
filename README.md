@@ -1,76 +1,46 @@
-# Kite
+# 🪁 Kite
 
-Kite is a modern, DOM-like terminal UI framework for Go. It brings web-like development paradigms—such as a logical DOM tree, CSS-style flexbox layout, standard event propagation, and scrolling—to the terminal environment. 
+Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired development paradigms—such as a logical DOM tree, CSS-style flexbox layout, standard event propagation, and scrolling—to the terminal environment.
+
+## ✨ Features
+
+- 🌳 **Logical DOM Tree**: Core entities like `Document`, `Element`, and `TextNode` with strict lifecycle hooks.
+- 🎨 **Style Engine**: CSS-like styling using an `Optional[T]` pattern for sparse definitions.
+- 📐 **Layout Engine**: High-performance, LayoutNG-inspired engine responsible for computing geometry.
+- 🏎️ **60FPS Pipeline**: Orchestrated 6-phase pipeline (Sync -> Style -> Layout -> Paint -> Commit).
+- 🖱️ **Advanced Events**: Support for capture, target, and bubble phases, plus synthetic event management.
+- 🧪 **Headless Testing**: Simulate user input and assert on DOM state or visual regression (golden files).
+- 🛠️ **Developer Tools**: Web-based DOM inspector, in-terminal X-Ray mode, and performance profiler.
+- ⚛️ **Reactive Primitives**: Lightweight Virtual DOM (VDOM) for declarative, type-safe API (via [`extras/kitex`](extras/kitex/)).
 
 ## 🏗 Architecture Overview
 
 Kite is built with a clean separation of concerns, divided into specialized packages that form the rendering pipeline:
 
-*   **DOM (`/dom`)**: The logical node tree representing the user interface. It contains core entities like `Document`, `Element`, and `TextNode`. It implements strict lifecycle hooks (Connected/Disconnected), identity registration, semantic state (e.g., Focus, Disabled), a **closed UA Shadow Subtree** primitive (ADR-009) for private component composition, a **Top Layer Overlay API** (ADR-008) for out-of-flow elements like dialogs and tooltips, and a **Logical Text Selection API** (ADR-022) for tracking text highlights via `dom.Range` and `dom.Selection`.
-*   **Style (`/style`)**: A CSS-like styling engine using an `Optional[T]` pattern to allow sparse style definitions. It supports flexbox, box model dimensions, and terminal-specific text formatting. The resolver applies a **four-layer cascade** (weakest → strongest): inherited values, element-type defaults (`DefaultStyle()`), author styles (`RawStyle()`), and UA-intrinsic styles (`IntrinsicStyle()`). The intrinsic layer lets replaced elements (e.g. `<input>`) enforce UA-mandated properties (like `display: inline-block`) that author code cannot override (ADR-010).
-*   **Layout (`/layout`)**: The high-performance, LayoutNG-inspired engine responsible for computing geometry. It takes computed styles and constraints, and returns immutable `Fragment` trees.
-*   **Paint (`/paint`) & Backend (`/backend`)**: The drawing layer. The `paint` package interfaces with a framebuffer to draw absolute coordinates with clipping, while `backend` decouples the engine from the actual terminal output (using Charmbracelet's `ultraviolet` or a mock backend for tests).
-*   **Render (`/render`)**: The visual bridge. It holds a unified `render.Box` or `render.Text` tree that perfectly mirrors the DOM, carrying lifecycle dirty-flags (`NeedsSync`, `DirtyStyle`, `DirtyLayout`) without doing actual math.
-*   **Engine (`/engine`)**: The central nervous system. It orchestrates the 6-phase pipeline (Task Draining -> Sync -> Style -> Layout -> Paint -> Commit) at 60FPS on the main thread, while managing concurrent asynchronous Jobs.
-*   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks) and manages high-level lifecycle events like `selectionchange`.
-*   **Animation (`/animation`)**: An imperative property interpolation and tweening system. It allows for smooth transitions of numeric values, colors, and other types over time using customizable easing functions.
-*   **Virtual DOM Primitives (`/extras/kitex`)**: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances, serving as the declarative, type-safe API. When `kitex.EnableDevMode` is set, every node captures its **declaration and instantiation source locations** via `runtime.Caller`, powering the DevTools Components inspector.
-*   **Kitex DevTools Bridge (`/extras/kitex/kitexdt`)**: A thin adapter that registers the Kitex VDOM tree as a DevTools inspector extension, enabling the **Components** tab in the web inspector.
-
+- **`dom`**: The logical node tree representing the user interface. It implements strict lifecycle hooks, identity registration, semantic state, and a top-layer overlay API for out-of-flow elements.
+- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade: inherited values, element-type defaults, author styles, and intrinsic styles.
+- **`layout`**: The high-performance engine responsible for computing geometry, returning immutable fragment trees.
+- **`paint` & `backend`**: The drawing layer and terminal decoupling, allowing for varied output backends.
+- **`render`**: The visual bridge mirroring the DOM to the layout engine, carrying lifecycle dirty-flags.
+- **`engine`**: The central nervous system orchestrating the pipeline at 60FPS while managing concurrent jobs.
+- **`event`**: Advanced event dispatcher supporting capture, target, and bubble phases.
+- **`animation`**: Imperative property interpolation and tweening system for smooth transitions.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-*   **Go 1.26.1** or higher.
+- **Go 1.26.1** or higher.
 
 ### Installation
-
-Add Kite to your project using `go get`:
 
 ```bash
 go get github.com/masterkeysrd/kite
 ```
 
-### Local Development & Testing
+### Usage Example
 
-Run the standard test suite:
-
-```bash
-go test ./...
-```
-
-Run the benchmarks to verify rendering and layout performance:
-
-```bash
-go test -bench=. ./...
-```
-
-## 📁 Project Structure
-
-```text
-github.com/masterkeysrd/kite
-├── animation/  # Imperative property interpolation and tweening
-├── backend/    # Terminal decoupling, mock, and ultraviolet implementations
-├── dom/        # Logical node tree, Element, Document, TextNode, Range, and Selection
-├── editor/     # Text editing buffers and Unicode-safe string mutation
-├── event/      # Event dispatching, synthetic events, and keystroke helpers
-├── focus/      # Focus management and spatial navigation
-├── key/        # Key codes and modifiers
-├── layout/     # Geometry calculations and layout engine
-├── paint/      # Drawing interfaces and framebuffer management
-├── render/     # The rendering pipeline tying DOM and Layout together
-├── style/      # Sparse styling, computed values, and resolvers
-├── text/       # Text shaping and grapheme cluster management
-├── devtools/   # Web inspector, X-Ray mode, profiler, and headless test env
-└── extras/     # Extended packages
-    └── kitex/          # VDOM primitive wrappers (FC, hooks, reconciler)
-        └── kitexdt/    # DevTools bridge — registers the Components inspector extension
-```
-
-## 💻 Usage Example
-
-Kite provides a declarative, SwiftUI-inspired API for constructing UI trees. Thanks to **Implicit DOM Adoption**, you can build complex structures without threading a document reference:
+Kite provides a declarative, type-safe API for constructing UI trees.
 
 ```go
 package main
@@ -78,6 +48,7 @@ package main
 import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/event"
 )
 
 func main() {
@@ -86,25 +57,18 @@ func main() {
 		element.Box(
 			"Welcome to Kite!",
 		).Style(style.Style{
-			Padding: style.Some(style.EdgeValues[int]{Top: 1, Bottom: 1}),
+			Padding: style.Some(style.Edges(1, 0)),
+			Bold:    style.Some(true),
 		}),
 
 		element.UL(
-			element.LI("High Performance (60FPS)"),
-			element.LI("Declarative Syntax"),
-			element.LI("Flexbox Layout"),
+			element.LI("High Performance"),
+			element.LI("Flexbox & Grid Layouts"),
 		),
 
 		element.Button("Click Me").OnEvent(event.EventClick, func(e event.Event) {
 			// Handle click
 		}),
-
-		element.Table(
-			element.TR(
-				element.TD("Cell 1"),
-				element.TD("Cell 2"),
-			),
-		),
 	)
 
 	// In a real application, you would mount this to the engine:
@@ -122,12 +86,11 @@ func TestMyApp(t *testing.T) {
     env := testenv.Default(80, 24)
     defer env.Close()
 
-    // Mount declaratively
     env.Mount(element.Input("").WithID("my-input"))
+    env.Flush()
 
-    env.Flush() // Initial render
     env.Type("hello")
-    env.Flush() // Process typing
+    env.Flush()
 
     input := env.GetNodeByID("my-input").(*element.InputElement)
     if input.Value() != "hello" {
@@ -141,92 +104,39 @@ func TestMyApp(t *testing.T) {
 
 ## 🛠 Developer Tools
 
-Kite includes a unified developer tools package that provides a web-based DOM inspector, an in-terminal X-Ray mode, a performance profiler, and — for kitex applications — a live **Components** inspector.
-
-To enable devtools in your application:
+Kite includes a unified developer tools package that provides a web-based DOM inspector, an in-terminal X-Ray mode, and a performance profiler.
 
 ```go
 import "github.com/masterkeysrd/kite/devtools"
 
 // ... after creating your engine
 insp, _ := devtools.Install(eng, devtools.Options{
-    InspectorAddr: "127.0.0.1:8080", // Starts the web inspector
-    XRayHotkey:    "ctrl+d",        // Optional: defaults to ctrl+d
+    InspectorAddr: "127.0.0.1:8080",
 })
 ```
 
-> **Note:** `devtools.Install` now returns `(*inspector.Inspector, error)`. Hold on to the inspector pointer — you'll need it to register extensions such as the Kitex bridge.
-
 ### Web-Based DOM Inspector
-
-The inspector allows you to debug your application's logical tree, computed styles, and layout box model in real-time. Open the inspector window in your browser using your configured hotkey (default **`Ctrl+I`**).
-
-It features:
-- **Live DOM Tree**: Explore the hierarchy with attribute summaries.
-- **Style Layers**: Inspect Computed, Author, Intrinsic, and Default styles.
-- **Box Model**: Visual representation of margins, borders, and padding.
-- **Properties**: Detailed node metadata and full text content.
-
-### Kitex Components Inspector
-
-When using the `extras/kitex` reactive framework, you can enable a dedicated **Components** tab in the web inspector that mirrors React DevTools — showing the live VDOM component tree, each component's hook state (collapsible for objects and slices), props, and the exact **source file and line** where each element was declared and instantiated.
-
-**Setup (three steps):**
-
-```go
-import (
-    "github.com/masterkeysrd/kite/devtools"
-    "github.com/masterkeysrd/kite/extras/kitex"
-    "github.com/masterkeysrd/kite/extras/kitex/kitexdt"
-)
-
-func main() {
-    // ...
-
-    // 1. Enable source tracking BEFORE the first Render call.
-    kitex.EnableDevMode = true
-
-    // 2. Mount your VDOM root.
-    kitex.Render(App(struct{}{}), container)
-
-    // 3. Install devtools and register the kitex extension.
-    insp, _ := devtools.Install(eng, devtools.Options{})
-    kitexdt.Register(insp)
-
-    // ...
-}
-```
-
-**What the Components tab shows:**
-
-| Field | Description |
-|---|---|
-| **Tree** | The live VDOM hierarchy (functional components + native elements). |
-| **Hooks** | All `UseState` / `UseRef` hook values; objects and slices are collapsible. |
-| **Props** | Serialised props for every node (functions are omitted). |
-| **Declared at** | Source file and line of the factory call (`kitex.Box`, `kitex.FC`, …). |
-| **Instantiated at** | Source file and line in user code that called the factory. |
-| **⇒ Elements** | Cross-link button that jumps to the corresponding node in the Elements tab. |
-
-> **Performance note:** Source tracking uses `runtime.Caller` which costs ~1–3 µs per node creation. It is a strict **dev-only** path guarded by `kitex.EnableDevMode`; production builds that leave the flag `false` pay zero overhead.
+Open the inspector window in your browser to debug your application's logical tree, computed styles, and layout box model in real-time. It features a live DOM tree, style layer inspection, and a visual box model representation.
 
 ### Terminal X-Ray Mode
+Toggle colored bounding boxes directly on your running application for immediate layout debugging.
+- **Red**: Margin Box
+- **Green**: Padding Box
+- **Blue**: Content Box
 
-For immediate in-terminal layout debugging, X-Ray Mode overlays colored bounding boxes directly on your running application. Toggle it using your configured hotkey (default **`Ctrl+D`**).
+### Performance Profiler
+Analyze execution durations for the rendering pipeline phases and asynchronous background jobs with interactive flamecharts and Chrome Trace export.
 
-**Color Legend:**
-- <span style="color:red">■</span> **Red**: Margin Box
-- <span style="color:green">■</span> **Green**: Padding Box
-- <span style="color:blue">■</span> **Blue**: Content Box
+## 📖 Documentation & Guides
 
-### Web-Based Profiler & Flamecharts
+For more detailed information, please refer to the following guides in the `docs/` directory:
 
-Kite includes a built-in interactive Profiler UI accessible directly within the Web Inspector:
-- **Interactive Flamechart**: View execution durations for the rendering pipeline phases (Sync, Tasks, Style, Layout, Paint) and inline deep sub-phases.
-- **Async Job Mapping**: Visually connect asynchronous background `Job` execution blocks back to their initiating main-thread frame. Hovering over a job highlights both the submission and execution events.
-- **Chrome Trace Import**: Stop profiling and download the raw trace JSON directly to inspect it inside `chrome://tracing` or Perfetto.
+- [Quickstart Guide](docs/guides/QUICKSTART.md)
+- [API Overview](docs/guides/API_OVERVIEW.md)
+- [Architecture Deep Dive](docs/architecture.md)
+- [Testing Guide](docs/guides/TESTING.md)
+- [Examples](examples/)
 
-#### HTTP API Endpoints
-When DevTools is running, you can also programmatically start and stop profiling:
-- `GET/POST /debug/trace/start`: Resets and starts trace recording.
-- `GET/POST /debug/trace/stop`: Stops trace recording and returns Chrome Trace Event JSON.
+## 🤝 Contributing
+
+Contributions are welcome! Please check our [Developing Guide](docs/guides/DEVELOPING.md) to get started.

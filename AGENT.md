@@ -244,7 +244,7 @@ This source map summarises the repository packages, their responsibilities, and 
     - Description: Event types, Dispatcher, Synthesizer and key/wheel/scroll semantics. (See `event/doc.go`)
     - Key files: `event/doc.go`, `dispatcher.go`, `events.go`, `synthesizer.go`, tests
 
-- **example** — Path: `example/`
+- **examples** — Path: `examples/`
     - Description: Example applications and usage demos. Subpackages: `app1`, `button`, `flex`, `input`, `list`, `table`, `textarea`.
 
 - **extras/kitex** — Path: `extras/kitex/`

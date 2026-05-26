@@ -34,7 +34,7 @@ Create a new builder that encapsulates the mutable state required for resolving 
 - [ ] Test the "Freeze and Restart" logic within the builder: Ensure an item with `max-width` correctly freezes at its maximum and the remaining space is redistributed to its siblings.
 
 ### 4.2. Integration Tests
-- [ ] Run the existing tests in `layout/flex_test.go` and `example/flex/`. They must pass without modification, as the external observable behavior of Flexbox cannot change.
+- [ ] Run the existing tests in `layout/flex_test.go` and `examples/flex/`. They must pass without modification, as the external observable behavior of Flexbox cannot change.
 
 ### 4.5. Documentation
 - [ ] Add `doc.go` comments to the `FlexLineBuilder` explaining its role as the state machine for the flex algorithm.
