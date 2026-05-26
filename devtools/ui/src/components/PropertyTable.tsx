@@ -16,12 +16,44 @@ export function PropertyTable({ data, title, highlightValues }: PropertyTablePro
 
   const formatValue = (val: any): string => {
     if (val === null || val === undefined) return '—';
-    if (typeof val === 'object') {
-      if (val.top !== undefined && val.right !== undefined) {
-        return `${val.top} ${val.right} ${val.bottom} ${val.left}`;
-      }
-      return JSON.stringify(val);
+    
+    // Handle Go's Option[T] wrapper
+    if (typeof val === 'object' && 'Val' in val && 'Set' in val) {
+      if (!val.Set) return '—';
+      return formatValue(val.Val);
     }
+    
+    // Handle RGBA colors
+    if (typeof val === 'object' && 'R' in val && 'G' in val && 'B' in val) {
+      const alpha = val.A !== undefined ? (val.A / 255).toFixed(2) : '1';
+      return `rgba(${val.R}, ${val.G}, ${val.B}, ${parseFloat(alpha)})`;
+    }
+    
+    // Handle Edges (margin/padding)
+    if (typeof val === 'object' && val.Top !== undefined && val.Right !== undefined && val.Bottom !== undefined && val.Left !== undefined) {
+      return `${val.Top} ${val.Right} ${val.Bottom} ${val.Left}`;
+    }
+    if (typeof val === 'object' && val.top !== undefined && val.right !== undefined && val.bottom !== undefined && val.left !== undefined) {
+      return `${val.top} ${val.right} ${val.bottom} ${val.left}`;
+    }
+    
+    if (typeof val === 'object') {
+      if (Array.isArray(val)) {
+        if (val.length === 0) return '[]';
+        return val.map(item => formatValue(item)).join(' | ');
+      }
+      const entries = Object.entries(val)
+        .map(([k, v]) => {
+          const formatted = formatValue(v);
+          if (formatted === '—') return null;
+          return `${k}: ${formatted}`;
+        })
+        .filter(x => x !== null);
+        
+      if (entries.length === 0) return '—';
+      return entries.join(', ');
+    }
+    
     return String(val);
   };
 

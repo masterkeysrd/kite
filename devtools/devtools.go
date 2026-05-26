@@ -33,7 +33,7 @@ type Options struct {
 }
 
 // Install registers standard developer tools on the given engine.
-func Install(eng *engine.Engine, opts Options) error {
+func Install(eng *engine.Engine, opts Options) (*inspector.Inspector, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	eng.OnStop(func() {
 		slog.Info("devtools: engine stopping, cancelling context")
@@ -49,8 +49,9 @@ func Install(eng *engine.Engine, opts Options) error {
 	}
 
 	slog.Info("devtools: installing with options", "xrayHotkey", opts.XRayHotkey, "serverAddr", opts.ServerAddr)
+	var insp *inspector.Inspector
 	if opts.ServerAddr != "" {
-		insp := inspector.New(eng)
+		insp = inspector.New(eng)
 		srv := NewDevToolsServer(eng, insp)
 		mux := http.NewServeMux()
 		srv.SetupRoutes(mux)
@@ -61,7 +62,7 @@ func Install(eng *engine.Engine, opts Options) error {
 			slog.Warn("devtools: requested address failed, trying random port", "addr", opts.ServerAddr, "err", err)
 			l, err = net.Listen("tcp", "127.0.0.1:0")
 			if err != nil {
-				return fmt.Errorf("devtools: failed to find any available port: %w", err)
+				return nil, fmt.Errorf("devtools: failed to find any available port: %w", err)
 			}
 		}
 
@@ -97,5 +98,5 @@ func Install(eng *engine.Engine, opts Options) error {
 		}, event.Capture())
 	}
 
-	return nil
+	return insp, nil
 }

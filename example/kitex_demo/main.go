@@ -14,6 +14,7 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/kitex/kitexdt"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -235,6 +236,8 @@ func main() {
 	})
 	eng.Mount(container)
 
+	kitex.EnableDevMode = true
+
 	// Mount VDOM into host container
 	kitex.Render(App(struct{}{}), container)
 
@@ -248,7 +251,8 @@ func main() {
 		}
 	})
 
-	devtools.Install(eng, devtools.Options{})
+	insp, _ := devtools.Install(eng, devtools.Options{})
+	kitexdt.Register(insp)
 
 	if err := eng.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "engine exited: %v\n", err)

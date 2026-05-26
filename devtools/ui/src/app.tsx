@@ -2,7 +2,8 @@ import { useState, useEffect } from 'preact/hooks';
 import { Tree } from './components/Tree';
 import { FragmentTree } from './components/FragmentTree';
 import { Details } from './components/Details';
-import { findNodeByIdInPayload } from './utils';
+import { ComponentsTree } from './components/ComponentsTree';
+import { findNodeByIdInPayload, findVDOMNodeById } from './utils';
 import { 
   ProfilerSidebar, 
   ProfilerFlamechart, 
@@ -16,12 +17,15 @@ interface Payload {
   overlays?: any[];
   fragments?: any;
   overlayFragments?: any[];
+  extensions?: {
+    kitex?: any[];
+  };
 }
 
 export function App() {
   const [payload, setPayload] = useState<Payload | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<'dom' | 'fragments' | 'profiler'>('dom');
+  const [view, setView] = useState<'dom' | 'fragments' | 'profiler' | 'components'>('dom');
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -68,7 +72,14 @@ export function App() {
     return () => evtSource.close();
   }, []);
 
-  const selectedNode = selectedId && payload ? findNodeByIdInPayload(payload, selectedId) : null;
+  let selectedNode = null;
+  if (selectedId && payload) {
+    if (view === 'components') {
+      selectedNode = findVDOMNodeById(payload.extensions?.kitex, selectedId);
+    } else {
+      selectedNode = findNodeByIdInPayload(payload, selectedId);
+    }
+  }
 
   const downloadDump = () => {
     if (!payload) return;
@@ -126,6 +137,14 @@ export function App() {
               >
                 DOM
               </button>
+              {payload?.extensions?.kitex && (
+                <button 
+                  class={view === 'components' ? 'active' : ''} 
+                  onClick={() => setView('components')}
+                >
+                  Components
+                </button>
+              )}
               <button 
                 class={view === 'fragments' ? 'active' : ''} 
                 onClick={() => setView('fragments')}
@@ -184,6 +203,12 @@ export function App() {
                 selectedId={selectedId} 
                 onSelect={setSelectedId} 
               />
+            ) : view === 'components' ? (
+              <ComponentsTree 
+                roots={payload.extensions?.kitex || []}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
             ) : (
               <FragmentTree 
                 fragment={payload.fragments} 
@@ -219,7 +244,13 @@ export function App() {
             setFilterEnd={setFilterEnd}
           />
         ) : (
-          <Details node={selectedNode} />
+          <Details 
+            node={selectedNode} 
+            onJumpToElement={(domUniqueId) => {
+              setView('dom');
+              setSelectedId(domUniqueId);
+            }} 
+          />
         )}
       </main>
     </div>

@@ -9,12 +9,22 @@ import (
 	"github.com/masterkeysrd/kite/text"
 )
 
+type Extension interface {
+	Name() string
+	GetPayload(eng *engine.Engine) any
+}
+
 type Inspector struct {
-	eng *engine.Engine
+	eng        *engine.Engine
+	extensions []Extension
 }
 
 func New(eng *engine.Engine) *Inspector {
 	return &Inspector{eng: eng}
+}
+
+func (i *Inspector) RegisterExtension(ext Extension) {
+	i.extensions = append(i.extensions, ext)
 }
 
 type InspectorPayload struct {
@@ -22,6 +32,7 @@ type InspectorPayload struct {
 	Overlays     []*NodeSnapshot     `json:"overlays,omitempty"`
 	Fragments    *FragmentSnapshot   `json:"fragments"`
 	OverlayFrags []*FragmentSnapshot `json:"overlayFragments,omitempty"`
+	Extensions   map[string]any      `json:"extensions,omitempty"`
 }
 
 type FragmentSnapshot struct {
@@ -93,6 +104,13 @@ func (i *Inspector) TakeSnapshot() *InspectorPayload {
 			offset.Y = cs.Margin.Top
 		}
 		payload.OverlayFrags = append(payload.OverlayFrags, i.snapshotFragment(overlayRO.Fragment(), offset))
+	}
+
+	if len(i.extensions) > 0 {
+		payload.Extensions = make(map[string]any)
+		for _, ext := range i.extensions {
+			payload.Extensions[ext.Name()] = ext.GetPayload(i.eng)
+		}
 	}
 
 	return payload

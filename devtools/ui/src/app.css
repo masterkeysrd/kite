@@ -1298,3 +1298,91 @@ html, body, #app {
   border-radius: 10px;
   font-weight: bold;
 }
+
+/* Kitex VDOM Components Styles */
+.component-tag-name {
+  color: var(--tag-color);
+  font-weight: 600;
+}
+
+.badge-key {
+  font-size: 10px;
+  padding: 0 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  color: #1a73e8;
+  background: rgba(26, 115, 232, 0.1);
+  border: 1px solid rgba(26, 115, 232, 0.2);
+}
+@media (prefers-color-scheme: dark) {
+  .badge-key {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+  }
+}
+
+.btn-jump {
+  background: var(--accent-dark);
+  color: #fff !important;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s;
+}
+.btn-jump:hover {
+  opacity: 0.9;
+}
+
+.component-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text-main);
+}
+
+.source-group {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+@media (prefers-color-scheme: dark) {
+  .source-group {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.source-title {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.source-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-main);
+  word-break: break-all;
+}
+
+.file-icon {
+  margin-right: 4px;
+}
+
+.full-path {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  word-break: break-all;
+  user-select: all;
+}
+

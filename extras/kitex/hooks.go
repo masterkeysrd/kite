@@ -8,6 +8,14 @@ type hookState[T any] struct {
 	set   func(T)
 }
 
+type hookValuer interface {
+	getValue() any
+}
+
+func (h *hookState[T]) getValue() any {
+	return h.value
+}
+
 // UseState initializes a state variable on first render, persists it across render cycles,
 // and returns a getter and a setter. Setting the state flags the component dirty.
 // If called outside of a component render cycle, it panics.
@@ -67,6 +75,10 @@ type refSetter interface {
 // RefObject is the container that holds the mutable Current value.
 type RefObject[T any] struct {
 	Current T
+}
+
+func (r *RefObject[T]) getValue() any {
+	return r.Current
 }
 
 func (r *RefObject[T]) set(node dom.Node) {

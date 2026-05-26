@@ -31,3 +31,24 @@ function findNodeById(node: any, id: string): any {
   }
   return null;
 }
+
+export function findVDOMNodeById(roots: any[] | undefined, id: string): any {
+  if (!roots) return null;
+  for (const root of roots) {
+    const found = findVDOMNode(root, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findVDOMNode(node: any, id: string): any {
+  if (node.uniqueId === id) return node;
+  if (node.children) {
+    for (const child of node.children) {
+      const found = findVDOMNode(child, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+

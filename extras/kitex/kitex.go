@@ -2,6 +2,8 @@ package kitex
 
 import (
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -10,6 +12,8 @@ import (
 	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
 )
+
+var EnableDevMode bool
 
 // Node is the public interface representing a Virtual DOM node in the kitex framework.
 type Node interface {
@@ -79,6 +83,11 @@ type elementNode[P any] struct {
 	update      func(el dom.Node, old, new P)
 	key         string
 	ref         dom.Node
+
+	declFile string
+	declLine int
+	instFile string
+	instLine int
 }
 
 func (n *elementNode[P]) TagName() string    { return n.tagName }
@@ -123,6 +132,11 @@ func (n *elementNode[P]) Update(el dom.Node, old Node) {
 type textNode struct {
 	content string
 	ref     dom.Node
+
+	declFile string
+	declLine int
+	instFile string
+	instLine int
 }
 
 func (t *textNode) TagName() string    { return "#text" }
@@ -155,7 +169,7 @@ func (t *textNode) Update(el dom.Node, old Node) {
 
 // Text creates a VDOM representation of a text node.
 func Text(data string) Node {
-	return &textNode{content: data}
+	return trackSource(&textNode{content: data}, 1)
 }
 
 // --- Event Subscription Registry ----------------------------------------------
@@ -376,20 +390,26 @@ func boxUpdate(el dom.Node, old, new BoxProps) {
 
 // Box creates a VDOM representation of a BoxElement container.
 func Box(props BoxProps, children ...Node) Node {
-	return &elementNode[BoxProps]{
+	return trackSource(&elementNode[BoxProps]{
 		tagName:     "box",
 		props:       props,
 		children:    children,
 		instantiate: boxInstantiate,
 		update:      boxUpdate,
 		key:         props.Key,
-	}
+	}, 1)
 }
 
 // Div creates a VDOM representation of a BoxElement container (web div alias).
 func Div(props BoxProps, children ...Node) Node {
-	node := Box(props, children...)
-	node.(*elementNode[BoxProps]).tagName = "div"
+	node := trackSource(&elementNode[BoxProps]{
+		tagName:     "div",
+		props:       props,
+		children:    children,
+		instantiate: boxInstantiate,
+		update:      boxUpdate,
+		key:         props.Key,
+	}, 1)
 	return node
 }
 
@@ -403,14 +423,14 @@ func spanUpdate(el dom.Node, old, new SpanProps) {
 
 // Span creates a VDOM representation of a SpanElement container.
 func Span(props SpanProps, children ...Node) Node {
-	return &elementNode[SpanProps]{
+	return trackSource(&elementNode[SpanProps]{
 		tagName:     "span",
 		props:       props,
 		children:    children,
 		instantiate: spanInstantiate,
 		update:      spanUpdate,
 		key:         props.Key,
-	}
+	}, 1)
 }
 
 // ButtonProps specifies attributes for Button elements.
@@ -466,14 +486,14 @@ func buttonUpdate(el dom.Node, old, new ButtonProps) {
 
 // Button creates a VDOM representation of a ButtonElement.
 func Button(props ButtonProps, children ...Node) Node {
-	return &elementNode[ButtonProps]{
+	return trackSource(&elementNode[ButtonProps]{
 		tagName:     "button",
 		props:       props,
 		children:    children,
 		instantiate: buttonInstantiate,
 		update:      buttonUpdate,
 		key:         props.Key,
-	}
+	}, 1)
 }
 
 // CheckboxProps specifies attributes for Checkbox elements.
@@ -538,14 +558,14 @@ func checkboxUpdate(el dom.Node, old, new CheckboxProps) {
 
 // Checkbox creates a VDOM representation of a CheckboxElement.
 func Checkbox(props CheckboxProps) Node {
-	return &elementNode[CheckboxProps]{
+	return trackSource(&elementNode[CheckboxProps]{
 		tagName:     "checkbox",
 		props:       props,
 		children:    nil,
 		instantiate: checkboxInstantiate,
 		update:      checkboxUpdate,
 		key:         props.Key,
-	}
+	}, 1)
 }
 
 // RadioGroupProps specifies attributes for RadioGroup elements.
@@ -601,14 +621,14 @@ func radioGroupUpdate(el dom.Node, old, new RadioGroupProps) {
 
 // RadioGroup creates a VDOM representation of a RadioGroupElement.
 func RadioGroup(props RadioGroupProps, children ...Node) Node {
-	return &elementNode[RadioGroupProps]{
+	return trackSource(&elementNode[RadioGroupProps]{
 		tagName:     "radiogroup",
 		props:       props,
 		children:    children,
 		instantiate: radioGroupInstantiate,
 		update:      radioGroupUpdate,
 		key:         props.Key,
-	}
+	}, 1)
 }
 
 // RadioProps specifies attributes for Radio elements.
@@ -673,14 +693,14 @@ func radioUpdate(el dom.Node, old, new RadioProps) {
 
 // Radio creates a VDOM representation of a RadioElement.
 func Radio(props RadioProps) Node {
-	return &elementNode[RadioProps]{
+	return trackSource(&elementNode[RadioProps]{
 		tagName:     "radio",
 		props:       props,
 		children:    nil,
 		instantiate: radioInstantiate,
 		update:      radioUpdate,
 		key:         props.Key,
-	}
+	}, 1)
 }
 
 // SelectProps specifies attributes for Select elements.
@@ -721,7 +741,7 @@ func (p SelectProps) elementProps() ElementProps {
 
 // Select creates a VDOM representation of a SelectElement.
 func Select(props SelectProps, children ...Node) Node {
-	return &elementNode[SelectProps]{
+	return trackSource(&elementNode[SelectProps]{
 		tagName:  "select",
 		props:    props,
 		children: children,
@@ -747,7 +767,7 @@ func Select(props SelectProps, children ...Node) Node {
 			s.SetOptions(opts)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // OptionProps specifies attributes for Option elements.
@@ -788,7 +808,7 @@ func (p OptionProps) elementProps() ElementProps {
 
 // Option creates a VDOM representation of an OptionElement metadata node.
 func Option(props OptionProps) Node {
-	return &elementNode[OptionProps]{
+	return trackSource(&elementNode[OptionProps]{
 		tagName:  "option",
 		props:    props,
 		children: nil,
@@ -806,7 +826,7 @@ func Option(props OptionProps) Node {
 			}
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // InputProps specifies attributes for Input elements.
@@ -846,7 +866,7 @@ func (p InputProps) elementProps() ElementProps {
 
 // Input creates a VDOM representation of an InputElement.
 func Input(props InputProps) Node {
-	return &elementNode[InputProps]{
+	return trackSource(&elementNode[InputProps]{
 		tagName:  "input",
 		props:    props,
 		children: nil,
@@ -861,7 +881,7 @@ func Input(props InputProps) Node {
 			}
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // TextAreaProps specifies attributes for TextArea elements.
@@ -901,7 +921,7 @@ func (p TextAreaProps) elementProps() ElementProps {
 
 // TextArea creates a VDOM representation of a TextAreaElement.
 func TextArea(props TextAreaProps) Node {
-	return &elementNode[TextAreaProps]{
+	return trackSource(&elementNode[TextAreaProps]{
 		tagName:  "textarea",
 		props:    props,
 		children: nil,
@@ -916,12 +936,12 @@ func TextArea(props TextAreaProps) Node {
 			}
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // Table creates a VDOM representation of a TableElement.
 func Table(props TableProps, children ...Node) Node {
-	return &elementNode[TableProps]{
+	return trackSource(&elementNode[TableProps]{
 		tagName:  "table",
 		props:    props,
 		children: children,
@@ -932,12 +952,12 @@ func Table(props TableProps, children ...Node) Node {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // THead creates a VDOM representation of a TableHeaderElement (thead).
 func THead(props THeadProps, children ...Node) Node {
-	return &elementNode[THeadProps]{
+	return trackSource(&elementNode[THeadProps]{
 		tagName:  "thead",
 		props:    props,
 		children: children,
@@ -948,12 +968,12 @@ func THead(props THeadProps, children ...Node) Node {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // TBody creates a VDOM representation of a TableBodyElement (tbody).
 func TBody(props TBodyProps, children ...Node) Node {
-	return &elementNode[TBodyProps]{
+	return trackSource(&elementNode[TBodyProps]{
 		tagName:  "tbody",
 		props:    props,
 		children: children,
@@ -964,12 +984,12 @@ func TBody(props TBodyProps, children ...Node) Node {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // TFoot creates a VDOM representation of a TableFooterElement (tfoot).
 func TFoot(props TFootProps, children ...Node) Node {
-	return &elementNode[TFootProps]{
+	return trackSource(&elementNode[TFootProps]{
 		tagName:  "tfoot",
 		props:    props,
 		children: children,
@@ -980,12 +1000,12 @@ func TFoot(props TFootProps, children ...Node) Node {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // TR creates a VDOM representation of a TableRowElement (tr).
 func TR(props TRProps, children ...Node) Node {
-	return &elementNode[TRProps]{
+	return trackSource(&elementNode[TRProps]{
 		tagName:  "tr",
 		props:    props,
 		children: children,
@@ -996,7 +1016,7 @@ func TR(props TRProps, children ...Node) Node {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // TDProps specifies attributes for TD elements.
@@ -1037,7 +1057,7 @@ func (p TDProps) elementProps() ElementProps {
 
 // TD creates a VDOM representation of a TableCellElement (td).
 func TD(props TDProps, children ...Node) Node {
-	return &elementNode[TDProps]{
+	return trackSource(&elementNode[TDProps]{
 		tagName:  "td",
 		props:    props,
 		children: children,
@@ -1055,12 +1075,12 @@ func TD(props TDProps, children ...Node) Node {
 			}
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // Br creates a VDOM representation of a BrElement.
 func Br(props BrProps) Node {
-	return &elementNode[BrProps]{
+	return trackSource(&elementNode[BrProps]{
 		tagName:  "br",
 		props:    props,
 		children: nil,
@@ -1071,7 +1091,7 @@ func Br(props BrProps) Node {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // OverlayProps specifies attributes for Overlay elements.
@@ -1118,7 +1138,7 @@ func Overlay(props OverlayProps, content Node) Node {
 	if content != nil {
 		children = []Node{content}
 	}
-	return &elementNode[OverlayProps]{
+	return trackSource(&elementNode[OverlayProps]{
 		tagName:  "overlay",
 		props:    props,
 		children: children,
@@ -1145,7 +1165,7 @@ func Overlay(props OverlayProps, content Node) Node {
 			}
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // DialogProps specifies attributes for Dialog elements.
@@ -1189,7 +1209,7 @@ func Dialog(props DialogProps, content Node) Node {
 	if content != nil {
 		children = []Node{content}
 	}
-	return &elementNode[DialogProps]{
+	return trackSource(&elementNode[DialogProps]{
 		tagName:  "dialog",
 		props:    props,
 		children: children,
@@ -1204,7 +1224,7 @@ func Dialog(props DialogProps, content Node) Node {
 			}
 		},
 		key: props.Key,
-	}
+	}, 1)
 }
 
 // --- Functional Components & Hooks --------------------------------------------
@@ -1248,6 +1268,92 @@ type ComponentNode[P any] struct {
 	dirty        bool
 	componentRef *componentRef
 	key          string
+
+	declFile string
+	declLine int
+	instFile string
+	instLine int
+}
+
+type componentNodeInspector interface {
+	getHooks() []any
+	getRendered() Node
+	getDecl() (string, int)
+	getInst() (string, int)
+}
+
+type sourceTracker interface {
+	getSource() (string, int, string, int)
+}
+
+type sourceTrackable interface {
+	setSource(declFile string, declLine int, instFile string, instLine int)
+}
+
+func (c *ComponentNode[P]) getHooks() []any        { return c.hooks }
+func (c *ComponentNode[P]) getRendered() Node      { return c.rendered }
+func (c *ComponentNode[P]) getDecl() (string, int) { return c.declFile, c.declLine }
+func (c *ComponentNode[P]) getInst() (string, int) { return c.instFile, c.instLine }
+
+func (c *ComponentNode[P]) getSource() (string, int, string, int) {
+	return c.declFile, c.declLine, c.instFile, c.instLine
+}
+
+func (c *ComponentNode[P]) setSource(declFile string, declLine int, instFile string, instLine int) {
+	c.declFile = declFile
+	c.declLine = declLine
+	c.instFile = instFile
+	c.instLine = instLine
+}
+
+func (n *elementNode[P]) getSource() (string, int, string, int) {
+	return n.declFile, n.declLine, n.instFile, n.instLine
+}
+
+func (n *elementNode[P]) setSource(declFile string, declLine int, instFile string, instLine int) {
+	n.declFile = declFile
+	n.declLine = declLine
+	n.instFile = instFile
+	n.instLine = instLine
+}
+
+func (t *textNode) getSource() (string, int, string, int) {
+	return t.declFile, t.declLine, t.instFile, t.instLine
+}
+
+func (t *textNode) setSource(declFile string, declLine int, instFile string, instLine int) {
+	t.declFile = declFile
+	t.declLine = declLine
+	t.instFile = instFile
+	t.instLine = instLine
+}
+
+func trackSource(node Node, skip int) Node {
+	if EnableDevMode {
+		if st, ok := node.(sourceTrackable); ok {
+			var declFile string
+			var declLine int
+			if _, file, line, ok := runtime.Caller(skip); ok {
+				declFile = file
+				declLine = line
+			}
+			var instFile string
+			var instLine int
+			for i := skip + 1; ; i++ {
+				_, file, line, ok := runtime.Caller(i)
+				if !ok {
+					break
+				}
+				if !strings.Contains(file, "extras/kitex") {
+					instFile = file
+					instLine = line
+					break
+				}
+			}
+			st.setSource(declFile, declLine, instFile, instLine)
+		}
+	}
+	return node
 }
 
 var _ Node = (*ComponentNode[struct{}])(nil)
@@ -1529,13 +1635,33 @@ func getRefSetter(props any) refSetter {
 
 // FC creates a functional component wrapper that does not take children.
 func FC[P any](name string, render func(P) Node) func(P) Node {
+	var declFile string
+	var declLine int
+	if _, file, line, ok := runtime.Caller(1); ok {
+		declFile = file
+		declLine = line
+	}
+
 	return func(props P) Node {
+		var instFile string
+		var instLine int
+		if EnableDevMode {
+			if _, file, line, ok := runtime.Caller(1); ok {
+				instFile = file
+				instLine = line
+			}
+		}
+
 		return &ComponentNode[P]{
 			Name:     name,
 			PropsVal: props,
 			RenderFn: render,
 			isFirst:  true,
 			key:      getKey(props),
+			declFile: declFile,
+			declLine: declLine,
+			instFile: instFile,
+			instLine: instLine,
 		}
 	}
 }
@@ -1544,7 +1670,23 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 // If the Props type has a Children field of type []Node, the variadic children
 // will be injected using reflection.
 func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
+	var declFile string
+	var declLine int
+	if _, file, line, ok := runtime.Caller(1); ok {
+		declFile = file
+		declLine = line
+	}
+
 	return func(props P, children ...Node) Node {
+		var instFile string
+		var instLine int
+		if EnableDevMode {
+			if _, file, line, ok := runtime.Caller(1); ok {
+				instFile = file
+				instLine = line
+			}
+		}
+
 		propsWithChildren := injectChildren(props, children)
 		return &ComponentNode[P]{
 			Name:     name,
@@ -1552,6 +1694,10 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 			RenderFn: render,
 			isFirst:  true,
 			key:      getKey(propsWithChildren),
+			declFile: declFile,
+			declLine: declLine,
+			instFile: instFile,
+			instLine: instLine,
 		}
 	}
 }

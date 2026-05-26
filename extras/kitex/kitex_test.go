@@ -449,3 +449,84 @@ func TestElementRefWiring(t *testing.T) {
 		t.Errorf("expected reconcileRef.Current to match container first child, got %v", reconcileRef.Current)
 	}
 }
+
+func TestBuildDevToolsSnapshot(t *testing.T) {
+	oldRoots := activeRoots
+	activeRoots = make(map[dom.Element]Node)
+	defer func() { activeRoots = oldRoots }()
+
+	EnableDevMode = true
+	defer func() { EnableDevMode = false }()
+
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	type MyProps struct {
+		Val string
+	}
+
+	MyComp := FC("MyComp", func(props MyProps) Node {
+		state, _ := UseState(props.Val)
+		return Box(BoxProps{ID: "child-box"}, Text(state()))
+	})
+
+	Render(MyComp(MyProps{Val: "test-vdom"}), container)
+	defer Render(nil, container)
+
+	snapshot := BuildDevToolsSnapshot(nil)
+	roots, ok := snapshot.([]*VDOMSnapshot)
+	if !ok {
+		t.Fatalf("expected slice of VDOMSnapshot, got %T", snapshot)
+	}
+
+	if len(roots) != 1 {
+		t.Fatalf("expected 1 root, got %d", len(roots))
+	}
+
+	root := roots[0]
+	if root.Name != "MyComp" {
+		t.Errorf("expected root name MyComp, got %s", root.Name)
+	}
+
+	propsMap, ok := root.Props.(map[string]any)
+	if !ok {
+		t.Fatalf("expected props to be map[string]any, got %T", root.Props)
+	}
+	if propsMap["Val"] != "test-vdom" {
+		t.Errorf("expected prop Val to be 'test-vdom', got %v", propsMap["Val"])
+	}
+
+	if len(root.State) != 1 {
+		t.Errorf("expected 1 state hook, got %d", len(root.State))
+	} else {
+		stateVal := root.State[0]
+		if stateVal != "test-vdom" {
+			t.Errorf("expected state hook value to be 'test-vdom', got %v", stateVal)
+		}
+	}
+
+	if root.DeclFile == "" {
+		t.Errorf("expected DeclFile to be populated")
+	}
+	if root.DeclLine == 0 {
+		t.Errorf("expected DeclLine to be non-zero")
+	}
+	if root.InstFile == "" {
+		t.Errorf("expected InstFile to be populated")
+	}
+	if root.InstLine == 0 {
+		t.Errorf("expected InstLine to be non-zero")
+	}
+
+	if len(root.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(root.Children))
+	}
+
+	child := root.Children[0]
+	if child.Name != "box" {
+		t.Errorf("expected child name box, got %s", child.Name)
+	}
+	if child.DomID != "child-box" {
+		t.Errorf("expected child DomID child-box, got %s", child.DomID)
+	}
+}

@@ -14,7 +14,8 @@ Kite is built with a clean separation of concerns, divided into specialized pack
 *   **Engine (`/engine`)**: The central nervous system. It orchestrates the 6-phase pipeline (Task Draining -> Sync -> Style -> Layout -> Paint -> Commit) at 60FPS on the main thread, while managing concurrent asynchronous Jobs.
 *   **Event (`/event`)**: An advanced event dispatcher supporting capture, target, and bubble phases. It includes synthesizers to translate raw terminal input into semantic events (e.g., clicks) and manages high-level lifecycle events like `selectionchange`.
 *   **Animation (`/animation`)**: An imperative property interpolation and tweening system. It allows for smooth transitions of numeric values, colors, and other types over time using customizable easing functions.
-*   **Virtual DOM Primitives (`/extras/kitex`)**: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances, serving as the declarative, type-safe API.
+*   **Virtual DOM Primitives (`/extras/kitex`)**: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances, serving as the declarative, type-safe API. When `kitex.EnableDevMode` is set, every node captures its **declaration and instantiation source locations** via `runtime.Caller`, powering the DevTools Components inspector.
+*   **Kitex DevTools Bridge (`/extras/kitex/kitexdt`)**: A thin adapter that registers the Kitex VDOM tree as a DevTools inspector extension, enabling the **Components** tab in the web inspector.
 
 
 ## 🚀 Getting Started
@@ -61,8 +62,10 @@ github.com/masterkeysrd/kite
 ├── render/     # The rendering pipeline tying DOM and Layout together
 ├── style/      # Sparse styling, computed values, and resolvers
 ├── text/       # Text shaping and grapheme cluster management
+├── devtools/   # Web inspector, X-Ray mode, profiler, and headless test env
 └── extras/     # Extended packages
-    └── kitex/  # VDOM primitive wrappers
+    └── kitex/          # VDOM primitive wrappers (FC, hooks, reconciler)
+        └── kitexdt/    # DevTools bridge — registers the Components inspector extension
 ```
 
 ## 💻 Usage Example
@@ -138,7 +141,7 @@ func TestMyApp(t *testing.T) {
 
 ## 🛠 Developer Tools
 
-Kite includes a unified developer tools package that provides both a web-based DOM inspector and an in-terminal X-Ray mode.
+Kite includes a unified developer tools package that provides a web-based DOM inspector, an in-terminal X-Ray mode, a performance profiler, and — for kitex applications — a live **Components** inspector.
 
 To enable devtools in your application:
 
@@ -146,11 +149,13 @@ To enable devtools in your application:
 import "github.com/masterkeysrd/kite/devtools"
 
 // ... after creating your engine
-devtools.Install(eng, devtools.Options{
+insp, _ := devtools.Install(eng, devtools.Options{
     InspectorAddr: "127.0.0.1:8080", // Starts the web inspector
     XRayHotkey:    "ctrl+d",        // Optional: defaults to ctrl+d
 })
 ```
+
+> **Note:** `devtools.Install` now returns `(*inspector.Inspector, error)`. Hold on to the inspector pointer — you'll need it to register extensions such as the Kitex bridge.
 
 ### Web-Based DOM Inspector
 
@@ -161,6 +166,49 @@ It features:
 - **Style Layers**: Inspect Computed, Author, Intrinsic, and Default styles.
 - **Box Model**: Visual representation of margins, borders, and padding.
 - **Properties**: Detailed node metadata and full text content.
+
+### Kitex Components Inspector
+
+When using the `extras/kitex` reactive framework, you can enable a dedicated **Components** tab in the web inspector that mirrors React DevTools — showing the live VDOM component tree, each component's hook state (collapsible for objects and slices), props, and the exact **source file and line** where each element was declared and instantiated.
+
+**Setup (three steps):**
+
+```go
+import (
+    "github.com/masterkeysrd/kite/devtools"
+    "github.com/masterkeysrd/kite/extras/kitex"
+    "github.com/masterkeysrd/kite/extras/kitex/kitexdt"
+)
+
+func main() {
+    // ...
+
+    // 1. Enable source tracking BEFORE the first Render call.
+    kitex.EnableDevMode = true
+
+    // 2. Mount your VDOM root.
+    kitex.Render(App(struct{}{}), container)
+
+    // 3. Install devtools and register the kitex extension.
+    insp, _ := devtools.Install(eng, devtools.Options{})
+    kitexdt.Register(insp)
+
+    // ...
+}
+```
+
+**What the Components tab shows:**
+
+| Field | Description |
+|---|---|
+| **Tree** | The live VDOM hierarchy (functional components + native elements). |
+| **Hooks** | All `UseState` / `UseRef` hook values; objects and slices are collapsible. |
+| **Props** | Serialised props for every node (functions are omitted). |
+| **Declared at** | Source file and line of the factory call (`kitex.Box`, `kitex.FC`, …). |
+| **Instantiated at** | Source file and line in user code that called the factory. |
+| **⇒ Elements** | Cross-link button that jumps to the corresponding node in the Elements tab. |
+
+> **Performance note:** Source tracking uses `runtime.Caller` which costs ~1–3 µs per node creation. It is a strict **dev-only** path guarded by `kitex.EnableDevMode`; production builds that leave the flag `false` pay zero overhead.
 
 ### Terminal X-Ray Mode
 
