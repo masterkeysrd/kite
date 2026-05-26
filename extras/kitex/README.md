@@ -4,7 +4,7 @@ Kitex is a lightweight, reactive Virtual DOM (VDOM) framework for Kite. It provi
 
 ## ✨ Features
 
-- 🧩 **Functional Components**: Define reusable UI logic using `kitex.FC` (or `kitex.FCC` for components with children).
+- 🧩 **Functional Components**: Define reusable UI logic using `kitex.FC` (or `kitex.FCC` for components with children). For components without props, use `kitex.SimpleFC` or `kitex.SimpleFCC`.
 - 🪝 **Hooks**: Manage state and lifecycle with `UseState`, `UseRef`, and `UseMemo`.
 - 🔄 **Efficient Reconciliation**: A high-performance diffing algorithm that updates only what changed in the real DOM.
 - 🔑 **Keyed Lists**: Optimized list updates using unique keys to track element identity.
@@ -37,6 +37,14 @@ var Counter = kitex.FC("Counter", func(props struct{}) kitex.Node {
     )
 })
 
+// Simpler version without props
+var SimpleCounter = kitex.SimpleFC("SimpleCounter", func() kitex.Node {
+    count, setCount := kitex.UseState(0)
+    return kitex.Button(kitex.ButtonProps{
+        OnClick: func(e event.Event) { setCount(count() + 1) },
+    }, kitex.Text(fmt.Sprintf("Count: %d", count())))
+})
+
 // Define a component that accepts children using FCC
 type ContainerProps struct {
     Title    string
@@ -54,10 +62,19 @@ var TitledContainer = kitex.FCC("TitledContainer", func(props ContainerProps) ki
     )
 })
 
+// Simpler version for children-only components
+var Centered = kitex.SimpleFCC("Centered", func(children []kitex.Node) kitex.Node {
+    return kitex.Box(kitex.BoxProps{
+        Style: style.Style{ AlignItems: style.Some(style.AlignCenter) },
+    }, children...)
+})
+
 func main() {
     // Render the component into a container element
     ui := TitledContainer(ContainerProps{Title: "My App"},
-        Counter(struct{}{}),
+        Centered(
+            SimpleCounter(),
+        ),
     )
     kitex.Render(ui, containerNode)
 }

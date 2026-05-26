@@ -19,7 +19,7 @@ import (
 )
 
 // App is the root functional component.
-var App = kitex.FC("App", func(props struct{}) kitex.Node {
+var App = kitex.SimpleFC("App", func() kitex.Node {
 	// Dummy state to force a re-render
 	getRenderCount, setRenderCount := kitex.UseState(1)
 
@@ -205,7 +205,7 @@ func main() {
 
 	kitex.EnableDevMode = true
 
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

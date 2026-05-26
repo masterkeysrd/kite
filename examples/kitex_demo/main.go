@@ -77,7 +77,7 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 })
 
 // App is the root functional component, maintaining list data and IDs.
-var App = kitex.FC("App", func(props struct{}) kitex.Node {
+var App = kitex.SimpleFC("App", func() kitex.Node {
 	getItems, setItems := kitex.UseState([]ItemData{
 		{Key: "1", ID: "A"},
 		{Key: "2", ID: "B"},
@@ -239,7 +239,7 @@ func main() {
 	kitex.EnableDevMode = true
 
 	// Mount VDOM into host container
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -450,6 +450,36 @@ func TestElementRefWiring(t *testing.T) {
 	}
 }
 
+func TestSimpleComponents(t *testing.T) {
+	doc := dom.NewDocument()
+
+	t.Run("SimpleFC", func(t *testing.T) {
+		simple := SimpleFC("Simple", func() Node {
+			return Box(BoxProps{ID: "simple-box"})
+		})
+		node := simple()
+		realNode := node.Instantiate(doc).(*element.BoxElement)
+		if realNode.ID() != "simple-box" {
+			t.Errorf("expected ID simple-box, got %s", realNode.ID())
+		}
+	})
+
+	t.Run("SimpleFCC", func(t *testing.T) {
+		simpleWithChildren := SimpleFCC("SimpleChildren", func(children []Node) Node {
+			return Box(BoxProps{ID: "container"}, children...)
+		})
+		child := Text("hello")
+		nodeWithChildren := simpleWithChildren(child)
+		realContainer := nodeWithChildren.Instantiate(doc).(*element.BoxElement)
+		if realContainer.ID() != "container" {
+			t.Errorf("expected ID container, got %s", realContainer.ID())
+		}
+		if !realContainer.HasChildNodes() {
+			t.Errorf("expected children, but found none")
+		}
+	})
+}
+
 func TestBuildDevToolsSnapshot(t *testing.T) {
 	oldRoots := activeRoots
 	activeRoots = make(map[dom.Element]Node)

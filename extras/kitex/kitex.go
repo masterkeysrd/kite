@@ -2063,3 +2063,67 @@ func injectChildren[P any](props P, children []Node) P {
 	}
 	return ptr.Elem().Interface().(P)
 }
+
+// SimpleFC creates a functional component wrapper for components with no props.
+func SimpleFC(name string, render func() Node) func() Node {
+	var declFile string
+	var declLine int
+	if _, file, line, ok := runtime.Caller(1); ok {
+		declFile = file
+		declLine = line
+	}
+
+	return func() Node {
+		var instFile string
+		var instLine int
+		if EnableDevMode {
+			if _, file, line, ok := runtime.Caller(1); ok {
+				instFile = file
+				instLine = line
+			}
+		}
+
+		return &ComponentNode[struct{}]{
+			Name:     name,
+			PropsVal: struct{}{},
+			RenderFn: func(_ struct{}) Node { return render() },
+			isFirst:  true,
+			declFile: declFile,
+			declLine: declLine,
+			instFile: instFile,
+			instLine: instLine,
+		}
+	}
+}
+
+// SimpleFCC creates a functional component wrapper for components that only take children.
+func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
+	var declFile string
+	var declLine int
+	if _, file, line, ok := runtime.Caller(1); ok {
+		declFile = file
+		declLine = line
+	}
+
+	return func(children ...Node) Node {
+		var instFile string
+		var instLine int
+		if EnableDevMode {
+			if _, file, line, ok := runtime.Caller(1); ok {
+				instFile = file
+				instLine = line
+			}
+		}
+
+		return &ComponentNode[[]Node]{
+			Name:     name,
+			PropsVal: children,
+			RenderFn: func(p []Node) Node { return render(p) },
+			isFirst:  true,
+			declFile: declFile,
+			declLine: declLine,
+			instFile: instFile,
+			instLine: instLine,
+		}
+	}
+}
