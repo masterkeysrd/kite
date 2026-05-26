@@ -1,6 +1,10 @@
 package kitex
 
-import "github.com/masterkeysrd/kite/dom"
+import (
+	"reflect"
+
+	"github.com/masterkeysrd/kite/dom"
+)
 
 type hookState[T any] struct {
 	value T
@@ -112,4 +116,58 @@ func UseRef[T any](initial T) Ref[T] {
 		return r
 	}
 	return stateVal.(*RefObject[T])
+}
+
+// memoHookState holds the cached result and dependency slice for UseMemo.
+type memoHookState[T any] struct {
+	value T
+	deps  []any
+}
+
+func (m *memoHookState[T]) getValue() any { return m.value }
+
+// UseMemo memoizes the result of factory and re-evaluates it only when the
+// deps slice changes between renders. Dependency comparison uses
+// reflect.DeepEqual on each element in the slice.
+//
+// Example:
+//
+//	expensive := kitex.UseMemo(func() []Row { return buildRows(data) }, []any{data})
+func UseMemo[T any](factory func() T, deps []any) T {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseMemo must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+	idx := comp.incrementHookIndex()
+
+	stateVal, exists := comp.getHookState(idx)
+	if !exists {
+		// First render: evaluate and cache.
+		val := factory()
+		comp.setHookState(idx, &memoHookState[T]{value: val, deps: deps})
+		return val
+	}
+
+	hs := stateVal.(*memoHookState[T])
+	if !depsEqual(hs.deps, deps) {
+		// Deps changed: re-evaluate and update the cached entry.
+		hs.value = factory()
+		hs.deps = deps
+	}
+	return hs.value
+}
+
+// depsEqual compares two dependency slices element by element using
+// reflect.DeepEqual. Lengths must match; order matters.
+func depsEqual(a, b []any) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !reflect.DeepEqual(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }

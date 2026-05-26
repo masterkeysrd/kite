@@ -41,6 +41,11 @@ type Node interface {
 type nodeInternal interface {
 	Node
 	realNode() dom.Node
+	// complexity returns the approximate node-count of the subtree rooted at this
+	// node (including itself). It is computed bottom-up at construction time in
+	// O(N) and is used by ComponentNode to decide whether memoization is worth
+	// the overhead of a reflection-based props comparison.
+	complexity() int
 }
 
 // Ensure compile-time interface compliance.
@@ -49,6 +54,7 @@ var (
 	_ nodeInternal = (*textNode)(nil)
 	_ Node         = (*elementNode[struct{}])(nil)
 	_ nodeInternal = (*elementNode[struct{}])(nil)
+	_ nodeInternal = (*ComponentNode[struct{}])(nil)
 )
 
 // ElementProps holds common fields and event listeners present on all DOM element nodes.
@@ -80,9 +86,13 @@ type elementNode[P any] struct {
 	props       P
 	children    []Node
 	instantiate func(doc dom.Document) dom.Node
-	update      func(el dom.Node, old, new P)
+	update      func(el dom.Node, old, new *P)
 	key         string
 	ref         dom.Node
+
+	// score is the pre-computed node count of the subtree rooted at this element
+	// (1 for self + sum of children's complexity). Set once at construction time.
+	score int
 
 	declFile string
 	declLine int
@@ -95,10 +105,11 @@ func (n *elementNode[P]) Props() any         { return n.props }
 func (n *elementNode[P]) Children() []Node   { return n.children }
 func (n *elementNode[P]) Key() string        { return n.key }
 func (n *elementNode[P]) realNode() dom.Node { return n.ref }
+func (n *elementNode[P]) complexity() int    { return n.score }
 
 func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 	n.ref = n.instantiate(doc)
-	n.update(n.ref, *new(P), n.props)
+	n.update(n.ref, nil, &n.props)
 	for _, child := range n.children {
 		if child != nil {
 			childReal := child.Instantiate(doc)
@@ -107,7 +118,7 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 			}
 		}
 	}
-	if setter := getRefSetter(n.props); setter != nil {
+	if setter := getRefSetter(&n.props); setter != nil {
 		setter.set(n.ref)
 	}
 	return n.ref
@@ -115,15 +126,15 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 
 func (n *elementNode[P]) Update(el dom.Node, old Node) {
 	n.ref = el
-	var oldProps P
+	var oldProps *P
 	if old != nil {
 		if oldEl, ok := old.(*elementNode[P]); ok {
-			oldProps = oldEl.props
+			oldProps = &oldEl.props
 		}
 	}
-	n.update(n.ref, oldProps, n.props)
+	n.update(n.ref, oldProps, &n.props)
 	n.ref.MarkNeedsSync()
-	if setter := getRefSetter(n.props); setter != nil {
+	if setter := getRefSetter(&n.props); setter != nil {
 		setter.set(n.ref)
 	}
 }
@@ -138,6 +149,9 @@ type textNode struct {
 	instFile string
 	instLine int
 }
+
+// complexity for a text leaf is always 1.
+func (t *textNode) complexity() int { return 1 }
 
 func (t *textNode) TagName() string    { return "#text" }
 func (t *textNode) Props() any         { return t.content }
@@ -170,6 +184,181 @@ func (t *textNode) Update(el dom.Node, old Node) {
 // Text creates a VDOM representation of a text node.
 func Text(data string) Node {
 	return trackSource(&textNode{content: data}, 1)
+}
+
+// --- Memoization Helpers ------------------------------------------------------
+
+// memoComplexityThreshold is the minimum subtree node count required for
+// ComponentNode to activate automatic memoization. Components whose rendered
+// tree is cheap to re-render (score ≤ threshold) skip the reflection overhead.
+const memoComplexityThreshold = 5
+
+// computeComplexity returns the complexity of a Node, dispatching through the
+// nodeInternal interface when available. Falls back to 1 for ComponentNodes
+// (which wrap their rendered complexity in complexityScore).
+func computeComplexity(n Node) int {
+	if n == nil {
+		return 0
+	}
+	if ni, ok := n.(nodeInternal); ok {
+		return ni.complexity()
+	}
+	return 1
+}
+
+// buildElementScore computes the score for an elementNode from its children
+// slice and is called by every element factory.
+func buildElementScore(children []Node) int {
+	s := 1
+	for _, c := range children {
+		if c != nil {
+			s += computeComplexity(c)
+		}
+	}
+	return s
+}
+
+// deepEqualProps performs a depth-limited recursive equality check between two
+// arbitrary prop values using reflection. It returns true only when the values
+// are provably equal at every level up to maxDepth.
+//
+// Special cases:
+//   - reflect.Func values are compared via the existing funcEquals helper so
+//     that stable closures with the same pointer compare as equal.
+//   - When depth == 0 the function conservatively returns false to avoid
+//     unbounded recursion on large nested structures.
+func deepEqualProps(oldProps, newProps any, maxDepth int) bool {
+	if maxDepth <= 0 {
+		return false
+	}
+	if oldProps == nil && newProps == nil {
+		return true
+	}
+	if oldProps == nil || newProps == nil {
+		return false
+	}
+
+	ov := reflect.ValueOf(oldProps)
+	nv := reflect.ValueOf(newProps)
+
+	// Dereference pointers once.
+	if ov.Kind() == reflect.Pointer {
+		if ov.IsNil() {
+			return nv.Kind() == reflect.Pointer && nv.IsNil()
+		}
+		if nv.Kind() != reflect.Pointer || nv.IsNil() {
+			return false
+		}
+		ov = ov.Elem()
+		nv = nv.Elem()
+	}
+
+	if ov.Type() != nv.Type() {
+		return false
+	}
+
+	return deepEqualValues(ov, nv, maxDepth)
+}
+
+// deepEqualValues is the reflection-recursive core of deepEqualProps.
+// depth tracks the maximum number of nested *composite* levels (struct-in-struct,
+// slice-of-structs, etc.) that are recursed into. Scalar leaf comparisons
+// (int, string, bool, float, etc.) never consume depth and always succeed or
+// fail immediately without further recursion.
+func deepEqualValues(ov, nv reflect.Value, depth int) bool {
+	switch ov.Kind() {
+	case reflect.Func:
+		// Use the existing funcEquals helper which compares function pointers.
+		return funcEquals(ov.Interface(), nv.Interface())
+
+	case reflect.Struct:
+		// Entering a struct costs one depth level.
+		if depth <= 0 {
+			return false
+		}
+		for i := range ov.NumField() {
+			of := ov.Field(i)
+			nf := nv.Field(i)
+			// Skip unexported fields — reflection cannot read them.
+			if !of.CanInterface() {
+				continue
+			}
+			if !deepEqualValues(of, nf, depth-1) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Slice:
+		if depth <= 0 {
+			return false
+		}
+		if ov.IsNil() != nv.IsNil() {
+			return false
+		}
+		if ov.Len() != nv.Len() {
+			return false
+		}
+		for i := range ov.Len() {
+			if !deepEqualValues(ov.Index(i), nv.Index(i), depth-1) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Array:
+		if depth <= 0 {
+			return false
+		}
+		for i := range ov.Len() {
+			if !deepEqualValues(ov.Index(i), nv.Index(i), depth-1) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Map:
+		if depth <= 0 {
+			return false
+		}
+		if ov.IsNil() != nv.IsNil() {
+			return false
+		}
+		if ov.Len() != nv.Len() {
+			return false
+		}
+		for _, k := range ov.MapKeys() {
+			nvVal := nv.MapIndex(k)
+			if !nvVal.IsValid() {
+				return false
+			}
+			if !deepEqualValues(ov.MapIndex(k), nvVal, depth-1) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Pointer, reflect.Interface:
+		if depth <= 0 {
+			return false
+		}
+		if ov.IsNil() {
+			return nv.IsNil()
+		}
+		if nv.IsNil() {
+			return false
+		}
+		return deepEqualValues(ov.Elem(), nv.Elem(), depth-1)
+
+	default:
+		// Scalar leaf (bool, int*, uint*, float*, complex*, string, chan, etc.).
+		// Scalars compare directly — they do NOT consume depth because they
+		// cannot cause unbounded recursion.
+		if ov.CanInterface() {
+			return ov.Interface() == nv.Interface()
+		}
+		return false
+	}
 }
 
 // --- Event Subscription Registry ----------------------------------------------
@@ -341,7 +530,10 @@ func setHidden(el element.Element, h bool) {
 }
 
 // updateElementBase syncs core style, identity and listeners on any element.
-func updateElementBase(el element.Element, old, new ElementProps) {
+func updateElementBase(el element.Element, old, new *ElementProps) {
+	if old == nil {
+		old = &ElementProps{}
+	}
 	if old.ID != new.ID {
 		el.SetID(new.ID)
 	}
@@ -384,7 +576,7 @@ func boxInstantiate(doc dom.Document) dom.Node {
 	return element.NewBox(doc)
 }
 
-func boxUpdate(el dom.Node, old, new BoxProps) {
+func boxUpdate(el dom.Node, old, new *BoxProps) {
 	updateElementBase(el.(element.Element), old, new)
 }
 
@@ -397,6 +589,7 @@ func Box(props BoxProps, children ...Node) Node {
 		instantiate: boxInstantiate,
 		update:      boxUpdate,
 		key:         props.Key,
+		score:       buildElementScore(children),
 	}, 1)
 }
 
@@ -409,6 +602,7 @@ func Div(props BoxProps, children ...Node) Node {
 		instantiate: boxInstantiate,
 		update:      boxUpdate,
 		key:         props.Key,
+		score:       buildElementScore(children),
 	}, 1)
 	return node
 }
@@ -417,7 +611,7 @@ func spanInstantiate(doc dom.Document) dom.Node {
 	return element.NewSpan(doc)
 }
 
-func spanUpdate(el dom.Node, old, new SpanProps) {
+func spanUpdate(el dom.Node, old, new *SpanProps) {
 	updateElementBase(el.(element.Element), old, new)
 }
 
@@ -430,6 +624,7 @@ func Span(props SpanProps, children ...Node) Node {
 		instantiate: spanInstantiate,
 		update:      spanUpdate,
 		key:         props.Key,
+		score:       buildElementScore(children),
 	}, 1)
 }
 
@@ -473,13 +668,22 @@ func buttonInstantiate(doc dom.Document) dom.Node {
 	return element.NewButton(doc)
 }
 
-func buttonUpdate(el dom.Node, old, new ButtonProps) {
+func buttonUpdate(el dom.Node, old, new *ButtonProps) {
 	btn := el.(*element.ButtonElement)
-	updateElementBase(btn, old.elementProps(), new.elementProps())
-	if old.Disabled != new.Disabled {
+	var oldEp ElementProps
+	if old != nil {
+		oldEp = old.elementProps()
+	}
+	newEp := new.elementProps()
+	updateElementBase(btn, &oldEp, &newEp)
+	if old != nil && old.Disabled != new.Disabled {
+		btn.Disabled(new.Disabled)
+	} else if old == nil {
 		btn.Disabled(new.Disabled)
 	}
-	if old.Active != new.Active {
+	if old != nil && old.Active != new.Active {
+		btn.SetActive(new.Active)
+	} else if old == nil {
 		btn.SetActive(new.Active)
 	}
 }
@@ -493,6 +697,7 @@ func Button(props ButtonProps, children ...Node) Node {
 		instantiate: buttonInstantiate,
 		update:      buttonUpdate,
 		key:         props.Key,
+		score:       buildElementScore(children),
 	}, 1)
 }
 
@@ -537,13 +742,20 @@ func checkboxInstantiate(doc dom.Document) dom.Node {
 	return element.NewCheckbox(doc, false)
 }
 
-func checkboxUpdate(el dom.Node, old, new CheckboxProps) {
+func checkboxUpdate(el dom.Node, old, new *CheckboxProps) {
 	cb := el.(*element.CheckboxElement)
-	updateElementBase(cb, old.elementProps(), new.elementProps())
-	if old.Checked != new.Checked {
+	var oldEp ElementProps
+	if old != nil {
+		oldEp = old.elementProps()
+	}
+	newEp := new.elementProps()
+	updateElementBase(cb, &oldEp, &newEp)
+	if old != nil && old.Checked != new.Checked {
+		cb.SetChecked(new.Checked)
+	} else if old == nil {
 		cb.SetChecked(new.Checked)
 	}
-	if old.UncheckedGlyph != new.UncheckedGlyph || old.CheckedGlyph != new.CheckedGlyph {
+	if old == nil || (old.UncheckedGlyph != new.UncheckedGlyph || old.CheckedGlyph != new.CheckedGlyph) {
 		un := "[ ]"
 		ch := "[X]"
 		if new.UncheckedGlyph != "" {
@@ -565,6 +777,7 @@ func Checkbox(props CheckboxProps) Node {
 		instantiate: checkboxInstantiate,
 		update:      checkboxUpdate,
 		key:         props.Key,
+		score:       1,
 	}, 1)
 }
 
@@ -608,13 +821,20 @@ func radioGroupInstantiate(doc dom.Document) dom.Node {
 	return element.NewRadioGroup(doc)
 }
 
-func radioGroupUpdate(el dom.Node, old, new RadioGroupProps) {
+func radioGroupUpdate(el dom.Node, old, new *RadioGroupProps) {
 	rg := el.(*element.RadioGroupElement)
-	updateElementBase(rg, old.elementProps(), new.elementProps())
-	if old.Value != new.Value {
+	var oldEp ElementProps
+	if old != nil {
+		oldEp = old.elementProps()
+	}
+	newEp := new.elementProps()
+	updateElementBase(rg, &oldEp, &newEp)
+	if old != nil && old.Value != new.Value {
+		rg.SetValue(new.Value)
+	} else if old == nil {
 		rg.SetValue(new.Value)
 	}
-	if !funcEquals(old.OnValueChange, new.OnValueChange) {
+	if old == nil || !funcEquals(old.OnValueChange, new.OnValueChange) {
 		rg.OnChange(new.OnValueChange)
 	}
 }
@@ -628,6 +848,7 @@ func RadioGroup(props RadioGroupProps, children ...Node) Node {
 		instantiate: radioGroupInstantiate,
 		update:      radioGroupUpdate,
 		key:         props.Key,
+		score:       buildElementScore(children),
 	}, 1)
 }
 
@@ -672,13 +893,18 @@ func radioInstantiate(doc dom.Document) dom.Node {
 	return element.NewRadio(doc, "")
 }
 
-func radioUpdate(el dom.Node, old, new RadioProps) {
+func radioUpdate(el dom.Node, old, new *RadioProps) {
 	r := el.(*element.RadioElement)
-	updateElementBase(r, old.elementProps(), new.elementProps())
-	if old.Value != new.Value && new.Value != "" {
+	var oldEp ElementProps
+	if old != nil {
+		oldEp = old.elementProps()
+	}
+	newEp := new.elementProps()
+	updateElementBase(r, &oldEp, &newEp)
+	if (old == nil || old.Value != new.Value) && new.Value != "" {
 		r.SetValue(new.Value)
 	}
-	if old.UncheckedGlyph != new.UncheckedGlyph || old.CheckedGlyph != new.CheckedGlyph {
+	if old == nil || (old.UncheckedGlyph != new.UncheckedGlyph || old.CheckedGlyph != new.CheckedGlyph) {
 		un := "( )"
 		ch := "(•)"
 		if new.UncheckedGlyph != "" {
@@ -700,6 +926,7 @@ func Radio(props RadioProps) Node {
 		instantiate: radioInstantiate,
 		update:      radioUpdate,
 		key:         props.Key,
+		score:       1,
 	}, 1)
 }
 
@@ -748,13 +975,20 @@ func Select(props SelectProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewSelect(doc)
 		},
-		update: func(el dom.Node, old, new SelectProps) {
+		update: func(el dom.Node, old, new *SelectProps) {
 			s := el.(*element.SelectElement)
-			updateElementBase(s, old.elementProps(), new.elementProps())
-			if old.Value != new.Value {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(s, &oldEp, &newEp)
+			if old != nil && old.Value != new.Value {
+				s.SetValue(new.Value)
+			} else if old == nil {
 				s.SetValue(new.Value)
 			}
-			if !funcEquals(old.OnValueChange, new.OnValueChange) {
+			if old == nil || !funcEquals(old.OnValueChange, new.OnValueChange) {
 				s.OnChange(new.OnValueChange)
 			}
 			// Synchronize options slice from DOM children list
@@ -766,7 +1000,8 @@ func Select(props SelectProps, children ...Node) Node {
 			}
 			s.SetOptions(opts)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -815,17 +1050,27 @@ func Option(props OptionProps) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewOption(doc, props.Text, props.Value)
 		},
-		update: func(el dom.Node, old, new OptionProps) {
+		update: func(el dom.Node, old, new *OptionProps) {
 			opt := el.(*element.OptionElement)
-			updateElementBase(opt, old.elementProps(), new.elementProps())
-			if old.Text != new.Text {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(opt, &oldEp, &newEp)
+			if old != nil && old.Text != new.Text {
+				opt.SetText(new.Text)
+			} else if old == nil {
 				opt.SetText(new.Text)
 			}
-			if old.Value != new.Value {
+			if old != nil && old.Value != new.Value {
+				opt.SetValue(new.Value)
+			} else if old == nil {
 				opt.SetValue(new.Value)
 			}
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: 1,
 	}, 1)
 }
 
@@ -873,14 +1118,22 @@ func Input(props InputProps) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewInput(doc, props.Value)
 		},
-		update: func(el dom.Node, old, new InputProps) {
+		update: func(el dom.Node, old, new *InputProps) {
 			inp := el.(*element.InputElement)
-			updateElementBase(inp, old.elementProps(), new.elementProps())
-			if old.Value != new.Value {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(inp, &oldEp, &newEp)
+			if old != nil && old.Value != new.Value {
+				inp.SetValue(new.Value)
+			} else if old == nil {
 				inp.SetValue(new.Value)
 			}
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: 1,
 	}, 1)
 }
 
@@ -928,14 +1181,22 @@ func TextArea(props TextAreaProps) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTextArea(doc, props.Value)
 		},
-		update: func(el dom.Node, old, new TextAreaProps) {
+		update: func(el dom.Node, old, new *TextAreaProps) {
 			txa := el.(*element.TextAreaElement)
-			updateElementBase(txa, old.elementProps(), new.elementProps())
-			if old.Value != new.Value {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(txa, &oldEp, &newEp)
+			if old != nil && old.Value != new.Value {
+				txa.SetValue(new.Value)
+			} else if old == nil {
 				txa.SetValue(new.Value)
 			}
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: 1,
 	}, 1)
 }
 
@@ -948,10 +1209,11 @@ func Table(props TableProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTable(doc)
 		},
-		update: func(el dom.Node, old, new TableProps) {
+		update: func(el dom.Node, old, new *TableProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -964,10 +1226,11 @@ func THead(props THeadProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTableHeader(doc)
 		},
-		update: func(el dom.Node, old, new THeadProps) {
+		update: func(el dom.Node, old, new *THeadProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -980,10 +1243,11 @@ func TBody(props TBodyProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTableBody(doc)
 		},
-		update: func(el dom.Node, old, new TBodyProps) {
+		update: func(el dom.Node, old, new *TBodyProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -996,10 +1260,11 @@ func TFoot(props TFootProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTableFooter(doc)
 		},
-		update: func(el dom.Node, old, new TFootProps) {
+		update: func(el dom.Node, old, new *TFootProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -1012,10 +1277,11 @@ func TR(props TRProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTableRow(doc)
 		},
-		update: func(el dom.Node, old, new TRProps) {
+		update: func(el dom.Node, old, new *TRProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -1064,17 +1330,23 @@ func TD(props TDProps, children ...Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewTableCell(doc)
 		},
-		update: func(el dom.Node, old, new TDProps) {
+		update: func(el dom.Node, old, new *TDProps) {
 			td := el.(*element.TableCellElement)
-			updateElementBase(td, old.elementProps(), new.elementProps())
-			if old.ColSpan != new.ColSpan {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(td, &oldEp, &newEp)
+			if (old == nil || old.ColSpan != new.ColSpan) {
 				td.SetColSpan(new.ColSpan)
 			}
-			if old.RowSpan != new.RowSpan {
+			if (old == nil || old.RowSpan != new.RowSpan) {
 				td.SetRowSpan(new.RowSpan)
 			}
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -1087,10 +1359,11 @@ func Br(props BrProps) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewBr(doc)
 		},
-		update: func(el dom.Node, old, new BrProps) {
+		update: func(el dom.Node, old, new *BrProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: 1,
 	}, 1)
 }
 
@@ -1151,10 +1424,15 @@ func Overlay(props OverlayProps, content Node) Node {
 			}
 			return element.NewOverlay(doc, nil, config)
 		},
-		update: func(el dom.Node, old, new OverlayProps) {
+		update: func(el dom.Node, old, new *OverlayProps) {
 			o := el.(*element.OverlayElement)
-			updateElementBase(o, old.elementProps(), new.elementProps())
-			if old.Anchor != new.Anchor || old.ZIndex != new.ZIndex || old.Placement != new.Placement || old.Flip != new.Flip {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(o, &oldEp, &newEp)
+			if old == nil || (old.Anchor != new.Anchor || old.ZIndex != new.ZIndex || old.Placement != new.Placement || old.Flip != new.Flip) {
 				config := element.OverlayConfig{
 					Anchor:    new.Anchor,
 					ZIndex:    new.ZIndex,
@@ -1164,7 +1442,8 @@ func Overlay(props OverlayProps, content Node) Node {
 				o.SetConfig(config)
 			}
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -1216,14 +1495,20 @@ func Dialog(props DialogProps, content Node) Node {
 		instantiate: func(doc dom.Document) dom.Node {
 			return element.NewDialog(doc, nil, props.ZIndex)
 		},
-		update: func(el dom.Node, old, new DialogProps) {
+		update: func(el dom.Node, old, new *DialogProps) {
 			d := el.(*element.DialogElement)
-			updateElementBase(d, old.elementProps(), new.elementProps())
-			if old.ZIndex != new.ZIndex {
+			var oldEp ElementProps
+			if old != nil {
+				oldEp = old.elementProps()
+			}
+			newEp := new.elementProps()
+			updateElementBase(d, &oldEp, &newEp)
+			if old == nil || old.ZIndex != new.ZIndex {
 				d.SetZIndex(new.ZIndex)
 			}
 		},
-		key: props.Key,
+		key:   props.Key,
+		score: buildElementScore(children),
 	}, 1)
 }
 
@@ -1268,6 +1553,12 @@ type ComponentNode[P any] struct {
 	dirty        bool
 	componentRef *componentRef
 	key          string
+
+	// Memoization: complexityScore holds the node count of the last rendered
+	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
+	// indicating that a deep props comparison is cheaper than a full re-render.
+	complexityScore int
+	shouldMemo      bool
 
 	declFile string
 	declLine int
@@ -1378,6 +1669,11 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
 	c.isFirst = false
 	popCurrentComponent()
 
+	// Compute the complexity of the rendered subtree and decide whether future
+	// updates should attempt memoization.
+	c.complexityScore = computeComplexity(c.rendered)
+	c.shouldMemo = c.complexityScore > memoComplexityThreshold
+
 	if c.rendered != nil {
 		c.ref = c.rendered.Instantiate(doc)
 	}
@@ -1393,6 +1689,8 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	c.hooks = oldComp.hooks
 	c.isFirst = false
 	c.ref = oldComp.ref
+	c.complexityScore = oldComp.complexityScore
+	c.shouldMemo = oldComp.shouldMemo
 	c.componentRef = oldComp.componentRef
 	if c.componentRef == nil {
 		c.componentRef = &componentRef{node: c}
@@ -1403,10 +1701,25 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 		c.componentRef.mu.Unlock()
 	}
 
+	// Automatic memoization: when the rendered subtree is large enough and the
+	// new props are deeply equal to the old props, skip the RenderFn entirely
+	// and reuse the previously rendered subtree. The depth limit (3) caps the
+	// worst-case reflection time so the frame budget is never blown by a single
+	// pathological component.
+	if c.shouldMemo && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
+		c.rendered = oldComp.rendered
+		return
+	}
+
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
 	popCurrentComponent()
+
+	// Refresh the memoization score after re-rendering so it reflects the
+	// current subtree shape.
+	c.complexityScore = computeComplexity(c.rendered)
+	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 }
 
 func (c *ComponentNode[P]) getHookState(index int) (any, bool) {
@@ -1448,7 +1761,15 @@ func (c *ComponentNode[P]) ReRender() Node {
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
 	popCurrentComponent()
+	c.complexityScore = computeComplexity(c.rendered)
+	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 	return c.rendered
+}
+
+// complexity for a ComponentNode exposes the pre-computed score of its last
+// rendered subtree so parent elements can accumulate it accurately.
+func (c *ComponentNode[P]) complexity() int {
+	return c.complexityScore
 }
 
 // IsDirty returns whether the component is dirty.
@@ -1657,7 +1978,7 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 			PropsVal: props,
 			RenderFn: render,
 			isFirst:  true,
-			key:      getKey(props),
+			key:      getKey(&props),
 			declFile: declFile,
 			declLine: declLine,
 			instFile: instFile,
@@ -1693,7 +2014,7 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 			PropsVal: propsWithChildren,
 			RenderFn: render,
 			isFirst:  true,
-			key:      getKey(propsWithChildren),
+			key:      getKey(&propsWithChildren),
 			declFile: declFile,
 			declLine: declLine,
 			instFile: instFile,

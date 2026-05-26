@@ -160,6 +160,8 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **ADR documents** | `docs/adrs/` |
 | **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
 | **VDOM primitive wrappers & API** | `extras/kitex/kitex.go` |
+| **Kitex hooks (UseState, UseRef, UseMemo)** | `extras/kitex/hooks.go` |
+| **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/kitex.go` (memoization helpers section) |
 
 ## 📋 Task Workflow
 

@@ -183,14 +183,6 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 	// inserted before. Updated when Case 2 consumes an old-end match.
 	var insertBeforeRef dom.Node
 
-	// realOf returns the live DOM node for an old-VDOM entry by index.
-	realOf := func(idx int) dom.Node {
-		if idx < 0 || idx >= len(oldS) || oldS[idx] == nil {
-			return nil
-		}
-		return nodeMap[oldS[idx]]
-	}
-
 	for oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx {
 		for oldStartIdx <= oldEndIdx && oldS[oldStartIdx] == nil {
 			oldStartIdx++
@@ -209,7 +201,7 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 1: Old Start == New Start (no move needed)
 		if sameNode(oldStartNode, newStartNode) {
-			reconcile(parent, oldStartNode, newStartNode, realOf(oldStartIdx))
+			reconcile(parent, oldStartNode, newStartNode, getRealNode(oldStartIdx, oldS, nodeMap))
 			oldStartIdx++
 			newStartIdx++
 			continue
@@ -217,7 +209,7 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 2: Old End == New End (no move needed)
 		if sameNode(oldEndNode, newEndNode) {
-			domNode := realOf(oldEndIdx)
+			domNode := getRealNode(oldEndIdx, oldS, nodeMap)
 			reconcile(parent, oldEndNode, newEndNode, domNode)
 			// Any new nodes inserted between start and end must go before this.
 			insertBeforeRef = domNode
@@ -228,9 +220,9 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 3: Old Start goes to New End → move it after current oldEnd
 		if sameNode(oldStartNode, newEndNode) {
-			domNode := realOf(oldStartIdx)
+			domNode := getRealNode(oldStartIdx, oldS, nodeMap)
 			reconcile(parent, oldStartNode, newEndNode, domNode)
-			afterEnd := realOf(oldEndIdx)
+			afterEnd := getRealNode(oldEndIdx, oldS, nodeMap)
 			if afterEnd != nil {
 				parent.InsertBefore(domNode, afterEnd.NextSibling())
 			} else {
@@ -244,9 +236,9 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 
 		// Case 4: Old End goes to New Start → move it before current oldStart
 		if sameNode(oldEndNode, newStartNode) {
-			domNode := realOf(oldEndIdx)
+			domNode := getRealNode(oldEndIdx, oldS, nodeMap)
 			reconcile(parent, oldEndNode, newStartNode, domNode)
-			parent.InsertBefore(domNode, realOf(oldStartIdx))
+			parent.InsertBefore(domNode, getRealNode(oldStartIdx, oldS, nodeMap))
 			oldS[oldEndIdx] = nil
 			oldEndIdx--
 			newStartIdx++
@@ -283,11 +275,11 @@ func reconcileChildren(parent dom.Element, oldChildren, newChildren []Node) {
 		if matchedIdx != -1 {
 			matchedReal := nodeMap[oldS[matchedIdx]]
 			reconcile(parent, oldS[matchedIdx], newStartNode, matchedReal)
-			parent.InsertBefore(matchedReal, realOf(oldStartIdx))
+			parent.InsertBefore(matchedReal, getRealNode(oldStartIdx, oldS, nodeMap))
 			oldS[matchedIdx] = nil
 		} else {
 			newReal := newStartNode.Instantiate(parent.OwnerDocument())
-			parent.InsertBefore(newReal, realOf(oldStartIdx))
+			parent.InsertBefore(newReal, getRealNode(oldStartIdx, oldS, nodeMap))
 		}
 		newStartIdx++
 	}
@@ -340,4 +332,11 @@ func sameNode(n1, n2 Node) bool {
 		return false
 	}
 	return n1.TagName() == n2.TagName() && n1.Key() == n2.Key()
+}
+
+func getRealNode(idx int, oldS []Node, nodeMap map[Node]dom.Node) dom.Node {
+	if idx < 0 || idx >= len(oldS) || oldS[idx] == nil {
+		return nil
+	}
+	return nodeMap[oldS[idx]]
 }

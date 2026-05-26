@@ -94,3 +94,107 @@ func BenchmarkComponentUpdate(b *testing.B) {
 		node1 = node2
 	}
 }
+
+// --- Memoization benchmarks ---------------------------------------------------
+
+// buildRichTree creates a component that renders a deeply nested tree with score > 5.
+// This simulates a realistic "complex" component that would benefit from memoization.
+func buildRichTree(label string) Node {
+	return Box(BoxProps{},
+		Span(SpanProps{}, Text(label)),
+		Box(BoxProps{},
+			Text("row1-col1"), Text("row1-col2"),
+		),
+		Box(BoxProps{},
+			Text("row2-col1"), Text("row2-col2"),
+		),
+	)
+}
+
+// BenchmarkMemoizedUpdateIdenticalProps measures the cost of Update() when
+// memoization fires — i.e., shouldMemo=true and props are deeply equal.
+// In this path the RenderFn is skipped entirely; only a deepEqualProps reflection
+// walk is performed.
+//
+// Performance delta vs BenchmarkMemoizedUpdateChangedProps (below) documents the
+// savings that automatic memoization delivers on complex subtrees.
+func BenchmarkMemoizedUpdateIdenticalProps(b *testing.B) {
+	doc := dom.NewDocument()
+
+	type RichProps struct{ Label string }
+
+	myComp := FC("RichComp", func(props RichProps) Node {
+		return buildRichTree(props.Label)
+	})
+
+	node1 := myComp(RichProps{Label: "hello"})
+	realNode := node1.Instantiate(doc)
+
+	// Confirm memoization is active.
+	comp := node1.(*ComponentNode[RichProps])
+	if !comp.shouldMemo {
+		b.Fatalf("shouldMemo must be true for this benchmark (score=%d)", comp.complexityScore)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		node2 := myComp(RichProps{Label: "hello"}) // identical props
+		node2.Update(realNode, node1)
+		node1 = node2
+	}
+}
+
+// BenchmarkMemoizedUpdateChangedProps measures the cost of Update() when props
+// differ and the RenderFn must execute. This is the baseline (no memo saving).
+func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
+	doc := dom.NewDocument()
+
+	type RichProps struct{ Label string }
+
+	myComp := FC("RichComp", func(props RichProps) Node {
+		return buildRichTree(props.Label)
+	})
+
+	node1 := myComp(RichProps{Label: "hello"})
+	realNode := node1.Instantiate(doc)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Alternate labels so props always differ, defeating the memo.
+		label := "hello"
+		if i%2 == 0 {
+			label = "world"
+		}
+		node2 := myComp(RichProps{Label: label})
+		node2.Update(realNode, node1)
+		node1 = node2
+	}
+}
+
+// BenchmarkUseMemoHitRate measures how fast UseMemo returns a cached value
+// when deps do not change between renders (the common hot path).
+func BenchmarkUseMemoHitRate(b *testing.B) {
+	doc := dom.NewDocument()
+
+	myComp := FC("UseMemoComp", func(props struct{}) Node {
+		_ = UseMemo(func() []int {
+			// Simulated "expensive" computation.
+			out := make([]int, 100)
+			for i := range out {
+				out[i] = i * i
+			}
+			return out
+		}, []any{"stable-key"})
+		return Box(BoxProps{})
+	})
+
+	node1 := myComp(struct{}{})
+	realNode := node1.Instantiate(doc)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		node2 := myComp(struct{}{})
+		node2.Update(realNode, node1)
+		node1 = node2
+	}
+}

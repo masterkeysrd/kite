@@ -73,4 +73,4 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-058 | Kitex VDOM Reconciler Engine | Done | `tasks/TSK-058-kitex-reconciler.md` |
 | TSK-059 | Kitex Ref Standardization | Done | `tasks/TSK-059-kitex-ref-standardization.md` |
 | TSK-060 | Kitex DevTools Integration | Done | `tasks/TSK-060-kitex-devtools-integration.md` |
-| TSK-061 | Kitex Automatic Component Memoization | Pending | `tasks/TSK-061-kitex-memoization.md` |
+| TSK-061 | Kitex Automatic Component Memoization | Done | `tasks/TSK-061-kitex-memoization.md` |
