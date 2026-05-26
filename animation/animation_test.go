@@ -4,6 +4,8 @@ import (
 	"image/color"
 	"testing"
 	"time"
+
+	"github.com/masterkeysrd/kite/style"
 )
 
 func TestEasingFunctions(t *testing.T) {
@@ -113,4 +115,80 @@ func TestTween(t *testing.T) {
 	if !finished {
 		t.Error("tween did not report finished after duration expired")
 	}
+}
+
+func TestInterpolateGridTracks(t *testing.T) {
+	t.Run("Same Kind Interpolation", func(t *testing.T) {
+		start := []style.GridTrackSize{style.Fr(1)}
+		end := []style.GridTrackSize{style.Fr(3)}
+		result := InterpolateGridTracks(start, end, 0.5)
+
+		if len(result) != 1 {
+			t.Fatalf("expected length 1, got %d", len(result))
+		}
+		if result[0].Kind() != style.KindFr {
+			t.Fatalf("expected KindFr, got %v", result[0].Kind())
+		}
+		if result[0].FrValue() != 2.0 {
+			t.Errorf("expected 2.0fr, got %f", result[0].FrValue())
+		}
+	})
+
+	t.Run("Different Kinds Snap", func(t *testing.T) {
+		start := []style.GridTrackSize{style.Auto}
+		end := []style.GridTrackSize{style.Fr(1)}
+
+		// Progress < 0.5: snap to start
+		res1 := InterpolateGridTracks(start, end, 0.4)
+		if len(res1) != 1 || res1[0].Kind() != style.KindAuto {
+			t.Errorf("expected [Auto] at progress 0.4, got %v", res1)
+		}
+
+		// Progress >= 0.5: snap to end
+		res2 := InterpolateGridTracks(start, end, 0.5)
+		if len(res2) != 1 || res2[0].Kind() != style.KindFr || res2[0].FrValue() != 1.0 {
+			t.Errorf("expected [1fr] at progress 0.5, got %v", res2)
+		}
+	})
+
+	t.Run("Different Lengths", func(t *testing.T) {
+		start := []style.GridTrackSize{style.Fr(1)}
+		end := []style.GridTrackSize{style.Fr(3), style.Cells(10)}
+
+		// Progress < 0.5
+		res1 := InterpolateGridTracks(start, end, 0.4)
+		if len(res1) != 1 {
+			t.Fatalf("expected length 1 at progress 0.4, got %d", len(res1))
+		}
+		if res1[0].FrValue() != 1.8 { // 1 + (3-1)*0.4 = 1.8
+			t.Errorf("expected 1.8fr, got %f", res1[0].FrValue())
+		}
+
+		// Progress >= 0.5
+		res2 := InterpolateGridTracks(start, end, 0.5)
+		if len(res2) != 2 {
+			t.Fatalf("expected length 2 at progress 0.5, got %d", len(res2))
+		}
+		if res2[0].FrValue() != 2.0 { // 1 + (3-1)*0.5 = 2.0
+			t.Errorf("expected 2.0fr, got %f", res2[0].FrValue())
+		}
+		if res2[1].Kind() != style.KindCells || res2[1].CellsValue() != 10 {
+			t.Errorf("expected 10 cells, got %v", res2[1])
+		}
+	})
+
+	t.Run("Empty to Non-Empty", func(t *testing.T) {
+		start := []style.GridTrackSize{}
+		end := []style.GridTrackSize{style.Fr(1)}
+
+		res1 := InterpolateGridTracks(start, end, 0.4)
+		if len(res1) != 0 {
+			t.Errorf("expected length 0, got %d", len(res1))
+		}
+
+		res2 := InterpolateGridTracks(start, end, 0.5)
+		if len(res2) != 1 || res2[0].FrValue() != 1.0 {
+			t.Errorf("expected [1fr], got %v", res2)
+		}
+	})
 }

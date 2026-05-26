@@ -59,7 +59,7 @@ func main() {
 	})
 
 	devtools.Install(eng, devtools.Options{})
-	
+
 	fmt.Println("Starting Grid Example...")
 	fmt.Println("Press [SPACE] or [N] to switch views, [Q] to quit.")
 

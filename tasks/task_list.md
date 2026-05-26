@@ -67,7 +67,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-052 | CSS Grid Style API | Done | `tasks/TSK-052-grid-style-api.md` |
 | TSK-053 | Grid Builder and Auto-Placement | Done | `tasks/TSK-053-grid-builder-placement.md` |
 | TSK-054 | Grid Layout Algorithm | Done | `tasks/TSK-054-grid-algorithm.md` |
-| TSK-055 | Grid Animation Interpolator | Pending | `tasks/TSK-055-grid-animator.md` |
+| TSK-055 | Grid Animation Interpolator | Done | `tasks/TSK-055-grid-animator.md` |
 | TSK-056 | Kitex VDOM Primitive Factories | Done | `tasks/TSK-056-kitex-vdom-primitives.md` |
 | TSK-057 | Kitex FC & Implicit Hooks Context | Done | `tasks/TSK-057-kitex-hooks-context.md` |
 | TSK-058 | Kitex VDOM Reconciler Engine | Done | `tasks/TSK-058-kitex-reconciler.md` |

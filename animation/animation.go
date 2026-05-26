@@ -3,6 +3,8 @@ package animation
 import (
 	"image/color"
 	"time"
+
+	"github.com/masterkeysrd/kite/style"
 )
 
 // Animator represents an animation that can be ticked over time.
@@ -119,4 +121,80 @@ func (t *Tween[T]) Tick(dt time.Duration) bool {
 	current := t.Interp(t.Start, t.End, eased)
 	t.OnUpdate(current)
 	return false
+}
+
+// InterpolateGridTracks interpolates between two slices of GridTrackSize.
+// It iterates through the tracks matching by index.
+// If start and end tracks are of the same Kind, their values are interpolated based on progress.
+// If they are of different kinds, or if the slice lengths differ, it snaps to start (if progress < 0.5)
+// or end (if progress >= 0.5).
+func InterpolateGridTracks(start, end []style.GridTrackSize, progress float64) []style.GridTrackSize {
+	maxLen := len(start)
+	if len(end) > maxLen {
+		maxLen = len(end)
+	}
+
+	resultLen := len(start)
+	if progress >= 0.5 {
+		resultLen = len(end)
+	}
+
+	result := make([]style.GridTrackSize, 0, resultLen)
+
+	for i := 0; i < maxLen; i++ {
+		sExists := i < len(start)
+		eExists := i < len(end)
+
+		var track style.GridTrackSize
+		addTrack := false
+
+		if sExists && eExists {
+			s := start[i]
+			e := end[i]
+
+			if s.Kind() == e.Kind() {
+				switch s.Kind() {
+				case style.KindCells:
+					track = style.Cells(IntInterpolator(s.CellsValue(), e.CellsValue(), progress))
+					addTrack = true
+				case style.KindPercent:
+					track = style.Percent(float32(FloatInterpolator(float64(s.PercentValue()), float64(e.PercentValue()), progress)))
+					addTrack = true
+				case style.KindFr:
+					track = style.Fr(float32(FloatInterpolator(float64(s.FrValue()), float64(e.FrValue()), progress)))
+					addTrack = true
+				default:
+					if progress < 0.5 {
+						track = s
+					} else {
+						track = e
+					}
+					addTrack = true
+				}
+			} else {
+				if progress < 0.5 {
+					track = s
+				} else {
+					track = e
+				}
+				addTrack = true
+			}
+		} else if sExists {
+			if progress < 0.5 {
+				track = start[i]
+				addTrack = true
+			}
+		} else if eExists {
+			if progress >= 0.5 {
+				track = end[i]
+				addTrack = true
+			}
+		}
+
+		if addTrack {
+			result = append(result, track)
+		}
+	}
+
+	return result
 }
