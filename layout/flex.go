@@ -1,22 +1,19 @@
 package layout
 
 import (
-	"iter"
 	"slices"
 
 	"github.com/masterkeysrd/kite/style"
 )
 
-// FlexAlgorithm implements the Flexbox formatting context layout.
-type FlexAlgorithm struct {
-	Node  Node
-	Space ConstraintSpace
-}
+// FlexAlgorithm implements the CSS Flexbox formatting context layout.
+type FlexAlgorithm struct{}
 
 // AnonymousBlock represents an anonymous box created to wrap contiguous runs of inline content.
 type AnonymousBlock struct {
 	parent      Node
-	children    []Node
+	firstChild  Node
+	nextMap     map[Node]Node
 	cachedSpace ConstraintSpace
 }
 
@@ -37,14 +34,12 @@ func (a *AnonymousBlock) Style() *style.Computed {
 	return &s
 }
 
-func (a *AnonymousBlock) LayoutChildren() iter.Seq[Node] {
-	return func(yield func(Node) bool) {
-		for _, child := range a.children {
-			if !yield(child) {
-				return
-			}
-		}
-	}
+func (a *AnonymousBlock) FirstLayoutChild() Node {
+	return a.firstChild
+}
+
+func (a *AnonymousBlock) NextLayoutSibling(child Node) Node {
+	return a.nextMap[child]
 }
 
 func (a *AnonymousBlock) LogicalNode() any         { return nil }
@@ -60,12 +55,7 @@ func (a *AnonymousBlock) CachedLayout(space ConstraintSpace) *Fragment {
 
 func (a *AnonymousBlock) Layout(ctx *Context) *Fragment {
 	// AnonymousBlock uses BlockAlgorithm to layout its IFC.
-	// We need to resolve the algorithm manually because NewAlgorithm would return us (recursive).
-	algo := &BlockAlgorithm{
-		Node:  a,
-		Space: a.cachedSpace,
-	}
-	return algo.Layout(ctx)
+	return blockAlgo.Layout(ctx, a, a.cachedSpace)
 }
 
 func (a *AnonymousBlock) SetCachedLayout(space ConstraintSpace, frag *Fragment) {
@@ -86,30 +76,31 @@ func (a *AnonymousBlock) IsAnonymous() bool {
 
 func (a *AnonymousBlock) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	// BlockAlgorithm's ComputeMinMaxSizes logic for IFC:
-	inlineBuilder := NewInlineItemsBuilder(defaultShaper, a)
-	for _, child := range a.children {
+	inlineBuilder := AcquireInlineItemsBuilder(defaultShaper, a)
+	defer ReleaseInlineItemsBuilder(inlineBuilder)
+	for child := a.FirstLayoutChild(); child != nil; child = a.NextLayoutSibling(child) {
 		inlineBuilder.collect(child)
 	}
 	return ComputeInlineMinMaxSizes(ctx, inlineBuilder.items)
 }
 
 // ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
-func (a *FlexAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
+func (a *FlexAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	if sizes, ok := node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
 	defer ctx.Begin("Layout(Flex):ComputeMinMaxSizes")()
 
-	comp := a.Node.Style()
+	comp := node.Style()
 	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
-	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
+	decor := ResolveDecorations(node, hasScrollbarX, hasScrollbarY)
 
 	gap := comp.Gap
 
 	if comp.Width.Kind() == style.KindCells {
 		val := comp.Width.CellsValue()
 		result := MinMaxSizes{Min: val, Max: val}
-		a.Node.SetCachedMinMaxSizes(result)
+		node.SetCachedMinMaxSizes(result)
 		return result
 	}
 
@@ -117,7 +108,7 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	isRow := comp.FlexDirection == style.FlexRow || comp.FlexDirection == style.FlexRowReverse
 	geom := flexGeometry{direction: comp.FlexDirection}
 
-	items := a.collectItems(ctx, geom)
+	items := a.collectItems(ctx, node, ConstraintSpace{}, geom)
 
 	if isRow {
 		// Row: Min = sum(child.min), Max = sum(child.max) + gaps
@@ -150,75 +141,75 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	}
 
 	result = result.Add(decor.Insets.Left + decor.Insets.Right)
-	a.Node.SetCachedMinMaxSizes(result)
+	node.SetCachedMinMaxSizes(result)
 	return result
 }
 
 // Layout executes the flex layout algorithm and returns an immutable Fragment.
-func (a *FlexAlgorithm) Layout(ctx *Context) *Fragment {
-	if cached := a.Node.CachedLayout(a.Space); cached != nil {
+func (a *FlexAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
+	if cached := node.CachedLayout(space); cached != nil {
 		return cached
 	}
 	defer ctx.Begin("Layout(Flex)")()
 
-	comp := a.Node.Style()
+	comp := node.Style()
 
 	// 1. Initial Scrollbar Decision
 	hasScrollbarX, hasScrollbarY := ShouldReserveScrollbar(comp)
 
-	frag, contentSize := a.layoutInternal(ctx, hasScrollbarX, hasScrollbarY)
+	frag, contentSize := a.layoutInternal(ctx, node, space, hasScrollbarX, hasScrollbarY)
 
 	// 2. Check for Auto Scrollbars
-	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
+	decor := ResolveDecorations(node, hasScrollbarX, hasScrollbarY)
 	viewport := decor.ViewportSize(frag.Size)
 
 	needY := !hasScrollbarY && comp.Scrollbar.Y.UnwrapOr(false) && comp.OverflowY == style.OverflowAuto && contentSize.Height > viewport.Height
 	needX := !hasScrollbarX && comp.Scrollbar.X.UnwrapOr(false) && comp.OverflowX == style.OverflowAuto && contentSize.Width > viewport.Width
 
 	if needY || needX {
-		frag, _ = a.layoutInternal(ctx, hasScrollbarX || needX, hasScrollbarY || needY)
+		frag, _ = a.layoutInternal(ctx, node, space, hasScrollbarX || needX, hasScrollbarY || needY)
 	}
 
-	a.Node.SetCachedLayout(a.Space, frag)
+	node.SetCachedLayout(space, frag)
 	return frag
 }
 
-func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbarY bool) (*Fragment, Size) {
-	comp := a.Node.Style()
+func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space ConstraintSpace, hasScrollbarX, hasScrollbarY bool) (*Fragment, Size) {
+	comp := node.Style()
 	geom := flexGeometry{direction: comp.FlexDirection}
-	decor := ResolveDecorations(a.Node, hasScrollbarX, hasScrollbarY)
+	decor := ResolveDecorations(node, hasScrollbarX, hasScrollbarY)
 
 	// 1. Resolve Container Main/Cross Sizes
 	var minMax MinMaxSizes
-	if !a.Space.IsFixedInlineSize {
-		minMax = a.ComputeMinMaxSizes(ctx)
+	if !space.IsFixedInlineSize {
+		minMax = a.ComputeMinMaxSizes(ctx, node)
 	}
 
-	resolvedWidth := a.Space.AvailableSize.Width
-	if !a.Space.IsFixedInlineSize {
+	resolvedWidth := space.AvailableSize.Width
+	if !space.IsFixedInlineSize {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedWidth = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedWidth = int(float32(space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedWidth = comp.Width.CellsValue()
 		case style.KindContent:
-			resolvedWidth = min(minMax.Max, a.Space.AvailableSize.Width)
+			resolvedWidth = min(minMax.Max, space.AvailableSize.Width)
 		case style.KindAuto:
 			if comp.Display == style.DisplayInlineFlex {
-				resolvedWidth = min(minMax.Max, a.Space.AvailableSize.Width)
+				resolvedWidth = min(minMax.Max, space.AvailableSize.Width)
 			} else {
-				resolvedWidth = a.Space.AvailableSize.Width
+				resolvedWidth = space.AvailableSize.Width
 			}
 		}
 	}
 	resolvedWidth = max(resolvedWidth, decor.Insets.Left+decor.Insets.Right)
 
-	resolvedHeight := a.Space.AvailableSize.Height
-	if !a.Space.IsFixedBlockSize {
+	resolvedHeight := space.AvailableSize.Height
+	if !space.IsFixedBlockSize {
 		switch comp.Height.Kind() {
 		case style.KindPercent:
-			if a.Space.ContainerSpace.Height < InfiniteBlockSize {
-				resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+			if space.ContainerSpace.Height < InfiniteBlockSize {
+				resolvedHeight = int(float32(space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
 			}
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
@@ -251,7 +242,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 	builder := AcquireFlexLineBuilder(geom, mainGap, crossGap)
 	defer ReleaseFlexLineBuilder(builder)
 
-	items := a.collectItems(ctx, geom)
+	items := a.collectItems(ctx, node, space, geom)
 
 	for _, item := range items {
 		childStyle := item.Node.Style()
@@ -353,28 +344,32 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 			flexContainingSpace := Size{Width: resolvedWidth, Height: resolvedHeight}
 			flexContainerSpace := Size{Width: contentWidth, Height: contentHeight}
 
-			childSpaceBuilder := NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
-			childSpaceBuilder.SetContainingSpace(flexContainingSpace)
-			childSpaceBuilder.SetContainerSpace(flexContainerSpace)
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpaceBuilder.SetIsFixedBlockSize(false)
+			childSpace := ConstraintSpace{
+				AvailableSize:     geom.MakeSize(childMainSize, measureCrossSize),
+				ContainingSpace:   flexContainingSpace,
+				ContainerSpace:    flexContainerSpace,
+				IsFixedInlineSize: true,
+				IsFixedBlockSize:  false,
+			}
 
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
-				childSpaceBuilder.SetIsFixedInlineSize(false)
-				childSpaceBuilder.SetIsFixedBlockSize(false)
+				childSpace.IsFixedInlineSize = false
+				childSpace.IsFixedBlockSize = false
 
 				if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(ctx, item.Node).Max, contentCrossSizeForItems)
-					childSpaceBuilder = NewConstraintSpaceBuilder(geom.MakeSize(childMainSize, measureCrossSize))
-					childSpaceBuilder.SetContainingSpace(flexContainingSpace)
-					childSpaceBuilder.SetContainerSpace(flexContainerSpace)
-					childSpaceBuilder.SetIsFixedInlineSize(true)
-					childSpaceBuilder.SetIsFixedBlockSize(false)
+					childSpace = ConstraintSpace{
+						AvailableSize:     geom.MakeSize(childMainSize, measureCrossSize),
+						ContainingSpace:   flexContainingSpace,
+						ContainerSpace:    flexContainerSpace,
+						IsFixedInlineSize: true,
+						IsFixedBlockSize:  false,
+					}
 				}
 			}
 
-			childAlgo := NewAlgorithm(item.Node, childSpaceBuilder.ToConstraintSpace())
-			item.Fragment = childAlgo.Layout(ctx)
+			childAlgo := GetAlgorithm(item.Node)
+			item.Fragment = childAlgo.Layout(ctx, item.Node, childSpace)
 
 			item.MainSize = geom.MainSize(item.Fragment.Size)
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
@@ -408,7 +403,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 	}
 
 	// Resolve the final physical dimensions.
-	if !a.Space.IsFixedInlineSize {
+	if !space.IsFixedInlineSize {
 		if comp.Width.Kind() == style.KindAuto {
 			if comp.Display == style.DisplayInlineFlex {
 				var logicalWidth int
@@ -417,9 +412,9 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 				} else {
 					logicalWidth = totalMaxLineMain
 				}
-				resolvedWidth = min(logicalWidth+decor.Insets.Left+decor.Insets.Right, a.Space.AvailableSize.Width)
+				resolvedWidth = min(logicalWidth+decor.Insets.Left+decor.Insets.Right, space.AvailableSize.Width)
 			} else {
-				resolvedWidth = a.Space.AvailableSize.Width
+				resolvedWidth = space.AvailableSize.Width
 			}
 		} else if comp.Width.Kind() == style.KindContent {
 			var logicalWidth int
@@ -428,12 +423,12 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 			} else {
 				logicalWidth = totalMaxLineMain
 			}
-			resolvedWidth = min(logicalWidth+decor.Insets.Left+decor.Insets.Right, a.Space.AvailableSize.Width)
+			resolvedWidth = min(logicalWidth+decor.Insets.Left+decor.Insets.Right, space.AvailableSize.Width)
 		}
 	}
 
-	if !a.Space.IsFixedBlockSize {
-		isIndefinitePercent := comp.Height.Kind() == style.KindPercent && a.Space.ContainerSpace.Height >= InfiniteBlockSize
+	if !space.IsFixedBlockSize {
+		isIndefinitePercent := comp.Height.Kind() == style.KindPercent && space.ContainerSpace.Height >= InfiniteBlockSize
 		if comp.Height.Kind() == style.KindAuto || comp.Height.Kind() == style.KindContent || isIndefinitePercent {
 			var logicalHeight int
 			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
@@ -462,12 +457,12 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 	var breakToken *BreakToken
 	extraCross := contentCrossSizeForItems - totalSumLineCross
 
-	if extraCross < 0 && a.Space.IsFixedBlockSize {
+	if extraCross < 0 && space.IsFixedBlockSize {
 		currentTotalCross := 0
 		breakLineIndex := -1
 		itemsToSkip := 0
-		if a.Space.BreakToken != nil {
-			itemsToSkip = a.Space.BreakToken.ChildIndex
+		if space.BreakToken != nil {
+			itemsToSkip = space.BreakToken.ChildIndex
 		}
 
 		for i, line := range lines {
@@ -486,14 +481,14 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, hasScrollbarX, hasScrollbar
 
 		if breakLineIndex != -1 && breakLineIndex > 0 {
 			breakToken = &BreakToken{
-				Node:       a.Node,
+				Node:       node,
 				ChildIndex: itemsToSkip,
 			}
 			lines = lines[:breakLineIndex]
 		}
 	}
 
-	fragBuilder := AcquireBoxFragmentBuilder(a.Node, a.Space)
+	fragBuilder := AcquireBoxFragmentBuilder(node, space)
 	fragBuilder.SetInlineSize(resolvedWidth)
 	fragBuilder.SetBlockSize(resolvedHeight)
 	fragBuilder.SetBreakToken(breakToken)
@@ -519,55 +514,46 @@ func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
 	return IsInlineLevel(node)
 }
 
-func (a *FlexAlgorithm) collectItems(ctx *Context, geom flexGeometry) []*FlexItem {
+func (a *FlexAlgorithm) collectItems(ctx *Context, node Node, space ConstraintSpace, geom flexGeometry) []*FlexItem {
 	var allItems []*FlexItem
 
-	children := a.Node.LayoutChildren()
-	nextChild, stop := iter.Pull(children)
-	defer stop()
+	// Refactored to avoid iter.Pull and closures
+	var bufferedInlines []Node
 
-	child, ok := nextChild()
-	for ok {
+	processInlines := func() {
+		if len(bufferedInlines) == 0 {
+			return
+		}
+		anon := &AnonymousBlock{
+			parent:  node,
+			nextMap: make(map[Node]Node),
+		}
+		anon.firstChild = bufferedInlines[0]
+		for i := 0; i < len(bufferedInlines)-1; i++ {
+			anon.nextMap[bufferedInlines[i]] = bufferedInlines[i+1]
+		}
+		bufferedInlines = bufferedInlines[:0]
+
+		childStyle := anon.Style()
+		item := &FlexItem{
+			Node:   anon,
+			Grow:   childStyle.Flex.Grow,
+			Shrink: childStyle.Flex.Shrink,
+		}
+		allItems = append(allItems, item)
+	}
+
+	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
 		if child.Style().Display == style.DisplayNone {
-			child, ok = nextChild()
 			continue
 		}
 
 		if a.isInlineLevel(child) {
-			anon := &AnonymousBlock{
-				parent: a.Node,
-			}
-			anon.children = append(anon.children, child)
-
-			for {
-				peek, peekOk := nextChild()
-				if !peekOk {
-					child = nil
-					ok = false
-					break
-				}
-				if a.isInlineLevel(peek) {
-					anon.children = append(anon.children, peek)
-				} else {
-					child = peek
-					ok = true
-					break
-				}
-			}
-
-			childStyle := anon.Style()
-			item := &FlexItem{
-				Node:   anon,
-				Grow:   childStyle.Flex.Grow,
-				Shrink: childStyle.Flex.Shrink,
-			}
-			allItems = append(allItems, item)
-
-			if !ok {
-				break
-			}
+			bufferedInlines = append(bufferedInlines, child)
 			continue
 		}
+
+		processInlines()
 
 		childStyle := child.Style()
 		item := &FlexItem{
@@ -577,9 +563,9 @@ func (a *FlexAlgorithm) collectItems(ctx *Context, geom flexGeometry) []*FlexIte
 			Order:  childStyle.Order,
 		}
 		allItems = append(allItems, item)
-
-		child, ok = nextChild()
 	}
+
+	processInlines()
 
 	// Sort by order
 	slices.SortFunc(allItems, func(a, b *FlexItem) int {
@@ -594,8 +580,8 @@ func (a *FlexAlgorithm) collectItems(ctx *Context, geom flexGeometry) []*FlexIte
 	}
 
 	startIndex := 0
-	if a.Space.BreakToken != nil {
-		startIndex = a.Space.BreakToken.ChildIndex
+	if space.BreakToken != nil {
+		startIndex = space.BreakToken.ChildIndex
 	}
 
 	if startIndex >= len(allItems) {

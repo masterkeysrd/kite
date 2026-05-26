@@ -1,33 +1,28 @@
 package layout
 
 import (
-	"iter"
-
 	"github.com/masterkeysrd/kite/style"
 )
 
 // TableAlgorithm implements the DisplayTable layout.
-type TableAlgorithm struct {
-	Node  Node
-	Space ConstraintSpace
-}
+type TableAlgorithm struct{}
 
 // Layout executes the two-pass table layout algorithm and returns an immutable Fragment.
-func (a *TableAlgorithm) Layout(ctx *Context) *Fragment {
-	if cached := a.Node.CachedLayout(a.Space); cached != nil {
+func (a *TableAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
+	if cached := node.CachedLayout(space); cached != nil {
 		return cached
 	}
 	defer ctx.Begin("Layout(Table)")()
 
-	comp := a.Node.Style()
+	comp := node.Style()
 	border := comp.Border.Widths()
 	padding := comp.Padding
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
 
 	// Pass 1: Grid Sizing
-	builder := AcquireTableFragmentBuilder(a.Node, a.Space)
+	builder := AcquireTableFragmentBuilder(node, space)
 	defer ReleaseTableFragmentBuilder(builder)
-	for child := range a.Node.LayoutChildren() {
+	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
 		display := child.Style().Display
 		switch display {
 		case style.DisplayTableHeaderGroup:
@@ -54,167 +49,7 @@ func (a *TableAlgorithm) Layout(ctx *Context) *Fragment {
 		tableMinMax.Max += m.Max
 	}
 
-	// Subtract collapsed border widths: only junctions where both adjacent cells
-	// actually have touching borders, plus table-edge overlaps.
-	for _, overlap := range builder.grid.ColJunctionOverlap {
-		if overlap {
-			tableMinMax.Min--
-			tableMinMax.Max--
-		}
-	}
-	if builder.grid.LeftEdgeHasOverlap {
-		tableMinMax.Min--
-		tableMinMax.Max--
-	}
-	if builder.grid.RightEdgeHasOverlap {
-		tableMinMax.Min--
-		tableMinMax.Max--
-	}
-
-	// Add padding and borders (overlaps are subtracted above).
-	tableMinMax.Min += parentDecorX
-	tableMinMax.Max += parentDecorX
-
-	if a.Space.IsFixedInlineSize {
-		resolvedInlineSize = a.Space.AvailableSize.Width
-	} else {
-		switch comp.Width.Kind() {
-		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
-		case style.KindCells:
-			resolvedInlineSize = comp.Width.CellsValue()
-		case style.KindAuto:
-			// Shrink to fit, up to available width
-			resolvedInlineSize = min(max(tableMinMax.Min, a.Space.AvailableSize.Width), tableMinMax.Max)
-		case style.KindContent:
-			resolvedInlineSize = tableMinMax.Max
-		default:
-			resolvedInlineSize = tableMinMax.Max
-		}
-	}
-	resolvedInlineSize = max(resolvedInlineSize, tableMinMax.Min)
-
-	// Distribute extra width among columns
-	builder.ResolveWidths(resolvedInlineSize, parentDecorX)
-	builder.boxBuilder.SetInlineSize(resolvedInlineSize)
-
-	// Pass 2: Layout Sections
-	// Determine the horizontal inset and available width for sections.
-	// When the table's left or right border overlaps with cell borders (border-collapse),
-	// the section expands to cover those border columns instead of being inset past them.
-	sectionInsetX := border.Left + padding.Left
-	childAvailWidthBase := resolvedInlineSize - parentDecorX
-	if builder.grid.LeftEdgeHasOverlap {
-		sectionInsetX = padding.Left // no extra left-border gap; cells share the border column
-		childAvailWidthBase += border.Left
-	}
-	if builder.grid.RightEdgeHasOverlap {
-		childAvailWidthBase += border.Right
-	}
-
-	rowIdx := 0
-	for _, sectionNode := range builder.Sections() {
-		childAvailWidth := childAvailWidthBase
-		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-padding.Top-padding.Bottom)
-
-		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetContainingSpace(Size{Width: resolvedInlineSize, Height: a.Space.AvailableSize.Height})
-		childSpaceBuilder.SetContainerSpace(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetIsFixedInlineSize(true)
-
-		childSpace := childSpaceBuilder.ToConstraintSpace()
-		childAlgo := NewAlgorithm(sectionNode, childSpace)
-
-		numRows := 0
-		for range sectionNode.LayoutChildren() {
-			numRows++
-		}
-
-		if sectionAlgo, ok := childAlgo.(*TableSectionAlgorithm); ok {
-			sectionAlgo.Builder = builder
-			sectionAlgo.ColumnWidths = builder.colWidths
-			if rowIdx+numRows <= len(builder.grid.Rows) {
-				sectionAlgo.RowsData = builder.grid.Rows[rowIdx : rowIdx+numRows]
-			}
-			rowIdx += numRows
-		} else if rowAlgo, ok := childAlgo.(*TableRowAlgorithm); ok {
-			rowAlgo.Builder = builder
-			rowAlgo.ColumnWidths = builder.colWidths
-			if rowIdx < len(builder.grid.Rows) {
-				rowAlgo.RowData = builder.grid.Rows[rowIdx]
-			}
-			rowIdx++
-		}
-
-		childFrag := childAlgo.Layout(ctx)
-		offset := Point{
-			X: sectionInsetX,
-			Y: builder.CurrentBlockOffset(),
-		}
-
-		builder.boxBuilder.AddChild(childFrag, offset)
-		builder.AdvanceBlockOffset(childFrag.Size.Height)
-	}
-
-	lastRowHasBottom := builder.lastRowBorderBottom
-	tableHasBottom := comp.Border.Edges.Bottom
-
-	bottomDecor := border.Bottom + padding.Bottom
-	if lastRowHasBottom && tableHasBottom {
-		bottomDecor -= 1
-	}
-	builder.AdvanceBlockOffset(bottomDecor)
-
-	if a.Space.IsFixedBlockSize {
-		builder.SetBlockSize(a.Space.AvailableSize.Height)
-	} else {
-		resolvedHeight := builder.CurrentBlockOffset()
-		if comp.Height.Kind() == style.KindCells {
-			resolvedHeight = max(resolvedHeight, comp.Height.CellsValue())
-		}
-		builder.SetBlockSize(resolvedHeight)
-	}
-
-	frag := builder.ToFragment()
-	a.Node.SetCachedLayout(a.Space, frag)
-	return frag
-}
-
-func (a *TableAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
-		return sizes
-	}
-	defer ctx.Begin("Layout(Table):ComputeMinMaxSizes")()
-
-	builder := NewTableFragmentBuilder(a.Node, a.Space)
-	for child := range a.Node.LayoutChildren() {
-		display := child.Style().Display
-		switch display {
-		case style.DisplayTableHeaderGroup:
-			builder.AddHeaderChild(child)
-		case style.DisplayTableFooterGroup:
-			builder.AddFooterChild(child)
-		case style.DisplayTableRowGroup:
-			builder.AddBodyChild(child)
-		case style.DisplayTableRow:
-			builder.AddRowChild(child)
-		default:
-			builder.AddNonRowChild(child)
-		}
-	}
-	builder.BuildGrid(ctx)
-
-	comp := a.Node.Style()
-	colMinMax := builder.colMinMax
-	borderX := comp.Border.Widths()
-	parentDecorX := borderX.Left + borderX.Right + comp.Padding.Left + comp.Padding.Right
-	var tableMinMax MinMaxSizes
-	for _, m := range colMinMax {
-		tableMinMax.Min += m.Min
-		tableMinMax.Max += m.Max
-	}
-
-	// Subtract collapsed border widths: only actual junction overlaps.
+	// Subtract collapsed border widths.
 	for _, overlap := range builder.grid.ColJunctionOverlap {
 		if overlap {
 			tableMinMax.Min--
@@ -234,56 +69,203 @@ func (a *TableAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	tableMinMax.Min += parentDecorX
 	tableMinMax.Max += parentDecorX
 
-	a.Node.SetCachedMinMaxSizes(tableMinMax)
+	if space.IsFixedInlineSize {
+		resolvedInlineSize = space.AvailableSize.Width
+	} else {
+		switch comp.Width.Kind() {
+		case style.KindPercent:
+			resolvedInlineSize = int(float32(space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
+		case style.KindCells:
+			resolvedInlineSize = comp.Width.CellsValue()
+		case style.KindAuto:
+			resolvedInlineSize = min(max(tableMinMax.Min, space.AvailableSize.Width), tableMinMax.Max)
+		case style.KindContent:
+			resolvedInlineSize = tableMinMax.Max
+		default:
+			resolvedInlineSize = tableMinMax.Max
+		}
+	}
+	resolvedInlineSize = max(resolvedInlineSize, tableMinMax.Min)
+
+	// Distribute extra width among columns
+	builder.ResolveWidths(resolvedInlineSize, parentDecorX)
+	builder.boxBuilder.SetInlineSize(resolvedInlineSize)
+
+	// Pass 2: Layout Sections
+	sectionInsetX := border.Left + padding.Left
+	childAvailWidthBase := resolvedInlineSize - parentDecorX
+	if builder.grid.LeftEdgeHasOverlap {
+		sectionInsetX = padding.Left
+		childAvailWidthBase += border.Left
+	}
+	if builder.grid.RightEdgeHasOverlap {
+		childAvailWidthBase += border.Right
+	}
+
+	rowIdx := 0
+	for _, sectionNode := range builder.Sections() {
+		childAvailWidth := childAvailWidthBase
+		childAvailHeight := max(0, space.AvailableSize.Height-builder.CurrentBlockOffset()-padding.Top-padding.Bottom)
+
+		childSpace := ConstraintSpace{
+			AvailableSize:     Size{Width: childAvailWidth, Height: childAvailHeight},
+			ContainingSpace:   Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height},
+			ContainerSpace:    Size{Width: childAvailWidth, Height: childAvailHeight},
+			IsFixedInlineSize: true,
+		}
+
+		var childFrag *Fragment
+		numRows := 0
+		for c := sectionNode.FirstLayoutChild(); c != nil; c = sectionNode.NextLayoutSibling(c) {
+			numRows++
+		}
+
+		if sectionNode.Style().Display == style.DisplayTableRow {
+			var rowData *tableRowGrid
+			if rowIdx < len(builder.grid.Rows) {
+				rowData = builder.grid.Rows[rowIdx]
+			}
+			childFrag = tableRowAlgo.LayoutWithData(ctx, sectionNode, childSpace, builder, builder.colWidths, rowData)
+			rowIdx++
+		} else {
+			var rowsData []*tableRowGrid
+			if rowIdx+numRows <= len(builder.grid.Rows) {
+				rowsData = builder.grid.Rows[rowIdx : rowIdx+numRows]
+			}
+			childFrag = tableSectionAlgo.LayoutWithData(ctx, sectionNode, childSpace, builder, builder.colWidths, rowsData)
+			rowIdx += numRows
+		}
+
+		offset := Point{
+			X: sectionInsetX,
+			Y: builder.CurrentBlockOffset(),
+		}
+
+		builder.boxBuilder.AddChild(childFrag, offset)
+		builder.AdvanceBlockOffset(childFrag.Size.Height)
+	}
+
+	lastRowHasBottom := builder.lastRowBorderBottom
+	tableHasBottom := comp.Border.Edges.Bottom
+
+	bottomDecor := border.Bottom + padding.Bottom
+	if lastRowHasBottom && tableHasBottom {
+		bottomDecor -= 1
+	}
+	builder.AdvanceBlockOffset(bottomDecor)
+
+	if space.IsFixedBlockSize {
+		builder.SetBlockSize(space.AvailableSize.Height)
+	} else {
+		resolvedHeight := builder.CurrentBlockOffset()
+		if comp.Height.Kind() == style.KindCells {
+			resolvedHeight = max(resolvedHeight, comp.Height.CellsValue())
+		}
+		builder.SetBlockSize(resolvedHeight)
+	}
+
+	frag := builder.ToFragment()
+	node.SetCachedLayout(space, frag)
+	return frag
+}
+
+func (a *TableAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	if sizes, ok := node.CachedMinMaxSizes(); ok {
+		return sizes
+	}
+	defer ctx.Begin("Layout(Table):ComputeMinMaxSizes")()
+
+	builder := AcquireTableFragmentBuilder(node, ConstraintSpace{})
+	defer ReleaseTableFragmentBuilder(builder)
+	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
+		display := child.Style().Display
+		switch display {
+		case style.DisplayTableHeaderGroup:
+			builder.AddHeaderChild(child)
+		case style.DisplayTableFooterGroup:
+			builder.AddFooterChild(child)
+		case style.DisplayTableRowGroup:
+			builder.AddBodyChild(child)
+		case style.DisplayTableRow:
+			builder.AddRowChild(child)
+		default:
+			builder.AddNonRowChild(child)
+		}
+	}
+	builder.BuildGrid(ctx)
+
+	comp := node.Style()
+	colMinMax := builder.colMinMax
+	borderX := comp.Border.Widths()
+	parentDecorX := borderX.Left + borderX.Right + comp.Padding.Left + comp.Padding.Right
+	var tableMinMax MinMaxSizes
+	for _, m := range colMinMax {
+		tableMinMax.Min += m.Min
+		tableMinMax.Max += m.Max
+	}
+
+	for _, overlap := range builder.grid.ColJunctionOverlap {
+		if overlap {
+			tableMinMax.Min--
+			tableMinMax.Max--
+		}
+	}
+	if builder.grid.LeftEdgeHasOverlap {
+		tableMinMax.Min--
+		tableMinMax.Max--
+	}
+	if builder.grid.RightEdgeHasOverlap {
+		tableMinMax.Min--
+		tableMinMax.Max--
+	}
+
+	tableMinMax.Min += parentDecorX
+	tableMinMax.Max += parentDecorX
+
+	node.SetCachedMinMaxSizes(tableMinMax)
 	return tableMinMax
 }
 
 // TableSectionAlgorithm implements the layout for table header, body, and footer groups.
-type TableSectionAlgorithm struct {
-	Node         Node
-	Space        ConstraintSpace
-	Builder      *TableFragmentBuilder
-	ColumnWidths []int
-	RowsData     []*tableRowGrid
+type TableSectionAlgorithm struct{}
+
+func (a *TableSectionAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
+	return a.LayoutWithData(ctx, node, space, nil, nil, nil)
 }
 
-func (a *TableSectionAlgorithm) Layout(ctx *Context) *Fragment {
-	if cached := a.Node.CachedLayout(a.Space); cached != nil {
+func (a *TableSectionAlgorithm) LayoutWithData(ctx *Context, node Node, space ConstraintSpace, tableBuilder *TableFragmentBuilder, colWidths []int, rowsData []*tableRowGrid) *Fragment {
+	if cached := node.CachedLayout(space); cached != nil {
 		return cached
 	}
 	defer ctx.Begin("Layout(TableSection)")()
 
-	comp := a.Node.Style()
+	comp := node.Style()
 	border := comp.Border.Widths()
 	padding := comp.Padding
 
-	builder := NewBoxFragmentBuilder(a.Node, a.Space)
-	if a.Space.IsFixedInlineSize {
-		builder.SetInlineSize(a.Space.AvailableSize.Width)
+	builder := AcquireBoxFragmentBuilder(node, space)
+	if space.IsFixedInlineSize {
+		builder.SetInlineSize(space.AvailableSize.Width)
 	}
 
 	rowIdx := 0
-	for rowNode := range a.Node.LayoutChildren() {
-		childAvailWidth := max(0, a.Space.AvailableSize.Width-border.Left-border.Right-padding.Left-padding.Right)
-		childAvailHeight := max(0, a.Space.AvailableSize.Height-builder.CurrentBlockOffset()-(border.Top+border.Bottom+padding.Top+padding.Bottom))
+	for rowNode := node.FirstLayoutChild(); rowNode != nil; rowNode = node.NextLayoutSibling(rowNode) {
+		childAvailWidth := max(0, space.AvailableSize.Width-border.Left-border.Right-padding.Left-padding.Right)
+		childAvailHeight := max(0, space.AvailableSize.Height-builder.CurrentBlockOffset()-(border.Top+border.Bottom+padding.Top+padding.Bottom))
 
-		childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetContainingSpace(Size{Width: a.Space.AvailableSize.Width, Height: a.Space.AvailableSize.Height})
-		childSpaceBuilder.SetContainerSpace(Size{Width: childAvailWidth, Height: childAvailHeight})
-		childSpaceBuilder.SetIsFixedInlineSize(true)
-
-		childSpace := childSpaceBuilder.ToConstraintSpace()
-		childAlgo := NewAlgorithm(rowNode, childSpace)
-
-		if rowAlgo, ok := childAlgo.(*TableRowAlgorithm); ok {
-			rowAlgo.Builder = a.Builder
-			rowAlgo.ColumnWidths = a.ColumnWidths
-			if rowIdx < len(a.RowsData) {
-				rowAlgo.RowData = a.RowsData[rowIdx]
-			}
+		childSpace := ConstraintSpace{
+			AvailableSize:     Size{Width: childAvailWidth, Height: childAvailHeight},
+			ContainingSpace:   Size{Width: space.AvailableSize.Width, Height: space.AvailableSize.Height},
+			ContainerSpace:    Size{Width: childAvailWidth, Height: childAvailHeight},
+			IsFixedInlineSize: true,
 		}
 
-		childFrag := childAlgo.Layout(ctx)
+		var rowData *tableRowGrid
+		if rowIdx < len(rowsData) {
+			rowData = rowsData[rowIdx]
+		}
+		childFrag := tableRowAlgo.LayoutWithData(ctx, rowNode, childSpace, tableBuilder, colWidths, rowData)
+
 		offset := Point{
 			X: 0,
 			Y: builder.CurrentBlockOffset(),
@@ -291,17 +273,17 @@ func (a *TableSectionAlgorithm) Layout(ctx *Context) *Fragment {
 
 		hasTopBorder := false
 		hasBottomBorder := false
-		if rowIdx < len(a.RowsData) {
-			hasTopBorder = a.RowsData[rowIdx].HasTopBorder
-			hasBottomBorder = a.RowsData[rowIdx].HasBottomBorder
+		if rowIdx < len(rowsData) {
+			hasTopBorder = rowsData[rowIdx].HasTopBorder
+			hasBottomBorder = rowsData[rowIdx].HasBottomBorder
 		} else {
 			hasTopBorder = rowNode.Style().Border.Edges.Top
 			hasBottomBorder = rowNode.Style().Border.Edges.Bottom
 		}
 
 		shift := 0
-		if a.Builder != nil {
-			shift = a.Builder.AdjustRowOffset(hasTopBorder, hasBottomBorder)
+		if tableBuilder != nil {
+			shift = tableBuilder.AdjustRowOffset(hasTopBorder, hasBottomBorder)
 		}
 		offset.Y += shift
 		builder.AdvanceBlockOffset(shift)
@@ -313,31 +295,119 @@ func (a *TableSectionAlgorithm) Layout(ctx *Context) *Fragment {
 
 	builder.AdvanceBlockOffset(border.Bottom + padding.Bottom)
 
-	if a.Space.IsFixedBlockSize {
-		builder.SetBlockSize(a.Space.AvailableSize.Height)
+	if space.IsFixedBlockSize {
+		builder.SetBlockSize(space.AvailableSize.Height)
 	} else {
 		builder.SetBlockSize(builder.CurrentBlockOffset())
 	}
 
 	frag := builder.ToFragment()
-	a.Node.SetCachedLayout(a.Space, frag)
+	node.SetCachedLayout(space, frag)
 	return frag
 }
 
-func (a *TableSectionAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	return MinMaxSizes{} // Table level handles sizing
+func (a *TableSectionAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	return MinMaxSizes{}
 }
 
 // TableRowAlgorithm implements the DisplayTableRow layout.
-type TableRowAlgorithm struct {
-	Node         Node
-	Space        ConstraintSpace
-	Builder      *TableFragmentBuilder
-	ColumnWidths []int
-	RowData      *tableRowGrid
+type TableRowAlgorithm struct{}
+
+func (a *TableRowAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
+	return a.LayoutWithData(ctx, node, space, nil, nil, nil)
 }
 
-// anonymousTableSection represents a virtual layout group created to wrap direct table row children.
+func (a *TableRowAlgorithm) LayoutWithData(ctx *Context, node Node, space ConstraintSpace, tableBuilder *TableFragmentBuilder, colWidths []int, rowData *tableRowGrid) *Fragment {
+	defer ctx.Begin("Layout(TableRow)")()
+
+	comp := node.Style()
+	padding := comp.Padding
+
+	builder := AcquireBoxFragmentBuilder(node, space)
+	if space.IsFixedInlineSize {
+		builder.SetInlineSize(space.AvailableSize.Width)
+	}
+	builder.currentBlockOffset = 0
+
+	maxCellHeight := 0
+	totalShiftX := 0
+
+	if tableBuilder != nil {
+		tableBuilder.ResetRow()
+	}
+
+	if rowData != nil {
+		for _, cell := range rowData.Cells {
+			cellWidth := 0
+			for c := cell.ColStart; c < cell.ColStart+cell.ColSpan; c++ {
+				if c < len(colWidths) {
+					cellWidth += colWidths[c]
+				}
+			}
+			if tableBuilder != nil && cell.ColSpan > 1 {
+				for j := cell.ColStart; j < cell.ColStart+cell.ColSpan-1; j++ {
+					if j < len(tableBuilder.grid.ColJunctionOverlap) && tableBuilder.grid.ColJunctionOverlap[j] {
+						cellWidth--
+					}
+				}
+			}
+
+			childMargin := cell.Node.Style().Margin
+			cellAvailWidth := max(0, cellWidth-childMargin.Left-childMargin.Right)
+
+			childSpace := ConstraintSpace{
+				AvailableSize:     Size{Width: cellAvailWidth, Height: space.AvailableSize.Height},
+				ContainingSpace:   Size{Width: cellWidth, Height: space.AvailableSize.Height},
+				ContainerSpace:    Size{Width: cellAvailWidth, Height: space.AvailableSize.Height},
+				IsFixedInlineSize: true,
+			}
+
+			childAlgo := GetAlgorithm(cell.Node)
+			childFrag := childAlgo.Layout(ctx, cell.Node, childSpace)
+
+			xOffset := 0
+			for c := 0; c < cell.ColStart; c++ {
+				if c < len(colWidths) {
+					xOffset += colWidths[c]
+				}
+			}
+
+			offset := Point{
+				X: xOffset - totalShiftX,
+				Y: builder.CurrentBlockOffset(),
+			}
+
+			if tableBuilder != nil {
+				edges := cell.Node.Style().Border.Edges
+				shift := tableBuilder.GetCellShift(cell.ColStart, cell.ColSpan, edges.Left, edges.Right)
+				totalShiftX += shift
+				offset.X -= shift
+			}
+
+			builder.AddChild(childFrag, offset)
+			if childFrag.Size.Height > maxCellHeight {
+				maxCellHeight = childFrag.Size.Height
+			}
+		}
+	}
+
+	builder.AdvanceBlockOffset(maxCellHeight + padding.Bottom)
+
+	if space.IsFixedBlockSize {
+		builder.SetBlockSize(space.AvailableSize.Height)
+	} else {
+		builder.SetBlockSize(builder.CurrentBlockOffset())
+	}
+
+	return builder.ToFragment()
+}
+
+func (a *TableRowAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	return MinMaxSizes{}
+}
+
+// anonymousTableSection and anonymousTableRow Node implementations (omitted, remain same)
+// Wait, I should include them to ensure the file is complete.
 type anonymousTableSection struct {
 	parent      Node
 	children    []Node
@@ -358,14 +428,23 @@ func (a *anonymousTableSection) Style() *style.Computed {
 	return &s
 }
 
-func (a *anonymousTableSection) LayoutChildren() iter.Seq[Node] {
-	return func(yield func(Node) bool) {
-		for _, child := range a.children {
-			if !yield(child) {
-				return
+func (a *anonymousTableSection) FirstLayoutChild() Node {
+	if len(a.children) == 0 {
+		return nil
+	}
+	return a.children[0]
+}
+
+func (a *anonymousTableSection) NextLayoutSibling(child Node) Node {
+	for i, c := range a.children {
+		if c == child {
+			if i+1 < len(a.children) {
+				return a.children[i+1]
 			}
+			break
 		}
 	}
+	return nil
 }
 
 func (a *anonymousTableSection) LogicalNode() any         { return nil }
@@ -379,7 +458,7 @@ func (a *anonymousTableSection) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil
 }
 
-func (a *anonymousTableSection) Layout(ctx *Context) *Fragment {
+func (a *anonymousTableSection) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
 	return nil
 }
 
@@ -399,11 +478,10 @@ func (a *anonymousTableSection) IsAnonymous() bool {
 	return true
 }
 
-func (a *anonymousTableSection) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
+func (a *anonymousTableSection) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
 	return MinMaxSizes{}
 }
 
-// anonymousTableRow represents a virtual layout row created to wrap contiguous runs of non-row content inside a table.
 type anonymousTableRow struct {
 	parent      Node
 	children    []Node
@@ -413,7 +491,6 @@ type anonymousTableRow struct {
 var _ Node = (*anonymousTableRow)(nil)
 
 func (a *anonymousTableRow) Style() *style.Computed {
-	// Anonymous rows inherit styles from their parent table and have DisplayTableRow.
 	s := *a.parent.Style()
 	s.Display = style.DisplayTableRow
 	s.Margin = style.EdgeValues[int]{}
@@ -424,14 +501,23 @@ func (a *anonymousTableRow) Style() *style.Computed {
 	return &s
 }
 
-func (a *anonymousTableRow) LayoutChildren() iter.Seq[Node] {
-	return func(yield func(Node) bool) {
-		for _, child := range a.children {
-			if !yield(child) {
-				return
+func (a *anonymousTableRow) FirstLayoutChild() Node {
+	if len(a.children) == 0 {
+		return nil
+	}
+	return a.children[0]
+}
+
+func (a *anonymousTableRow) NextLayoutSibling(child Node) Node {
+	for i, c := range a.children {
+		if c == child {
+			if i+1 < len(a.children) {
+				return a.children[i+1]
 			}
+			break
 		}
 	}
+	return nil
 }
 
 func (a *anonymousTableRow) LogicalNode() any         { return nil }
@@ -445,8 +531,7 @@ func (a *anonymousTableRow) CachedLayout(space ConstraintSpace) *Fragment {
 	return nil
 }
 
-func (a *anonymousTableRow) Layout(ctx *Context) *Fragment {
-	// Handled directly by TableRowAlgorithm invocation in TableAlgorithm.Layout()
+func (a *anonymousTableRow) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
 	return nil
 }
 
@@ -466,116 +551,6 @@ func (a *anonymousTableRow) IsAnonymous() bool {
 	return true
 }
 
-func (a *anonymousTableRow) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
+func (a *anonymousTableRow) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
 	return MinMaxSizes{}
-}
-
-func (a *TableRowAlgorithm) Layout(ctx *Context) *Fragment {
-	// Disable cache since layout depends on injected properties not in ConstraintSpace
-	defer ctx.Begin("Layout(TableRow)")()
-
-	comp := a.Node.Style()
-	padding := comp.Padding
-
-	builder := NewBoxFragmentBuilder(a.Node, a.Space)
-	if a.Space.IsFixedInlineSize {
-		builder.SetInlineSize(a.Space.AvailableSize.Width)
-	}
-	// Table rows use border-collapse: cells start at (0,0) within the row so
-	// their borders physically overlap with the row's own borders at the same
-	// pixel. The paint engine's resolver then merges them into junction glyphs.
-	builder.currentBlockOffset = 0
-
-	maxCellHeight := 0
-	totalShiftX := 0
-
-	if a.Builder != nil {
-		a.Builder.ResetRow()
-	}
-
-	// Cells are placed starting at X=0, Y=0 within the row so that cell borders
-	// physically overlap with the row's own border at the same pixel. The paint
-	// engine's border-resolver then collapses them into junction glyphs.
-	cellInsetX := 0
-
-	// Layout cells
-	if a.RowData != nil {
-		for _, cell := range a.RowData.Cells {
-			// Calculate cell available width based on ColSpan and ColumnWidths.
-			// For spanning cells, subtract 1 for each internal collapsed junction
-			// within the span (those junctions don't exist inside a spanning cell).
-			cellWidth := 0
-			for c := cell.ColStart; c < cell.ColStart+cell.ColSpan; c++ {
-				if c < len(a.ColumnWidths) {
-					cellWidth += a.ColumnWidths[c]
-				}
-			}
-			if a.Builder != nil && cell.ColSpan > 1 {
-				for j := cell.ColStart; j < cell.ColStart+cell.ColSpan-1; j++ {
-					if j < len(a.Builder.grid.ColJunctionOverlap) && a.Builder.grid.ColJunctionOverlap[j] {
-						cellWidth--
-					}
-				}
-			}
-
-			childMargin := cell.Node.Style().Margin
-			cellAvailWidth := max(0, cellWidth-childMargin.Left-childMargin.Right)
-
-			// Cells act as BFCs with rigid constraints passed by the row.
-			// ContainingSpace = cell's border-box; ContainerSpace = cell's content-box.
-			childSpaceBuilder := NewConstraintSpaceBuilder(Size{Width: cellAvailWidth, Height: a.Space.AvailableSize.Height})
-			childSpaceBuilder.SetContainingSpace(Size{Width: cellWidth, Height: a.Space.AvailableSize.Height})
-			childSpaceBuilder.SetContainerSpace(Size{Width: cellAvailWidth, Height: a.Space.AvailableSize.Height})
-			childSpaceBuilder.SetIsFixedInlineSize(true)
-			childSpace := childSpaceBuilder.ToConstraintSpace()
-
-			childAlgo := NewAlgorithm(cell.Node, childSpace)
-			childFrag := childAlgo.Layout(ctx)
-
-			// X offset = row's left inset + sum of preceding column widths - collapsed borders.
-			xOffset := cellInsetX
-			for c := 0; c < cell.ColStart; c++ {
-				if c < len(a.ColumnWidths) {
-					xOffset += a.ColumnWidths[c]
-				}
-			}
-
-			offset := Point{
-				X: xOffset - totalShiftX,
-				Y: builder.CurrentBlockOffset(),
-			}
-
-			hasLeftBorder := cell.Node.Style().Border.Edges.Left
-			hasRightBorder := cell.Node.Style().Border.Edges.Right
-
-			if a.Builder != nil {
-				shift := a.Builder.GetCellShift(cell.ColStart, cell.ColSpan, hasLeftBorder, hasRightBorder)
-				totalShiftX += shift
-				offset.X -= shift
-			}
-
-			builder.AddChild(childFrag, offset)
-
-			if childFrag.Size.Height > maxCellHeight {
-				maxCellHeight = childFrag.Size.Height
-			}
-		}
-	}
-
-	// With border-collapse the row's bottom border is drawn at the bottom edge
-	// of the cells (Y = maxCellHeight-1). Adding an extra border.Bottom would
-	// push the row's bottom border one row below the cells, breaking collapse.
-	builder.AdvanceBlockOffset(maxCellHeight + padding.Bottom)
-
-	if a.Space.IsFixedBlockSize {
-		builder.SetBlockSize(a.Space.AvailableSize.Height)
-	} else {
-		builder.SetBlockSize(builder.CurrentBlockOffset())
-	}
-
-	return builder.ToFragment()
-}
-
-func (a *TableRowAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	return MinMaxSizes{} // Intrinsic size is determined by the table pass
 }

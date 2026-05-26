@@ -55,9 +55,8 @@ func (f *fakeRO) StyleFirstChild() style.StyleNode  { return nil }
 func (f *fakeRO) StyleNextSibling() style.StyleNode { return nil }
 
 // layout.Node implementation
-func (f *fakeRO) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {}
-}
+func (f *fakeRO) FirstLayoutChild() layout.Node               { return nil }
+func (f *fakeRO) NextLayoutSibling(layout.Node) layout.Node { return nil }
 func (f *fakeRO) IsDirtyLayout() bool                                      { return false }
 func (f *fakeRO) IsDirtyPaint() bool                                       { return false }
 func (f *fakeRO) HasChildNeedsPaint() bool                                 { return false }

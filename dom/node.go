@@ -126,6 +126,33 @@ func (b *baseNode) EventTarget() event.EventTarget {
 
 func (b *baseNode) Unwrap() Node { return nil }
 
+func (b *baseNode) FirstLayoutChild() Node {
+	if b.firstChild != nil {
+		return b.firstChild
+	}
+	if el, ok := b.self.(Element); ok {
+		if ua := UARoot(el); ua != nil {
+			return ua.FirstChild()
+		}
+	}
+	return nil
+}
+
+func (b *baseNode) NextLayoutSibling(child Node) Node {
+	if next := child.NextSibling(); next != nil {
+		return next
+	}
+	// If child is the last public child, jump to first UA child.
+	if child.Parent() == b.self {
+		if el, ok := b.self.(Element); ok {
+			if ua := UARoot(el); ua != nil {
+				return ua.FirstChild()
+			}
+		}
+	}
+	return nil
+}
+
 func (b *baseNode) FirstChild() Node { return b.firstChild }
 func (b *baseNode) LastChild() Node  { return b.lastChild }
 

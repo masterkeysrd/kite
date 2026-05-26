@@ -5,51 +5,43 @@ import (
 )
 
 // GridAlgorithm implements the CSS Grid formatting context layout.
-type GridAlgorithm struct {
-	Node  Node
-	Space ConstraintSpace
-
-	builder *GridBuilder
-}
+type GridAlgorithm struct{}
 
 // Layout executes the grid layout algorithm and returns an immutable Fragment.
-func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
-	if cached := a.Node.CachedLayout(a.Space); cached != nil {
+func (a *GridAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
+	if cached := node.CachedLayout(space); cached != nil {
 		return cached
 	}
 	defer ctx.Begin("Layout(Grid)")()
 
-	comp := a.Node.Style()
-	decor := ResolveDecorations(a.Node, false, false)
+	comp := node.Style()
+	decor := ResolveDecorations(node, false, false)
 
-	if a.builder == nil {
-		a.builder = AcquireGridBuilder(a.Node, a.Space)
-		a.builder.PlaceItems()
-		defer ReleaseGridBuilder(a.builder)
-	}
-	builder := a.builder
+	builder := AcquireGridBuilder(node, space)
+	builder.PlaceItems()
+	defer ReleaseGridBuilder(builder)
 
 	colGap := comp.GridColumnGap
 	rowGap := comp.GridRowGap
 
 	// 1. Determine resolved container size (border-box)
 	var minMax MinMaxSizes
-	if !a.Space.IsFixedInlineSize || comp.Width.Kind() == style.KindMaxContent || comp.Width.Kind() == style.KindAuto || comp.Width.Kind() == style.KindContent {
-		minMax = a.ComputeMinMaxSizes(ctx)
+	if !space.IsFixedInlineSize || comp.Width.Kind() == style.KindMaxContent || comp.Width.Kind() == style.KindAuto || comp.Width.Kind() == style.KindContent {
+		minMax = a.ComputeMinMaxSizes(ctx, node)
 	}
 
-	resolvedWidth := a.Space.AvailableSize.Width
-	if !a.Space.IsFixedInlineSize || comp.Width.Kind() == style.KindMaxContent {
+	resolvedWidth := space.AvailableSize.Width
+	if !space.IsFixedInlineSize || comp.Width.Kind() == style.KindMaxContent {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedWidth = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedWidth = int(float32(space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedWidth = comp.Width.CellsValue()
 		case style.KindAuto:
 			// Block-level boxes take full available width by default.
-			resolvedWidth = a.Space.AvailableSize.Width
+			resolvedWidth = space.AvailableSize.Width
 		case style.KindContent:
-			resolvedWidth = min(minMax.Max, a.Space.AvailableSize.Width)
+			resolvedWidth = min(minMax.Max, space.AvailableSize.Width)
 		case style.KindMaxContent:
 			resolvedWidth = minMax.Max
 		}
@@ -62,22 +54,22 @@ func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
 
 	// Resolve rows
 	// Initial guess for viewport height if not fixed
-	tempViewportHeight := a.Space.AvailableSize.Height
-	if !a.Space.IsFixedBlockSize {
+	tempViewportHeight := space.AvailableSize.Height
+	if !space.IsFixedBlockSize {
 		tempViewportHeight = InfiniteBlockSize
 	}
 	rowHeights := a.resolveTracks(ctx, builder.items, builder.rowTemplate, builder.maxRow, tempViewportHeight, rowGap, false, colWidths)
 
 	contentHeight := sum(rowHeights) + max(0, len(rowHeights)-1)*rowGap
-	resolvedHeight := a.Space.AvailableSize.Height
-	if !a.Space.IsFixedBlockSize {
-		isIndefinitePercent := comp.Height.Kind() == style.KindPercent && a.Space.ContainerSpace.Height >= InfiniteBlockSize
+	resolvedHeight := space.AvailableSize.Height
+	if !space.IsFixedBlockSize {
+		isIndefinitePercent := comp.Height.Kind() == style.KindPercent && space.ContainerSpace.Height >= InfiniteBlockSize
 		if comp.Height.Kind() == style.KindAuto || comp.Height.Kind() == style.KindContent || isIndefinitePercent {
 			resolvedHeight = contentHeight + decor.Insets.Top + decor.Insets.Bottom
 		} else {
 			switch comp.Height.Kind() {
 			case style.KindPercent:
-				resolvedHeight = int(float32(a.Space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+				resolvedHeight = int(float32(space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
 			case style.KindCells:
 				resolvedHeight = comp.Height.CellsValue()
 			}
@@ -86,13 +78,13 @@ func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
 	resolvedHeight = max(resolvedHeight, decor.Insets.Top+decor.Insets.Bottom)
 
 	// If height is fixed, we might need to re-resolve rows to distribute remaining space if there are FR tracks
-	if a.Space.IsFixedBlockSize || comp.Height.Kind() == style.KindCells || comp.Height.Kind() == style.KindPercent {
+	if space.IsFixedBlockSize || comp.Height.Kind() == style.KindCells || comp.Height.Kind() == style.KindPercent {
 		viewportHeight := resolvedHeight - decor.Insets.Top - decor.Insets.Bottom
 		rowHeights = a.resolveTracks(ctx, builder.items, builder.rowTemplate, builder.maxRow, viewportHeight, rowGap, false, colWidths)
 	}
 
 	// 3. Layout Pass
-	boxBuilder := AcquireBoxFragmentBuilder(a.Node, a.Space)
+	boxBuilder := AcquireBoxFragmentBuilder(node, space)
 	boxBuilder.SetInlineSize(resolvedWidth)
 	boxBuilder.SetBlockSize(resolvedHeight)
 
@@ -125,8 +117,8 @@ func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
 			IsFixedBlockSize:  true,
 		}
 
-		childAlgo := NewAlgorithm(item.node, childSpace)
-		frag := childAlgo.Layout(ctx)
+		childAlgo := GetAlgorithm(item.node)
+		frag := childAlgo.Layout(ctx, item.node, childSpace)
 
 		// Offset relative to border-box
 		offsetX := decor.Insets.Left
@@ -147,7 +139,7 @@ func (a *GridAlgorithm) Layout(ctx *Context) *Fragment {
 	}
 
 	fragment := boxBuilder.ToFragment()
-	a.Node.SetCachedLayout(a.Space, fragment)
+	node.SetCachedLayout(space, fragment)
 	return fragment
 }
 
@@ -243,19 +235,16 @@ func (a *GridAlgorithm) resolveTracks(ctx *Context, items []gridItem, template [
 	return resolved
 }
 
-func (a *GridAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
+func (a *GridAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	if sizes, ok := node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
 
-	if a.builder == nil {
-		a.builder = AcquireGridBuilder(a.Node, a.Space)
-		a.builder.PlaceItems()
-		defer ReleaseGridBuilder(a.builder)
-	}
-	builder := a.builder
+	builder := AcquireGridBuilder(node, ConstraintSpace{})
+	builder.PlaceItems()
+	defer ReleaseGridBuilder(builder)
 
-	comp := a.Node.Style()
+	comp := node.Style()
 	colGap := comp.GridColumnGap
 
 	// Resolve tracks with large available space to get intrinsic max
@@ -264,7 +253,7 @@ func (a *GridAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	totalMax := sum(colWidths) + max(0, len(colWidths)-1)*colGap
 
 	sizes := MinMaxSizes{Min: 0, Max: totalMax}
-	a.Node.SetCachedMinMaxSizes(sizes)
+	node.SetCachedMinMaxSizes(sizes)
 	return sizes
 }
 

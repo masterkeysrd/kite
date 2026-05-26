@@ -203,7 +203,7 @@ func (b *InlineItemsBuilder) collect(node Node) {
 	})
 	b.parentStack = append(b.parentStack, node)
 
-	for child := range node.LayoutChildren() {
+	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
 		b.collect(child)
 	}
 
@@ -385,10 +385,11 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 			goto lineEnded
 
 		case InlineAtomic:
-			childAlgo := NewAlgorithm(item.Node, ConstraintSpace{
+			childSpace := ConstraintSpace{
 				AvailableSize: Size{Width: l.width, Height: 1000},
-			})
-			frag := childAlgo.Layout(ctx)
+			}
+			childAlgo := GetAlgorithm(item.Node)
+			frag := childAlgo.Layout(ctx, item.Node, childSpace)
 			itemWidth := frag.Size.Width
 			itemHeight := frag.Size.Height
 

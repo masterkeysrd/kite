@@ -188,14 +188,19 @@ func (b *BaseRender) Children() iter.Seq[Object] {
 	}
 }
 
-func (b *BaseRender) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {
-		for c := b.firstChild; c != nil; c = c.NextSibling() {
-			if !yield(c.(layout.Node)) {
-				return
-			}
-		}
+func (b *BaseRender) FirstLayoutChild() layout.Node {
+	if b.firstChild == nil {
+		return nil
 	}
+	return b.firstChild.(layout.Node)
+}
+
+func (b *BaseRender) NextLayoutSibling(child layout.Node) layout.Node {
+	next := child.(Object).NextSibling()
+	if next == nil {
+		return nil
+	}
+	return next.(layout.Node)
 }
 
 type linker interface {
@@ -375,11 +380,11 @@ func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
 		ToConstraintSpace()
 
 	// 2. Wrap the root in the formatting context algorithm.
-	algo := layout.NewAlgorithm(root, space)
+	algo := layout.GetAlgorithm(root)
 
 	// 3. Execute the layout pass.
 	// This will recursively visit children and cache fragments internally.
-	frag := algo.Layout(ctx)
+	frag := algo.Layout(ctx, root, space)
 	propagateOffsets(frag)
 
 	// 4. Layout overlays.
@@ -406,8 +411,8 @@ func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
 			}
 			overlaySpace := osb.ToConstraintSpace()
 
-			algo := layout.NewAlgorithm(overlay, overlaySpace)
-			frag := algo.Layout(ctx)
+			overlayAlgo := layout.GetAlgorithm(overlay)
+			frag := overlayAlgo.Layout(ctx, overlay, overlaySpace)
 			overlay.SetCachedLayout(overlaySpace, frag)
 			propagateOffsets(frag)
 

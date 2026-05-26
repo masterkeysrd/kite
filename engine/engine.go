@@ -836,7 +836,7 @@ func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
 	if n.NeedsSync() {
 		e.diffChildren(n, ro)
 	} else if n.ChildNeedsSync() {
-		for child := range dom.LayoutChildren(n) {
+		for child := n.FirstLayoutChild(); child != nil; child = n.NextLayoutSibling(child) {
 			if childRO := child.RenderObject(); childRO != nil {
 				e.syncRenderTree(child, childRO)
 			}
@@ -873,7 +873,7 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 	}
 
 	var lastRO render.Object
-	for child := range dom.LayoutChildren(n) {
+	for child := n.FirstLayoutChild(); child != nil; child = n.NextLayoutSibling(child) {
 		childRO := child.RenderObject()
 		if childRO == nil {
 			childRO = e.createRenderObject(child)
@@ -1624,7 +1624,7 @@ func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
 			count++
 		}
 
-		for child := range dom.LayoutChildren(n) {
+		for child := n.FirstLayoutChild(); child != nil; child = n.NextLayoutSibling(child) {
 			walk(child)
 		}
 

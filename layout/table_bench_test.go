@@ -69,7 +69,7 @@ func BenchmarkTableLayout_50x10(b *testing.B) {
 		table.ClearDirtyLayout()
 		table.cachedFragment = nil
 
-		algo := &TableAlgorithm{Node: table, Space: space}
-		_ = algo.Layout(nil)
+		algo := GetAlgorithm(table)
+		_ = algo.Layout(nil, table, space)
 	}
 }

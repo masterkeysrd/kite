@@ -67,7 +67,8 @@ type Object interface {
 
 	// layout.Node implementation (Task 05)
 	Style() *style.Computed
-	LayoutChildren() iter.Seq[layout.Node]
+	FirstLayoutChild() layout.Node
+	NextLayoutSibling(layout.Node) layout.Node
 	IsDirtyLayout() bool
 	IsDirtyPaint() bool
 	HasChildNeedsPaint() bool

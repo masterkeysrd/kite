@@ -27,8 +27,8 @@ func TestInlineLayout_BasicText(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have one child (the LineBox fragment)
 	if len(frag.Children) != 1 {
@@ -70,8 +70,8 @@ func TestInlineLayout_Wrapping(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have two LineBox fragments
 	if len(frag.Children) != 2 {
@@ -113,8 +113,8 @@ func TestInlineLayout_AtomicInline(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have one LineBox fragment
 	if len(frag.Children) != 1 {
@@ -167,8 +167,8 @@ func TestInlineLayout_InlineFlexAtomic(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have one LineBox fragment
 	if len(frag.Children) != 1 {
@@ -214,8 +214,8 @@ func TestInlineLayout_NoWrap(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have one LineBox fragment (even though it overflows)
 	if len(frag.Children) != 1 {
@@ -246,8 +246,8 @@ func TestInlineLayout_Alignment(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{10, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	lineBox := frag.Children[0].Fragment
 	textLink := lineBox.Children[0]
@@ -281,8 +281,8 @@ func TestInlineLayout_Alignment(t *testing.T) {
 		firstChild: textNode2,
 	}
 
-	algo2 := &BlockAlgorithm{Node: parent2, Space: space}
-	frag2 := algo2.Layout(nil)
+	algo2 := GetAlgorithm(parent2)
+	frag2 := algo2.Layout(nil, parent2, space)
 
 	lineBox2 := frag2.Children[0].Fragment
 	if lineBox2.Size.Height != 3 {
@@ -313,8 +313,8 @@ func TestInlineLayout_SpaceCollapsing(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 1}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	lineBox := frag.Children[0].Fragment
 	textFrag := lineBox.Children[0].Fragment
@@ -353,10 +353,10 @@ func BenchmarkInlineLayout(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{50, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -377,10 +377,10 @@ func BenchmarkInlineLayout_Wrapping(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -409,10 +409,10 @@ func BenchmarkInlineLayout_Atomic(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -433,10 +433,10 @@ func BenchmarkInlineLayout_SpaceCollapsing(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 1}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -458,10 +458,10 @@ func BenchmarkInlineLayout_Alignment(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{10, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -501,10 +501,10 @@ func BenchmarkInlineLayoutComplex(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -525,10 +525,10 @@ func BenchmarkInlineLayout_Caching(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -550,10 +550,10 @@ func BenchmarkInlineBlockLayout(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -582,10 +582,10 @@ func BenchmarkMixedInlineBlockLayout(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -612,10 +612,10 @@ func BenchmarkInlineLayout_DeeplyNested(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -642,10 +642,10 @@ func BenchmarkInlineLayout_LargeText(b *testing.B) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{50, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
+	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
-		algo.Layout(nil)
+		algo.Layout(nil, parent, space)
 	}
 }
 func TestInlineLayout_VerticalAlignment(t *testing.T) {
@@ -685,8 +685,8 @@ func TestInlineLayout_VerticalAlignment(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Line height should be 3
 	if len(frag.Children) == 0 {
@@ -762,8 +762,8 @@ func BenchmarkComplexInlineLayout_100k(b *testing.B) {
 	for b.Loop() {
 		// Clear cache to force full layout pass
 		parent.cachedFragment = nil
-		algo := &BlockAlgorithm{Node: parent, Space: space}
-		algo.Layout(nil)
+		algo := GetAlgorithm(parent)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -832,8 +832,8 @@ func BenchmarkComplexInlineLayout_Nested_100k(b *testing.B) {
 
 	for b.Loop() {
 		parent.cachedFragment = nil
-		algo := &BlockAlgorithm{Node: parent, Space: space}
-		algo.Layout(nil)
+		algo := GetAlgorithm(parent)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -878,8 +878,8 @@ func BenchmarkComplexInlineLayout_DistinctStyles_100k(b *testing.B) {
 
 	for b.Loop() {
 		parent.cachedFragment = nil
-		algo := &BlockAlgorithm{Node: parent, Space: space}
-		algo.Layout(nil)
+		algo := GetAlgorithm(parent)
+		algo.Layout(nil, parent, space)
 	}
 }
 
@@ -903,8 +903,8 @@ func TestInlineLayout_MandatoryBreak(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have exactly two LineBox fragments
 	if len(frag.Children) != 2 {
@@ -939,8 +939,8 @@ func TestInlineLayout_TrailingNewline(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have exactly two LineBox fragments (one for "line1\n", one empty for after \n)
 	if len(frag.Children) != 2 {
@@ -975,8 +975,8 @@ func TestInlineLayout_EmergencyBreak(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{10, 10}).ToConstraintSpace()
-	algo := &BlockAlgorithm{Node: parent, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
 
 	// Should have two LineBox fragments
 	// Line 0: "1234567890" (10 chars)

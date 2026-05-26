@@ -126,12 +126,9 @@ func ResolveTrackSizes(templates []style.GridTrackSize, available int, gap int) 
 
 	return resolved
 }
-
-// PlaceItems performs the two-pass grid placement algorithm.
 func (b *GridBuilder) PlaceItems() {
-	children := b.node.LayoutChildren()
-
-	for child := range children {
+	// Pass 1: Fully explicit (both row and col defined)
+	for child := b.node.FirstLayoutChild(); child != nil; child = b.node.NextLayoutSibling(child) {
 		comp := child.Style()
 		startCol, colSpan := resolvePlacement(comp.GridColumn)
 		startRow, rowSpan := resolvePlacement(comp.GridRow)
@@ -141,8 +138,9 @@ func (b *GridBuilder) PlaceItems() {
 		}
 	}
 
+	// Pass 2: Implicit (one or both are auto)
 	cursorCol, cursorRow := 0, 0
-	for child := range b.node.LayoutChildren() {
+	for child := b.node.FirstLayoutChild(); child != nil; child = b.node.NextLayoutSibling(child) {
 		if b.isPlaced(child) {
 			continue
 		}

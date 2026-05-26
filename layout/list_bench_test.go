@@ -34,8 +34,8 @@ func BenchmarkListAlgorithm_Ordinal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Only benchmark the last node, which has the longest sibling walk (100 items)
 		lastNode := nodes[count-1]
-		algo := &layout.ListAlgorithm{Node: lastNode, Space: space}
-		_ = algo.Layout(nil)
+		algo := layout.GetAlgorithm(lastNode)
+		_ = algo.Layout(nil, lastNode, space)
 
 		// Also clear cache to force re-layout if necessary,
 		// though we want to benchmark the algorithm itself.
@@ -67,8 +67,8 @@ func BenchmarkListAlgorithm_FullList(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, node := range nodes {
-			algo := &layout.ListAlgorithm{Node: node, Space: space}
-			_ = algo.Layout(nil)
+			algo := layout.GetAlgorithm(node)
+			_ = algo.Layout(nil, node, space)
 			node.ClearDirtyLayout()
 		}
 	}

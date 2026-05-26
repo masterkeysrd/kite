@@ -197,57 +197,71 @@ func (m MinMaxSizes) Subtract(value int) MinMaxSizes {
 // Algorithm is the interface that all LayoutNG-inspired layout formatters must implement.
 type Algorithm interface {
 	// Layout computes and returns an immutable Fragment based on the underlying node and constraints.
-	Layout(ctx *Context) *Fragment
+	Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment
 
 	// ComputeMinMaxSizes calculates the intrinsic minimum and maximum sizes of the node.
-	ComputeMinMaxSizes(ctx *Context) MinMaxSizes
+	ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 }
 
-// NewAlgorithm returns the appropriate layout algorithm for the given node and constraints.
+var (
+	blockAlgo        = &BlockAlgorithm{}
+	flexAlgo         = &FlexAlgorithm{}
+	gridAlgo         = &GridAlgorithm{}
+	tableAlgo        = &TableAlgorithm{}
+	tableSectionAlgo = &TableSectionAlgorithm{}
+	tableRowAlgo     = &TableRowAlgorithm{}
+	listAlgo         = &ListAlgorithm{}
+	overlayAlgo      = &OverlayAlgorithm{}
+	noneAlgo         = &NoneAlgorithm{}
+)
+
+// NewAlgorithm is deprecated: use GetAlgorithm instead.
 func NewAlgorithm(node Node, space ConstraintSpace) Algorithm {
+	return GetAlgorithm(node)
+}
+
+// GetAlgorithm returns the appropriate layout algorithm for the given node.
+func GetAlgorithm(node Node) Algorithm {
 	if _, ok := node.LogicalNode().(OverlayLever); ok {
-		return &OverlayAlgorithm{Node: node, Space: space}
+		return overlayAlgo
 	}
 	comp := node.Style()
 	if comp.Display == style.DisplayNone {
-		return &NoneAlgorithm{Node: node, Space: space}
+		return noneAlgo
 	}
 
 	switch comp.Display {
 	case style.DisplayFlex, style.DisplayInlineFlex:
-		return &FlexAlgorithm{Node: node, Space: space}
+		return flexAlgo
 	case style.DisplayGrid:
-		return &GridAlgorithm{Node: node, Space: space}
+		return gridAlgo
 	case style.DisplayTable:
-		return &TableAlgorithm{Node: node, Space: space}
+		return tableAlgo
 	case style.DisplayTableHeaderGroup, style.DisplayTableRowGroup, style.DisplayTableFooterGroup:
-		return &TableSectionAlgorithm{Node: node, Space: space}
+		return tableSectionAlgo
 	case style.DisplayTableRow:
-		return &TableRowAlgorithm{Node: node, Space: space}
+		return tableRowAlgo
 	case style.DisplayTableCell:
 		// Cells just act as BFCs with rigid constraints passed by the row.
-		return &BlockAlgorithm{Node: node, Space: space}
+		return blockAlgo
 	case style.DisplayListItem:
-		return &ListAlgorithm{Node: node, Space: space}
+		return listAlgo
 	default:
-		return &BlockAlgorithm{Node: node, Space: space}
+		return blockAlgo
 	}
 }
 
 // NoneAlgorithm is a layout formatter for nodes with display: none.
 // It always returns an empty fragment.
-type NoneAlgorithm struct {
-	Node  Node
-	Space ConstraintSpace
-}
+type NoneAlgorithm struct{}
 
-func (a *NoneAlgorithm) Layout(ctx *Context) *Fragment {
+func (a *NoneAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
 	return &Fragment{
-		Node: a.Node,
+		Node: node,
 	}
 }
 
-func (a *NoneAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
+func (a *NoneAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
 	return MinMaxSizes{}
 }
 
@@ -257,10 +271,7 @@ func IntrinsicMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
 	if sizes, ok := node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
-	// Note: We pass an empty ConstraintSpace as intrinsic sizes should not
-	// depend on parent constraints.
-	algo := NewAlgorithm(node, ConstraintSpace{})
-	return algo.ComputeMinMaxSizes(ctx)
+	return GetAlgorithm(node).ComputeMinMaxSizes(ctx, node)
 }
 
 // IntrinsicBlockSize returns the intrinsic block size (height) of a node given an
@@ -277,8 +288,7 @@ func IntrinsicBlockSize(ctx *Context, node Node, availableWidth int) int {
 		SetContainerSpace(probeSize).
 		SetContainingSpace(probeSize).
 		ToConstraintSpace()
-	algo := NewAlgorithm(node, space)
-	return algo.Layout(ctx).Size.Height
+	return GetAlgorithm(node).Layout(ctx, node, space).Size.Height
 }
 
 // AbsoluteBounds traverses the fragment tree starting at root and computes the absolute

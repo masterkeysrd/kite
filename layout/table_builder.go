@@ -150,7 +150,7 @@ func (b *TableFragmentBuilder) BuildGrid(ctx *Context) {
 	// Flatten rows
 	var rows []Node
 	for _, section := range sections {
-		for row := range section.LayoutChildren() {
+		for row := section.FirstLayoutChild(); row != nil; row = section.NextLayoutSibling(row) {
 			rows = append(rows, row)
 		}
 	}
@@ -353,8 +353,7 @@ func (b *TableFragmentBuilder) buildTableGrid(rows []Node) tableGrid {
 		row.HasBottomBorder = rowStyle.Border.Edges.Bottom
 
 		colIdx := 0
-		cellChildren := rowNode.LayoutChildren()
-		for cellNode := range cellChildren {
+		for cellNode := rowNode.FirstLayoutChild(); cellNode != nil; cellNode = rowNode.NextLayoutSibling(cellNode) {
 			if cellNode.Style().Display != style.DisplayTableCell {
 				continue
 			}

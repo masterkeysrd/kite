@@ -142,10 +142,10 @@ func TestRegression_ListNoChildrenNoCrash(t *testing.T) {
 	})
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
-	algo := layout.NewAlgorithm(node, space)
+	algo := layout.GetAlgorithm(node)
 
 	// Should not crash
-	frag := algo.Layout(nil)
+	frag := algo.Layout(nil, node, space)
 
 	if frag == nil {
 		t.Fatal("Fragment is nil")

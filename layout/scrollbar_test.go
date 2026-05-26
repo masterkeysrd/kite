@@ -1,7 +1,6 @@
 package layout
 
 import (
-	"iter"
 	"testing"
 
 	"github.com/masterkeysrd/kite/style"
@@ -37,8 +36,8 @@ func TestLayout_ScrollbarSpaceReservation(t *testing.T) {
 		SetContainerSpace(Size{Width: 10, Height: 10}).
 		ToConstraintSpace()
 
-	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(root)
+	frag := algo.Layout(nil, root, space)
 
 	if !frag.HasScrollbarY {
 		t.Errorf("expected HasScrollbarY to be true")
@@ -84,8 +83,8 @@ func TestLayout_ScrollbarAutoHidden(t *testing.T) {
 		SetContainerSpace(Size{Width: 10, Height: 10}).
 		ToConstraintSpace()
 
-	algo := &BlockAlgorithm{Node: root, Space: space}
-	frag := algo.Layout(nil)
+	algo := GetAlgorithm(root)
+	frag := algo.Layout(nil, root, space)
 
 	if frag.HasScrollbarY {
 		t.Errorf("expected HasScrollbarY to be false for non-overflowing content with OverflowAuto")
@@ -108,14 +107,22 @@ type mockLayoutNode struct {
 }
 
 func (m *mockLayoutNode) Style() *style.Computed { return m.style }
-func (m *mockLayoutNode) LayoutChildren() iter.Seq[Node] {
-	return func(yield func(Node) bool) {
-		for _, child := range m.children {
-			if !yield(child) {
-				return
+func (m *mockLayoutNode) FirstLayoutChild() Node {
+	if len(m.children) == 0 {
+		return nil
+	}
+	return m.children[0]
+}
+func (m *mockLayoutNode) NextLayoutSibling(child Node) Node {
+	for i, c := range m.children {
+		if c == child {
+			if i+1 < len(m.children) {
+				return m.children[i+1]
 			}
+			break
 		}
 	}
+	return nil
 }
 func (m *mockLayoutNode) LogicalNode() any         { return nil }
 func (m *mockLayoutNode) IsDirtyLayout() bool      { return true }

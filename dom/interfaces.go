@@ -112,6 +112,12 @@ type Node interface {
 	// if this node is a base implementation.
 	Unwrap() Node
 
+	// FirstLayoutChild returns the first layout-visible child, including UA shadow children.
+	FirstLayoutChild() Node
+
+	// NextLayoutSibling returns the next layout-visible sibling of child.
+	NextLayoutSibling(child Node) Node
+
 	// TextContent returns the concatenation of all text content in this node's subtree. For Text
 	// nodes it is the same as Data(). For Element and Document nodes it is the concatenation of
 	// the TextContent of all descendant Text nodes in document order.

@@ -1,8 +1,6 @@
 package layout
 
 import (
-	"iter"
-
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -16,11 +14,11 @@ type Node interface {
 	// Must not return nil for nodes that participate in layout.
 	Style() *style.Computed
 
-	// LayoutChildren returns an iterator over the node's direct children in
-	// tree order. Named LayoutChildren (not Children) so that render objects
-	// can implement both this interface and a separate Children() method that
-	// returns typed render objects without a method-set conflict.
-	LayoutChildren() iter.Seq[Node]
+	// FirstLayoutChild returns the first layout-visible child of this node.
+	FirstLayoutChild() Node
+
+	// NextLayoutSibling returns the next layout-visible sibling of the given child.
+	NextLayoutSibling(child Node) Node
 
 	// LogicalNode returns the logical DOM node that owns this render object,
 	// typed as any to avoid an import cycle. May be nil.

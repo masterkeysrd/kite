@@ -126,13 +126,33 @@ func (o *spatialObj) Contains(n dom.Node) bool {
 }
 func (o *spatialObj) ChildNodes() iter.Seq[dom.Node] {
 	return func(yield func(dom.Node) bool) {
-		for _, c := range o.children {
-			if !yield(c) {
+		for _, child := range o.children {
+			if !yield(child) {
 				return
 			}
 		}
 	}
 }
+
+func (o *spatialObj) FirstLayoutChild() dom.Node {
+	if len(o.children) == 0 {
+		return nil
+	}
+	return o.children[0]
+}
+
+func (o *spatialObj) NextLayoutSibling(child dom.Node) dom.Node {
+	for i, c := range o.children {
+		if c == child {
+			if i+1 < len(o.children) {
+				return o.children[i+1]
+			}
+			break
+		}
+	}
+	return nil
+}
+
 func (o *spatialObj) Unwrap() dom.Node               { return nil }
 func (o *spatialObj) TextContent() string            { return "" }
 func (o *spatialObj) CloneNode(bool) dom.Node        { return nil }
@@ -222,14 +242,22 @@ func (r *spatialRender) StyleNextSibling() style.StyleNode      { return r.NextS
 
 // layout.Node implementation
 func (r *spatialRender) Style() *style.Computed { return r.ComputedStyle() }
-func (r *spatialRender) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {
-		for _, c := range r.node.children {
-			if !yield(c.render) {
-				return
+func (r *spatialRender) FirstLayoutChild() layout.Node {
+	if len(r.node.children) == 0 {
+		return nil
+	}
+	return r.node.children[0].render
+}
+func (r *spatialRender) NextLayoutSibling(child layout.Node) layout.Node {
+	for i, c := range r.node.children {
+		if c.render == child {
+			if i+1 < len(r.node.children) {
+				return r.node.children[i+1].render
 			}
+			break
 		}
 	}
+	return nil
 }
 func (r *spatialRender) IsDirtyLayout() bool      { return false }
 func (r *spatialRender) IsDirtyPaint() bool       { return false }

@@ -2,7 +2,6 @@ package layout
 
 import (
 	"fmt"
-	"iter"
 	"reflect"
 
 	"github.com/masterkeysrd/kite/style"
@@ -11,47 +10,44 @@ import (
 // ListAlgorithm implements the layout for list items with markers.
 // It formats the list item as a two-column row: Column 1 is the marker,
 // and Column 2 contains the children laid out using Block layout rules.
-type ListAlgorithm struct {
-	Node  Node
-	Space ConstraintSpace
-}
+type ListAlgorithm struct{}
 
-func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
+func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
 	// 1. Cache Check
-	if cached := a.Node.CachedLayout(a.Space); cached != nil {
+	if cached := node.CachedLayout(space); cached != nil {
 		return cached
 	}
 	defer ctx.Begin("Layout(List)")()
 
-	comp := a.Node.Style()
+	comp := node.Style()
 	border := comp.Border.Widths()
 	padding := comp.Padding
 
 	// 2. Resolve inline size
 	var minMax MinMaxSizes
-	if !a.Space.IsFixedInlineSize {
-		minMax = a.ComputeMinMaxSizes(ctx)
+	if !space.IsFixedInlineSize {
+		minMax = a.ComputeMinMaxSizes(ctx, node)
 	}
 
 	var resolvedInlineSize int
-	if a.Space.IsFixedInlineSize {
-		resolvedInlineSize = a.Space.AvailableSize.Width
+	if space.IsFixedInlineSize {
+		resolvedInlineSize = space.AvailableSize.Width
 	} else {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedInlineSize = int(float32(a.Space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedInlineSize = int(float32(space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
 		case style.KindCells:
 			resolvedInlineSize = comp.Width.CellsValue()
 		case style.KindAuto:
-			resolvedInlineSize = a.Space.AvailableSize.Width
+			resolvedInlineSize = space.AvailableSize.Width
 		case style.KindContent:
-			resolvedInlineSize = min(minMax.Max, a.Space.AvailableSize.Width)
+			resolvedInlineSize = min(minMax.Max, space.AvailableSize.Width)
 		default:
-			resolvedInlineSize = a.Space.AvailableSize.Width
+			resolvedInlineSize = space.AvailableSize.Width
 		}
 	}
 
-	builder := NewBoxFragmentBuilder(a.Node, a.Space)
+	builder := AcquireBoxFragmentBuilder(node, space)
 	builder.SetInlineSize(resolvedInlineSize)
 
 	parentDecorX := border.Left + border.Right + padding.Left + padding.Right
@@ -59,7 +55,7 @@ func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
 	contentWidth := max(0, resolvedInlineSize-parentDecorX)
 
 	// 3. Synthesize Marker
-	markerText := a.getMarkerText()
+	markerText := a.getMarkerText(node)
 	var markerFrag *Fragment
 	markerWidth := 0
 	if markerText != "" {
@@ -71,7 +67,7 @@ func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
 				Height: 1,
 			},
 			Text:       shaped,
-			ParentNode: a.Node,
+			ParentNode: node,
 		}
 		markerWidth = markerFrag.Size.Width
 	}
@@ -86,66 +82,66 @@ func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
 	}
 
 	// Mimic BlockAlgorithm's child iteration but constrained to Column 2
-	children := a.Node.LayoutChildren()
-	nextChild, stop := iter.Pull(children)
-	defer stop()
+	var inlineBuilder *InlineItemsBuilder
+	defer func() {
+		if inlineBuilder != nil {
+			ReleaseInlineItemsBuilder(inlineBuilder)
+		}
+	}()
+	var bufferedInlines []Node
 
-	child, ok := nextChild()
-	for ok {
-		if IsInlineLevel(child) {
-			inlineBuilder := NewInlineItemsBuilder(defaultShaper, a.Node)
+	processInlines := func() {
+		if len(bufferedInlines) == 0 {
+			return
+		}
+		if inlineBuilder == nil {
+			inlineBuilder = AcquireInlineItemsBuilder(defaultShaper, node)
+		}
+		inlineBuilder.Reset()
+		for _, child := range bufferedInlines {
 			inlineBuilder.collect(child)
+		}
+		bufferedInlines = bufferedInlines[:0]
 
-			for {
-				peek, peekOk := nextChild()
-				if !peekOk {
-					child = nil
-					ok = false
-					break
-				}
-				if IsInlineLevel(peek) {
-					inlineBuilder.collect(peek)
-				} else {
-					child = peek
-					ok = true
-					break
-				}
-			}
-
-			items := inlineBuilder.items
-			breaker := NewLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
-			for {
-				line, ok := breaker.NextLine(ctx)
-				if !ok {
-					break
-				}
-				lineFrag := line.ToFragment()
-				offset := Point{
-					X: column2X,
-					Y: builder.CurrentBlockOffset(),
-				}
-				builder.AddChild(lineFrag, offset)
-				builder.AdvanceBlockOffset(lineFrag.Size.Height)
-			}
-
+		items := inlineBuilder.items
+		breaker := NewLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
+		for {
+			line, ok := breaker.NextLine(ctx)
 			if !ok {
 				break
 			}
+			lineFrag := line.ToFragment()
+			offset := Point{
+				X: column2X,
+				Y: builder.CurrentBlockOffset(),
+			}
+			builder.AddChild(lineFrag, offset)
+			builder.AdvanceBlockOffset(lineFrag.Size.Height)
+		}
+	}
+
+	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
+		if child.Style().Display == style.DisplayNone {
 			continue
 		}
 
-		// Block Child — delegate to BuildChildSpace (ADR-018).
-		// The list item's border-box is the containing space; column 2 is the container.
+		if IsInlineLevel(child) {
+			bufferedInlines = append(bufferedInlines, child)
+			continue
+		}
+
+		processInlines()
+
 		childMargin := child.Style().Margin
-		containingSpace := Size{Width: resolvedInlineSize, Height: a.Space.AvailableSize.Height}
-		containerSpace := Size{Width: column2Width, Height: max(0, a.Space.AvailableSize.Height-parentDecorY)}
+		containingSpace := Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height}
+		containerSpace := Size{Width: column2Width, Height: max(0, space.AvailableSize.Height-parentDecorY)}
 		adjustedContainer := Size{
 			Width:  containerSpace.Width,
 			Height: max(0, containerSpace.Height-builder.CurrentBlockOffset()),
 		}
-		childSpace := BuildChildSpace(child, adjustedContainer, containingSpace, a.Space)
-		childAlgo := NewAlgorithm(child, childSpace)
-		childFrag := childAlgo.Layout(ctx)
+		childSpace := BuildChildSpace(child, adjustedContainer, containingSpace, space)
+		childAlgo := GetAlgorithm(child)
+		childFrag := childAlgo.Layout(ctx, child, childSpace)
 
 		offset := Point{
 			X: column2X + childMargin.Left,
@@ -153,42 +149,41 @@ func (a *ListAlgorithm) Layout(ctx *Context) *Fragment {
 		}
 		builder.AddChild(childFrag, offset)
 		builder.AdvanceBlockOffset(childMargin.Top + childFrag.Size.Height + childMargin.Bottom)
-
-		child, ok = nextChild()
 	}
+
+	processInlines()
 
 	builder.AdvanceBlockOffset(border.Bottom + padding.Bottom)
 
-	if a.Space.IsFixedBlockSize {
-		builder.SetBlockSize(a.Space.AvailableSize.Height)
+	if space.IsFixedBlockSize {
+		builder.SetBlockSize(space.AvailableSize.Height)
 	} else {
 		resolvedHeight := builder.CurrentBlockOffset()
-		// Ensure height is at least 1 if we have a marker, even if no children
 		if markerFrag != nil {
 			resolvedHeight = max(resolvedHeight, border.Top+padding.Top+markerFrag.Size.Height+padding.Bottom+border.Bottom)
 		}
 		if comp.Height.Kind() == style.KindCells {
-			resolvedHeight = comp.Height.CellsValue()
+			resolvedHeight = max(resolvedHeight, comp.Height.CellsValue())
 		}
 		builder.SetBlockSize(resolvedHeight)
 	}
 
 	frag := builder.ToFragment()
-	a.Node.SetCachedLayout(a.Space, frag)
+	node.SetCachedLayout(space, frag)
 	return frag
 }
 
-func (a *ListAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	if sizes, ok := a.Node.CachedMinMaxSizes(); ok {
+func (a *ListAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	if sizes, ok := node.CachedMinMaxSizes(); ok {
 		return sizes
 	}
 	defer ctx.Begin("Layout(List):ComputeMinMaxSizes")()
 
-	comp := a.Node.Style()
+	comp := node.Style()
 	border := comp.Border.Widths()
 	parentDecorX := border.Left + border.Right + comp.Padding.Left + comp.Padding.Right
 
-	markerText := a.getMarkerText()
+	markerText := a.getMarkerText(node)
 	markerWidth := 0
 	if markerText != "" {
 		markerWidth = defaultShaper.MeasureRun(markerText)
@@ -196,7 +191,7 @@ func (a *ListAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 
 	sizes := MinMaxSizes{Min: markerWidth, Max: markerWidth}
 
-	for child := range a.Node.LayoutChildren() {
+	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
 		childSizes := IntrinsicMinMaxSizes(ctx, child)
 		childMargin := child.Style().Margin
 		childDecorX := childMargin.Left + childMargin.Right
@@ -208,12 +203,12 @@ func (a *ListAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
 	sizes.Min += parentDecorX
 	sizes.Max += parentDecorX
 
-	a.Node.SetCachedMinMaxSizes(sizes)
+	node.SetCachedMinMaxSizes(sizes)
 	return sizes
 }
 
-func (a *ListAlgorithm) getMarkerText() string {
-	comp := a.Node.Style()
+func (a *ListAlgorithm) getMarkerText(node Node) string {
+	comp := node.Style()
 	switch comp.ListStyleType {
 	case style.ListStyleNone:
 		return ""
@@ -224,23 +219,22 @@ func (a *ListAlgorithm) getMarkerText() string {
 	case style.ListStyleSquare:
 		return "■ "
 	case style.ListStyleDecimal:
-		ordinal := a.computeOrdinal()
+		ordinal := a.computeOrdinal(node)
 		return fmt.Sprintf("%d. ", ordinal)
 	default:
 		return "• "
 	}
 }
 
-func (a *ListAlgorithm) computeOrdinal() int {
+func (a *ListAlgorithm) computeOrdinal(node Node) int {
 	ordinal := 1
-	logical := a.Node.LogicalNode()
+	logical := node.LogicalNode()
 	if logical == nil {
 		return 1
 	}
 
 	curr := logical
 	for {
-		// Use reflection to call PreviousSibling() to avoid import cycles.
 		currVal := reflect.ValueOf(curr)
 		method := currVal.MethodByName("PreviousSibling")
 		if !method.IsValid() {
@@ -252,21 +246,16 @@ func (a *ListAlgorithm) computeOrdinal() int {
 		}
 		curr = results[0].Interface()
 
-		// Get RenderObject from current logical node
 		roMethod := reflect.ValueOf(curr).MethodByName("RenderObject")
 		if !roMethod.IsValid() {
 			break
 		}
 		roResults := roMethod.Call(nil)
 		if len(roResults) == 0 || roResults[0].IsNil() {
-			// Some nodes might not have a render object (e.g. DisplayNone)
-			// But we should continue walking?
-			// CSS says only DisplayListItem matters.
 			continue
 		}
 		ro := roResults[0].Interface()
 
-		// Check if the render object has the correct style
 		type hasStyle interface {
 			Style() *style.Computed
 		}
@@ -275,7 +264,6 @@ func (a *ListAlgorithm) computeOrdinal() int {
 			if comp != nil && comp.Display == style.DisplayListItem {
 				ordinal++
 			} else {
-				// Consecutive DisplayListItem nodes
 				break
 			}
 		} else {

@@ -1,7 +1,6 @@
 package regressions
 
 import (
-	"iter"
 	"testing"
 
 	"github.com/masterkeysrd/kite/layout"
@@ -18,14 +17,23 @@ func (m *mockNode) Style() *style.Computed {
 	return m.style
 }
 
-func (m *mockNode) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {
-		for _, child := range m.children {
-			if !yield(child) {
-				return
+func (m *mockNode) FirstLayoutChild() layout.Node {
+	if len(m.children) == 0 {
+		return nil
+	}
+	return m.children[0]
+}
+
+func (m *mockNode) NextLayoutSibling(child layout.Node) layout.Node {
+	for i, c := range m.children {
+		if c == child {
+			if i+1 < len(m.children) {
+				return m.children[i+1]
 			}
+			break
 		}
 	}
+	return nil
 }
 
 func (m *mockNode) LogicalNode() any                                                    { return nil }
@@ -71,8 +79,8 @@ func TestFlexGapInColumn(t *testing.T) {
 	}
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 20, Height: 100}).ToConstraintSpace()
-	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout(nil)
+	algo := layout.GetAlgorithm(container)
+	frag := algo.Layout(nil, container, space)
 
 	// Expected height: 1 (child1) + 1 (gap) + 1 (child2) = 3
 	if frag.Size.Height != 3 {
@@ -126,8 +134,8 @@ func TestFlexJustifyBetweenNegativeSpace(t *testing.T) {
 	}
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 15, Height: 1}).ToConstraintSpace()
-	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout(nil)
+	algo := layout.GetAlgorithm(container)
+	frag := algo.Layout(nil, container, space)
 
 	// Check child offsets
 	if len(frag.Children) != 2 {
@@ -172,8 +180,8 @@ func TestFlexSqueezedHeight(t *testing.T) {
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
 
-	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout(nil)
+	algo := layout.GetAlgorithm(container)
+	frag := algo.Layout(nil, container, space)
 
 	// Check if child is present
 	if len(frag.Children) == 0 {
@@ -223,8 +231,8 @@ func TestFlexColumnGap(t *testing.T) {
 	}
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 10, Height: 100}).ToConstraintSpace()
-	algo := layout.NewAlgorithm(container, space)
-	frag := algo.Layout(nil)
+	algo := layout.GetAlgorithm(container)
+	frag := algo.Layout(nil, container, space)
 
 	if frag.Size.Height != 8 {
 		t.Errorf("Expected height 8, got %d", frag.Size.Height)
@@ -290,8 +298,8 @@ func TestFlexNestedHeight(t *testing.T) {
 	}
 
 	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 20, Height: 100}).ToConstraintSpace()
-	algo := layout.NewAlgorithm(outer, space)
-	frag := algo.Layout(nil)
+	algo := layout.GetAlgorithm(outer)
+	frag := algo.Layout(nil, outer, space)
 
 	// Inner should be 3 high. Outer should be 3 high.
 	if frag.Size.Height != 3 {

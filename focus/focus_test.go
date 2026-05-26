@@ -120,13 +120,33 @@ func (o *testObject) Contains(n dom.Node) bool {
 }
 func (o *testObject) ChildNodes() iter.Seq[dom.Node] {
 	return func(yield func(dom.Node) bool) {
-		for _, c := range o.children {
-			if !yield(c) {
+		for _, child := range o.children {
+			if !yield(child) {
 				return
 			}
 		}
 	}
 }
+
+func (o *testObject) FirstLayoutChild() dom.Node {
+	if len(o.children) == 0 {
+		return nil
+	}
+	return o.children[0]
+}
+
+func (o *testObject) NextLayoutSibling(child dom.Node) dom.Node {
+	for i, c := range o.children {
+		if c == child {
+			if i+1 < len(o.children) {
+				return o.children[i+1]
+			}
+			break
+		}
+	}
+	return nil
+}
+
 func (o *testObject) Unwrap() dom.Node               { return nil }
 func (o *testObject) TextContent() string            { return "" }
 func (o *testObject) CloneNode(bool) dom.Node        { return nil }
@@ -214,14 +234,22 @@ func (r *testRender) StyleNextSibling() style.StyleNode { return r.NextSibling()
 
 // layout.Node implementation
 func (r *testRender) Style() *style.Computed { return r.ComputedStyle() }
-func (r *testRender) LayoutChildren() iter.Seq[layout.Node] {
-	return func(yield func(layout.Node) bool) {
-		for _, c := range r.node.children {
-			if !yield(c.render) {
-				return
+func (r *testRender) FirstLayoutChild() layout.Node {
+	if len(r.node.children) == 0 {
+		return nil
+	}
+	return r.node.children[0].render
+}
+func (r *testRender) NextLayoutSibling(child layout.Node) layout.Node {
+	for i, c := range r.node.children {
+		if c.render == child {
+			if i+1 < len(r.node.children) {
+				return r.node.children[i+1].render
 			}
+			break
 		}
 	}
+	return nil
 }
 func (r *testRender) IsDirtyLayout() bool                                      { return false }
 func (r *testRender) IsDirtyPaint() bool                                       { return false }

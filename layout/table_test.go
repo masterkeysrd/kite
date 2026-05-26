@@ -67,8 +67,8 @@ func TestTableLayout_UniformGrid(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	algo := &TableAlgorithm{Node: table, Space: space}
-	frag := algo.Layout(nil)
+	algo := &TableAlgorithm{}
+	frag := algo.Layout(nil, table, space)
 
 	if frag.Size.Width != 25 {
 		t.Errorf("expected table width 25, got %d", frag.Size.Width)
@@ -131,8 +131,8 @@ func TestTableLayout_ColSpan(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	algo := &TableAlgorithm{Node: table, Space: space}
-	frag := algo.Layout(nil)
+	algo := &TableAlgorithm{}
+	frag := algo.Layout(nil, table, space)
 
 	if frag.Size.Width != 30 {
 		t.Errorf("expected table width 30, got %d", frag.Size.Width)
@@ -172,8 +172,8 @@ func TestTableLayout_FaultTolerance_AnonymousRow(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	algo := &TableAlgorithm{Node: table, Space: space}
-	frag := algo.Layout(nil)
+	algo := &TableAlgorithm{}
+	frag := algo.Layout(nil, table, space)
 
 	if frag.Size.Width != 30 {
 		t.Errorf("expected table width 30, got %d", frag.Size.Width)
@@ -256,7 +256,7 @@ func TestTableLayout_BorderOverlap(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	frag := (&TableAlgorithm{Node: table, Space: space}).Layout(nil)
+	frag := (&TableAlgorithm{}).Layout(nil, table, space)
 
 	// Anonymous section
 	tbodyFrag := frag.Children[0].Fragment
@@ -351,7 +351,7 @@ func TestTableLayout_ColSpanBorderCollapse(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-	frag := (&TableAlgorithm{Node: table, Space: space}).Layout(nil)
+	frag := (&TableAlgorithm{}).Layout(nil, table, space)
 
 	// Table width: col0(10) + col1(10) - 1(junction) = 19.
 	if frag.Size.Width != 19 {

@@ -44,9 +44,9 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			SetIsFixedBlockSize(true).
 			ToConstraintSpace()
 
-		algo := NewAlgorithm(parent, space)
+		algo := GetAlgorithm(parent)
 		ctx := &Context{}
-		frag := algo.Layout(ctx)
+		frag := algo.Layout(ctx, parent, space)
 
 		if frag.Size.Width != 20 || frag.Size.Height != 10 {
 			t.Errorf("expected parent size 20x10, got %dx%d", frag.Size.Width, frag.Size.Height)
@@ -91,9 +91,9 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			SetContainerSpace(Size{100, 100}).
 			ToConstraintSpace()
 
-		algo := NewAlgorithm(parent, space)
+		algo := GetAlgorithm(parent)
 		ctx := &Context{}
-		frag := algo.Layout(ctx)
+		frag := algo.Layout(ctx, parent, space)
 
 		// Parent should expand to fit c1 (15x2)
 		if frag.Size.Width != 15 || frag.Size.Height != 2 {
@@ -121,9 +121,9 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			SetContainerSpace(Size{100, 100}).
 			ToConstraintSpace()
 
-		algo := NewAlgorithm(parent, space)
+		algo := GetAlgorithm(parent)
 		ctx := &Context{}
-		frag := algo.Layout(ctx)
+		frag := algo.Layout(ctx, parent, space)
 
 		// Width should be 5 + 2 + 5 = 12
 		if frag.Size.Width != 12 {
@@ -146,8 +146,8 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 		space := NewConstraintSpaceBuilder(Size{85, 54}).
 			SetContainerSpace(Size{85, 54}).
 			ToConstraintSpace()
-		algo := NewAlgorithm(parent, space)
-		frag := algo.Layout(&Context{})
+		algo := GetAlgorithm(parent)
+		frag := algo.Layout(&Context{}, parent, space)
 		if frag.Size.Width != 85 {
 			t.Errorf("expected width 85 (fill available), got %d", frag.Size.Width)
 		}
@@ -179,10 +179,10 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 		}
 
 		space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
-		algo := NewAlgorithm(parent, space)
+		algo := GetAlgorithm(parent)
 
 		// This should NOT panic or hang even if the child wants 100% of an indefinite height.
-		frag := algo.Layout(&Context{})
+		frag := algo.Layout(&Context{}, parent, space)
 
 		// Size should be at least 0.
 		if frag.Size.Height < 0 {
@@ -211,8 +211,8 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 		}
 
 		space := NewConstraintSpaceBuilder(Size{40, 10}).ToConstraintSpace()
-		algo := NewAlgorithm(parent, space)
-		frag := algo.Layout(&Context{})
+		algo := GetAlgorithm(parent)
+		frag := algo.Layout(&Context{}, parent, space)
 
 		// colWidths:
 		// 1: Fixed 10
@@ -260,9 +260,9 @@ func TestGridAlgorithm_ComputeMinMaxSizes(t *testing.T) {
 		firstChild: c1,
 	}
 
-	algo := &GridAlgorithm{Node: parent, Space: ConstraintSpace{}}
+	algo := &GridAlgorithm{}
 	ctx := &Context{}
-	sizes := algo.ComputeMinMaxSizes(ctx)
+	sizes := algo.ComputeMinMaxSizes(ctx, parent)
 
 	// Max should be 10 + 5 + 20 = 35
 	if sizes.Max != 35 {
@@ -291,9 +291,9 @@ func TestGridAlgorithm_Rendering(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
-	algo := NewAlgorithm(parent, space)
+	algo := GetAlgorithm(parent)
 	ctx := &Context{}
-	frag := algo.Layout(ctx)
+	frag := algo.Layout(ctx, parent, space)
 
 	if len(frag.Children) != 1 {
 		t.Fatalf("expected 1 child, got %d", len(frag.Children))
@@ -337,9 +337,9 @@ func TestGridAlgorithm_ExplicitPlacement(t *testing.T) {
 	}
 
 	space := NewConstraintSpaceBuilder(Size{30, 20}).ToConstraintSpace()
-	algo := NewAlgorithm(parent, space)
+	algo := GetAlgorithm(parent)
 	ctx := &Context{}
-	frag := algo.Layout(ctx)
+	frag := algo.Layout(ctx, parent, space)
 
 	if len(frag.Children) != 1 {
 		t.Fatalf("expected 1 child, got %d", len(frag.Children))

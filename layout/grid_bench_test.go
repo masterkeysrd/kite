@@ -46,8 +46,8 @@ func BenchmarkGridLayout_10x10(b *testing.B) {
 		}
 		parent.cachedFragment = nil
 
-		algo := &GridAlgorithm{Node: parent, Space: space}
-		_ = algo.Layout(ctx)
+		algo := GetAlgorithm(parent)
+		_ = algo.Layout(ctx, parent, space)
 	}
 }
 
@@ -96,7 +96,7 @@ func BenchmarkGridLayout_Complex(b *testing.B) {
 		}
 		parent.cachedFragment = nil
 
-		algo := &GridAlgorithm{Node: parent, Space: space}
-		_ = algo.Layout(ctx)
+		algo := GetAlgorithm(parent)
+		_ = algo.Layout(ctx, parent, space)
 	}
 }

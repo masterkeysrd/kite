@@ -13,14 +13,16 @@ import (
 // makeParentSpace is a helper that creates a parent ConstraintSpace with the
 // given available/containing/container sizes.
 func makeParentSpace(available, containing, container Size, fixedBlock bool) ConstraintSpace {
-	b := NewConstraintSpaceBuilder(available)
-	b.SetContainingSpace(containing)
-	b.SetContainerSpace(container)
-	b.SetIsFixedInlineSize(true)
-	if fixedBlock {
-		b.SetIsFixedBlockSize(true)
+	space := ConstraintSpace{
+		AvailableSize:     available,
+		ContainingSpace:   containing,
+		ContainerSpace:    container,
+		IsFixedInlineSize: true,
 	}
-	return b.ToConstraintSpace()
+	if fixedBlock {
+		space.IsFixedBlockSize = true
+	}
+	return space
 }
 
 func TestBuildChildSpace_KindCells(t *testing.T) {
@@ -222,12 +224,13 @@ func TestPercentResolvesAgainstContentBox(t *testing.T) {
 	child := &mockNode{style: childStyle}
 	parent := &mockNode{style: parentStyle, firstChild: child}
 
-	space := NewConstraintSpaceBuilder(Size{Width: 100, Height: 100}).
-		SetContainingSpace(Size{Width: 100, Height: 100}).
-		SetContainerSpace(Size{Width: 100, Height: 100}).
-		ToConstraintSpace()
+	space := ConstraintSpace{
+		AvailableSize:   Size{Width: 100, Height: 100},
+		ContainingSpace: Size{Width: 100, Height: 100},
+		ContainerSpace:  Size{Width: 100, Height: 100},
+	}
 
-	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout(nil)
+	frag := blockAlgo.Layout(nil, parent, space)
 
 	// Parent content-box = 20 - 2(border) - 4(padding) = 14. Child = 50% of 14 = 7.
 	if len(frag.Children) == 0 {
@@ -260,12 +263,13 @@ func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
 		firstChild: parent,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{100, 100}).
-		SetContainingSpace(Size{100, 100}).
-		SetContainerSpace(Size{100, 100}).
-		ToConstraintSpace()
+	space := ConstraintSpace{
+		AvailableSize:   Size{Width: 100, Height: 100},
+		ContainingSpace: Size{Width: 100, Height: 100},
+		ContainerSpace:  Size{Width: 100, Height: 100},
+	}
 
-	rootFrag := (&BlockAlgorithm{Node: root, Space: space}).Layout(nil)
+	rootFrag := blockAlgo.Layout(nil, root, space)
 
 	if len(rootFrag.Children) == 0 {
 		t.Fatal("root has no children")
@@ -301,12 +305,13 @@ func TestBlockChildUsesContainerSpace(t *testing.T) {
 	parent := &mockNode{style: parentStyle, firstChild: child}
 
 	// Do NOT fix inline size so parent resolves its own KindCells width=40.
-	space := NewConstraintSpaceBuilder(Size{100, 100}).
-		SetContainingSpace(Size{100, 100}).
-		SetContainerSpace(Size{100, 100}).
-		ToConstraintSpace()
+	space := ConstraintSpace{
+		AvailableSize:   Size{Width: 100, Height: 100},
+		ContainingSpace: Size{Width: 100, Height: 100},
+		ContainerSpace:  Size{Width: 100, Height: 100},
+	}
 
-	frag := (&BlockAlgorithm{Node: parent, Space: space}).Layout(nil)
+	frag := blockAlgo.Layout(nil, parent, space)
 
 	if len(frag.Children) == 0 {
 		t.Fatal("expected child fragment")
@@ -367,11 +372,12 @@ func BenchmarkLayoutWithContainerSpace(b *testing.B) {
 		firstChild: first,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{100, 1000}).
-		SetContainingSpace(Size{100, 1000}).
-		SetContainerSpace(Size{100, 1000}).
-		SetIsFixedInlineSize(true).
-		ToConstraintSpace()
+	space := ConstraintSpace{
+		AvailableSize:     Size{Width: 100, Height: 1000},
+		ContainingSpace:   Size{Width: 100, Height: 1000},
+		ContainerSpace:    Size{Width: 100, Height: 1000},
+		IsFixedInlineSize: true,
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -383,7 +389,6 @@ func BenchmarkLayoutWithContainerSpace(b *testing.B) {
 			mn.cachedFragment = nil
 			n = n.(sibling).NextSibling()
 		}
-		algo := &BlockAlgorithm{Node: root, Space: space}
-		algo.Layout(nil)
+		_ = blockAlgo.Layout(nil, root, space)
 	}
 }

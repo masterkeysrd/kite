@@ -5,32 +5,28 @@ import (
 )
 
 // OverlayAlgorithm implements anchored positioning and smart flipping for overlays.
-type OverlayAlgorithm struct {
-	Node  Node
-	Space ConstraintSpace
-}
+type OverlayAlgorithm struct{}
 
-func (a *OverlayAlgorithm) Layout(ctx *Context) *Fragment {
+func (a *OverlayAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *Fragment {
 	defer ctx.Begin("Layout(Overlay)")()
 	// 1. Measure content first (shrink-wrap)
 	// Overlays typically shrink-wrap their content unless they have fixed sizes.
-	csb := NewConstraintSpaceBuilder(a.Space.AvailableSize)
-	csb.SetContainingSpace(a.Space.ContainingSpace)
-	csb.SetContainerSpace(a.Space.ContainerSpace)
-	if a.Node.Style().Width.Kind() == style.KindAuto || a.Node.Style().Width.Kind() == style.KindContent {
-		csb.SetIsFixedInlineSize(false)
-	} else {
-		csb.SetIsFixedInlineSize(a.Space.IsFixedInlineSize)
+	contentSpace := ConstraintSpace{
+		AvailableSize:   space.AvailableSize,
+		ContainingSpace: space.ContainingSpace,
+		ContainerSpace:  space.ContainerSpace,
 	}
-	contentSpace := csb.ToConstraintSpace()
+	if node.Style().Width.Kind() == style.KindAuto || node.Style().Width.Kind() == style.KindContent {
+		contentSpace.IsFixedInlineSize = false
+	} else {
+		contentSpace.IsFixedInlineSize = space.IsFixedInlineSize
+	}
 
-	// We use BlockAlgorithm for the content of the overlay itself
-	// (it acts as a BFC).
-	contentAlgo := &BlockAlgorithm{Node: a.Node, Space: contentSpace}
-	frag := contentAlgo.Layout(ctx)
+	// We use BlockAlgorithm for the content of the overlay itself (it acts as a BFC).
+	frag := blockAlgo.Layout(ctx, node, contentSpace)
 
 	// 2. Determine physical position
-	lever, ok := a.Node.LogicalNode().(OverlayLever)
+	lever, ok := node.LogicalNode().(OverlayLever)
 	if !ok {
 		// If not an OverlayLever, just return the fragment at (0,0)
 		return frag
@@ -48,21 +44,21 @@ func (a *OverlayAlgorithm) Layout(ctx *Context) *Fragment {
 	}); ok {
 		anchorRect, found := anchorEl.GetBoundingClientRect()
 		if found {
-			x, y = a.calculatePosition(anchorRect, frag.Size, placement, flip)
+			x, y = a.calculatePosition(anchorRect, frag.Size, placement, flip, space.AvailableSize)
 		}
 	}
 
-	a.Node.SetOffset(Point{X: x, Y: y})
+	node.SetOffset(Point{X: x, Y: y})
 
 	return frag
 }
 
-func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement OverlayPlacement, flip bool) (int, int) {
+func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement OverlayPlacement, flip bool, availableSize Size) (int, int) {
 	x, y := a.resolvePlacement(anchor, size, placement)
 
 	if flip {
 		// Check if it overflows viewport
-		overflows := x < 0 || y < 0 || x+size.Width > a.Space.AvailableSize.Width || y+size.Height > a.Space.AvailableSize.Height
+		overflows := x < 0 || y < 0 || x+size.Width > availableSize.Width || y+size.Height > availableSize.Height
 
 		if overflows {
 			// Try opposite placement
@@ -70,7 +66,7 @@ func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement O
 			nx, ny := a.resolvePlacement(anchor, size, opposite)
 
 			// Check if opposite also overflows
-			nOverflows := nx < 0 || ny < 0 || nx+size.Width > a.Space.AvailableSize.Width || ny+size.Height > a.Space.AvailableSize.Height
+			nOverflows := nx < 0 || ny < 0 || nx+size.Width > availableSize.Width || ny+size.Height > availableSize.Height
 
 			if !nOverflows {
 				return nx, ny
@@ -78,9 +74,9 @@ func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement O
 
 			// If both overflow, we default to the side with the most available space.
 			topSpace := anchor.Origin.Y
-			bottomSpace := max(0, a.Space.AvailableSize.Height-(anchor.Origin.Y+anchor.Size.Height))
+			bottomSpace := max(0, availableSize.Height-(anchor.Origin.Y+anchor.Size.Height))
 			leftSpace := anchor.Origin.X
-			rightSpace := max(0, a.Space.AvailableSize.Width-(anchor.Origin.X+anchor.Size.Width))
+			rightSpace := max(0, availableSize.Width-(anchor.Origin.X+anchor.Size.Width))
 
 			switch placement {
 			case PlacementTop, PlacementBottom:
@@ -130,7 +126,6 @@ func (a *OverlayAlgorithm) oppositePlacement(p OverlayPlacement) OverlayPlacemen
 	}
 }
 
-func (a *OverlayAlgorithm) ComputeMinMaxSizes(ctx *Context) MinMaxSizes {
-	contentAlgo := &BlockAlgorithm{Node: a.Node, Space: a.Space}
-	return contentAlgo.ComputeMinMaxSizes(ctx)
+func (a *OverlayAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
+	return blockAlgo.ComputeMinMaxSizes(ctx, node)
 }
