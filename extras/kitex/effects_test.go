@@ -18,13 +18,6 @@ func init() {
 	})
 }
 
-func flushScheduledMacros() {
-	for _, fn := range scheduledMacros {
-		fn()
-	}
-	scheduledMacros = nil
-}
-
 func TestUseEffect_RunsAfterFlush(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
@@ -433,15 +426,14 @@ func BenchmarkLayoutEffectReRender(b *testing.B) {
 		return Box(BoxProps{})
 	})
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Render(comp(), container)
 		Render(nil, container) // cleanup
 	}
 }
 
 func BenchmarkFlushBeforeRender(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		effectsMutex.Lock()
 		pendingEffects = pendingEffects[:0]
 		// Mock state to avoid large allocations in loop
@@ -449,7 +441,7 @@ func BenchmarkFlushBeforeRender(b *testing.B) {
 			pending:  true,
 			simpleFn: func() {},
 		}
-		for j := 0; j < 100; j++ {
+		for range 100 {
 			pendingEffects = append(pendingEffects, mockState)
 		}
 		effectsMutex.Unlock()
@@ -460,16 +452,16 @@ func BenchmarkFlushBeforeRender(b *testing.B) {
 func BenchmarkDepsChange(b *testing.B) {
 	dep1 := []any{1, "test", true}
 	dep2 := []any{2, "test", true}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = depsEqual(dep1, dep2)
 	}
 }
 
 func BenchmarkNoDepsChange(b *testing.B) {
 	dep1 := []any{1, "test", true}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = depsEqual(dep1, dep1)
 	}
 }

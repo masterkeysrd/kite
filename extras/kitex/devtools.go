@@ -19,8 +19,8 @@ type VDOMSnapshot struct {
 	InstFile    string          `json:"instFile,omitempty"`
 	InstLine    int             `json:"instLine,omitempty"`
 	DomID       string          `json:"domId,omitempty"`
-	DomUniqueId string          `json:"domUniqueId,omitempty"`
-	UniqueId    string          `json:"uniqueId,omitempty"`
+	DomUniqueID string          `json:"domUniqueId,omitempty"`
+	UniqueID    string          `json:"uniqueId,omitempty"`
 	Rect        layout.Rect     `json:"rect"`
 	Children    []*VDOMSnapshot `json:"children,omitempty"`
 }
@@ -96,7 +96,7 @@ func snapshotVDOMNode(node Node, container dom.Element, boundsMap map[layout.Nod
 	snap := &VDOMSnapshot{
 		Name:     node.TagName(),
 		Key:      node.Key(),
-		UniqueId: fmt.Sprintf("vdom-%d", *counter),
+		UniqueID: fmt.Sprintf("vdom-%d", *counter),
 	}
 
 	var refNode dom.Node
@@ -111,7 +111,7 @@ func snapshotVDOMNode(node Node, container dom.Element, boundsMap map[layout.Nod
 		if ro := refNode.RenderObject(); ro != nil {
 			if r, ok := boundsMap[ro]; ok {
 				snap.Rect = r
-				snap.DomUniqueId = fmt.Sprintf("%s:%s:%s:%d,%d", refNode.Kind().String(), refNode.NodeName(), snap.DomID, r.Origin.X, r.Origin.Y)
+				snap.DomUniqueID = fmt.Sprintf("%s:%s:%s:%d,%d", refNode.Kind().String(), refNode.NodeName(), snap.DomID, r.Origin.X, r.Origin.Y)
 			}
 		}
 	}

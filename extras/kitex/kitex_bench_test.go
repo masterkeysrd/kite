@@ -9,8 +9,8 @@ import (
 // BenchmarkVDOMConstruction measures the performance of constructing a standard VDOM tree.
 func BenchmarkVDOMConstruction(b *testing.B) {
 	EnableDevMode = false
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Box(BoxProps{
 			ID:    "container",
 			Class: "wrapper",
@@ -41,8 +41,7 @@ func BenchmarkComponentInstantiation(b *testing.B) {
 		}, Text(props.Label))
 	})
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		compNode := myButton(MyButtonProps{Label: "click me"})
 		_ = compNode.Instantiate(doc)
 	}
@@ -66,8 +65,7 @@ func BenchmarkComponentHooks(b *testing.B) {
 		return Box(BoxProps{})
 	})
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		compNode := myCounter(struct{}{})
 		_ = compNode.Instantiate(doc)
 	}
@@ -89,8 +87,7 @@ func BenchmarkComponentUpdate(b *testing.B) {
 	node1 := myCounter(struct{}{})
 	realNode := node1.Instantiate(doc)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		node2 := myCounter(struct{}{})
 		node2.Update(realNode, node1)
 		node1 = node2
@@ -138,8 +135,7 @@ func BenchmarkMemoizedUpdateIdenticalProps(b *testing.B) {
 		b.Fatalf("shouldMemo must be true for this benchmark (score=%d)", comp.complexityScore)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		node2 := myComp(RichProps{Label: "hello"}) // identical props
 		node2.Update(realNode, node1)
 		node1 = node2
@@ -168,6 +164,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 		}
 		node2 := myComp(RichProps{Label: label})
 		node2.Update(realNode, node1)
+		ReleaseTree(node1)
 		node1 = node2
 	}
 }
@@ -192,8 +189,7 @@ func BenchmarkUseMemoHitRate(b *testing.B) {
 	node1 := myComp(struct{}{})
 	realNode := node1.Instantiate(doc)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		node2 := myComp(struct{}{})
 		node2.Update(realNode, node1)
 		node1 = node2

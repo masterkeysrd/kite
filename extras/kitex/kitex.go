@@ -35,6 +35,10 @@ type Node interface {
 
 	// Key returns the unique key of this node, used for list reconciliation.
 	Key() string
+
+	// Release returns the node (and its children) to the object pool.
+	// This should only be called by the framework when a virtual tree is discarded.
+	Release()
 }
 
 // nodeInternal is an unexported interface for internal framework access to the real DOM node.
@@ -107,6 +111,21 @@ func (n *elementNode[P]) Key() string        { return n.key }
 func (n *elementNode[P]) realNode() dom.Node { return n.ref }
 func (n *elementNode[P]) complexity() int    { return n.score }
 
+func (n *elementNode[P]) Release() {
+	if n.tagName == "" {
+		return
+	}
+	n.tagName = ""
+	n.children = nil
+	n.ref = nil
+	n.instantiate = nil
+	n.update = nil
+
+	if p, ok := any(n).(*elementNode[ElementProps]); ok {
+		elementNodePool.Put(p)
+	}
+}
+
 func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 	n.ref = n.instantiate(doc)
 	n.update(n.ref, nil, &n.props)
@@ -158,6 +177,15 @@ func (t *textNode) Props() any         { return t.content }
 func (t *textNode) Children() []Node   { return nil }
 func (t *textNode) Key() string        { return "" }
 func (t *textNode) realNode() dom.Node { return t.ref }
+
+func (t *textNode) Release() {
+	if t.content == "" && t.ref == nil {
+		return
+	}
+	t.content = ""
+	t.ref = nil
+	textNodePool.Put(t)
+}
 func (t *textNode) Instantiate(doc dom.Document) dom.Node {
 	t.ref = element.NewText(doc, t.content)
 	return t.ref
@@ -183,7 +211,9 @@ func (t *textNode) Update(el dom.Node, old Node) {
 
 // Text creates a VDOM representation of a text node.
 func Text(data string) Node {
-	return trackSource(&textNode{content: data}, 1)
+	t := textNodePool.Get().(*textNode)
+	t.content = data
+	return trackSource(t, 1)
 }
 
 // --- Memoization Helpers ------------------------------------------------------
@@ -366,6 +396,26 @@ func deepEqualValues(ov, nv reflect.Value, depth int) bool {
 var (
 	subMutex      sync.Mutex
 	subscriptions = make(map[dom.Node]map[event.EventType]event.Subscription)
+
+	textNodePool = sync.Pool{
+		New: func() any { return &textNode{} },
+	}
+
+	elementNodePool = sync.Pool{
+		New: func() any { return &elementNode[ElementProps]{} },
+	}
+
+	simpleComponentPool = sync.Pool{
+		New: func() any { return &ComponentNode[struct{}]{} },
+	}
+
+	simpleFCCComponentPool = sync.Pool{
+		New: func() any { return &ComponentNode[[]Node]{} },
+	}
+
+	componentRefPool = sync.Pool{
+		New: func() any { return &componentRef{} },
+	}
 )
 
 func setSubscription(node dom.Node, typ event.EventType, sub event.Subscription) {
@@ -598,7 +648,8 @@ func boxUpdate(el dom.Node, old, new *BoxProps) {
 
 // Box creates a VDOM representation of a BoxElement container.
 func Box(props BoxProps, children ...Node) Node {
-	return trackSource(&elementNode[BoxProps]{
+	n := elementNodePool.Get().(*elementNode[ElementProps])
+	*n = elementNode[ElementProps]{
 		tagName:     "box",
 		props:       props,
 		children:    children,
@@ -606,12 +657,14 @@ func Box(props BoxProps, children ...Node) Node {
 		update:      boxUpdate,
 		key:         props.Key,
 		score:       buildElementScore(children),
-	}, 1)
+	}
+	return trackSource(n, 1)
 }
 
 // Div creates a VDOM representation of a BoxElement container (web div alias).
 func Div(props BoxProps, children ...Node) Node {
-	node := trackSource(&elementNode[BoxProps]{
+	n := elementNodePool.Get().(*elementNode[ElementProps])
+	*n = elementNode[ElementProps]{
 		tagName:     "div",
 		props:       props,
 		children:    children,
@@ -619,8 +672,8 @@ func Div(props BoxProps, children ...Node) Node {
 		update:      boxUpdate,
 		key:         props.Key,
 		score:       buildElementScore(children),
-	}, 1)
-	return node
+	}
+	return trackSource(n, 1)
 }
 
 func spanInstantiate(doc dom.Document) dom.Node {
@@ -633,7 +686,8 @@ func spanUpdate(el dom.Node, old, new *SpanProps) {
 
 // Span creates a VDOM representation of a SpanElement container.
 func Span(props SpanProps, children ...Node) Node {
-	return trackSource(&elementNode[SpanProps]{
+	n := elementNodePool.Get().(*elementNode[ElementProps])
+	*n = elementNode[ElementProps]{
 		tagName:     "span",
 		props:       props,
 		children:    children,
@@ -641,7 +695,8 @@ func Span(props SpanProps, children ...Node) Node {
 		update:      spanUpdate,
 		key:         props.Key,
 		score:       buildElementScore(children),
-	}, 1)
+	}
+	return trackSource(n, 1)
 }
 
 // ButtonProps specifies attributes for Button elements.
@@ -1581,6 +1636,8 @@ type ComponentNode[P any] struct {
 	declLine int
 	instFile string
 	instLine int
+
+	pool *sync.Pool
 }
 
 type componentNodeInspector interface {
@@ -1678,7 +1735,9 @@ func (c *ComponentNode[P]) Children() []Node {
 }
 
 func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
-	c.componentRef = &componentRef{node: c}
+	cr := componentRefPool.Get().(*componentRef)
+	cr.node = c
+	c.componentRef = cr
 	pushCurrentComponent(c)
 	c.isFirst = true
 	c.hookIndex = 0
@@ -1710,7 +1769,9 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	c.shouldMemo = oldComp.shouldMemo
 	c.componentRef = oldComp.componentRef
 	if c.componentRef == nil {
-		c.componentRef = &componentRef{node: c}
+		cr := componentRefPool.Get().(*componentRef)
+		cr.node = c
+		c.componentRef = cr
 		oldComp.componentRef = c.componentRef
 	} else {
 		c.componentRef.mu.Lock()
@@ -1725,13 +1786,17 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	// pathological component.
 	if c.shouldMemo && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
 		c.rendered = oldComp.rendered
+		oldComp.rendered = nil // Prevent Release() from destroying the reused tree
+		oldComp.Release()
 		return
 	}
 
 	pushCurrentComponent(c)
 	c.hookIndex = 0
-	c.rendered = c.RenderFn(c.PropsVal)
+	newRendered := c.RenderFn(c.PropsVal)
 	popCurrentComponent()
+
+	c.rendered = newRendered
 
 	// Refresh the memoization score after re-rendering so it reflects the
 	// current subtree shape.
@@ -1794,6 +1859,18 @@ func (c *ComponentNode[P]) IsDirty() bool {
 	return c.dirty
 }
 
+func (c *ComponentNode[P]) Release() {
+	c.rendered = nil
+	c.hooks = nil
+	c.componentRef = nil
+
+	if c.pool != nil {
+		p := c.pool
+		c.pool = nil
+		p.Put(c)
+	}
+}
+
 // ClearDirty clears the dirty flag of the component.
 func (c *ComponentNode[P]) ClearDirty() {
 	c.dirty = false
@@ -1818,6 +1895,13 @@ func (c *ComponentNode[P]) Destroy() {
 			eff.pending = false
 		}
 	}
+	if c.componentRef != nil {
+		c.componentRef.mu.Lock()
+		c.componentRef.node = nil
+		c.componentRef.mu.Unlock()
+		componentRefPool.Put(c.componentRef)
+		c.componentRef = nil
+	}
 	if c.rendered != nil {
 		destroyNode(c.rendered)
 	}
@@ -1835,6 +1919,18 @@ func destroyNode(n Node) {
 			destroyNode(child)
 		}
 	}
+	n.Release()
+}
+
+// ReleaseTree recursively releases a virtual DOM tree back to its object pools.
+func ReleaseTree(n Node) {
+	if n == nil {
+		return
+	}
+	for _, child := range n.Children() {
+		ReleaseTree(child)
+	}
+	n.Release()
 }
 
 // OnComponentDirty is a package-level hook triggered when a component becomes dirty (e.g. state change).
@@ -2010,6 +2106,10 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 		declLine = line
 	}
 
+	pool := &sync.Pool{
+		New: func() any { return &ComponentNode[P]{} },
+	}
+
 	return func(props P) Node {
 		var instFile string
 		var instLine int
@@ -2020,7 +2120,8 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 			}
 		}
 
-		return &ComponentNode[P]{
+		c := pool.Get().(*ComponentNode[P])
+		*c = ComponentNode[P]{
 			Name:     name,
 			PropsVal: props,
 			RenderFn: render,
@@ -2030,7 +2131,9 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
+			pool:     pool,
 		}
+		return c
 	}
 }
 
@@ -2045,6 +2148,10 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 		declLine = line
 	}
 
+	pool := &sync.Pool{
+		New: func() any { return &ComponentNode[P]{} },
+	}
+
 	return func(props P, children ...Node) Node {
 		var instFile string
 		var instLine int
@@ -2056,7 +2163,8 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 		}
 
 		propsWithChildren := injectChildren(props, children)
-		return &ComponentNode[P]{
+		c := pool.Get().(*ComponentNode[P])
+		*c = ComponentNode[P]{
 			Name:     name,
 			PropsVal: propsWithChildren,
 			RenderFn: render,
@@ -2066,7 +2174,9 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
+			pool:     pool,
 		}
+		return c
 	}
 }
 
@@ -2130,7 +2240,8 @@ func SimpleFC(name string, render func() Node) func() Node {
 			}
 		}
 
-		return &ComponentNode[struct{}]{
+		c := simpleComponentPool.Get().(*ComponentNode[struct{}])
+		*c = ComponentNode[struct{}]{
 			Name:     name,
 			PropsVal: struct{}{},
 			RenderFn: func(_ struct{}) Node { return render() },
@@ -2139,7 +2250,9 @@ func SimpleFC(name string, render func() Node) func() Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
+			pool:     &simpleComponentPool,
 		}
+		return c
 	}
 }
 
@@ -2162,7 +2275,8 @@ func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
 			}
 		}
 
-		return &ComponentNode[[]Node]{
+		c := simpleFCCComponentPool.Get().(*ComponentNode[[]Node])
+		*c = ComponentNode[[]Node]{
 			Name:     name,
 			PropsVal: children,
 			RenderFn: func(p []Node) Node { return render(p) },
@@ -2171,6 +2285,8 @@ func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
+			pool:     &simpleFCCComponentPool,
 		}
+		return c
 	}
 }
