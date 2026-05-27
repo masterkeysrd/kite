@@ -4,8 +4,8 @@ import (
 	"math"
 
 	geometry "github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/text"
 )
 
 // InfiniteBlockSize is the height used when probing a node's intrinsic block

@@ -5,8 +5,8 @@ import (
 	"unicode"
 
 	geometry "github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/text"
 )
 
 var defaultShaper = text.NewShaper(0)

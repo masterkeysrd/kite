@@ -3,7 +3,7 @@ package cursor
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/text"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 )
 
 // TestByteOffsetAtPoint_NilRoot verifies that a nil root returns 0.

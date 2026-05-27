@@ -7,8 +7,8 @@ import (
 
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/text"
 )
 
 func BenchmarkPaint_All(b *testing.B) {

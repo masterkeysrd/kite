@@ -5,8 +5,8 @@ import (
 
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/text"
 )
 
 // buildBenchTree constructs a flat fragment tree with nChildren text fragments,

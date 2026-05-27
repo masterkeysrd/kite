@@ -2,7 +2,7 @@ package cursor
 
 import (
 	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/text"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 )
 
 // FromTextFragment translates a byte offset within an IFC fragment tree into a

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/masterkeysrd/kite/text"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 )
 
 // BenchmarkShape_1kASCII measures the cost of shaping 1 000 ASCII characters

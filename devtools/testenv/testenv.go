@@ -16,8 +16,8 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/internal/paint"
+	"github.com/masterkeysrd/kite/key"
 )
 
 var (

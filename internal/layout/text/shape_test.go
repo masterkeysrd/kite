@@ -3,7 +3,7 @@ package text_test
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/text"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 )
 
 // ---------------------------------------------------------------------------

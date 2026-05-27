@@ -2,8 +2,8 @@ package cursor
 
 import (
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/text"
 )
 
 // ByteOffsetAtPoint translates a terminal-cell coordinate (targetX, targetY)

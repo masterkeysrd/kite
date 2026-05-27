@@ -7,8 +7,8 @@ import (
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/internal/paint"
+	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
 

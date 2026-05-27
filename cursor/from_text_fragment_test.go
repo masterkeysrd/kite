@@ -5,7 +5,7 @@ import (
 
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/text"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 )
 
 // ---------------------------------------------------------------------------
