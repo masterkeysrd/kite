@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/editor"
 	"github.com/masterkeysrd/kite/element"
+	"github.com/masterkeysrd/kite/internal/editor"
 )
 
 func BenchmarkTextArea_UpdateSelectionRange(b *testing.B) {
