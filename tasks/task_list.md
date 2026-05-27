@@ -79,7 +79,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-064 | Kitex Context System | Done | `tasks/TSK-064-kitex-context-system.md` |
 | TSK-065 | Kitex Terminal Convenience Hooks | Done | `tasks/TSK-065-kitex-convenience-hooks.md` |
 | TSK-066 | Implement `extras/kites` Global State Management | Done | `tasks/TSK-066-kites-global-state.md` |
-| TSK-067 | Implement `extras/flight` Stack Navigation | Pending | `tasks/TSK-067-flight-navigation.md` |
+| TSK-067 | Implement `extras/flight` Stack Navigation | In Progress | `tasks/TSK-067-flight-navigation.md` |
 | TSK-068 | Implement `extras/wind` Data Fetching | Pending | `tasks/TSK-068-wind-data-fetching.md` |
 | TSK-069 | Implement Low-Level DOM Form Mechanics | Pending | `tasks/TSK-069-dom-form-mechanics.md` |
 | TSK-070 | Implement `extras/form` High-Level API | Pending | `tasks/TSK-070-kitex-form-api.md` |

@@ -73,7 +73,8 @@ func processDirtyLoop() {
 			if !comp.IsDirty() {
 				continue
 			}
-			if ref := comp.getRef(); ref == nil || ref.node != comp {
+			ref := comp.getRef()
+			if ref == nil || ref.node != comp {
 				continue
 			}
 			realNode := comp.realNode()
@@ -93,7 +94,10 @@ func processDirtyLoop() {
 			newRendered := comp.ReRender()
 			comp.ClearDirty()
 
-			reconcile(parentEl, oldRendered, newRendered, realNode)
+			newReal := reconcile(parentEl, oldRendered, newRendered, realNode)
+			if newReal != realNode {
+				comp.setRef(newReal)
+			}
 		}
 
 		drainLayoutEffects()
@@ -186,11 +190,12 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNode dom.Node) dom
 		newProv.pushEntry()
 		newProv.updateFrom(oldProv)
 
+		newReal := realNode
 		if len(oldProv.Children()) == 1 && len(newProv.Children()) == 1 {
-			reconcile(parent, oldProv.Children()[0], newProv.Children()[0], realNode)
+			newReal = reconcile(parent, oldProv.Children()[0], newProv.Children()[0], realNode)
 		}
 		newProv.popEntry()
-		return realNode
+		return newReal
 	}
 
 	// Component Node:
@@ -200,8 +205,11 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNode dom.Node) dom
 		newNode.Update(realNode, oldNode)
 		newComp.ClearDirty()
 
-		reconcile(parent, oldComp.Rendered(), newComp.Rendered(), realNode)
-		return realNode
+		newReal := reconcile(parent, oldComp.Rendered(), newComp.Rendered(), realNode)
+		if newReal != realNode {
+			newComp.setRef(newReal)
+		}
+		return newReal
 	}
 
 	// Text Node:

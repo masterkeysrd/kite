@@ -13,6 +13,8 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - ✨ **Animations**: Imperative property interpolation and tweening system for smooth transitions.
 - 🛠️ **Developer Tools**: Web-based DOM inspector, in-terminal X-Ray mode, and performance profiler.
 - ⚛️ **Reactive Primitives**: Lightweight Virtual DOM (VDOM) for declarative, type-safe API (via [`extras/kitex`](extras/kitex/)).
+- 📦 **Global State Management**: Lightweight, thread-safe external state store with selector-based re-rendering (via [`extras/kites`](extras/kites/)).
+- ✈️ **Stack Navigation**: Type-safe stack-based navigation (push/pop) with automated focus isolation (via [`extras/flight`](extras/flight/)).
 
 ## 🏗 Architecture Overview
 

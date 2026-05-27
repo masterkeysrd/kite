@@ -626,7 +626,7 @@ func (e *Engine) Frame() {
 	tracer := e.tracer
 	e.profilerMu.RUnlock()
 
-	var endFrame func() = noop
+	var endFrame = noop
 	if tracer != nil {
 		endFrame = tracer.BeginThread("Frame", 1)
 	}

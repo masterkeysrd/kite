@@ -1697,6 +1697,7 @@ type componentInstance interface {
 	ClearDirty()
 	getRef() *componentRef
 	realNode() dom.Node
+	setRef(dom.Node)
 	Rendered() Node
 	ReRender() Node
 	Destroy()
@@ -1935,6 +1936,10 @@ func (c *ComponentNode[P]) getRef() *componentRef {
 
 func (c *ComponentNode[P]) realNode() dom.Node {
 	return c.ref
+}
+
+func (c *ComponentNode[P]) setRef(el dom.Node) {
+	c.ref = el
 }
 
 func (c *ComponentNode[P]) Rendered() Node {

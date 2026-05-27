@@ -163,6 +163,11 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Kitex hooks (UseState, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback)** | `extras/kitex/hooks.go` |
 | **Kitex Context System (CreateContext, UseContext, Provider)** | `extras/kitex/context.go`, `extras/kitex/provider.go` |
 | **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/kitex.go` (memoization helpers section) |
+| **Global state store & subscriber API** | `extras/kites/store.go` |
+| **Kites global state integration hook** | `extras/kites/hooks.go` |
+| **Stack Navigation component & interfaces** | `extras/flight/flight.go`, `extras/flight/stack.go` |
+| **Navigation context & hooks** | `extras/flight/hooks.go` |
+
 
 ## 📋 Task Workflow
 
@@ -251,6 +256,16 @@ This source map summarises the repository packages, their responsibilities, and 
 - **extras/kitex** — Path: `extras/kitex/`
     - Description: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances. (See `extras/kitex/doc.go`)
     - Key files: `extras/kitex/doc.go`, `kitex.go`, `hooks.go`, tests
+
+- **extras/kites** — Path: `extras/kites/`
+    - Description: Lightweight, thread-safe external state store and kitex integration hook for global state management. (See `extras/kites/doc.go`)
+    - Key files: `extras/kites/doc.go`, `store.go`, `hooks.go`, tests
+
+- **extras/flight** — Path: `extras/flight/`
+    - Description: Stack-based type-safe navigation and hooks (push/pop) with automated focus isolation. (See `extras/flight/doc.go`)
+    - Key files: `extras/flight/doc.go`, `flight.go`, `hooks.go`, `stack.go`, tests
+
+
 
 - **focus** — Path: `focus/`
     - Description: Focus management, `focus.Manager`, reasons, scope stack, and spatial navigation. (See `focus/doc.go`)

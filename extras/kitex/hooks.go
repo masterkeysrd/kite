@@ -259,6 +259,33 @@ func UseDocument() func() dom.Document {
 	}
 }
 
+// UseElement returns a function that retrieves the underlying DOM node associated with the current component.
+func UseElement() func() dom.Node {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseElement must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+
+	ref := comp.getRef()
+
+	return func() dom.Node {
+		if ref == nil {
+			return nil
+		}
+
+		ref.mu.Lock()
+		activeNode := ref.node
+		ref.mu.Unlock()
+
+		if activeNode == nil {
+			return nil
+		}
+
+		return activeNode.realNode()
+	}
+}
+
 func UseEffect(effect func(), deps []any) {
 	compVal := getCurrentComponent()
 	if compVal == nil {
