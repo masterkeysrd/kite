@@ -29,7 +29,7 @@ func (a *mockAnchor) GetBoundingClientRect() (geom.Rect, bool) {
 
 func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 	// Viewport 80x24.
-	viewport := geom.Size{80, 24}
+	viewport := geom.Size{Width: 80, Height: 24}
 	space := NewConstraintSpaceBuilder(viewport).
 		SetContainingSpace(viewport).
 		SetContainerSpace(viewport).
@@ -47,7 +47,7 @@ func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 	// Top space: 5, Bottom space: 24 - 7 = 17.
 	// Primary placement: Top.
 	// Should flip to Bottom.
-	anchorV := &mockAnchor{rect: geom.Rect{Origin: geom.Point{10, 5}, Size: geom.Size{10, 2}}}
+	anchorV := &mockAnchor{rect: geom.Rect{Origin: geom.Point{X: 10, Y: 5}, Size: geom.Size{Width: 10, Height: 2}}}
 	nodeV := &mockOverlayNode{
 		mockNode: mockNode{
 			style: &style.Computed{
@@ -83,7 +83,7 @@ type capturedOffsetNode struct {
 func (m *capturedOffsetNode) SetOffset(p geom.Point) { m.offset = p }
 
 func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
-	viewport := geom.Size{80, 24}
+	viewport := geom.Size{Width: 80, Height: 24}
 	space := NewConstraintSpaceBuilder(viewport).
 		SetContainingSpace(viewport).
 		SetContainerSpace(viewport).
@@ -102,13 +102,13 @@ func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
 	}{
 		{
 			name:      "Vertical flip to Bottom (more space)",
-			anchor:    geom.Rect{Origin: geom.Point{10, 5}, Size: geom.Size{10, 2}},
+			anchor:    geom.Rect{Origin: geom.Point{X: 10, Y: 5}, Size: geom.Size{Width: 10, Height: 2}},
 			placement: geom.PlacementTop,
-			expected:  geom.Point{10, 7}, // anchor.Y + anchor.H
+			expected:  geom.Point{X: 10, Y: 7}, // anchor.Y + anchor.H
 		},
 		{
 			name:      "Vertical flip to Top (more space)",
-			anchor:    geom.Rect{Origin: geom.Point{10, 15}, Size: geom.Size{10, 2}},
+			anchor:    geom.Rect{Origin: geom.Point{X: 10, Y: 15}, Size: geom.Size{Width: 10, Height: 2}},
 			placement: geom.PlacementBottom,
 			expected:  geom.Point{10, 5}, // anchor.Y - content.H
 		},

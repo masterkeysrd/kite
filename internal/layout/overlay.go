@@ -2,7 +2,6 @@ package layout
 
 import (
 	"github.com/masterkeysrd/kite/geom"
-	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -42,7 +41,7 @@ func (a *OverlayAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace
 	x, y := 0, 0
 
 	if anchorEl, ok := anchor.(interface {
-		GetBoundingClientRect() (geometry.Rect, bool)
+		GetBoundingClientRect() (geom.Rect, bool)
 	}); ok {
 		anchorRect, found := anchorEl.GetBoundingClientRect()
 		if found {
@@ -50,12 +49,12 @@ func (a *OverlayAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace
 		}
 	}
 
-	node.SetOffset(geometry.Point{X: x, Y: y})
+	node.SetOffset(geom.Point{X: x, Y: y})
 
 	return frag
 }
 
-func (a *OverlayAlgorithm) calculatePosition(anchor geometry.Rect, size geometry.Size, placement geom.Placement, flip bool, availableSize geometry.Size) (int, int) {
+func (a *OverlayAlgorithm) calculatePosition(anchor geom.Rect, size geom.Size, placement geom.Placement, flip bool, availableSize geom.Size) (int, int) {
 	x, y := a.resolvePlacement(anchor, size, placement)
 
 	if flip {
@@ -98,7 +97,7 @@ func (a *OverlayAlgorithm) calculatePosition(anchor geometry.Rect, size geometry
 	return x, y
 }
 
-func (a *OverlayAlgorithm) resolvePlacement(anchor geometry.Rect, size geometry.Size, placement geom.Placement) (int, int) {
+func (a *OverlayAlgorithm) resolvePlacement(anchor geom.Rect, size geom.Size, placement geom.Placement) (int, int) {
 	switch placement {
 	case geom.PlacementTop:
 		return anchor.Origin.X, anchor.Origin.Y - size.Height

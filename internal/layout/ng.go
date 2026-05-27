@@ -300,7 +300,7 @@ func AbsoluteBounds(root *Fragment, target Node) (geometry.Rect, bool) {
 		return geometry.Rect{}, false
 	}
 	if root.Node == target {
-		return geometry.Rect{Origin: geometry.Point{0, 0}, Size: root.Size}, true
+		return geometry.Rect{Origin: geometry.Point{X: 0, Y: 0}, Size: root.Size}, true
 	}
 	for _, childLink := range root.Children {
 		if rect, found := AbsoluteBounds(childLink.Fragment, target); found {
@@ -322,7 +322,7 @@ func AbsoluteBounds(root *Fragment, target Node) (geometry.Rect, bool) {
 //     ancestor (intersected with all further clipping ancestors).
 //   - found: true if target was found in the subtree.
 func ScrolledAbsoluteBounds(root *Fragment, target Node) (rect geometry.Rect, clip geometry.Rect, found bool) {
-	return scrolledAbsoluteBounds(root, target, geometry.Point{0, 0}, InfiniteRect())
+	return scrolledAbsoluteBounds(root, target, geometry.Point{X: 0, Y: 0}, InfiniteRect())
 }
 
 type scrollableElement interface {

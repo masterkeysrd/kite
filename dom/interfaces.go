@@ -5,8 +5,10 @@ import (
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/marker"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // Kind identifies the type of a Node. It is used by Node.Kind() to allow callers to determine
@@ -41,8 +43,9 @@ func (k Kind) String() string {
 // live on render.Object.
 type Node interface {
 	event.EventTarget
+	marker.Node
 
-	// Kind returns the kind of this node [Document], Element, or Text).
+	// Kind returns the kind of this node (Document, Element, or Text).
 	Kind() Kind
 
 	// NodeName returns the name of this node. For Element nodes it is the tag
@@ -393,6 +396,11 @@ type Document interface {
 	Clipboard() event.ClipboardProvider
 	// SetClipboardProvider sets the high-level clipboard provider for this document.
 	SetClipboardProvider(p event.ClipboardProvider)
+
+	// Terminal returns the terminal object for this document.
+	Terminal() terminal.Terminal
+	// SetTerminal sets the terminal object for this document.
+	SetTerminal(t terminal.Terminal)
 }
 
 // FocusHandle is the interface for the focus management implementation injected

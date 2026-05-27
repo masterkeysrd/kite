@@ -32,7 +32,7 @@ func TestBuildChildSpace_KindCells(t *testing.T) {
 		Height: style.Auto,
 	}}
 
-	parentSpace := makeParentSpace(geometry.Size{50, 50}, geometry.Size{50, 50}, geometry.Size{40, 40}, false)
+	parentSpace := makeParentSpace(geometry.Size{Width: 50, Height: 50}, geometry.Size{50, 50}, geometry.Size{40, 40}, false)
 	cs := BuildChildSpace(child, geometry.Size{40, 40}, geometry.Size{50, 50}, parentSpace)
 
 	if !cs.IsFixedInlineSize {
@@ -92,8 +92,8 @@ func TestBuildChildSpace_KindMaxContent(t *testing.T) {
 		Height: style.Auto,
 	}}
 
-	parentSpace := makeParentSpace(geometry.Size{80, 40}, geometry.Size{100, 50}, geometry.Size{80, 40}, false)
-	cs := BuildChildSpace(child, geometry.Size{80, 40}, geometry.Size{100, 50}, parentSpace)
+	parentSpace := makeParentSpace(geometry.Size{Width: 80, Height: 40}, geometry.Size{100, 50}, geometry.Size{80, 40}, false)
+	cs := BuildChildSpace(child, geometry.Size{Width: 80, Height: 40}, geometry.Size{Width: 100, Height: 50}, parentSpace)
 
 	if cs.IsFixedInlineSize {
 		t.Error("expected IsFixedInlineSize=false for KindMaxContent")
@@ -166,8 +166,8 @@ func TestBuildChildSpace_DisplayTable_Auto(t *testing.T) {
 		Height:  style.Auto,
 	}}
 
-	parentSpace := makeParentSpace(geometry.Size{80, 40}, geometry.Size{100, 50}, geometry.Size{80, 40}, false)
-	cs := BuildChildSpace(child, geometry.Size{80, 40}, geometry.Size{100, 50}, parentSpace)
+	parentSpace := makeParentSpace(geometry.Size{Width: 80, Height: 40}, geometry.Size{100, 50}, geometry.Size{80, 40}, false)
+	cs := BuildChildSpace(child, geometry.Size{Width: 80, Height: 40}, geometry.Size{100, 50}, parentSpace)
 
 	if cs.IsFixedInlineSize {
 		t.Error("expected IsFixedInlineSize=false for table with auto width")

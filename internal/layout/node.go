@@ -2,7 +2,6 @@ package layout
 
 import (
 	"github.com/masterkeysrd/kite/geom"
-	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -62,7 +61,7 @@ type Node interface {
 	SetCachedMinMaxSizes(sizes MinMaxSizes)
 
 	// SetOffset updates the physical offset of this node.
-	SetOffset(geometry.Point)
+	SetOffset(geom.Point)
 
 	// IsAnonymous reports whether this node is a virtual layout-only node
 	// (like flex's AnonymousBlock) that should trigger shrink-wrap for auto width.

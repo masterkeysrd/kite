@@ -197,7 +197,7 @@ func TestBlockLayout_Margins(t *testing.T) {
 	}
 
 	// Child position should be (3, 1)
-	if frag.Children[0].Offset != (geometry.Point{3, 1}) {
+	if frag.Children[0].Offset != (geometry.Point{X: 3, Y: 1}) {
 		t.Errorf("expected child offset {3, 1}, got %v", frag.Children[0].Offset)
 	}
 }
@@ -217,7 +217,7 @@ func TestBlockLayout_FixedHeightRespected(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
@@ -243,7 +243,7 @@ func TestBlockLayout_IntrinsicSizeCaching(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	// First layout should compute intrinsic size.
@@ -255,7 +255,7 @@ func TestBlockLayout_IntrinsicSizeCaching(t *testing.T) {
 
 	// Second layout with different available size but same node (not dirty)
 	// should reuse cached intrinsic size.
-	space2 := NewConstraintSpaceBuilder(geometry.Size{200, 100}).ToConstraintSpace()
+	space2 := NewConstraintSpaceBuilder(geometry.Size{Width: 200, Height: 100}).ToConstraintSpace()
 	algo2 := GetAlgorithm(parent)
 
 	algo2.Layout(nil, parent, space2)
@@ -283,7 +283,7 @@ func BenchmarkBlockLayout_DeepTree(b *testing.B) {
 		current = next
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 1000}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
 
 	for b.Loop() {
 		// Mark everything dirty to force full re-layout
@@ -325,7 +325,7 @@ func TestBlockLayout_PercentageResolution(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{80, 24}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 80, Height: 24}).
 		SetIsFixedInlineSize(true).
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
@@ -368,7 +368,7 @@ func TestBlockLayout_AutoStretch(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{80, 24}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 80, Height: 24}).
 		SetIsFixedInlineSize(true).
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
@@ -398,7 +398,7 @@ func TestBlockLayout_FixedBlockSizePercentage(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{80, 20}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 80, Height: 20}).
 		SetIsFixedInlineSize(true).
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
@@ -434,7 +434,7 @@ func TestBlockLayout_EmptyIFC_MinimumLineHeight(t *testing.T) {
 		firstChild: emptyText,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 20, Height: 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -471,7 +471,7 @@ func TestBlockLayout_EmptyIFC_WithBorder(t *testing.T) {
 		firstChild: emptyText,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 20, Height: 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 

@@ -9,6 +9,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // idRegistrar is an unexported interface implemented by *Document.
@@ -36,6 +37,7 @@ type Document struct {
 
 	focusHandle dom.FocusHandle
 	clipboard   event.ClipboardProvider
+	terminal    terminal.Terminal
 
 	selection *Selection
 
@@ -230,6 +232,9 @@ func (d *Document) Selection() dom.Selection {
 
 func (d *Document) Clipboard() event.ClipboardProvider             { return d.clipboard }
 func (d *Document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard = p }
+
+func (d *Document) Terminal() terminal.Terminal     { return d.terminal }
+func (d *Document) SetTerminal(t terminal.Terminal) { d.terminal = t }
 
 func (d *Document) CreateRange() dom.Range {
 	return &Range{doc: d}

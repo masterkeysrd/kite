@@ -41,7 +41,7 @@ func TestMaxScroll_CursorProvider(t *testing.T) {
 		Size: geometry.Size{Width: 10, Height: 1},
 		Node: node,
 		Children: []FragmentLink{
-			{Offset: geometry.Point{0, 0}, Fragment: textFrag},
+			{Offset: geometry.Point{X: 0, Y: 0}, Fragment: textFrag},
 		},
 	}
 
@@ -60,7 +60,7 @@ func TestMaxScroll_CursorProvider(t *testing.T) {
 		Size: geometry.Size{Width: 10, Height: 1},
 		Node: node,
 		Children: []FragmentLink{
-			{Offset: geometry.Point{0, 0}, Fragment: textFragSmall},
+			{Offset: geometry.Point{X: 0, Y: 0}, Fragment: textFragSmall},
 		},
 	}
 
