@@ -768,6 +768,7 @@ type ButtonProps struct {
 	Ref         refSetter
 	Disabled    bool
 	Active      bool
+	Type        string
 }
 
 func (p ButtonProps) elementProps() ElementProps {
@@ -802,6 +803,11 @@ func buttonUpdate(el dom.Node, old, new *ButtonProps) {
 		btn.SetActive(new.Active)
 	} else if old == nil {
 		btn.SetActive(new.Active)
+	}
+	if old != nil && old.Type != new.Type {
+		btn.Type(new.Type)
+	} else if old == nil {
+		btn.Type(new.Type)
 	}
 }
 
@@ -845,6 +851,7 @@ type CheckboxProps struct {
 	Checked        bool
 	UncheckedGlyph string
 	CheckedGlyph   string
+	Name           string
 }
 
 func (p CheckboxProps) elementProps() ElementProps {
@@ -885,6 +892,11 @@ func checkboxUpdate(el dom.Node, old, new *CheckboxProps) {
 			ch = new.CheckedGlyph
 		}
 		cb.SetGlyphs(un, ch)
+	}
+	if old != nil && old.Name != new.Name {
+		cb.WithName(new.Name)
+	} else if old == nil {
+		cb.WithName(new.Name)
 	}
 }
 
@@ -1002,6 +1014,7 @@ type RadioProps struct {
 	Value          string
 	UncheckedGlyph string
 	CheckedGlyph   string
+	Name           string
 }
 
 func (p RadioProps) elementProps() ElementProps {
@@ -1040,6 +1053,11 @@ func radioUpdate(el dom.Node, old, new *RadioProps) {
 			ch = new.CheckedGlyph
 		}
 		r.SetGlyphs(un, ch)
+	}
+	if old != nil && old.Name != new.Name {
+		r.WithName(new.Name)
+	} else if old == nil {
+		r.WithName(new.Name)
 	}
 }
 
@@ -1082,6 +1100,7 @@ type SelectProps struct {
 	Ref           refSetter
 	Value         string
 	OnValueChange func(string)
+	Name          string
 }
 
 func (p SelectProps) elementProps() ElementProps {
@@ -1129,6 +1148,11 @@ func Select(props SelectProps, children ...Node) Node {
 				}
 			}
 			s.SetOptions(opts)
+			if old != nil && old.Name != new.Name {
+				s.WithName(new.Name)
+			} else if old == nil {
+				s.WithName(new.Name)
+			}
 		},
 		key:         props.Key,
 		score:       score,
@@ -1230,6 +1254,7 @@ type InputProps struct {
 	OnScroll    func(event.Event)
 	Ref         refSetter
 	Value       string
+	Name        string
 }
 
 func (p InputProps) elementProps() ElementProps {
@@ -1265,6 +1290,11 @@ func Input(props InputProps) Node {
 			} else if old == nil {
 				inp.SetValue(new.Value)
 			}
+			if old != nil && old.Name != new.Name {
+				inp.WithName(new.Name)
+			} else if old == nil {
+				inp.WithName(new.Name)
+			}
 		},
 		key:         props.Key,
 		score:       1,
@@ -1295,6 +1325,7 @@ type TextAreaProps struct {
 	OnScroll    func(event.Event)
 	Ref         refSetter
 	Value       string
+	Name        string
 }
 
 func (p TextAreaProps) elementProps() ElementProps {
@@ -1329,6 +1360,11 @@ func TextArea(props TextAreaProps) Node {
 				txa.SetValue(new.Value)
 			} else if old == nil {
 				txa.SetValue(new.Value)
+			}
+			if old != nil && old.Name != new.Name {
+				txa.WithName(new.Name)
+			} else if old == nil {
+				txa.WithName(new.Name)
 			}
 		},
 		key:         props.Key,

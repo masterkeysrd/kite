@@ -241,8 +241,8 @@ This source map summarises the repository packages, their responsibilities, and 
     - Key files: `editor/doc.go`, `buffer.go`, tests
 
 - **element** — Path: `element/`
-    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List, Overlay, Dialog, Button) and declarative builders. (See `element/doc.go`)
-    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, `overlay.go`, `dialog.go`, `button.go`, tests
+    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List, Overlay, Dialog, Button, Form) and declarative builders. (See `element/doc.go`)
+    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, `overlay.go`, `dialog.go`, `button.go`, `form.go`, tests
 
 - **engine** — Path: `engine/`
     - Description: Main event loop, frame pipeline (Tasks → Style → Layout → Paint → Sync), task queues, and worker pool. Coordinates other packages. (See `engine/doc.go`)
@@ -253,11 +253,11 @@ This source map summarises the repository packages, their responsibilities, and 
     - Key files: `event/doc.go`, `dispatcher.go`, `events.go`, `synthesizer.go`, tests
 
 - **examples** — Path: `examples/`
-    - Description: Example applications and usage demos. Subpackages: `app1`, `button`, `flex`, `input`, `list`, `table`, `textarea`.
+    - Description: Example applications and usage demos. Subpackages: `app1`, `button`, `flex`, `input`, `list`, `table`, `textarea`, `form_demo`.
 
 - **extras/kitex** — Path: `extras/kitex/`
     - Description: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances. (See `extras/kitex/doc.go`)
-    - Key files: `extras/kitex/doc.go`, `kitex.go`, `hooks.go`, tests
+    - Key files: `extras/kitex/doc.go`, `kitex.go`, `hooks.go`, `form.go`, tests
 
 - **extras/kites** — Path: `extras/kites/`
     - Description: Lightweight, thread-safe external state store and kitex integration hook for global state management. (See `extras/kites/doc.go`)

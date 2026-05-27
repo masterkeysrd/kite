@@ -152,6 +152,36 @@ var Button = kitex.SimpleFC("Button", func() kitex.Node {
 
 When the provider value changes, only the components consuming the context (via `UseContext`) will re-render. Memoized wrapper components will not block this update, and the VDOM reconciler flattens the provider node to guarantee **zero DOM footprint** (no layout-breaking elements).
 
+## 📝 Forms
+
+Kitex provides a declarative `<form>` wrapper via `kitex.Form` to handle form submission and value collection. Form controls (such as `kitex.Input`, `kitex.Checkbox`, `kitex.Radio`, and `kitex.Select`) must specify a `Name` attribute. When the form is submitted (either by pressing `Enter` on a single-line input field or clicking a button with `Type: "submit"`), the form automatically gathers the name-value mappings of all descendants and triggers `OnSubmit`.
+
+### Example Form
+
+```go
+var UserForm = kitex.SimpleFC("UserForm", func() kitex.Node {
+    handleSubmit := func(data map[string]any) {
+        fmt.Printf("Form submitted: %v\n", data)
+    }
+
+    return kitex.Form(kitex.FormProps{
+        OnSubmit: handleSubmit,
+    },
+        kitex.Input(kitex.InputProps{
+            Name:  "username",
+            Value: "default_user",
+        }),
+        kitex.Checkbox(kitex.CheckboxProps{
+            Name:    "agree",
+            Checked: false,
+        }),
+        kitex.Button(kitex.ButtonProps{
+            Type: "submit",
+        }, kitex.Text("Submit")),
+    )
+})
+```
+
 ## 🛠 Developer Tools
 
 When using Kitex, you can enable the **Components** inspector in the Kite Web Inspector. This provides a live view of your VDOM tree, including:

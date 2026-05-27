@@ -271,6 +271,36 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("Select VDOM children option synchronization", func(t *testing.T) {
+		container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+
+		selNode := Select(SelectProps{
+			Name:  "role",
+			Value: "admin",
+		},
+			Option(OptionProps{Text: "Administrator", Value: "admin"}),
+			Option(OptionProps{Text: "User", Value: "user"}),
+		)
+
+		Render(selNode, container)
+
+		realSel := container.FirstChild().(*element.SelectElement)
+
+		uaRoot := dom.UARoot(realSel).(dom.Element)
+		triggerBtn := uaRoot.FirstChild().(*element.ButtonElement)
+
+		var btnText string
+		for child := range triggerBtn.ChildNodes() {
+			if tn, ok := child.(dom.TextNode); ok {
+				btnText = tn.Data()
+			}
+		}
+
+		if btnText != "Administrator ▼" {
+			t.Errorf("expected button text to be 'Administrator ▼', got %q (this means select options were not synchronized)", btnText)
+		}
+	})
+
 	t.Run("Table, TD, TR, THead, TBody, TFoot instantiation and update", func(t *testing.T) {
 		tdProps := TDProps{
 			ID:      "td1",
