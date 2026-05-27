@@ -22,4 +22,10 @@
 //
 // SelectionChangeEvent is dispatched on the Document whenever the active text
 // selection (dom.Selection) or its ranges (dom.Range) are modified.
+//
+// # Form Submit
+//
+// SubmitEvent is dispatched on a Form element when the form is submitted (either
+// via a submit button click or Enter key press on an input). It bubbles and
+// carries the aggregated form data map.
 package event

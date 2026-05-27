@@ -311,7 +311,7 @@ func TestExampleInputGolden(t *testing.T) {
 	})
 
 	usernameInp.AddEventListener(event.EventKeyDown, func(e event.Event) {
-		v := usernameInp.Value()
+		v := usernameInp.Value().(string)
 		if v == "" {
 			echoText.SetData("(empty)")
 		} else {

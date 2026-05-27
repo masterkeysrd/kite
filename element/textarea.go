@@ -33,6 +33,8 @@ import (
 type TextAreaElement struct {
 	elementBase[TextAreaElement]
 	textControlBase[*TextAreaElement]
+
+	name string
 }
 
 // uaTextAreaDiv is the inner UA block element that wraps the text content.
@@ -50,6 +52,7 @@ func (d *uaTextAreaDiv) DefaultStyle() style.Style {
 var (
 	_ Element         = (*TextAreaElement)(nil)
 	_ cursor.Provider = (*TextAreaElement)(nil)
+	_ dom.FormControl = (*TextAreaElement)(nil)
 )
 
 // intrinsicTextAreaStyle is the UA-mandated style for TextAreaElement.
@@ -110,8 +113,19 @@ func TextArea(initialValue string) *TextAreaElement {
 }
 
 // Value returns the current text value.
-func (txa *TextAreaElement) Value() string {
+func (txa *TextAreaElement) Value() any {
 	return txa.buf.Value()
+}
+
+// WithName sets the form control name and returns the TextAreaElement.
+func (txa *TextAreaElement) WithName(name string) *TextAreaElement {
+	txa.name = name
+	return txa
+}
+
+// Name returns the form control name.
+func (txa *TextAreaElement) Name() string {
+	return txa.name
 }
 
 // TextContent returns the current text value of the textarea, satisfying the dom.Node interface.

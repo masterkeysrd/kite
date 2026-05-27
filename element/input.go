@@ -64,12 +64,15 @@ type InputElement struct {
 	// This field is also stored in textControlBase.uaDiv (as dom.Element) for
 	// the shared geometry math; we keep a typed copy here for syncText.
 	uaInputDivEl *uaInputDiv
+
+	name string
 }
 
 // Compile-time interface assertions.
 var (
 	_ Element         = (*InputElement)(nil)
 	_ cursor.Provider = (*InputElement)(nil)
+	_ dom.FormControl = (*InputElement)(nil)
 )
 
 // intrinsicInputStyle is the UA-mandated style shared by all InputElement
@@ -154,8 +157,19 @@ func Input(initialValue string) *InputElement {
 }
 
 // Value returns the current text value of the input.
-func (inp *InputElement) Value() string {
+func (inp *InputElement) Value() any {
 	return inp.buf.Value()
+}
+
+// WithName sets the form control name and returns the InputElement.
+func (inp *InputElement) WithName(name string) *InputElement {
+	inp.name = name
+	return inp
+}
+
+// Name returns the form control name.
+func (inp *InputElement) Name() string {
+	return inp.name
 }
 
 // TextContent returns the current text value of the input, satisfying the dom.Node interface.

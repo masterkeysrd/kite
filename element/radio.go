@@ -100,9 +100,14 @@ type RadioElement struct {
 	uncheckedGlyph string
 	checkedGlyph   string
 	uaText         dom.TextNode
+
+	name string
 }
 
-var _ Element = (*RadioElement)(nil)
+var (
+	_ Element         = (*RadioElement)(nil)
+	_ dom.FormControl = (*RadioElement)(nil)
+)
 
 // NewRadio creates a new RadioElement owned by doc with the given value.
 func NewRadio(doc dom.Document, value string) *RadioElement {
@@ -134,9 +139,28 @@ func Radio(value string) *RadioElement {
 	return NewRadio(orphanDocument, value)
 }
 
+// Checked reports whether the radio button is selected.
+func (r *RadioElement) Checked() bool {
+	if rg := r.findGroup(); rg != nil {
+		return rg.Value() == r.value
+	}
+	return false
+}
+
 // Value returns the value associated with this radio button.
-func (r *RadioElement) Value() string {
+func (r *RadioElement) Value() any {
 	return r.value
+}
+
+// WithName sets the form control name and returns the RadioElement.
+func (r *RadioElement) WithName(name string) *RadioElement {
+	r.name = name
+	return r
+}
+
+// Name returns the form control name.
+func (r *RadioElement) Name() string {
+	return r.name
 }
 
 // SetValue updates the radio button's value.

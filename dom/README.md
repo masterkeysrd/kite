@@ -41,6 +41,16 @@ type Focusable interface {
 }
 ```
 
+### FormControl
+Indicates that an element acts as a form control exposing a name and value for form collection.
+```go
+type FormControl interface {
+    Node
+    Name() string
+    Value() any
+}
+```
+
 ## 🔄 Lifecycle Hooks
 
 Nodes can implement the `Lifecycle` interface to receive notifications when they enter or leave the live tree:

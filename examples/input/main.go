@@ -99,7 +99,7 @@ func main() {
 
 	// Update the echo whenever a keydown is fired on the username input.
 	usernameInp.AddEventListener(event.EventKeyDown, func(e event.Event) {
-		v := usernameInp.Value()
+		v := usernameInp.Value().(string)
 		if v == "" {
 			echoText.SetData("(empty)")
 		} else {

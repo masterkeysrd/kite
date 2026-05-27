@@ -14,9 +14,14 @@ type CheckboxElement struct {
 	uncheckedGlyph string
 	checkedGlyph   string
 	uaText         dom.TextNode
+
+	name string
 }
 
-var _ Element = (*CheckboxElement)(nil)
+var (
+	_ Element         = (*CheckboxElement)(nil)
+	_ dom.FormControl = (*CheckboxElement)(nil)
+)
 
 // NewCheckbox creates a new CheckboxElement owned by doc.
 func NewCheckbox(doc dom.Document, checked bool) *CheckboxElement {
@@ -50,6 +55,22 @@ func Checkbox(checked bool) *CheckboxElement {
 // Checked reports whether the checkbox is checked.
 func (c *CheckboxElement) Checked() bool {
 	return c.checked
+}
+
+// Value returns the checked state of the checkbox.
+func (c *CheckboxElement) Value() any {
+	return c.checked
+}
+
+// WithName sets the form control name and returns the CheckboxElement.
+func (c *CheckboxElement) WithName(name string) *CheckboxElement {
+	c.name = name
+	return c
+}
+
+// Name returns the form control name.
+func (c *CheckboxElement) Name() string {
+	return c.name
 }
 
 // SetChecked sets the checked state and updates the UI.

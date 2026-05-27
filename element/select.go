@@ -76,9 +76,14 @@ type SelectElement struct {
 	onChange func(string)
 	escSub   event.Subscription
 	clickSub event.Subscription
+
+	name string
 }
 
-var _ Element = (*SelectElement)(nil)
+var (
+	_ Element         = (*SelectElement)(nil)
+	_ dom.FormControl = (*SelectElement)(nil)
+)
 
 // NewSelect creates a new SelectElement owned by doc.
 func NewSelect(doc dom.Document, children ...any) *SelectElement {
@@ -106,6 +111,31 @@ func NewSelect(doc dom.Document, children ...any) *SelectElement {
 	s.syncValue()
 
 	return s
+}
+
+// AppendChild overrides dom.Element.AppendChild to sync select options.
+func (s *SelectElement) AppendChild(child dom.Node) dom.Node {
+	res := s.Element.AppendChild(child)
+	if opt, ok := child.EventTarget().(*OptionElement); ok {
+		s.options = append(s.options, opt)
+		s.syncValue()
+	}
+	return res
+}
+
+// RemoveChild overrides dom.Element.RemoveChild to sync select options.
+func (s *SelectElement) RemoveChild(child dom.Node) dom.Node {
+	res := s.Element.RemoveChild(child)
+	if opt, ok := child.EventTarget().(*OptionElement); ok {
+		for i, o := range s.options {
+			if o == opt {
+				s.options = append(s.options[:i], s.options[i+1:]...)
+				break
+			}
+		}
+		s.syncValue()
+	}
+	return res
 }
 
 func (s *SelectElement) processSelectChildren(children []any) {
@@ -141,8 +171,19 @@ func Select(children ...any) *SelectElement {
 }
 
 // Value returns the currently selected value.
-func (s *SelectElement) Value() string {
+func (s *SelectElement) Value() any {
 	return s.value
+}
+
+// WithName sets the form control name and returns the SelectElement.
+func (s *SelectElement) WithName(name string) *SelectElement {
+	s.name = name
+	return s
+}
+
+// Name returns the form control name.
+func (s *SelectElement) Name() string {
+	return s.name
 }
 
 // SetValue updates the selected value and updates the trigger button text.

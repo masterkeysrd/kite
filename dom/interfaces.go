@@ -393,3 +393,11 @@ type Selection interface {
 	// (the combined text of all its ranges).
 	String() string
 }
+
+// FormControl represents a DOM element that carries a name and a value
+// for form submission.
+type FormControl interface {
+	Node
+	Name() string
+	Value() any
+}

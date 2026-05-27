@@ -71,4 +71,6 @@
 //     (ADR-009) with intrinsic display:inline-block, overflow-y:scroll, and
 //     overflow-wrap:break-word. Embeds textControlBase[TextAreaElement]
 //     (ADR-013). See TSK-025, TSK-029.
+//   - Form: A container component (similar to <form>) that gathers all child
+//     FormControl values on submit and handles implicit submission mechanics.
 package element

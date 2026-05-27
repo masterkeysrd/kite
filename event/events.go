@@ -34,6 +34,7 @@ const (
 	EventClipboard       EventType = "clipboard"
 	EventScroll          EventType = "scroll"
 	EventSelectionChange EventType = "selectionchange"
+	EventSubmit          EventType = "submit"
 )
 
 // EventPhase represents the current dispatch phase.
@@ -446,5 +447,19 @@ func NewScrollEvent(x, y, dx, dy int) *ScrollEvent {
 		Y:         y,
 		DeltaX:    dx,
 		DeltaY:    dy,
+	}
+}
+
+// SubmitEvent is dispatched when a form is submitted.
+type SubmitEvent struct {
+	BaseEvent
+	FormData map[string]any
+}
+
+// NewSubmitEvent creates a SubmitEvent.
+func NewSubmitEvent(formData map[string]any) *SubmitEvent {
+	return &SubmitEvent{
+		BaseEvent: BaseEvent{typ: EventSubmit, bubbles: true},
+		FormData:  formData,
 	}
 }

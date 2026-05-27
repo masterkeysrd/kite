@@ -63,6 +63,7 @@ btn := element.Box("Click Me").
 | `Span` | `span` | An inline container (similar to `<span>`). |
 | `Text` | `#text` | A leaf node containing text. |
 | `Button` | `button` | A clickable button with centered content and interactive states. |
+| `Form` | `form` | A container component that gathers child `FormControl` values and manages implicit submission mechanics. |
 | `Input` | `input` | A single-line text input field. |
 | `TextArea` | `textarea` | A multi-line scrollable text editor. |
 | `Select` | `select` | A dropdown selection component with overlay. |

@@ -13,14 +13,17 @@ import (
 // ButtonElement implements a clickable button component.
 type ButtonElement struct {
 	elementBase[ButtonElement]
-	active bool
+	active  bool
+	btnType string
 }
 
 var _ Element = (*ButtonElement)(nil)
 
 // NewButton creates a new ButtonElement owned by doc.
 func NewButton(doc dom.Document, children ...any) *ButtonElement {
-	b := &ButtonElement{}
+	b := &ButtonElement{
+		btnType: "submit", // default button type
+	}
 	// Buttons use Flex by default to center their content.
 	b.initBase(doc.CreateElement("button", b), b, defaultButtonStyle)
 	processChildren(b, children)
@@ -65,6 +68,20 @@ func (b *ButtonElement) wireEvents() {
 
 func (b *ButtonElement) IntrinsicStyle() style.Style {
 	return style.Style{}
+}
+
+// Type sets the button type (e.g. "button", "submit") and returns the ButtonElement.
+func (b *ButtonElement) Type(btnType string) *ButtonElement {
+	b.btnType = btnType
+	return b
+}
+
+// ButtonType returns the type of the button.
+func (b *ButtonElement) ButtonType() string {
+	if b.btnType == "" {
+		return "submit"
+	}
+	return b.btnType
 }
 
 func (b *ButtonElement) handleMouseDown(e event.Event) {

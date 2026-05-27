@@ -78,13 +78,13 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 	// Handle input changes
 	onNameKeyDown := func(e event.Event) {
 		if inp, ok := e.Target().(*element.InputElement); ok {
-			dispatch(Action{Type: "SET_NAME", Value: inp.Value()})
+			dispatch(Action{Type: "SET_NAME", Value: inp.Value().(string)})
 		}
 	}
 
 	onEmailKeyDown := func(e event.Event) {
 		if inp, ok := e.Target().(*element.InputElement); ok {
-			dispatch(Action{Type: "SET_EMAIL", Value: inp.Value()})
+			dispatch(Action{Type: "SET_EMAIL", Value: inp.Value().(string)})
 		}
 	}
 

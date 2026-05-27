@@ -83,4 +83,10 @@
 // on the Document. The selection state is logical and refers to text nodes;
 // the render and paint engines resolve these logical boundaries into physical
 // screen-space highlights during the rendering pipeline.
+//
+// # Form Controls
+//
+// Elements that act as interactive inputs (e.g. Input, Checkbox, Select) implement
+// the FormControl interface, exposing a Name() string and Value() any. This allows
+// containing Form elements to recursively gather user inputs during submission.
 package dom

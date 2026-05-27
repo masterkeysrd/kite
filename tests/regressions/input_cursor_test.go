@@ -194,7 +194,7 @@ func TestRegression_InputSpaceCursorAdvancesWithEchoLabel(t *testing.T) {
 	inputDispatch(inp, key.Key{Code: ' ', Text: " "})
 
 	// Update echo to trigger Normal-mode collapsing of "f  " in the same frame.
-	echoLabel.SetData(inp.Value())
+	echoLabel.SetData(inp.Value().(string))
 	eng.Frame()
 
 	// The input buffer is "f  " (3 bytes). The cursor must be at X=3 relative
