@@ -114,13 +114,13 @@ var DetailsView = kitex.FC("DetailsView", func(props struct{ ID string }) kitex.
 var App = kitex.SimpleFC("App", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
 		Style: style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexColumn),
-			AlignItems:     style.Some(style.AlignCenter),
-			Width:          style.Some(style.Percent(100)),
-			Height:         style.Some(style.Percent(100)),
-			Background:     style.Some[color.Color](color.RGBA{R: 18, G: 18, B: 24, A: 255}),
-			Padding:        style.Some(style.Edges(1, 2)),
+			Display:       style.Some(style.DisplayFlex),
+			FlexDirection: style.Some(style.FlexColumn),
+			AlignItems:    style.Some(style.AlignCenter),
+			Width:         style.Some(style.Percent(100)),
+			Height:        style.Some(style.Percent(100)),
+			Background:    style.Some[color.Color](color.RGBA{R: 18, G: 18, B: 24, A: 255}),
+			Padding:       style.Some(style.Edges(1, 2)),
 		},
 	},
 		// Header

@@ -167,7 +167,9 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Kites global state integration hook** | `extras/kites/hooks.go` |
 | **Stack Navigation component & interfaces** | `extras/flight/flight.go`, `extras/flight/stack.go` |
 | **Navigation context & hooks** | `extras/flight/hooks.go` |
-
+| **Wind query cache client & context** | `extras/wind/client.go` |
+| **Wind query hook (`Use`)** | `extras/wind/query.go` |
+| **Wind mutation hook (`UseMutation`)** | `extras/wind/mutation.go` |
 
 ## 📋 Task Workflow
 
@@ -265,6 +267,9 @@ This source map summarises the repository packages, their responsibilities, and 
     - Description: Stack-based type-safe navigation and hooks (push/pop) with automated focus isolation. (See `extras/flight/doc.go`)
     - Key files: `extras/flight/doc.go`, `flight.go`, `hooks.go`, `stack.go`, tests
 
+- **extras/wind** — Path: `extras/wind/`
+    - Description: Async data fetching, caching, query invalidation, and mutation state management. (See `extras/wind/doc.go`)
+    - Key files: `extras/wind/doc.go`, `client.go`, `query.go`, `mutation.go`, tests
 
 
 - **focus** — Path: `focus/`
