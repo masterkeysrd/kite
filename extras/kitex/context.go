@@ -2,7 +2,7 @@ package kitex
 
 import "sync"
 
-// Context[T] is a typed context identity created via CreateContext.
+// Context is a typed context identity created via CreateContext.
 type Context[T comparable] struct {
 	defaultValue T
 	stack        []*contextEntry[T]

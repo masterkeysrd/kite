@@ -179,7 +179,7 @@ func depsEqual(a, b []any) bool {
 // a getter function and a dispatch function. Setting the state via dispatch flags
 // the component dirty and schedules a re-render.
 func UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A)) {
-	getState, setState := UseState[S](initial)
+	getState, setState := UseState(initial)
 	dispatch := func(action A) {
 		setState(reducer(getState(), action))
 	}
@@ -193,9 +193,9 @@ var useCallbackSeq uint64
 func UseCallback[T any](callback T, deps []any) T {
 	if deps == nil {
 		seq := atomic.AddUint64(&useCallbackSeq, 1)
-		return UseMemo[T](func() T { return callback }, []any{seq})
+		return UseMemo(func() T { return callback }, []any{seq})
 	}
-	return UseMemo[T](func() T { return callback }, deps)
+	return UseMemo(func() T { return callback }, deps)
 }
 
 type effectHookState struct {
@@ -284,10 +284,8 @@ func UseEffect(effect func(), deps []any) {
 	}
 
 	hs := stateVal.(*effectHookState)
-	changed := false
-	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
-		changed = true
-	}
+	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
+
 	hs.simpleFn = effect // Update closure anyway
 	if changed {
 		hs.deps = deps
@@ -325,10 +323,8 @@ func UseEffectCleanup(effect func() func(), deps []any) {
 	}
 
 	hs := stateVal.(*effectHookState)
-	changed := false
-	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
-		changed = true
-	}
+	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
+
 	hs.cleanupFn = effect // Update closure anyway
 	if changed {
 		hs.deps = deps
@@ -365,10 +361,8 @@ func UseLayoutEffect(effect func(), deps []any) {
 	}
 
 	hs := stateVal.(*effectHookState)
-	changed := false
-	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
-		changed = true
-	}
+	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
+
 	hs.simpleFn = effect // Update closure anyway
 	if changed {
 		hs.deps = deps
@@ -404,10 +398,8 @@ func UseLayoutEffectCleanup(effect func() func(), deps []any) {
 	}
 
 	hs := stateVal.(*effectHookState)
-	changed := false
-	if hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps) {
-		changed = true
-	}
+	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
+
 	hs.cleanupFn = effect // Update closure anyway
 	if changed {
 		hs.deps = deps
@@ -478,7 +470,7 @@ func drainLayoutEffects() {
 
 // UseFocus returns whether the referenced DOM element currently has focus.
 func UseFocus(ref Ref[dom.Element]) bool {
-	focused, setFocused := UseState[bool](false)
+	focused, setFocused := UseState(false)
 
 	UseEffectCleanup(func() func() {
 		el := ref.Current

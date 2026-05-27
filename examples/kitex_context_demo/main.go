@@ -17,7 +17,6 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-// Define Theme type and Context
 type Theme string
 
 const (
@@ -26,7 +25,7 @@ const (
 	ThemeBlue  Theme = "blue"
 )
 
-var ThemeContext = kitex.CreateContext[Theme](ThemeLight)
+var ThemeContext = kitex.CreateContext(ThemeLight)
 
 // themeColors maps a theme to visual styles
 func getThemeStyle(theme Theme) style.Style {

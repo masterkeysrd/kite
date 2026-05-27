@@ -1,6 +1,7 @@
 package kitex
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -28,13 +29,7 @@ func init() {
 		}
 
 		effectsMutex.Lock()
-		exists := false
-		for _, c := range dirtyComponents {
-			if c == compInstance {
-				exists = true
-				break
-			}
-		}
+		exists := slices.Contains(dirtyComponents, compInstance)
 		if !exists {
 			dirtyComponents = append(dirtyComponents, compInstance)
 		}
@@ -57,7 +52,7 @@ func init() {
 }
 
 func processDirtyLoop() {
-	for iteration := 0; iteration < 10; iteration++ {
+	for range 10 {
 		if len(dirtyComponents) == 0 {
 			break
 		}
@@ -324,25 +319,6 @@ var flatNodeSlicePool = sync.Pool{
 		s := make([]flatNode, 0, 128)
 		return &s
 	},
-}
-
-var providerSlicePool = sync.Pool{
-	New: func() any {
-		s := make([]providerInstance, 0, 8)
-		return &s
-	},
-}
-
-func hasProviders(nodes []Node) bool {
-	for _, n := range nodes {
-		if n == nil {
-			continue
-		}
-		if _, ok := n.(providerInstance); ok {
-			return true
-		}
-	}
-	return false
 }
 
 func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildren, newChildren []Node) {
@@ -661,8 +637,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		oldChild := flatOld[0]
 		newChild := flatNew[0]
 		if sameNode(oldChild.node, newChild.node) {
-			var realNode dom.Node
-			realNode = oldChild.node.(nodeInternal).realNode()
+			var realNode = oldChild.node.(nodeInternal).realNode()
 			reconcileFlat(parent, oldChild, newChild, realNode)
 			return
 		}

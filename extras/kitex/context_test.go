@@ -317,3 +317,65 @@ func TestProvider_DifferentContextTypes(t *testing.T) {
 		t.Errorf("expected count 200, got %d", countVal)
 	}
 }
+
+// BenchmarkContextRead measures the cost of UseContext lookup on subsequent renders (the O(1) path).
+func BenchmarkContextRead(b *testing.B) {
+	EnableDevMode = false
+	doc := dom.NewDocument()
+	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	ctx := CreateContext("value")
+
+	Consumer := FC("Consumer", func(props struct{}) Node {
+		_ = UseContext(ctx)
+		return Text("Consumer")
+	})
+
+	var triggerUpdate func()
+	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+		_, setDummy := UseState(0)
+		triggerUpdate = func() { setDummy(1) }
+		return ctx.Provider("value", Consumer(struct{}{}))
+	})
+
+	Render(ProviderWrapper(struct{}{}), container)
+
+	b.ResetTimer()
+	for b.Loop() {
+		triggerUpdate()
+	}
+}
+
+// BenchmarkContextPropagation measures propagation cost when the provider value changes,
+// triggering subscriber dirty propagation and component re-render.
+func BenchmarkContextPropagation(b *testing.B) {
+	EnableDevMode = false
+	doc := dom.NewDocument()
+	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	ctx := CreateContext("value")
+
+	Consumer := FC("Consumer", func(props struct{}) Node {
+		_ = UseContext(ctx)
+		return Text("Consumer")
+	})
+
+	var setProviderValue func(string)
+	var state int
+	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+		val, setVal := UseState("value1")
+		setProviderValue = setVal
+		return ctx.Provider(val(), Consumer(struct{}{}))
+	})
+
+	Render(ProviderWrapper(struct{}{}), container)
+
+	for i := 0; b.Loop(); i++ {
+		state = i % 2
+		if state == 0 {
+			setProviderValue("value1")
+		} else {
+			setProviderValue("value2")
+		}
+	}
+}
