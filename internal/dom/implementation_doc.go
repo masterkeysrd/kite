@@ -1,5 +1,8 @@
 // Package dom implements the logical node tree for kitex (kite v2).
 //
+// This is the internal implementation package. Public interfaces and API
+// are provided by the github.com/masterkeysrd/kite/dom package.
+//
 // DOM nodes hold a reference to their RenderObject (if any). Structural
 // mutations on a DOM node signal the parent's render object; style mutations
 // signal the node's own render object. Nodes with no render attachment (e.g.

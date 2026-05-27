@@ -1,15 +1,19 @@
 package dom
 
-import "strings"
+import (
+	"strings"
 
-func (e *element) QuerySelector(selector string) Element {
+	"github.com/masterkeysrd/kite/dom"
+)
+
+func (e *Element) QuerySelector(selector string) dom.Element {
 	if selector == "" {
 		return nil
 	}
 	return querySelector(e.self, selector)
 }
 
-func (d *document) QuerySelector(selector string) Element {
+func (d *Document) QuerySelector(selector string) dom.Element {
 	if selector == "" {
 		return nil
 	}
@@ -26,8 +30,8 @@ func (d *document) QuerySelector(selector string) Element {
 	return nil
 }
 
-func querySelector(n Node, selector string) Element {
-	if el, ok := n.(Element); ok {
+func querySelector(n dom.Node, selector string) dom.Element {
+	if el, ok := n.(dom.Element); ok {
 		if matches(el, selector) {
 			return el
 		}
@@ -41,7 +45,7 @@ func querySelector(n Node, selector string) Element {
 	return nil
 }
 
-func matches(el Element, selector string) bool {
+func matches(el dom.Element, selector string) bool {
 	if strings.HasPrefix(selector, "#") {
 		return el.ID() == selector[1:]
 	}

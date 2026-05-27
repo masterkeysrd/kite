@@ -1,6 +1,10 @@
 package dom
 
-import "iter"
+import (
+	"iter"
+
+	"github.com/masterkeysrd/kite/dom"
+)
 
 // LayoutChildren returns an iterator that yields the engine-visible children of
 // n. For nodes that hold a UA shadow subtree (via AttachUARoot), the iterator
@@ -14,12 +18,12 @@ import "iter"
 // Zero-allocation fast path: when n has no UA subtree the iterator degrades to
 // a plain ChildNodes() walk with no additional overhead beyond the public
 // iterator.
-func LayoutChildren(n Node) iter.Seq[Node] {
+func LayoutChildren(n dom.Node) iter.Seq[dom.Node] {
 	// Check whether n hosts a UA subtree by resolving through wrappers.
-	// We must unwrap to reach the concrete *element if n is a wrapper type.
-	var uaRoot Node
+	// We must unwrap to reach the concrete *Element if n is a wrapper type.
+	var uaRoot dom.Node
 	for cur := n; cur != nil; cur = cur.Unwrap() {
-		if e, ok := cur.(*element); ok {
+		if e, ok := cur.(*Element); ok {
 			uaRoot = e.uaRoot
 			break
 		}
@@ -31,7 +35,7 @@ func LayoutChildren(n Node) iter.Seq[Node] {
 	}
 
 	// Slow path: union of public children and UA root's children.
-	return func(yield func(Node) bool) {
+	return func(yield func(dom.Node) bool) {
 		// Public children first.
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 			if !yield(child) {
@@ -50,7 +54,7 @@ func LayoutChildren(n Node) iter.Seq[Node] {
 // IsUANode reports whether n is part of a UA shadow subtree. The check is O(1)
 // because AttachUARoot stamps every node in the subtree with an inUASubtree
 // flag at construction time.
-func IsUANode(n Node) bool {
+func IsUANode(n dom.Node) bool {
 	if n == nil {
 		return false
 	}
@@ -63,9 +67,9 @@ func IsUANode(n Node) bool {
 // UARoot returns the UA shadow subtree root attached to el, or nil if el does
 // not have one. This is an engine-internal accessor used by the Sync phase.
 // It must not be called from author code.
-func UARoot(el Element) Node {
-	for cur := Node(el); cur != nil; cur = cur.Unwrap() {
-		if e, ok := cur.(*element); ok {
+func UARoot(el dom.Element) dom.Node {
+	for cur := dom.Node(el); cur != nil; cur = cur.Unwrap() {
+		if e, ok := cur.(*Element); ok {
 			return e.uaRoot
 		}
 	}

@@ -1,14 +1,13 @@
-package dom_test
+package dom
 
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 )
 
 func TestElement_Scroll(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	el := doc.CreateElement("div", nil)
 
 	// Initial state
@@ -33,7 +32,7 @@ func TestElement_Scroll(t *testing.T) {
 }
 
 func TestElement_ScrollEvent(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	el := doc.CreateElement("div", nil)
 
 	var received *event.ScrollEvent

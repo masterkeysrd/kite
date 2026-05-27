@@ -1,6 +1,7 @@
 package dom
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"testing"
 )
 
@@ -10,7 +11,7 @@ import (
 //
 // This type lives in the internal test file so it can access *element.
 type lifecycleNode struct {
-	*element
+	*Element
 	events *[]string
 }
 
@@ -23,10 +24,10 @@ func (l *lifecycleNode) OnDisconnected() {
 }
 
 // newLifecycleNode creates a lifecycleNode with its own events slice.
-func newLifecycleNode(doc Document, tag string) (*lifecycleNode, *[]string) {
+func newLifecycleNode(doc dom.Document, tag string) (*lifecycleNode, *[]string) {
 	events := &[]string{}
 	inner := newElement(tag, doc, nil)
-	ln := &lifecycleNode{element: inner, events: events}
+	ln := &lifecycleNode{Element: inner, events: events}
 	// Set the self pointer to the wrapper so adoption works correctly.
 	inner.self = ln
 	return ln, events
@@ -191,7 +192,7 @@ func TestElement_Lifecycle_OnConnected_FiresPreOrder(t *testing.T) {
 	// Share the events slice so we can observe all callbacks in order.
 	makeLC := func(tag string) *lifecycleNode {
 		inner := newElement(tag, doc, nil)
-		ln := &lifecycleNode{element: inner, events: events}
+		ln := &lifecycleNode{Element: inner, events: events}
 		inner.self = ln
 		return ln
 	}
@@ -218,7 +219,7 @@ func TestElement_Lifecycle_OnDisconnected_FiresPostOrder(t *testing.T) {
 
 	makeLC := func(tag string) *lifecycleNode {
 		inner := newElement(tag, doc, nil)
-		ln := &lifecycleNode{element: inner, events: events}
+		ln := &lifecycleNode{Element: inner, events: events}
 		inner.self = ln
 		return ln
 	}
@@ -268,7 +269,7 @@ func TestElement_Move_ObservesDisconnectThenConnect(t *testing.T) {
 	dstParent := newElement("dst", doc, nil)
 
 	inner := newElement("mover", doc, nil)
-	lc := &lifecycleNode{element: inner, events: events}
+	lc := &lifecycleNode{Element: inner, events: events}
 	inner.self = lc
 
 	doc.AppendChild(srcParent)

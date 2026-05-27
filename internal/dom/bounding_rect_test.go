@@ -1,9 +1,8 @@
-package dom_test
+package dom
 
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
@@ -21,7 +20,7 @@ func (m *mockRO) LogicalNode() any           { return m.logical }
 func (m *mockRO) Style() *style.Computed     { return m.style }
 
 func TestGetBoundingClientRect(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	div := doc.CreateElement("div", nil)
 	doc.AppendChild(div)
 
@@ -74,7 +73,7 @@ func TestGetBoundingClientRect(t *testing.T) {
 }
 
 func TestGetBoundingClientRect_Scrolled(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	container := doc.CreateElement("div", nil)
 	doc.AppendChild(container)
 
@@ -166,7 +165,7 @@ func TestGetBoundingClientRect_Scrolled(t *testing.T) {
 }
 
 func TestGetBoundingClientRect_Disconnected(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	div := doc.CreateElement("div", nil)
 	// NOT appended to doc
 
@@ -177,7 +176,7 @@ func TestGetBoundingClientRect_Disconnected(t *testing.T) {
 }
 
 func TestGetBoundingClientRect_NoFragment(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	div := doc.CreateElement("div", nil)
 	doc.AppendChild(div)
 

@@ -1,16 +1,15 @@
-package dom_test
+package dom
 
 import (
-	"testing"
-
 	"github.com/masterkeysrd/kite/dom"
+	"testing"
 )
 
 // BenchmarkElement_AppendChild measures the cost of appending 1k children to
 // a single parent element, catching accidental O(N) sibling rewires.
 func BenchmarkElement_AppendChild(b *testing.B) {
 	const n = 1000
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	children := make([]dom.Node, n)
 	for i := range children {
 		children[i] = doc.CreateElement("span", nil)
@@ -32,7 +31,7 @@ func BenchmarkElement_AppendChild(b *testing.B) {
 // asymptotic cost.
 func BenchmarkElement_RemoveChild_Middle(b *testing.B) {
 	const n = 1000
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	for range n {
 		parent.AppendChild(doc.CreateElement("span", nil))
@@ -57,7 +56,7 @@ func BenchmarkElement_RemoveChild_Middle(b *testing.B) {
 // must degrade to a pure ChildNodes walk (zero allocation fast path).
 func BenchmarkLayoutChildren_NoUA(b *testing.B) {
 	const n = 100
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	for range n {
 		parent.AppendChild(doc.CreateElement("span", nil))
@@ -65,7 +64,7 @@ func BenchmarkLayoutChildren_NoUA(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		for range dom.LayoutChildren(parent) {
+		for range LayoutChildren(parent) {
 		}
 	}
 }
@@ -73,7 +72,7 @@ func BenchmarkLayoutChildren_NoUA(b *testing.B) {
 // BenchmarkLayoutChildren_WithUA verifies that LayoutChildren for a node with
 // a small UA subtree (1–3 nodes) has acceptable overhead.
 func BenchmarkLayoutChildren_WithUA(b *testing.B) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("x-host", nil)
 	// Add a few public children.
 	for range 5 {
@@ -88,7 +87,7 @@ func BenchmarkLayoutChildren_WithUA(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		for range dom.LayoutChildren(parent) {
+		for range LayoutChildren(parent) {
 		}
 	}
 }

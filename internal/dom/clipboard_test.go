@@ -19,7 +19,7 @@ func (m *mockClipboard) SetClipboard(text string) {
 func (m *mockClipboard) RequestClipboard() {}
 
 func TestDocument_ClipboardCopy(t *testing.T) {
-	doc := NewDocument().(*document)
+	doc := NewDocument()
 	t1 := doc.CreateTextNode("Hello Clipboard", nil)
 	doc.AppendChild(t1)
 
@@ -45,7 +45,7 @@ func TestDocument_ClipboardCopy(t *testing.T) {
 }
 
 func TestDocument_ClipboardPasteFallback(t *testing.T) {
-	doc := NewDocument().(*document)
+	doc := NewDocument()
 	cb := &mockClipboard{data: "pasted from system"}
 	doc.SetClipboardProvider(cb)
 	ce := event.NewClipboardEvent(event.EventPaste, event.ClipboardPaste)
@@ -63,7 +63,7 @@ func TestDocument_ClipboardPasteFallback(t *testing.T) {
 }
 
 func TestDocument_ClipboardCopy_PrioritizesExistingData(t *testing.T) {
-	doc := NewDocument().(*document)
+	doc := NewDocument()
 	t1 := doc.CreateTextNode("Document Selection", nil)
 	doc.AppendChild(t1)
 

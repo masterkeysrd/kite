@@ -1,13 +1,11 @@
-package dom_test
+package dom
 
 import (
 	"testing"
-
-	"github.com/masterkeysrd/kite/dom"
 )
 
 func TestNode_EventTarget(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 
 	t.Run("StandardNode", func(t *testing.T) {
 		el := doc.CreateElement("div", nil)

@@ -3,6 +3,7 @@ package dom
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
@@ -10,63 +11,63 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-// element is the concrete, unexported implementation of Element.
-type element struct {
-	baseNode
+// Element is the concrete, exported implementation of Element.
+type Element struct {
+	BaseNode
 	tagName string
 	id      string
 	class   string
-	uaRoot  Node // closed UA shadow subtree root; nil by default (ADR-009)
-	scroll  *scrollState
+	uaRoot  dom.Node // closed UA shadow subtree root; nil by default (ADR-009)
+	scroll  *ScrollState
 }
 
-type scrollState struct {
+type ScrollState struct {
 	X, Y int
 }
 
 // Compile-time assertion.
-var _ Element = (*element)(nil)
+var _ dom.Element = (*Element)(nil)
 
 // NewElement allocates an element with the given tag name and owner document.
 // If self is nil, the element's self pointer defaults to itself.
-func NewElement(doc Document, tag string, self Node) Element {
+func NewElement(doc dom.Document, tag string, self dom.Node) *Element {
 	return newElement(tag, doc, self)
 }
 
 // newElement allocates an element with the given tag name and owner document.
-func newElement(tag string, doc Document, self Node) *element {
-	e := &element{tagName: tag}
+func newElement(tag string, doc dom.Document, self dom.Node) *Element {
+	e := &Element{tagName: tag}
 	e.ownerDocument = doc
-	e.self = e // self is always the raw *element for DOM dispatch
+	e.self = e // self is always the raw *Element for DOM dispatch
 	if self != nil {
 		e.outer = self // outer is the user-visible wrapper (for identity resolution)
 	} else {
 		e.outer = e // outer defaults to self when no wrapper
 	}
-	e.kind = KindElement
+	e.kind = dom.KindElement
 	e.name = tag
 	return e
 }
 
-// asBase returns the underlying *baseNode.
-func (e *element) asBase() *baseNode { return &e.baseNode }
+// asBase returns the underlying *BaseNode.
+func (e *Element) asBase() *BaseNode { return &e.BaseNode }
 
 // TagName returns the tag name.
-func (e *element) TagName() string { return e.tagName }
+func (e *Element) TagName() string { return e.tagName }
 
 // ID returns the element's identifier.
-func (e *element) ID() string { return e.id }
+func (e *Element) ID() string { return e.id }
 
 // Class returns the element's classification.
-func (e *element) Class() string { return e.class }
+func (e *Element) Class() string { return e.class }
 
 // SetClass sets the element's classification.
-func (e *element) SetClass(class string) { e.class = class }
+func (e *Element) SetClass(class string) { e.class = class }
 
 // SetID sets the element's identifier. Registry maintenance
 // when the node is disconnected only the stored id field is
 // updated; the identity registry is touched only when the node is connected.
-func (e *element) SetID(id string) {
+func (e *Element) SetID(id string) {
 	if e.id == id {
 		return
 	}
@@ -77,14 +78,14 @@ func (e *element) SetID(id string) {
 	e.id = id
 	if hasReg && e.connected && id != "" {
 		// Use self for registration so wrappers are registered.
-		if el, ok := e.self.(Element); ok {
+		if el, ok := e.self.(dom.Element); ok {
 			r.registerID(id, el)
 		}
 	}
 }
 
 // ReplaceWith replaces this element with the given nodes.
-func (e *element) ReplaceWith(nodes ...Node) Element {
+func (e *Element) ReplaceWith(nodes ...dom.Node) dom.Element {
 	parent := e.parent
 	if parent == nil {
 		return e
@@ -97,11 +98,11 @@ func (e *element) ReplaceWith(nodes ...Node) Element {
 	return e
 }
 
-// ChildNodes (from Node) is implemented by baseNode.
+// ChildNodes (from dom.Node) is implemented by BaseNode.
 
 // Children is a helper that returns only Element children.
 // Deprecated: use ChildNodes() and filter by kind.
-func (e *element) Children() iter.Seq[Node] {
+func (e *Element) Children() iter.Seq[dom.Node] {
 	return e.ChildNodes()
 }
 
@@ -109,11 +110,11 @@ func (e *element) Children() iter.Seq[Node] {
 // The base element implementation returns an empty style.Style{}, meaning no
 // UA properties are forced. Replaced and compound elements override this
 // method to enforce UA-mandatory properties (ADR-010).
-func (e *element) IntrinsicStyle() style.Style { return style.Style{} }
+func (e *Element) IntrinsicStyle() style.Style { return style.Style{} }
 
 // AttachUARoot attaches root as the closed UA shadow subtree for this host.
-// See Element.AttachUARoot for the full contract.
-func (e *element) AttachUARoot(root Node) {
+// See dom.Element.AttachUARoot for the full contract.
+func (e *Element) AttachUARoot(root dom.Node) {
 	if e.uaRoot != nil {
 		panic("dom: AttachUARoot called more than once on the same element")
 	}
@@ -131,18 +132,18 @@ func (e *element) AttachUARoot(root Node) {
 }
 
 // UARoot returns the closed UA shadow subtree root, or nil.
-func (e *element) UARoot() Node { return e.uaRoot }
+func (e *Element) UARoot() dom.Node { return e.uaRoot }
 
-func (e *element) Scroll() (x, y int) {
+func (e *Element) Scroll() (x, y int) {
 	if e.scroll == nil {
 		return 0, 0
 	}
 	return e.scroll.X, e.scroll.Y
 }
 
-func (e *element) ScrollTo(x, y int) {
+func (e *Element) ScrollTo(x, y int) {
 	if e.scroll == nil {
-		e.scroll = &scrollState{}
+		e.scroll = &ScrollState{}
 	}
 	dx := x - e.scroll.X
 	dy := y - e.scroll.Y
@@ -173,7 +174,7 @@ func (e *element) ScrollTo(x, y int) {
 	dispatcher.Dispatch(ev, path)
 }
 
-func (e *element) ScrollBy(dx, dy int) {
+func (e *Element) ScrollBy(dx, dy int) {
 	x, y := e.Scroll()
 
 	// If the element has a render object, we must base the relative scroll
@@ -187,22 +188,22 @@ func (e *element) ScrollBy(dx, dy int) {
 	e.ScrollTo(x+dx, y+dy)
 }
 
-func (e *element) ScrollCursorIntoView() {
+func (e *Element) ScrollCursorIntoView() {
 	// Base implementation is a no-op. Elements with a cursor (input, textarea)
 	// override this to ensure the caret remains visible after layout.
 }
 
-func (e *element) ProvidesCursor() bool {
+func (e *Element) ProvidesCursor() bool {
 	// Base implementation returns false.
 	return false
 }
 
-func (e *element) GetBoundingClientRect() (geom.Rect, bool) {
+func (e *Element) GetBoundingClientRect() (geom.Rect, bool) {
 	if !e.connected {
 		return geom.Rect{}, false
 	}
 
-	// Traverse up to find the root node (usually the Document).
+	// Traverse up to find the root node (usually the dom.Document).
 	var root = e.self
 	for p := root.Parent(); p != nil; {
 		root = p
@@ -232,7 +233,7 @@ func (e *element) GetBoundingClientRect() (geom.Rect, bool) {
 // setOuterRecursive walks the subtree rooted at n and sets the self/outer
 // back-pointer of every node to outer. This implements the ADR-0036 identity
 // propagation required for UA shadow subtrees (ADR-009).
-func setOuterRecursive(n Node, outer Node) {
+func setOuterRecursive(n dom.Node, outer dom.Node) {
 	if n == nil {
 		return
 	}

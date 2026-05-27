@@ -6,40 +6,41 @@ import (
 	"unicode/utf8"
 
 	"github.com/masterkeysrd/kite/cursor"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
 )
 
-// idRegistrar is an unexported interface implemented by *document.
-// element uses it (via a type assertion on ownerDocument) to maintain
+// idRegistrar is an unexported interface implemented by *Document.
+// Element uses it (via a type assertion on ownerDocument) to maintain
 // the O(1) ID map without creating an import cycle or exposing internals.
 type idRegistrar interface {
-	registerID(id string, el Element)
+	registerID(id string, el dom.Element)
 	unregisterID(id string)
 }
 
-type overlayRecord struct {
-	el     Element
+type OverlayRecord struct {
+	el     dom.Element
 	zIndex int
 	order  int
 }
 
-// document is the concrete, unexported implementation of Document.
-type document struct {
-	baseNode
-	byID    map[string]Element
-	anchors map[string]Element
+// Document is the concrete, exported implementation of Document.
+type Document struct {
+	BaseNode
+	byID    map[string]dom.Element
+	anchors map[string]dom.Element
 
-	overlays  []overlayRecord
+	overlays  []OverlayRecord
 	nextOrder int
 
 	focusManager any
 	clipboard    event.ClipboardProvider
 
-	selection *selectionImpl
+	selection *Selection
 
 	selectionDragging bool
-	anchorNode        Node
+	anchorNode        dom.Node
 	anchorOffset      int
 
 	// mutating is the reentrancy guard. It is true while an attach or detach
@@ -50,19 +51,19 @@ type document struct {
 }
 
 // Compile-time assertion.
-var _ Document = (*document)(nil)
+var _ dom.Document = (*Document)(nil)
 
 // NewDocument creates and returns a new, empty Document.
 // The document itself is always connected.
-func NewDocument() Document {
-	d := &document{
-		byID:    make(map[string]Element),
-		anchors: make(map[string]Element),
+func NewDocument() *Document {
+	d := &Document{
+		byID:    make(map[string]dom.Element),
+		anchors: make(map[string]dom.Element),
 	}
 	d.self = d
 	d.ownerDocument = d // the document owns itself
 	d.connected = true  // the document is always connected
-	d.kind = KindDocument
+	d.kind = dom.KindDocument
 	d.name = "#document"
 	d.needsSync = true
 	d.selection = newSelection(d)
@@ -79,49 +80,49 @@ func NewDocument() Document {
 
 // CreateElement returns a new, detached Element with the given tag name owned
 // by this document.
-func (d *document) CreateElement(tag string, self Node) Element {
+func (d *Document) CreateElement(tag string, self dom.Node) dom.Element {
 	return newElement(tag, d, self)
 }
 
 // CreateTextNode returns a new, detached TextNode with the given data owned
 // by this document.
-func (d *document) CreateTextNode(data string, self Node) TextNode {
+func (d *Document) CreateTextNode(data string, self dom.Node) dom.TextNode {
 	return newTextNode(data, d, self)
 }
 
 // GetElementByID returns the Element whose ID equals id, or nil.
-func (d *document) GetElementByID(id string) Element {
+func (d *Document) GetElementByID(id string) dom.Element {
 	return d.byID[id]
 }
 
 // FindAnchor returns the Element registered under name in the anchor registry,
 // or nil.
-func (d *document) FindAnchor(name string) Element {
+func (d *Document) FindAnchor(name string) dom.Element {
 	return d.anchors[name]
 }
 
 // RegisterAnchor adds el to the anchor registry under name.
-func (d *document) RegisterAnchor(name string, el Element) {
+func (d *Document) RegisterAnchor(name string, el dom.Element) {
 	if name != "" {
 		d.anchors[name] = el
 	}
 }
 
 // UnregisterAnchor removes the entry for name from the anchor registry.
-func (d *document) UnregisterAnchor(name string) {
+func (d *Document) UnregisterAnchor(name string) {
 	delete(d.anchors, name)
 }
 
-func (d *document) Body() Element {
+func (d *Document) Body() dom.Element {
 	for child := range d.ChildNodes() {
-		if el, ok := child.(Element); ok {
+		if el, ok := child.(dom.Element); ok {
 			return el
 		}
 	}
 	return nil
 }
 
-func (d *document) ShowOverlay(el Element, zIndex int) {
+func (d *Document) ShowOverlay(el dom.Element, zIndex int) {
 	// If el is already an overlay, update its zIndex.
 	for i, o := range d.overlays {
 		if o.el == el {
@@ -136,7 +137,7 @@ func (d *document) ShowOverlay(el Element, zIndex int) {
 	}
 
 	// Add new overlay.
-	d.overlays = append(d.overlays, overlayRecord{
+	d.overlays = append(d.overlays, OverlayRecord{
 		el:     el,
 		zIndex: zIndex,
 		order:  d.nextOrder,
@@ -146,7 +147,7 @@ func (d *document) ShowOverlay(el Element, zIndex int) {
 	d.MarkNeedsSync()
 }
 
-func (d *document) HideOverlay(el Element) {
+func (d *Document) HideOverlay(el dom.Element) {
 	for i, o := range d.overlays {
 		if o.el == el {
 			d.overlays = append(d.overlays[:i], d.overlays[i+1:]...)
@@ -156,8 +157,8 @@ func (d *document) HideOverlay(el Element) {
 	}
 }
 
-func (d *document) Overlays() iter.Seq[Element] {
-	return func(yield func(Element) bool) {
+func (d *Document) Overlays() iter.Seq[dom.Element] {
+	return func(yield func(dom.Element) bool) {
 		for _, o := range d.overlays {
 			if !yield(o.el) {
 				return
@@ -166,27 +167,27 @@ func (d *document) Overlays() iter.Seq[Element] {
 	}
 }
 
-func (d *document) FocusManager() any {
+func (d *Document) FocusManager() any {
 	return d.focusManager
 }
 
-func (d *document) SetFocusManager(fm any) {
+func (d *Document) SetFocusManager(fm any) {
 	d.focusManager = fm
 }
 
-func (d *document) Selection() Selection {
+func (d *Document) Selection() dom.Selection {
 	return d.selection
 }
 
-func (d *document) Clipboard() event.ClipboardProvider             { return d.clipboard }
-func (d *document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard = p }
+func (d *Document) Clipboard() event.ClipboardProvider             { return d.clipboard }
+func (d *Document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard = p }
 
-func (d *document) CreateRange() Range {
-	return &rangeImpl{doc: d}
+func (d *Document) CreateRange() dom.Range {
+	return &Range{doc: d}
 }
 
-func (d *document) sortOverlays() {
-	slices.SortFunc(d.overlays, func(a, b overlayRecord) int {
+func (d *Document) sortOverlays() {
+	slices.SortFunc(d.overlays, func(a, b OverlayRecord) int {
 		if a.zIndex != b.zIndex {
 			return a.zIndex - b.zIndex
 		}
@@ -196,7 +197,7 @@ func (d *document) sortOverlays() {
 
 // --- Mouse Handlers ---------------------------------------------------------
 
-func (d *document) handleMouseDown(ev event.Event) {
+func (d *Document) handleMouseDown(ev event.Event) {
 	mev, ok := ev.(*event.MouseEvent)
 	if !ok || mev.Button != event.ButtonLeft {
 		return
@@ -229,7 +230,7 @@ func (d *document) handleMouseDown(ev event.Event) {
 	d.selection.AddRange(rng)
 }
 
-func (d *document) handleMouseMove(ev event.Event) {
+func (d *Document) handleMouseMove(ev event.Event) {
 	if !d.selectionDragging {
 		return
 	}
@@ -268,7 +269,7 @@ func (d *document) handleMouseMove(ev event.Event) {
 	}
 }
 
-func (d *document) handleMouseUp(ev event.Event) {
+func (d *Document) handleMouseUp(ev event.Event) {
 	if !d.selectionDragging {
 		return
 	}
@@ -282,9 +283,9 @@ func (d *document) handleMouseUp(ev event.Event) {
 	}
 }
 
-func (d *document) findBlockAncestor(n Node) Element {
+func (d *Document) findBlockAncestor(n dom.Node) dom.Element {
 	for curr := n; curr != nil; curr = curr.Parent() {
-		if el, ok := curr.(Element); ok {
+		if el, ok := curr.(dom.Element); ok {
 			ro := el.RenderObject()
 			if ro == nil {
 				continue
@@ -299,11 +300,11 @@ func (d *document) findBlockAncestor(n Node) Element {
 	return nil
 }
 
-func (d *document) findNodeAtByteOffset(root Node, targetOffset int) (Node, int) {
+func (d *Document) findNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {
 	currOffset := 0
-	var walk func(Node) (Node, int, bool)
-	walk = func(n Node) (Node, int, bool) {
-		if t, ok := n.(TextNode); ok {
+	var walk func(dom.Node) (dom.Node, int, bool)
+	walk = func(n dom.Node) (dom.Node, int, bool) {
+		if t, ok := n.(dom.TextNode); ok {
 			data := t.Data()
 			byteLen := len(data)
 			if currOffset+byteLen >= targetOffset {
@@ -334,10 +335,10 @@ func (d *document) findNodeAtByteOffset(root Node, targetOffset int) (Node, int)
 		return node, offset
 	}
 	// Fallback to the end of the last TextNode in the subtree
-	var lastText TextNode
-	var walkLast func(Node)
-	walkLast = func(n Node) {
-		if t, ok := n.(TextNode); ok {
+	var lastText dom.TextNode
+	var walkLast func(dom.Node)
+	walkLast = func(n dom.Node) {
+		if t, ok := n.(dom.TextNode); ok {
 			lastText = t
 		}
 		for child := range LayoutChildren(n) {
@@ -351,14 +352,14 @@ func (d *document) findNodeAtByteOffset(root Node, targetOffset int) (Node, int)
 	return nil, 0
 }
 
-func (d *document) comparePositions(nodeA Node, offsetA int, nodeB Node, offsetB int) int {
+func (d *Document) comparePositions(nodeA dom.Node, offsetA int, nodeB dom.Node, offsetB int) int {
 	if nodeA == nodeB {
 		return offsetA - offsetB
 	}
 
-	var first Node
-	var walk func(Node) bool
-	walk = func(n Node) bool {
+	var first dom.Node
+	var walk func(dom.Node) bool
+	walk = func(n dom.Node) bool {
 		if n == nodeA {
 			first = nodeA
 			return false
@@ -391,12 +392,12 @@ func (d *document) comparePositions(nodeA Node, offsetA int, nodeB Node, offsetB
 
 // --- attach / detach walks --------------------------------------------------
 
-func (d *document) attachWalk(parent Node, child Node) {
+func (d *Document) attachWalk(parent dom.Node, child dom.Node) {
 	parentConnected := parent.IsConnected()
 	d.walkAttach(child, parentConnected)
 }
 
-func (d *document) walkAttach(n Node, parentConnected bool) {
+func (d *Document) walkAttach(n dom.Node, parentConnected bool) {
 	b := asBase(n)
 	if b == nil {
 		return
@@ -406,7 +407,7 @@ func (d *document) walkAttach(n Node, parentConnected bool) {
 	if parentConnected {
 		b.connected = true
 		d.registerNode(n)
-		if lc, ok := n.(Lifecycle); ok {
+		if lc, ok := n.(dom.Lifecycle); ok {
 			lc.OnConnected()
 		}
 	}
@@ -417,12 +418,12 @@ func (d *document) walkAttach(n Node, parentConnected bool) {
 	}
 }
 
-func (d *document) detachWalk(parent Node, child Node) {
+func (d *Document) detachWalk(parent dom.Node, child dom.Node) {
 	parentConnected := parent.IsConnected()
 	d.walkDetach(child, parentConnected)
 }
 
-func (d *document) walkDetach(n Node, parentConnected bool) {
+func (d *Document) walkDetach(n dom.Node, parentConnected bool) {
 	b := asBase(n)
 	if b == nil {
 		return
@@ -435,7 +436,7 @@ func (d *document) walkDetach(n Node, parentConnected bool) {
 
 	if parentConnected {
 		// Step 1: lifecycle callback fires while IsConnected() is still true.
-		if lc, ok := n.(Lifecycle); ok {
+		if lc, ok := n.(dom.Lifecycle); ok {
 			lc.OnDisconnected()
 		}
 		// Step 2: unregister then flip connected flag.
@@ -446,8 +447,8 @@ func (d *document) walkDetach(n Node, parentConnected bool) {
 
 // --- registry helpers -------------------------------------------------------
 
-func (d *document) registerNode(n Node) {
-	if el, ok := n.(Element); ok {
+func (d *Document) registerNode(n dom.Node) {
+	if el, ok := n.(dom.Element); ok {
 		if id := el.ID(); id != "" {
 			// Identity registry uses the current self pointer.
 			d.byID[id] = el
@@ -455,29 +456,29 @@ func (d *document) registerNode(n Node) {
 	}
 }
 
-func (d *document) unregisterNode(n Node) {
-	if el, ok := n.(Element); ok {
+func (d *Document) unregisterNode(n dom.Node) {
+	if el, ok := n.(dom.Element); ok {
 		if id := el.ID(); id != "" {
 			delete(d.byID, id)
 		}
 	}
 }
 
-func (d *document) registerID(id string, el Element) {
+func (d *Document) registerID(id string, el dom.Element) {
 	if id != "" {
 		d.byID[id] = el
 	}
 }
 
-func (d *document) unregisterID(id string) {
+func (d *Document) unregisterID(id string) {
 	delete(d.byID, id)
 }
 
-func (d *document) asBase() *baseNode { return &d.baseNode }
+func (d *Document) asBase() *BaseNode { return &d.BaseNode }
 
 // --- Clipboard Handlers -----------------------------------------------------
 
-func (d *document) handleCopy(ev event.Event) {
+func (d *Document) handleCopy(ev event.Event) {
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return
@@ -499,7 +500,7 @@ func (d *document) handleCopy(ev event.Event) {
 	}
 }
 
-func (d *document) handlePaste(ev event.Event) {
+func (d *Document) handlePaste(ev event.Event) {
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return

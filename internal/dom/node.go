@@ -4,25 +4,26 @@ import (
 	"iter"
 	"strings"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/render"
 )
 
-var _ Node = (*baseNode)(nil)
+var _ dom.Node = (*BaseNode)(nil)
 
-type baseNode struct {
+type BaseNode struct {
 	event.Target
 
 	name           string
-	kind           Kind
-	self           Node
-	outer          Node // identity wrapper set by setOuterRecursive for UA subtrees (ADR-0036)
-	parent         Node
-	next           Node
-	prev           Node
-	firstChild     Node
-	lastChild      Node
-	ownerDocument  Document
+	kind           dom.Kind
+	self           dom.Node
+	outer          dom.Node // identity wrapper set by setOuterRecursive for UA subtrees (ADR-0036)
+	parent         dom.Node
+	next           dom.Node
+	prev           dom.Node
+	firstChild     dom.Node
+	lastChild      dom.Node
+	ownerDocument  dom.Document
 	renderObject   render.Object
 	connected      bool
 	needsSync      bool
@@ -30,22 +31,25 @@ type baseNode struct {
 	inUASubtree    bool // true when this node is part of a UA shadow subtree (ADR-009)
 }
 
-// asBase returns the underlying *baseNode for any Node produced by this package.
-func asBase(n Node) *baseNode {
+// asBase returns the underlying *BaseNode for any dom.Node produced by this package.
+func asBase(n dom.Node) *BaseNode {
 	if n == nil {
 		return nil
 	}
 
-	// If the node provides the baseNode directly, we are done.
-	if b, ok := n.(interface{ asBase() *baseNode }); ok {
+	// If the node provides the BaseNode directly, we are done.
+	if b, ok := n.(interface{ asBase() *BaseNode }); ok {
 		return b.asBase()
 	}
 
 	// Otherwise, it's a wrapper, so unwrap it and try again.
-	return asBase(n.Unwrap())
+	if unwrapped := n.Unwrap(); unwrapped != nil {
+		return asBase(unwrapped)
+	}
+	return nil
 }
 
-func (b *baseNode) adopt(newDoc Document) {
+func (b *BaseNode) adopt(newDoc dom.Document) {
 	if b.ownerDocument == newDoc {
 		return
 	}
@@ -57,10 +61,10 @@ func (b *baseNode) adopt(newDoc Document) {
 	}
 
 	// ADR-009: If this is an element with a UA shadow subtree, adopt it too.
-	if b.kind == KindElement {
+	if b.kind == dom.KindElement {
 		// Use a type assertion to check for element-specific uaRoot.
 		// We use the same pattern as asBase() to pierce wrappers.
-		if el, ok := b.self.(interface{ UARoot() Node }); ok {
+		if el, ok := b.self.(interface{ UARoot() dom.Node }); ok {
 			if uaRoot := el.UARoot(); uaRoot != nil {
 				asBase(uaRoot).adopt(newDoc)
 			}
@@ -68,30 +72,30 @@ func (b *baseNode) adopt(newDoc Document) {
 	}
 }
 
-func (b *baseNode) Kind() Kind { return b.kind }
+func (b *BaseNode) Kind() dom.Kind { return b.kind }
 
-func (b *baseNode) NodeName() string { return b.name }
+func (b *BaseNode) NodeName() string { return b.name }
 
-func (b *baseNode) Parent() Node { return b.parent }
+func (b *BaseNode) Parent() dom.Node { return b.parent }
 
-func (b *baseNode) ParentElement() Element {
-	if el, ok := b.parent.(Element); ok {
+func (b *BaseNode) ParentElement() dom.Element {
+	if el, ok := b.parent.(dom.Element); ok {
 		return el
 	}
 	return nil
 }
 
-func (b *baseNode) NextSibling() Node                { return b.next }
-func (b *baseNode) PreviousSibling() Node            { return b.prev }
-func (b *baseNode) OwnerDocument() Document          { return b.ownerDocument }
-func (b *baseNode) IsConnected() bool                { return b.connected }
-func (b *baseNode) RenderObject() render.Object      { return b.renderObject }
-func (b *baseNode) SetRenderObject(ro render.Object) { b.renderObject = ro }
+func (b *BaseNode) NextSibling() dom.Node            { return b.next }
+func (b *BaseNode) PreviousSibling() dom.Node        { return b.prev }
+func (b *BaseNode) OwnerDocument() dom.Document      { return b.ownerDocument }
+func (b *BaseNode) IsConnected() bool                { return b.connected }
+func (b *BaseNode) RenderObject() render.Object      { return b.renderObject }
+func (b *BaseNode) SetRenderObject(ro render.Object) { b.renderObject = ro }
 
-func (b *baseNode) NeedsSync() bool      { return b.needsSync }
-func (b *baseNode) ChildNeedsSync() bool { return b.childNeedsSync }
+func (b *BaseNode) NeedsSync() bool      { return b.needsSync }
+func (b *BaseNode) ChildNeedsSync() bool { return b.childNeedsSync }
 
-func (b *baseNode) MarkNeedsSync() {
+func (b *BaseNode) MarkNeedsSync() {
 	if b.needsSync {
 		return
 	}
@@ -112,25 +116,25 @@ func (b *baseNode) MarkNeedsSync() {
 	}
 }
 
-func (b *baseNode) ClearSyncFlags() {
+func (b *BaseNode) ClearSyncFlags() {
 	b.needsSync = false
 	b.childNeedsSync = false
 }
 
-func (b *baseNode) EventTarget() event.EventTarget {
+func (b *BaseNode) EventTarget() event.EventTarget {
 	if b.outer != nil {
 		return b.outer
 	}
 	return b.self
 }
 
-func (b *baseNode) Unwrap() Node { return nil }
+func (b *BaseNode) Unwrap() dom.Node { return nil }
 
-func (b *baseNode) FirstLayoutChild() Node {
+func (b *BaseNode) FirstLayoutChild() dom.Node {
 	if b.firstChild != nil {
 		return b.firstChild
 	}
-	if el, ok := b.self.(Element); ok {
+	if el, ok := b.self.(dom.Element); ok {
 		if ua := UARoot(el); ua != nil {
 			return ua.FirstChild()
 		}
@@ -138,13 +142,13 @@ func (b *baseNode) FirstLayoutChild() Node {
 	return nil
 }
 
-func (b *baseNode) NextLayoutSibling(child Node) Node {
+func (b *BaseNode) NextLayoutSibling(child dom.Node) dom.Node {
 	if next := child.NextSibling(); next != nil {
 		return next
 	}
 	// If child is the last public child, jump to first UA child.
 	if child.Parent() == b.self {
-		if el, ok := b.self.(Element); ok {
+		if el, ok := b.self.(dom.Element); ok {
 			if ua := UARoot(el); ua != nil {
 				return ua.FirstChild()
 			}
@@ -153,13 +157,13 @@ func (b *baseNode) NextLayoutSibling(child Node) Node {
 	return nil
 }
 
-func (b *baseNode) FirstChild() Node { return b.firstChild }
-func (b *baseNode) LastChild() Node  { return b.lastChild }
+func (b *BaseNode) FirstChild() dom.Node { return b.firstChild }
+func (b *BaseNode) LastChild() dom.Node  { return b.lastChild }
 
-func (b *baseNode) HasChildNodes() bool { return b.firstChild != nil }
+func (b *BaseNode) HasChildNodes() bool { return b.firstChild != nil }
 
-func (b *baseNode) ChildNodes() iter.Seq[Node] {
-	return func(yield func(Node) bool) {
+func (b *BaseNode) ChildNodes() iter.Seq[dom.Node] {
+	return func(yield func(dom.Node) bool) {
 		for n := b.firstChild; n != nil; {
 			next := n.NextSibling()
 			if !yield(n) {
@@ -170,12 +174,12 @@ func (b *baseNode) ChildNodes() iter.Seq[Node] {
 	}
 }
 
-func (b *baseNode) AppendChild(child Node) Node {
+func (b *BaseNode) AppendChild(child dom.Node) dom.Node {
 	return b.self.InsertBefore(child, nil)
 }
 
-func (b *baseNode) InsertBefore(newChild, ref Node) Node {
-	if b.kind == KindText {
+func (b *BaseNode) InsertBefore(newChild, ref dom.Node) dom.Node {
+	if b.kind == dom.KindText {
 		panic("dom: text node does not support children")
 	}
 
@@ -232,7 +236,7 @@ func (b *baseNode) InsertBefore(newChild, ref Node) Node {
 	// Trigger attach walk if connected.
 	if b.connected {
 		if w, ok := b.ownerDocument.(interface {
-			attachWalk(parent Node, child Node)
+			attachWalk(parent dom.Node, child dom.Node)
 		}); ok {
 			w.attachWalk(b.self, newChild)
 		}
@@ -242,7 +246,7 @@ func (b *baseNode) InsertBefore(newChild, ref Node) Node {
 	return newChild
 }
 
-func (b *baseNode) RemoveChild(child Node) Node {
+func (b *BaseNode) RemoveChild(child dom.Node) dom.Node {
 	if child.Parent() != b.self {
 		panic("dom: node to be removed is not a child of this node")
 	}
@@ -252,7 +256,7 @@ func (b *baseNode) RemoveChild(child Node) Node {
 	// Trigger detach walk if connected.
 	if b.connected {
 		if w, ok := b.ownerDocument.(interface {
-			detachWalk(parent Node, child Node)
+			detachWalk(parent dom.Node, child dom.Node)
 		}); ok {
 			w.detachWalk(b.self, child)
 		}
@@ -279,14 +283,14 @@ func (b *baseNode) RemoveChild(child Node) Node {
 	return child
 }
 
-func (b *baseNode) ReplaceChild(newChild, oldChild Node) Node {
+func (b *BaseNode) ReplaceChild(newChild, oldChild dom.Node) dom.Node {
 	ref := oldChild.NextSibling()
 	b.RemoveChild(oldChild)
 	b.InsertBefore(newChild, ref)
 	return oldChild
 }
 
-func (b *baseNode) Contains(descendant Node) bool {
+func (b *BaseNode) Contains(descendant dom.Node) bool {
 	for n := descendant; n != nil; n = n.Parent() {
 		if n == b.self {
 			return true
@@ -295,9 +299,9 @@ func (b *baseNode) Contains(descendant Node) bool {
 	return false
 }
 
-func (b *baseNode) TextContent() string {
-	if b.kind == KindText {
-		if tn, ok := b.self.(TextNode); ok {
+func (b *BaseNode) TextContent() string {
+	if b.kind == dom.KindText {
+		if tn, ok := b.self.(dom.TextNode); ok {
 			return tn.Data()
 		}
 	}
@@ -308,21 +312,21 @@ func (b *baseNode) TextContent() string {
 	return sb.String()
 }
 
-func (b *baseNode) CloneNode(deep bool) Node {
-	var clone Node
+func (b *BaseNode) CloneNode(deep bool) dom.Node {
+	var clone dom.Node
 	switch b.kind {
-	case KindDocument:
+	case dom.KindDocument:
 		// Cloning a document is usually not supported or returns a special copy.
 		// Kite v2 interfaces suggest Document is special.
 		panic("dom: cloning document is not supported")
-	case KindElement:
-		el := b.self.(Element)
+	case dom.KindElement:
+		el := b.self.(dom.Element)
 		clone = b.ownerDocument.CreateElement(el.TagName(), nil)
 		if el.ID() != "" {
-			clone.(Element).SetID(el.ID())
+			clone.(dom.Element).SetID(el.ID())
 		}
-	case KindText:
-		tn := b.self.(TextNode)
+	case dom.KindText:
+		tn := b.self.(dom.TextNode)
 		clone = b.ownerDocument.CreateTextNode(tn.Data(), nil)
 	}
 
@@ -334,6 +338,6 @@ func (b *baseNode) CloneNode(deep bool) Node {
 	return clone
 }
 
-func (b *baseNode) notifyStructureChange() {
+func (b *BaseNode) notifyStructureChange() {
 	b.self.MarkNeedsSync()
 }

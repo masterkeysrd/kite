@@ -1,13 +1,12 @@
-package dom_test
+package dom
 
 import (
-	"testing"
-
 	"github.com/masterkeysrd/kite/dom"
+	"testing"
 )
 
 func TestDocument_Overlays_Sorting(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
 	c := doc.CreateElement("c", nil)
@@ -39,7 +38,7 @@ func TestDocument_Overlays_Sorting(t *testing.T) {
 }
 
 func TestDocument_HideOverlay(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
 
@@ -61,7 +60,7 @@ func TestDocument_HideOverlay(t *testing.T) {
 }
 
 func TestDocument_UpdateOverlayZIndex(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
 

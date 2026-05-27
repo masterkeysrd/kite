@@ -6,6 +6,7 @@ package dom
 // directly so tests can inspect uaRoot and self fields without a public API.
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"slices"
 	"testing"
 )
@@ -13,8 +14,8 @@ import (
 // ---- helpers ----------------------------------------------------------------
 
 // collectNodes returns a slice of all nodes yielded by LayoutChildren(host).
-func collectLayoutChildren(host Node) []Node {
-	var out []Node
+func collectLayoutChildren(host dom.Node) []dom.Node {
+	var out []dom.Node
 	for n := range LayoutChildren(host) {
 		out = append(out, n)
 	}
@@ -22,8 +23,8 @@ func collectLayoutChildren(host Node) []Node {
 }
 
 // collectPublicChildren returns a slice of all nodes yielded by n.ChildNodes().
-func collectPublicChildren(host Node) []Node {
-	var out []Node
+func collectPublicChildren(host dom.Node) []dom.Node {
+	var out []dom.Node
 	for n := range host.ChildNodes() {
 		out = append(out, n)
 	}
@@ -36,8 +37,8 @@ func collectPublicChildren(host Node) []Node {
 // back-pointer on the UA root itself.
 func TestAttachUARoot_SetsOuterOnRoot(t *testing.T) {
 	doc := NewDocument()
-	host := doc.CreateElement("input", nil).(*element)
-	uaBox := doc.CreateElement("div", nil).(*element)
+	host := doc.CreateElement("input", nil).(*Element)
+	uaBox := doc.CreateElement("div", nil).(*Element)
 
 	host.AttachUARoot(uaBox)
 
@@ -50,9 +51,9 @@ func TestAttachUARoot_SetsOuterOnRoot(t *testing.T) {
 // outer pointer on every descendant, including grandchildren.
 func TestAttachUARoot_SetsOuterRecursively(t *testing.T) {
 	doc := NewDocument()
-	host := doc.CreateElement("input", nil).(*element)
-	uaBox := doc.CreateElement("div", nil).(*element)
-	inner := doc.CreateElement("span", nil).(*element)
+	host := doc.CreateElement("input", nil).(*Element)
+	uaBox := doc.CreateElement("div", nil).(*Element)
+	inner := doc.CreateElement("span", nil).(*Element)
 	text := newTextNode("hi", doc, nil)
 
 	uaBox.AppendChild(inner)
@@ -109,7 +110,7 @@ func TestAttachUARoot_LayoutChildrenUnion(t *testing.T) {
 	host.AttachUARoot(uaBox)
 
 	got := collectLayoutChildren(host)
-	want := []Node{pub1, pub2, uaChild1, uaChild2}
+	want := []dom.Node{pub1, pub2, uaChild1, uaChild2}
 	if !slices.Equal(got, want) {
 		t.Errorf("LayoutChildren = %v, want %v", got, want)
 	}
@@ -126,7 +127,7 @@ func TestLayoutChildren_NoUASubtree(t *testing.T) {
 	parent.AppendChild(b)
 
 	got := collectLayoutChildren(parent)
-	want := []Node{a, b}
+	want := []dom.Node{a, b}
 	if !slices.Equal(got, want) {
 		t.Errorf("LayoutChildren (no UA) = %v, want %v", got, want)
 	}
@@ -263,7 +264,7 @@ func TestLayoutChildren_EmptyUA(t *testing.T) {
 	host.AttachUARoot(uaBox)
 
 	got := collectLayoutChildren(host)
-	want := []Node{pub}
+	want := []dom.Node{pub}
 	if !slices.Equal(got, want) {
 		t.Errorf("LayoutChildren (empty UA subtree) = %v, want %v", got, want)
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/focus/spatial"
 	"github.com/masterkeysrd/kite/geom"
+	_ "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/paint"

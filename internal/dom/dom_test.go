@@ -1,10 +1,10 @@
-package dom_test
+package dom
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"iter"
 	"testing"
 
-	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
@@ -78,6 +78,7 @@ var _ render.Object = (*fakeRO)(nil)
 
 // requireNode fails the test if got != want.
 func requireNode(t *testing.T, label string, got, want dom.Node) {
+
 	t.Helper()
 	if got != want {
 		t.Errorf("%s: got %v, want %v", label, got, want)
@@ -85,7 +86,7 @@ func requireNode(t *testing.T, label string, got, want dom.Node) {
 }
 
 func TestElement_AppendChild_LinksSiblings(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
@@ -121,7 +122,7 @@ func TestElement_AppendChild_LinksSiblings(t *testing.T) {
 }
 
 func TestElement_InsertBefore_HeadAndMiddle(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 
 	t.Run("InsertAtHead", func(t *testing.T) {
 		parent := doc.CreateElement("div", nil)
@@ -163,7 +164,7 @@ func TestElement_InsertBefore_HeadAndMiddle(t *testing.T) {
 }
 
 func TestElement_RemoveChild_Unlinks(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
@@ -193,7 +194,7 @@ func TestElement_RemoveChild_Unlinks(t *testing.T) {
 }
 
 func TestElement_ReplaceChild_PreservesSiblings(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
@@ -220,7 +221,7 @@ func TestElement_ReplaceChild_PreservesSiblings(t *testing.T) {
 }
 
 func TestElement_ChildNodes_Iterator(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	a := doc.CreateElement("a", nil)
 	b := doc.CreateElement("b", nil)
@@ -247,7 +248,7 @@ func TestElement_ChildNodes_Iterator(t *testing.T) {
 }
 
 func TestElement_TextContent(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	root := doc.CreateElement("div", nil)
 	a := doc.CreateElement("span", nil)
 	a.AppendChild(doc.CreateTextNode("Hello ", nil))
@@ -264,7 +265,7 @@ func TestElement_TextContent(t *testing.T) {
 }
 
 func TestElement_CloneNode(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	parent.SetID("root")
 	child := doc.CreateElement("span", nil)
@@ -272,7 +273,7 @@ func TestElement_CloneNode(t *testing.T) {
 	parent.AppendChild(child)
 
 	t.Run("Shallow", func(t *testing.T) {
-		clone := parent.CloneNode(false).(dom.Element)
+		clone := parent.CloneNode(false).(*Element)
 		if clone.TagName() != "div" {
 			t.Errorf("CloneTagName: got %q, want %q", clone.TagName(), "div")
 		}
@@ -285,7 +286,7 @@ func TestElement_CloneNode(t *testing.T) {
 	})
 
 	t.Run("Deep", func(t *testing.T) {
-		clone := parent.CloneNode(true).(dom.Element)
+		clone := parent.CloneNode(true).(*Element)
 		if !clone.HasChildNodes() {
 			t.Fatal("Deep clone should have children")
 		}
@@ -300,7 +301,7 @@ func TestElement_CloneNode(t *testing.T) {
 }
 
 func TestElement_NeedsSync_OnMutation(t *testing.T) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	doc.AppendChild(parent)
 	doc.ClearSyncFlags()

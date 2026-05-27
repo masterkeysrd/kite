@@ -1,43 +1,44 @@
 package dom
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/internal/render"
 )
 
-// textNode is the concrete, unexported implementation of TextNode.
-type textNode struct {
-	baseNode
+// TextNode is the concrete, exported implementation of TextNode.
+type TextNode struct {
+	BaseNode
 	data string
 }
 
 // Compile-time assertion.
-var _ TextNode = (*textNode)(nil)
+var _ dom.TextNode = (*TextNode)(nil)
 
 // NewTextNode allocates a TextNode with the given data and owner document.
 // If self is nil, the node's identity is itself.
-func NewTextNode(doc Document, data string, self Node) TextNode {
+func NewTextNode(doc dom.Document, data string, self dom.Node) *TextNode {
 	return newTextNode(data, doc, self)
 }
 
 // newTextNode allocates a TextNode with the given data and owner document.
-func newTextNode(data string, doc Document, self Node) *textNode {
-	t := &textNode{data: data}
+func newTextNode(data string, doc dom.Document, self dom.Node) *TextNode {
+	t := &TextNode{data: data}
 	t.ownerDocument = doc
 	if self == nil {
 		t.self = t
 	} else {
 		t.self = self
 	}
-	t.kind = KindText
+	t.kind = dom.KindText
 	t.name = "#text"
 	return t
 }
 
 // Data returns the current text content.
-func (t *textNode) Data() string { return t.data }
+func (t *TextNode) Data() string { return t.data }
 
 // SetData replaces the text content and notifies the parent's render object.
-func (t *textNode) SetData(data string) {
+func (t *TextNode) SetData(data string) {
 	if t.data == data {
 		return
 	}
@@ -65,11 +66,11 @@ func (t *textNode) SetData(data string) {
 	}
 }
 
-// asBase returns the underlying *baseNode.
-func (t *textNode) asBase() *baseNode { return &t.baseNode }
+// asBase returns the underlying *BaseNode.
+func (t *TextNode) asBase() *BaseNode { return &t.BaseNode }
 
 // CreateRenderObject implements render.CustomObjectProvider.
-func (t *textNode) CreateRenderObject() render.Object {
+func (t *TextNode) CreateRenderObject() render.Object {
 	// Use the actual text node as the logical node so the layout engine can
 	// call Data() on it. Use t.EventTarget() so that UA-subtree text nodes
 	// dispatch events to the host element (ADR-0036, ADR-009).

@@ -3,6 +3,7 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	_ "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )

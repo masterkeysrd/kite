@@ -99,11 +99,11 @@ Use this table as the first lookup before grepping. It maps the most common engi
 
 | Concern | Primary File(s) |
 |---|---|
-| **DOM tree structure & node lifecycle** | `dom/node.go`, `dom/element.go`, `dom/interfaces.go` |
-| **DOM document & factory methods** | `dom/document.go` |
-| **UA shadow subtree primitives** | `dom/ua.go` (ADR-009) |
-| **Element scroll state (Scroll/ScrollTo/ScrollBy)** | `dom/scroll_controller.go` (ADR-012) |
-| **`outer` back-pointer / identity (ADR-0036)** | `dom/outer.go` |
+| **DOM tree structure & node lifecycle** | `internal/dom/node.go`, `internal/dom/element.go`, `dom/interfaces.go` |
+| **DOM document & factory methods** | `internal/dom/document.go`, `dom/api.go` |
+| **UA shadow subtree primitives** | `internal/dom/ua.go` (ADR-009) |
+| **Element scroll state (Scroll/ScrollTo/ScrollBy)** | `internal/dom/scroll_controller.go` (ADR-012) |
+| **`outer` back-pointer / identity (ADR-0036)** | `internal/dom/outer.go` |
 | **Style Optional[T] wrapper** | `style/optional.go` |
 | **Style property declarations** | `style/style.go` |
 | **Computed style (post-resolver values)** | `style/computed.go` |

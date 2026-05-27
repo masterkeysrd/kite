@@ -16,7 +16,7 @@ func TestRange_String(t *testing.T) {
 	div.AppendChild(t1)
 	div.AppendChild(t2)
 
-	r := &rangeImpl{doc: doc}
+	r := &Range{doc: doc}
 
 	// Case 1: Within same text node
 	r.SetStart(t1, 0)
@@ -59,7 +59,7 @@ func TestRange_String_Elements(t *testing.T) {
 	div.AppendChild(s3)
 	doc.AppendChild(div)
 
-	r := &rangeImpl{doc: doc}
+	r := &Range{doc: doc}
 
 	// Range from div start to child index 2 (before s3)
 	r.SetStart(div, 0)
@@ -78,7 +78,7 @@ func TestSelection_Events(t *testing.T) {
 	})
 
 	sel := doc.Selection()
-	r := &rangeImpl{doc: doc}
+	r := &Range{doc: doc}
 	r.SetStart(doc, 0) // Should trigger change via notifyChange -> sel.changed
 
 	if fired == 0 {

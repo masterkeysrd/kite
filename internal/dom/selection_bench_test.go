@@ -1,15 +1,13 @@
-package dom_test
+package dom
 
 import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/masterkeysrd/kite/dom"
 )
 
 func BenchmarkRange_String_UAContent(b *testing.B) {
-	doc := dom.NewDocument()
+	doc := NewDocument()
 	host := doc.CreateElement("div", nil)
 	uaRoot := doc.CreateElement("ua-root", nil)
 
