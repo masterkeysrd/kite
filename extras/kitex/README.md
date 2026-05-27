@@ -104,6 +104,7 @@ Kitex includes terminal-specific hooks built on the core primitives:
 - **`UseFocus(ref Ref[dom.Element]) bool`**: Tracks whether the referenced element currently has focus. Returns a reactive boolean.
 - **`UseKeyboard(handler func(event.KeyEvent), deps []any)`**: Registers a global keyboard listener on the document. Automatically cleans up when the component is unmounted or when `deps` change.
 - **`UseDocument() func() dom.Document`**: Returns a lazy getter for the component's owner document. Useful for building custom hooks that need document-level event subscriptions.
+- **`UseElement() func() dom.Node`**: Returns a lazy getter for the underlying raw DOM node associated with the current component. Useful for retrieving the component's element inside side effects (e.g., to focus or measure it).
 
 ## ⚙️ Engine Wiring
 
