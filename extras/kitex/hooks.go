@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 )
 
 type hookState[T any] struct {
@@ -226,7 +227,38 @@ func scheduleEffectFlush() {
 	}
 }
 
-// UseEffect schedules a post-commit side effect that runs asynchronously after the frame is committed.
+// UseDocument returns a function that retrieves the logical document root associated with the current component.
+// It retrieves the real DOM node and returns its OwnerDocument when called.
+func UseDocument() func() dom.Document {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseDocument must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+
+	ref := comp.getRef()
+
+	return func() dom.Document {
+		if ref == nil {
+			return nil
+		}
+
+		ref.mu.Lock()
+		activeNode := ref.node
+		ref.mu.Unlock()
+
+		if activeNode == nil {
+			return nil
+		}
+
+		rn := activeNode.realNode()
+		if rn != nil {
+			return rn.OwnerDocument()
+		}
+		return nil
+	}
+}
+
 func UseEffect(effect func(), deps []any) {
 	compVal := getCurrentComponent()
 	if compVal == nil {
@@ -442,4 +474,58 @@ func drainLayoutEffects() {
 			state.pending = false
 		}
 	}
+}
+
+// UseFocus returns whether the referenced DOM element currently has focus.
+func UseFocus(ref Ref[dom.Element]) bool {
+	focused, setFocused := UseState[bool](false)
+
+	UseEffectCleanup(func() func() {
+		el := ref.Current
+		if el == nil {
+			return nil
+		}
+
+		onFocus := func(e event.Event) {
+			setFocused(true)
+		}
+		onBlur := func(e event.Event) {
+			setFocused(false)
+		}
+
+		s1 := el.AddEventListener(event.EventFocus, onFocus)
+		s2 := el.AddEventListener(event.EventBlur, onBlur)
+
+		return func() {
+			s1.Cancel()
+			s2.Cancel()
+		}
+	}, []any{ref.Current})
+
+	return focused()
+}
+
+// UseKeyboard registers a scoped keyboard handler that listens for event.EventKeyPress
+// on the document. The handler is invoked with the typed event.KeyEvent.
+func UseKeyboard(handler func(event.KeyEvent), deps []any) {
+	getDoc := UseDocument()
+
+	UseEffectCleanup(func() func() {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+
+		onKeyDown := func(e event.Event) {
+			if ke, ok := e.(*event.KeyEvent); ok {
+				handler(*ke)
+			}
+		}
+
+		s := doc.AddEventListener(event.EventKeyDown, onKeyDown)
+
+		return func() {
+			s.Cancel()
+		}
+	}, deps)
 }

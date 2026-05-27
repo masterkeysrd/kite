@@ -70,13 +70,16 @@ var Centered = kitex.SimpleFCC("Centered", func(children []kitex.Node) kitex.Nod
 })
 
 func main() {
+    // ... setup engine ...
+    eng := engine.New(b, engine.Options{})
+
+    // Bridge Kitex effects to the engine's macrotask queue.
+    kitex.SetPostMacroFn(eng.PostMacro)
+
     // Render the component into a container element
-    ui := TitledContainer(ContainerProps{Title: "My App"},
-        Centered(
-            SimpleCounter(),
-        ),
-    )
-    kitex.Render(ui, containerNode)
+    container := element.NewBox(eng.Document())
+    // ...
+    kitex.Render(ui, container)
 }
 ```
 
@@ -93,6 +96,31 @@ Kitex provides several standard hooks to manage component logic:
 - **`UseEffectCleanup(effect func() func(), deps []any)`**: Schedules a side effect with a cleanup function that runs before the next effect run or on component destroy.
 - **`UseLayoutEffect(effect func(), deps []any)`**: Schedules a side effect that runs synchronously after reconciliation but before the layout is painted.
 - **`UseLayoutEffectCleanup(effect func() func(), deps []any)`**: Schedules a layout side effect with a cleanup function.
+
+### Terminal Convenience Hooks
+
+Kitex includes terminal-specific hooks built on the core primitives:
+
+- **`UseFocus(ref Ref[dom.Element]) bool`**: Tracks whether the referenced element currently has focus. Returns a reactive boolean.
+- **`UseKeyboard(handler func(event.KeyEvent), deps []any)`**: Registers a global keyboard listener on the document. Automatically cleans up when the component is unmounted or when `deps` change.
+- **`UseDocument() func() dom.Document`**: Returns a lazy getter for the component's owner document. Useful for building custom hooks that need document-level event subscriptions.
+
+## ⚙️ Engine Wiring
+
+For `UseEffect` and state-driven updates to function correctly within the engine's render loop, you must bridge the Kitex macrotask queue to the `engine.PostMacro` function:
+
+```go
+func main() {
+    // ... setup engine ...
+    eng := engine.New(b, engine.Options{})
+
+    // Bridge Kitex effects to the engine's macrotask queue.
+    // This is required for UseEffect and reactive state updates.
+    kitex.SetPostMacroFn(eng.PostMacro)
+    
+    // ... rest of setup ...
+}
+```
 
 ## 🌐 Context System
 

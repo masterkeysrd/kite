@@ -161,7 +161,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				},
 			},
 				kitex.Text(fmt.Sprintf("Outer Provider (Providing: %s)", outerTheme())),
-				
+
 				// Outer Consumer
 				ConsumerComponent(),
 
@@ -175,7 +175,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						},
 					},
 						kitex.Text(fmt.Sprintf("Nested Inner Provider (Providing: %s)", innerTheme())),
-						
+
 						// Inner Consumer
 						ConsumerComponent(),
 					),
