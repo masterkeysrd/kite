@@ -291,6 +291,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
 
 	e.document.SetFocusHandle(e.focusManager)
+	e.document.SetTerminal(&TerminalProxy{})
 	e.synthesizer = internalevent.NewSynthesizer(e, e, internalevent.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})
