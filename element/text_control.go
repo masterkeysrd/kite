@@ -19,8 +19,8 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/editor"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 )
 
 type textControlBase[T Element] struct {
@@ -301,7 +301,7 @@ func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
 	b.syncCallback()
 }
 
-func (b *textControlBase[T]) handleMouseUp(ev event.Event) {
+func (b *textControlBase[T]) handleMouseUp(_ event.Event) {
 	if !b.isDragging {
 		return
 	}
@@ -581,7 +581,7 @@ func (b *textControlBase[T]) handleCut(ev event.Event) {
 	ev.PreventDefault()
 }
 
-func (b *textControlBase[T]) maybeDeleteSelection(ke *event.KeyEvent) bool {
+func (b *textControlBase[T]) maybeDeleteSelection(_ *event.KeyEvent) bool {
 	if b.selectionStart == b.selectionEnd {
 		return false
 	}

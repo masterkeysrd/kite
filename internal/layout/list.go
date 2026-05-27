@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -62,7 +63,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		// Use shaper to create marker fragment
 		shaped := defaultShaper.Shape(markerText)
 		markerFrag = &Fragment{
-			Size: Size{
+			Size: geometry.Size{
 				Width:  defaultShaper.MeasureRun(markerText),
 				Height: 1,
 			},
@@ -78,7 +79,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 	column2Width := max(0, contentWidth-markerWidth)
 
 	if markerFrag != nil {
-		builder.AddChild(markerFrag, Point{X: insetX, Y: border.Top + padding.Top})
+		builder.AddChild(markerFrag, geometry.Point{X: insetX, Y: border.Top + padding.Top})
 	}
 
 	// Mimic BlockAlgorithm's child iteration but constrained to Column 2
@@ -111,7 +112,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 				break
 			}
 			lineFrag := line.ToFragment()
-			offset := Point{
+			offset := geometry.Point{
 				X: column2X,
 				Y: builder.CurrentBlockOffset(),
 			}
@@ -133,9 +134,9 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		processInlines()
 
 		childMargin := child.Style().Margin
-		containingSpace := Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height}
-		containerSpace := Size{Width: column2Width, Height: max(0, space.AvailableSize.Height-parentDecorY)}
-		adjustedContainer := Size{
+		containingSpace := geometry.Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height}
+		containerSpace := geometry.Size{Width: column2Width, Height: max(0, space.AvailableSize.Height-parentDecorY)}
+		adjustedContainer := geometry.Size{
 			Width:  containerSpace.Width,
 			Height: max(0, containerSpace.Height-builder.CurrentBlockOffset()),
 		}
@@ -143,7 +144,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		childAlgo := GetAlgorithm(child)
 		childFrag := childAlgo.Layout(ctx, child, childSpace)
 
-		offset := Point{
+		offset := geometry.Point{
 			X: column2X + childMargin.Left,
 			Y: builder.CurrentBlockOffset() + childMargin.Top,
 		}

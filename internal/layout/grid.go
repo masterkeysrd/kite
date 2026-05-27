@@ -1,6 +1,7 @@
 package layout
 
 import (
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -110,9 +111,9 @@ func (a *GridAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		itemHeight += max(0, item.rowSpan-1) * rowGap
 
 		childSpace := ConstraintSpace{
-			AvailableSize:     Size{Width: itemWidth, Height: itemHeight},
-			ContainingSpace:   Size{Width: itemWidth, Height: itemHeight},
-			ContainerSpace:    Size{Width: itemWidth, Height: itemHeight},
+			AvailableSize:     geometry.Size{Width: itemWidth, Height: itemHeight},
+			ContainingSpace:   geometry.Size{Width: itemWidth, Height: itemHeight},
+			ContainerSpace:    geometry.Size{Width: itemWidth, Height: itemHeight},
 			IsFixedInlineSize: true,
 			IsFixedBlockSize:  true,
 		}
@@ -135,7 +136,7 @@ func (a *GridAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 			}
 		}
 
-		boxBuilder.AddChild(frag, Point{X: offsetX, Y: offsetY})
+		boxBuilder.AddChild(frag, geometry.Point{X: offsetX, Y: offsetY})
 	}
 
 	fragment := boxBuilder.ToFragment()

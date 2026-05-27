@@ -10,8 +10,8 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -142,8 +142,8 @@ func dispatchKeyDownTextArea(txa *element.TextAreaElement, k key.Key) {
 }
 
 func dispatchMouseDownTextArea(target event.EventTarget, x, y int) {
-	ev := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: x, Y: y}, event.ButtonLeft, 0)
-	ev.Local = layout.Point{X: x, Y: y}
+	ev := event.NewMouseEvent(event.EventMouseDown, geom.Point{X: x, Y: y}, event.ButtonLeft, 0)
+	ev.Local = geom.Point{X: x, Y: y}
 	path := []event.EventTarget{target}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
@@ -213,7 +213,7 @@ func TestTextArea_WheelScroll_DoesNotSnapBack(t *testing.T) {
 
 	// Simulate wheel scroll down (deltaY > 0)
 	// Process wheel event directly on target
-	ev := event.NewWheelEvent(layout.Point{X: 0, Y: 0}, 0, 2, 0)
+	ev := event.NewWheelEvent(geom.Point{X: 0, Y: 0}, 0, 2, 0)
 	txa.OnWheel(ev)
 
 	// Run another frame.

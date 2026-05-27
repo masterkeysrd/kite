@@ -16,7 +16,7 @@ import (
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/paint"
 )
 
@@ -71,7 +71,7 @@ type Backend struct {
 	stopped atomic.Bool
 
 	// onResize is called when the terminal is resized.
-	onResize func(layout.Size)
+	onResize func(geom.Size)
 
 	// cursorState is the buffered cursor state to be applied in the next frame.
 	cursorState       cursorRecord
@@ -137,7 +137,7 @@ func New() (*Backend, error) {
 
 // SetResizeHandler registers fn as the callback invoked when the terminal is
 // resized.
-func (b *Backend) SetResizeHandler(fn func(layout.Size)) {
+func (b *Backend) SetResizeHandler(fn func(geom.Size)) {
 	b.onResize = fn
 }
 
@@ -223,14 +223,14 @@ func (b *Backend) Events() <-chan event.RawEvent {
 }
 
 // Resize updates the internal dimensions after a terminal resize event.
-func (b *Backend) Resize(size layout.Size) {
+func (b *Backend) Resize(size geom.Size) {
 	b.width = size.Width
 	b.height = size.Height
 	b.screen.Resize(size.Width, size.Height)
 }
 
 // Size returns the current terminal size.
-func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
+func (b *Backend) Size() geom.Size { return geom.Size{Width: b.width, Height: b.height} }
 
 // Writer returns the terminal output writer (the backend itself).
 func (b *Backend) Writer() io.Writer { return b }

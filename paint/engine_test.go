@@ -4,7 +4,8 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
@@ -112,7 +113,7 @@ func TestPaint_InheritedStyle(t *testing.T) {
 // makeTextFrag creates a simple fragment with a text cluster at the given
 // size/offset. The text cluster has CellWidth == len(content) to keep things
 // simple for testing. The node carries the given computed style.
-func makeBoxFrag(size layout.Size, s *style.Computed, children ...layout.FragmentLink) *layout.Fragment {
+func makeBoxFrag(size geom.Size, s *style.Computed, children ...layout.FragmentLink) *layout.Fragment {
 	return &layout.Fragment{
 		Size:     size,
 		Node:     &mockNode{s: s},
@@ -127,7 +128,7 @@ func makeTextFrag(content string, s *style.Computed) *layout.Fragment {
 		clusters = append(clusters, text.Cluster{Bytes: []byte(string(r)), CellWidth: 1})
 	}
 	return &layout.Fragment{
-		Size: layout.Size{Width: len(content), Height: 1},
+		Size: geom.Size{Width: len(content), Height: 1},
 		Node: &mockNode{s: s},
 		Text: clusters,
 	}
@@ -154,14 +155,14 @@ func TestPaint_OverflowVisible_NoClip(t *testing.T) {
 
 	childFrag := makeTextFrag("0123456789", childStyle) // 10 cells wide
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 5, Height: 1},
+		geom.Size{Width: 5, Height: 1},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 0, Y: 0}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 0, Y: 0}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// All 10 cells should be painted.
 	for x := 0; x < 10; x++ {
@@ -182,14 +183,14 @@ func TestPaint_OverflowHidden_ClipsToContentBox(t *testing.T) {
 
 	childFrag := makeTextFrag("0123456789", childStyle) // 10 cells wide
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 5, Height: 1},
+		geom.Size{Width: 5, Height: 1},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 0, Y: 0}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 0, Y: 0}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// Only cells 0..4 should be painted; 5..9 must remain empty.
 	for x := 0; x < 5; x++ {
@@ -212,14 +213,14 @@ func TestPaint_OverflowClip_BehavesLikeHidden(t *testing.T) {
 
 	childFrag := makeTextFrag("ABCDEFGHIJ", childStyle) // 10 cells wide
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 5, Height: 1},
+		geom.Size{Width: 5, Height: 1},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 0, Y: 0}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 0, Y: 0}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	for x := 0; x < 5; x++ {
 		if fb.CellAt(x, 0).Content == "" {
@@ -245,20 +246,20 @@ func TestPaint_AsymmetricOverflow_HiddenXVisibleY(t *testing.T) {
 	var childChildren []layout.FragmentLink
 	for row := 0; row < 5; row++ {
 		childChildren = append(childChildren, layout.FragmentLink{
-			Offset:   layout.Point{X: 0, Y: row},
+			Offset:   geom.Point{X: 0, Y: row},
 			Fragment: makeTextFrag("0123456789", childStyle),
 		})
 	}
-	childFrag := makeBoxFrag(layout.Size{Width: 10, Height: 5}, childStyle, childChildren...)
+	childFrag := makeBoxFrag(geom.Size{Width: 10, Height: 5}, childStyle, childChildren...)
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 5, Height: 3},
+		geom.Size{Width: 5, Height: 3},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 15, 6)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// X >= 5 must be empty (horizontal clip).
 	for row := 0; row < 5; row++ {
@@ -296,14 +297,14 @@ func TestPaint_BorderIntegrity_OverflowHidden(t *testing.T) {
 
 	childFrag := makeTextFrag("0123456789", childStyle) // 10 cells wide
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 5, Height: 3},
+		geom.Size{Width: 5, Height: 3},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 1, Y: 1}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 1, Y: 1}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 15, 5)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// Border top-left corner must be present.
 	if fb.CellAt(0, 0).BorderStyle == BorderNone {
@@ -346,14 +347,14 @@ func TestPaint_PaddingContributesToClipRect(t *testing.T) {
 
 	childFrag := makeTextFrag("0123456789", childStyle) // 10 cells wide
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 8, Height: 1},
+		geom.Size{Width: 8, Height: 1},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 2, Y: 0}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 2, Y: 0}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 15, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// Cells 2..7 (content box) must be painted.
 	for x := 2; x < 8; x++ {
@@ -383,19 +384,19 @@ func TestPaint_NestedOverflow_IntersectsClipRects(t *testing.T) {
 
 	grandFrag := makeTextFrag("01234567890123456789", grandStyle) // 20 cells
 	innerFrag := makeBoxFrag(
-		layout.Size{Width: 6, Height: 1},
+		geom.Size{Width: 6, Height: 1},
 		innerStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 2, Y: 0}, Fragment: grandFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 2, Y: 0}, Fragment: grandFrag},
 	)
 	outerFrag := makeBoxFrag(
-		layout.Size{Width: 10, Height: 1},
+		geom.Size{Width: 10, Height: 1},
 		outerStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 2, Y: 0}, Fragment: innerFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 2, Y: 0}, Fragment: innerFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 25, 1)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, outerFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, outerFrag, geom.Point{}, fb)
 
 	// inner clip rect: x=[2,7] (outer origin 0 + inner offset 2; width 6 → 2+6=8, but outer
 	// clip starts at 0 and ends at 10, so inner clips to [2,8)).
@@ -428,14 +429,14 @@ func TestPaint_ZeroSizedContentBox(t *testing.T) {
 
 	childFrag := makeTextFrag("Hello", childStyle)
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 2, Height: 1},
+		geom.Size{Width: 2, Height: 1},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 1, Y: 0}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{X: 1, Y: 0}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 10, 2)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// No text content from the child should appear (zero-width content box).
 	for x := 0; x < 10; x++ {
@@ -455,14 +456,14 @@ func TestPaint_Integration_HiddenOverflow10Wide(t *testing.T) {
 	text30 := "012345678901234567890123456789" // 30 chars
 	childFrag := makeTextFrag(text30, childStyle)
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 10, Height: 3},
+		geom.Size{Width: 10, Height: 3},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 40, 3)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// Cells 0..9 should be painted.
 	for x := 0; x < 10; x++ {
@@ -487,14 +488,14 @@ func TestPaint_Integration_VisibleOverflow10Wide(t *testing.T) {
 	text30 := "012345678901234567890123456789" // 30 chars
 	childFrag := makeTextFrag(text30, childStyle)
 	parentFrag := makeBoxFrag(
-		layout.Size{Width: 10, Height: 3},
+		geom.Size{Width: 10, Height: 3},
 		parentStyle,
-		layout.FragmentLink{Offset: layout.Point{}, Fragment: childFrag},
+		layout.FragmentLink{Offset: geom.Point{}, Fragment: childFrag},
 	)
 
 	fb := NewFrameBuffer(0, 0, 40, 3)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, parentFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// All 30 cells should be painted (spill allowed).
 	for x := 0; x < 30; x++ {
@@ -539,13 +540,13 @@ func TestPaint_DebugXRay(t *testing.T) {
 		Border:  style.SingleBorder(),
 	}
 
-	frag := makeBoxFrag(layout.Size{Width: 5, Height: 5}, s)
+	frag := makeBoxFrag(geom.Size{Width: 5, Height: 5}, s)
 
 	fb := NewFrameBuffer(0, 0, 7, 7)
 	pe := NewPaintEngine()
 	pe.DebugXRay = true
 
-	pe.PaintFragment(nil, frag, layout.Point{X: 1, Y: 1}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{X: 1, Y: 1}, fb)
 
 	// Check colors
 	// Margin area & Border area: Red (100, 0, 0)
@@ -587,15 +588,15 @@ func TestPaint_DebugXRay_Clipping(t *testing.T) {
 	parentStyle := &style.Computed{OverflowX: style.OverflowHidden, OverflowY: style.OverflowHidden}
 	childStyle := &style.Computed{Margin: style.EdgeAll(2)}
 
-	childFrag := makeBoxFrag(layout.Size{Width: 1, Height: 1}, childStyle)
-	parentFrag := makeBoxFrag(layout.Size{Width: 5, Height: 5}, parentStyle,
-		layout.FragmentLink{Offset: layout.Point{X: 4, Y: 4}, Fragment: childFrag})
+	childFrag := makeBoxFrag(geom.Size{Width: 1, Height: 1}, childStyle)
+	parentFrag := makeBoxFrag(geom.Size{Width: 5, Height: 5}, parentStyle,
+		layout.FragmentLink{Offset: geom.Point{X: 4, Y: 4}, Fragment: childFrag})
 
 	fb := NewFrameBuffer(0, 0, 10, 10)
 	pe := NewPaintEngine()
 	pe.DebugXRay = true
 
-	pe.PaintFragment(nil, parentFrag, layout.Point{X: 0, Y: 0}, fb)
+	pe.PaintFragment(nil, parentFrag, geom.Point{X: 0, Y: 0}, fb)
 
 	marginColor := color.RGBA{100, 0, 0, 255}
 
@@ -626,7 +627,7 @@ func TestPaint_DebugXRay_Clipping(t *testing.T) {
 
 // makeBorderedFrag builds a fragment with a single-line border and the given
 // logical size.
-func makeBorderedFrag(size layout.Size) *layout.Fragment {
+func makeBorderedFrag(size geom.Size) *layout.Fragment {
 	s := &style.Computed{
 		Border: style.SingleBorder(),
 	}
@@ -639,10 +640,10 @@ func makeBorderedFrag(size layout.Size) *layout.Fragment {
 // TestDrawBorder_FullyVisible verifies that when a bordered fragment fits
 // entirely within the clip rect all four edges are drawn.
 func TestDrawBorder_FullyVisible(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	frag := makeBorderedFrag(geom.Size{Width: 5, Height: 3})
 	fb := NewFrameBuffer(0, 0, 10, 5)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Top edge: y=0, x in [0,4]
 	for x := 0; x < 5; x++ {
@@ -673,11 +674,11 @@ func TestDrawBorder_FullyVisible(t *testing.T) {
 // TestDrawBorder_TopEdgeClipped verifies that the top border row is not drawn
 // when it falls above the clip rect (framebuffer starts at y=1).
 func TestDrawBorder_TopEdgeClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	frag := makeBorderedFrag(geom.Size{Width: 5, Height: 3})
 	// Framebuffer starts at absolute y=1; the fragment is painted at y=0.
 	fb := NewFrameBuffer(0, 1, 5, 3)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 0}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{X: 0, Y: 0}, fb)
 
 	// y=0 is outside the framebuffer → CellAt returns an empty Cell.
 	for x := 0; x < 5; x++ {
@@ -696,10 +697,10 @@ func TestDrawBorder_TopEdgeClipped(t *testing.T) {
 // TestDrawBorder_BottomEdgeClipped verifies that the bottom border row is not
 // drawn when it falls below the clip rect (framebuffer only 3 rows, fragment 4 tall).
 func TestDrawBorder_BottomEdgeClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 4})
+	frag := makeBorderedFrag(geom.Size{Width: 5, Height: 4})
 	fb := NewFrameBuffer(0, 0, 5, 3) // rows 0-2 visible; row 3 clipped
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Bottom edge (y=3) must not appear.
 	for x := 0; x < 5; x++ {
@@ -718,10 +719,10 @@ func TestDrawBorder_BottomEdgeClipped(t *testing.T) {
 // TestDrawBorder_LeftEdgeClipped verifies that the left border column is not
 // drawn when the fragment is painted at x=-1 (left column outside framebuffer).
 func TestDrawBorder_LeftEdgeClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	frag := makeBorderedFrag(geom.Size{Width: 5, Height: 3})
 	fb := NewFrameBuffer(0, 0, 10, 5)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{X: -1, Y: 0}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{X: -1, Y: 0}, fb)
 
 	// x=-1 is outside framebuffer → empty.
 	for y := 0; y < 3; y++ {
@@ -740,10 +741,10 @@ func TestDrawBorder_LeftEdgeClipped(t *testing.T) {
 // TestDrawBorder_RightEdgeClipped verifies that the right border column is not
 // drawn when it falls beyond the framebuffer (fragment 8 wide, framebuffer 5 wide).
 func TestDrawBorder_RightEdgeClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 8, Height: 3})
+	frag := makeBorderedFrag(geom.Size{Width: 8, Height: 3})
 	fb := NewFrameBuffer(0, 0, 5, 3) // columns 5-7 clipped
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Right edge at x=7 must not appear.
 	for y := 0; y < 3; y++ {
@@ -766,10 +767,10 @@ func TestDrawBorder_RightEdgeClipped(t *testing.T) {
 // Framebuffer: 6 wide, starting at absolute x=2 → clip x=[2,7].
 // Expected: top/bottom border only at x=2..7.
 func TestDrawBorder_HorizontalEdgesPartiallyClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 10, Height: 3})
+	frag := makeBorderedFrag(geom.Size{Width: 10, Height: 3})
 	fb := NewFrameBuffer(2, 0, 6, 3) // absolute x: 2..7
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 0}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{X: 0, Y: 0}, fb)
 
 	// x=2..7 (inside framebuffer) on top row should have borders.
 	for x := 2; x < 8; x++ {
@@ -798,10 +799,10 @@ func TestDrawBorder_HorizontalEdgesPartiallyClipped(t *testing.T) {
 // Framebuffer: 3 wide × 6 tall, starting at absolute y=2 → clip y=[2,7].
 // Expected: left/right border only at y=2..7.
 func TestDrawBorder_VerticalEdgesPartiallyClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 3, Height: 10})
+	frag := makeBorderedFrag(geom.Size{Width: 3, Height: 10})
 	fb := NewFrameBuffer(0, 2, 3, 6) // absolute y: 2..7
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 0}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{X: 0, Y: 0}, fb)
 
 	// Rows 2..7 should have left border.
 	for y := 2; y < 8; y++ {
@@ -835,10 +836,10 @@ func TestDrawBorder_HugeHeightClippedToViewport(t *testing.T) {
 	const viewportH = 5
 	const viewportW = 20
 
-	frag := makeBorderedFrag(layout.Size{Width: viewportW, Height: hugeHeight})
+	frag := makeBorderedFrag(geom.Size{Width: viewportW, Height: hugeHeight})
 	fb := NewFrameBuffer(0, 0, viewportW, viewportH)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Top border row (y=0) is within the viewport.
 	for x := 0; x < viewportW; x++ {
@@ -875,10 +876,10 @@ func TestDrawBorder_HugeWidthClippedToViewport(t *testing.T) {
 	const viewportW = 5
 	const viewportH = 20
 
-	frag := makeBorderedFrag(layout.Size{Width: hugeWidth, Height: viewportH})
+	frag := makeBorderedFrag(geom.Size{Width: hugeWidth, Height: viewportH})
 	fb := NewFrameBuffer(0, 0, viewportW, viewportH)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{}, fb)
+	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Left edge (x=0) is in viewport for all rows.
 	for y := 0; y < viewportH; y++ {
@@ -903,10 +904,10 @@ func TestDrawBorder_HugeWidthClippedToViewport(t *testing.T) {
 // TestDrawBorder_AllEdgesClipped verifies that no cells are written when the
 // entire fragment is painted off-screen (origin far below the framebuffer).
 func TestDrawBorder_AllEdgesClipped(t *testing.T) {
-	frag := makeBorderedFrag(layout.Size{Width: 5, Height: 3})
+	frag := makeBorderedFrag(geom.Size{Width: 5, Height: 3})
 	fb := NewFrameBuffer(0, 0, 10, 5)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, frag, layout.Point{X: 0, Y: 10}, fb) // entirely below viewport
+	pe.PaintFragment(nil, frag, geom.Point{X: 0, Y: 10}, fb) // entirely below viewport
 
 	for y := 0; y < 5; y++ {
 		for x := 0; x < 10; x++ {
@@ -925,7 +926,7 @@ func TestDrawBorder_NestedClipRestrictsBorder(t *testing.T) {
 		Border: style.SingleBorder(),
 	}
 	childFrag := &layout.Fragment{
-		Size: layout.Size{Width: 8, Height: 4},
+		Size: geom.Size{Width: 8, Height: 4},
 		Node: &mockNode{s: childStyle},
 	}
 
@@ -935,16 +936,16 @@ func TestDrawBorder_NestedClipRestrictsBorder(t *testing.T) {
 		OverflowY: style.OverflowHidden,
 	}
 	outerFrag := &layout.Fragment{
-		Size: layout.Size{Width: 10, Height: 5},
+		Size: geom.Size{Width: 10, Height: 5},
 		Node: &mockNode{s: outerStyle},
 		Children: []layout.FragmentLink{
-			{Offset: layout.Point{X: 1, Y: 1}, Fragment: childFrag},
+			{Offset: geom.Point{X: 1, Y: 1}, Fragment: childFrag},
 		},
 	}
 
 	fb := NewFrameBuffer(0, 0, 15, 8)
 	pe := NewPaintEngine()
-	pe.PaintFragment(nil, outerFrag, layout.Point{}, fb)
+	pe.PaintFragment(nil, outerFrag, geom.Point{}, fb)
 
 	// Child's top border is at abs y=1 (outer origin 0 + child offset 1).
 	// Outer content-box clip starts at y=1 (1-cell border), so y=1 is visible.

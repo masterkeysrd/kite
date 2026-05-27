@@ -7,7 +7,8 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -68,7 +69,7 @@ func TestEngineCursorIntegration(t *testing.T) {
 	// We need a fragment for AbsoluteBounds to work
 	frag := &layout.Fragment{
 		Node: myRO,
-		Size: layout.Size{Width: 10, Height: 1},
+		Size: geom.Size{Width: 10, Height: 1},
 	}
 	myRO.SetCachedLayout(layout.ConstraintSpace{}, frag)
 
@@ -79,11 +80,11 @@ func TestEngineCursorIntegration(t *testing.T) {
 	// because AbsoluteBounds walks from root.Fragment().
 	viewFrag := &layout.Fragment{
 		Node: e.renderView,
-		Size: layout.Size{Width: 80, Height: 24},
+		Size: geom.Size{Width: 80, Height: 24},
 		Children: []layout.FragmentLink{
 			{
 				Fragment: frag,
-				Offset:   layout.Point{X: 5, Y: 10},
+				Offset:   geom.Point{X: 5, Y: 10},
 			},
 		},
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -149,7 +149,7 @@ func TestUASubtree_EventDispatch_TargetIsHost(t *testing.T) {
 	// Build a path as the dispatcher would: ancestors of host from root → host.
 	path := []event.EventTarget{doc, h}
 	d := event.NewDispatcher()
-	ev := event.NewMouseEvent(event.EventType("click"), layout.Point{}, 0, 0)
+	ev := event.NewMouseEvent(event.EventType("click"), geom.Point{}, 0, 0)
 	d.Dispatch(ev, path)
 
 	if captured == nil {

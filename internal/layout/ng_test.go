@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -32,15 +33,15 @@ func TestMaxScroll_CursorProvider(t *testing.T) {
 
 	// Create a text fragment of width 10
 	textFrag := &Fragment{
-		Size: Size{Width: 10, Height: 1},
+		Size: geometry.Size{Width: 10, Height: 1},
 		Node: node,
 	}
 
 	frag := &Fragment{
-		Size: Size{Width: 10, Height: 1},
+		Size: geometry.Size{Width: 10, Height: 1},
 		Node: node,
 		Children: []FragmentLink{
-			{Offset: Point{0, 0}, Fragment: textFrag},
+			{Offset: geometry.Point{0, 0}, Fragment: textFrag},
 		},
 	}
 
@@ -52,14 +53,14 @@ func TestMaxScroll_CursorProvider(t *testing.T) {
 	// Content is smaller (5x1).
 	// Should NOT get extra scroll.
 	textFragSmall := &Fragment{
-		Size: Size{Width: 5, Height: 1},
+		Size: geometry.Size{Width: 5, Height: 1},
 		Node: node,
 	}
 	fragSmall := &Fragment{
-		Size: Size{Width: 10, Height: 1},
+		Size: geometry.Size{Width: 10, Height: 1},
 		Node: node,
 		Children: []FragmentLink{
-			{Offset: Point{0, 0}, Fragment: textFragSmall},
+			{Offset: geometry.Point{0, 0}, Fragment: textFragSmall},
 		},
 	}
 
@@ -106,7 +107,7 @@ func TestResolveDecorations(t *testing.T) {
 	}
 
 	// Viewport size check
-	outer := Size{Width: 20, Height: 10}
+	outer := geometry.Size{Width: 20, Height: 10}
 	// decorXY insets: T:2, R:3, B:3, L:2
 	// width = 20 - 2 - 3 = 15
 	// height = 10 - 2 - 3 = 5

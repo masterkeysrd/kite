@@ -4,7 +4,8 @@ import (
 	"iter"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -25,7 +26,7 @@ type BaseRender struct {
 	logicalNode   any
 	eventTarget   event.EventTarget
 	computedStyle *style.Computed
-	offset        layout.Point
+	offset        geom.Point
 }
 
 // Init sets the self-pointer and logical identity for the BaseRender.
@@ -156,11 +157,11 @@ func (b *BaseRender) StyleParent() style.StyleNode      { return b.parent }
 func (b *BaseRender) StyleFirstChild() style.StyleNode  { return b.firstChild }
 func (b *BaseRender) StyleNextSibling() style.StyleNode { return b.next }
 
-func (b *BaseRender) Offset() layout.Point {
+func (b *BaseRender) Offset() geom.Point {
 	return b.offset
 }
 
-func (b *BaseRender) SetOffset(p layout.Point) {
+func (b *BaseRender) SetOffset(p geom.Point) {
 	if b.offset != p {
 		b.MarkDirty(DirtyPaint)
 		b.offset = p
@@ -318,7 +319,7 @@ func (b *BaseRender) SetCachedMinMaxSizes(sizes layout.MinMaxSizes) {
 // RenderView is the root of a render tree. It represents the viewport.
 type RenderView struct {
 	BaseRender
-	viewportSize layout.Size
+	viewportSize geom.Size
 	overlays     []Object
 }
 
@@ -330,12 +331,12 @@ func NewRenderView() *RenderView {
 }
 
 // ViewportSize returns the current viewport dimensions.
-func (v *RenderView) ViewportSize() layout.Size {
+func (v *RenderView) ViewportSize() geom.Size {
 	return v.viewportSize
 }
 
 // SetViewportSize updates the viewport dimensions.
-func (v *RenderView) SetViewportSize(sz layout.Size) {
+func (v *RenderView) SetViewportSize(sz geom.Size) {
 	v.viewportSize = sz
 	v.MarkDirty(DirtyLayout | DirtyPaint)
 }
@@ -368,7 +369,7 @@ func (v *RenderView) StyleParent() style.StyleNode { return nil }
 func (v *RenderView) SetLogicalNode(n any) { v.logicalNode = n }
 
 // LayoutPhase runs the layout process for the given subtree using the LayoutNG-inspired architecture.
-func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
+func LayoutPhase(ctx *layout.Context, root Object, available geom.Size) {
 	// 1. Build the constraint space for the viewport.
 	// The viewport forces a fixed size.
 	// The viewport has no border/padding, so ContainingSpace and ContainerSpace are equal.
@@ -422,7 +423,7 @@ func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
 				if cs := overlay.ComputedStyle(); cs != nil {
 					// Use margins for absolute positioning relative to viewport.
 					x, y := cs.Margin.Left, cs.Margin.Top
-					overlay.SetOffset(layout.Point{X: x, Y: y})
+					overlay.SetOffset(geom.Point{X: x, Y: y})
 				}
 			}
 		}
@@ -430,18 +431,18 @@ func LayoutPhase(ctx *layout.Context, root Object, available layout.Size) {
 }
 
 func propagateOffsets(frag *layout.Fragment) {
-	propagateOffsetsAccum(frag, layout.Point{})
+	propagateOffsetsAccum(frag, geom.Point{})
 }
 
-func propagateOffsetsAccum(frag *layout.Fragment, accum layout.Point) {
+func propagateOffsetsAccum(frag *layout.Fragment, accum geom.Point) {
 	if frag == nil {
 		return
 	}
 	for _, link := range frag.Children {
-		offset := layout.Point{X: accum.X + link.Offset.X, Y: accum.Y + link.Offset.Y}
+		offset := geom.Point{X: accum.X + link.Offset.X, Y: accum.Y + link.Offset.Y}
 		if ro, ok := link.Fragment.Node.(Object); ok {
 			ro.SetOffset(offset)
-			propagateOffsetsAccum(link.Fragment, layout.Point{})
+			propagateOffsetsAccum(link.Fragment, geom.Point{})
 		} else {
 			propagateOffsetsAccum(link.Fragment, offset)
 		}

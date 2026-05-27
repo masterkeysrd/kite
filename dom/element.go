@@ -4,7 +4,8 @@ import (
 	"iter"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -196,9 +197,9 @@ func (e *element) ProvidesCursor() bool {
 	return false
 }
 
-func (e *element) GetBoundingClientRect() (layout.Rect, bool) {
+func (e *element) GetBoundingClientRect() (geom.Rect, bool) {
 	if !e.connected {
-		return layout.Rect{}, false
+		return geom.Rect{}, false
 	}
 
 	// Traverse up to find the root node (usually the Document).
@@ -211,17 +212,17 @@ func (e *element) GetBoundingClientRect() (layout.Rect, bool) {
 	// Grab the root fragment from its render object.
 	ro := root.RenderObject()
 	if ro == nil {
-		return layout.Rect{}, false
+		return geom.Rect{}, false
 	}
 	rootFragment := ro.Fragment()
 	if rootFragment == nil {
-		return layout.Rect{}, false
+		return geom.Rect{}, false
 	}
 
 	// Target the render object of this element.
 	targetRO := e.RenderObject()
 	if targetRO == nil {
-		return layout.Rect{}, false
+		return geom.Rect{}, false
 	}
 
 	rect, _, found := layout.ScrolledAbsoluteBounds(rootFragment, targetRO)

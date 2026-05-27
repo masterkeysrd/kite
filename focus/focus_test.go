@@ -7,7 +7,8 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -264,10 +265,10 @@ func (r *testRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 func (r *testRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
 func (r *testRender) LogicalNode() any                        { return r.node }
 
-func (r *testRender) Offset() layout.Point   { return layout.Point{} }
-func (r *testRender) SetOffset(layout.Point) {}
-func (r *testRender) IsAnonymous() bool      { return false }
-func (r *testRender) MaxScroll() (int, int)  { return 0, 0 }
+func (r *testRender) Offset() geom.Point    { return geom.Point{} }
+func (r *testRender) SetOffset(geom.Point)  {}
+func (r *testRender) IsAnonymous() bool     { return false }
+func (r *testRender) MaxScroll() (int, int) { return 0, 0 }
 
 var _ dom.Node = (*testObject)(nil)
 var _ render.Object = (*testRender)(nil)

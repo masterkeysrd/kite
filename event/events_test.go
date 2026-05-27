@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -20,11 +20,11 @@ import (
 type stubObject struct {
 	event.Target
 	parent   event.EventTarget
-	bounds   layout.Rect
+	bounds   geom.Rect
 	children []event.EventTarget
 }
 
-func newStub(bounds layout.Rect) *stubObject { return &stubObject{bounds: bounds} }
+func newStub(bounds geom.Rect) *stubObject { return &stubObject{bounds: bounds} }
 
 func (s *stubObject) Parent() event.EventTarget { return s.parent }
 func (s *stubObject) FirstChild() event.EventTarget {
@@ -51,8 +51,8 @@ func (s *stubObject) Children() iter.Seq[event.EventTarget] {
 		}
 	}
 }
-func (s *stubObject) Bounds() layout.Rect              { return s.bounds }
-func (s *stubObject) SetBounds(r layout.Rect)          { s.bounds = r }
+func (s *stubObject) Bounds() geom.Rect                { return s.bounds }
+func (s *stubObject) SetBounds(r geom.Rect)            { s.bounds = r }
 func (s *stubObject) LogicalNode() any                 { return nil }
 func (s *stubObject) MarkDetached()                    {}
 func (s *stubObject) IsDetached() bool                 { return false }
@@ -106,9 +106,9 @@ func ensureTarget(m map[event.EventTarget]event.EventTarget, obj event.EventTarg
 func TestDispatcher_CaptureTargetBubble_Order(t *testing.T) {
 	t.Parallel()
 
-	root := newStub(layout.Rect{Size: layout.Size{Width: 80, Height: 24}})
-	mid := newStub(layout.Rect{Size: layout.Size{Width: 40, Height: 12}})
-	target := newStub(layout.Rect{Size: layout.Size{Width: 20, Height: 6}})
+	root := newStub(geom.Rect{Size: geom.Size{Width: 80, Height: 24}})
+	mid := newStub(geom.Rect{Size: geom.Size{Width: 40, Height: 12}})
+	target := newStub(geom.Rect{Size: geom.Size{Width: 20, Height: 6}})
 	addChild(root, mid)
 	addChild(mid, target)
 
@@ -137,7 +137,7 @@ func TestDispatcher_CaptureTargetBubble_Order(t *testing.T) {
 	})
 
 	path := buildPath(root, mid, target)
-	e := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	e := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	d.Dispatch(e, path)
 
 	want := []string{
@@ -161,8 +161,8 @@ func TestDispatcher_CaptureTargetBubble_Order(t *testing.T) {
 func TestDispatcher_StopPropagation_HaltsBubble(t *testing.T) {
 	t.Parallel()
 
-	root := newStub(layout.Rect{})
-	target := newStub(layout.Rect{})
+	root := newStub(geom.Rect{})
+	target := newStub(geom.Rect{})
 
 	_ = newRegistry()
 	d := event.NewDispatcher()
@@ -176,7 +176,7 @@ func TestDispatcher_StopPropagation_HaltsBubble(t *testing.T) {
 	})
 
 	path := buildPath(root, target)
-	e := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	e := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	d.Dispatch(e, path)
 
 	if reached {
@@ -187,8 +187,8 @@ func TestDispatcher_StopPropagation_HaltsBubble(t *testing.T) {
 func TestDispatcher_PreventDefault_FlagOnly(t *testing.T) {
 	t.Parallel()
 
-	root := newStub(layout.Rect{})
-	target := newStub(layout.Rect{})
+	root := newStub(geom.Rect{})
+	target := newStub(geom.Rect{})
 
 	_ = newRegistry()
 	d := event.NewDispatcher()
@@ -203,7 +203,7 @@ func TestDispatcher_PreventDefault_FlagOnly(t *testing.T) {
 	})
 
 	path := buildPath(root, target)
-	e := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	e := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	d.Dispatch(e, path)
 
 	if !e.DefaultPrevented() {
@@ -217,7 +217,7 @@ func TestDispatcher_PreventDefault_FlagOnly(t *testing.T) {
 func TestSubscription_Cancel_RemovesListener(t *testing.T) {
 	t.Parallel()
 
-	obj := newStub(layout.Rect{})
+	obj := newStub(geom.Rect{})
 	d := event.NewDispatcher()
 	et := event.EventTarget(obj)
 
@@ -228,7 +228,7 @@ func TestSubscription_Cancel_RemovesListener(t *testing.T) {
 	sub.Cancel()
 
 	path := buildPath(obj)
-	e := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	e := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	d.Dispatch(e, path)
 
 	if calls != 0 {
@@ -291,7 +291,7 @@ func (f *stubFocus) FocusedTarget() event.EventTarget { return f.target }
 func TestSynthesizer_ClickWithinTolerance(t *testing.T) {
 	t.Parallel()
 
-	target := newStub(layout.Rect{})
+	target := newStub(geom.Rect{})
 	hit := &stubHitTester{result: target}
 	focus := &stubFocus{target: target}
 	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{ClickRadius: 3})
@@ -309,7 +309,7 @@ func TestSynthesizer_ClickWithinTolerance(t *testing.T) {
 func TestSynthesizer_DragBeyondTolerance(t *testing.T) {
 	t.Parallel()
 
-	target := newStub(layout.Rect{})
+	target := newStub(geom.Rect{})
 	hit := &stubHitTester{result: target}
 	focus := &stubFocus{target: target}
 	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{ClickRadius: 3})
@@ -333,7 +333,7 @@ func TestSynthesizer_DragBeyondTolerance(t *testing.T) {
 func TestSynthesizer_ResolvesHitTarget(t *testing.T) {
 	t.Parallel()
 
-	target := newStub(layout.Rect{Origin: layout.Point{X: 5, Y: 5}, Size: layout.Size{Width: 10, Height: 5}})
+	target := newStub(geom.Rect{Origin: geom.Point{X: 5, Y: 5}, Size: geom.Size{Width: 10, Height: 5}})
 	hit := &stubHitTester{result: target}
 	focus := &stubFocus{}
 	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{})
@@ -364,7 +364,7 @@ type stubRenderView struct {
 func (v *stubRenderView) Overlays() []event.EventTarget { return v.overlays }
 
 // hitTestObject replicates the engine's logic for testing.
-func hitTestObject(obj event.EventTarget, p layout.Point) event.EventTarget {
+func hitTestObject(obj event.EventTarget, p geom.Point) event.EventTarget {
 	sobj := obj.(*stubObject)
 	if !sobj.Bounds().Contains(p) {
 		return nil
@@ -389,7 +389,7 @@ type testHitTester struct {
 }
 
 func (h *testHitTester) HitTest(x, y int) event.EventTarget {
-	p := layout.Point{X: x, Y: y}
+	p := geom.Point{X: x, Y: y}
 	overlays := h.view.overlays
 	for i := len(overlays) - 1; i >= 0; i-- {
 		if hit := hitTestObject(overlays[i], p); hit != nil {
@@ -404,17 +404,17 @@ func TestHitTest_OverlayBeforeDocument(t *testing.T) {
 
 	view := &stubRenderView{
 		stubObject: stubObject{
-			bounds: layout.Rect{Size: layout.Size{Width: 80, Height: 24}},
+			bounds: geom.Rect{Size: geom.Size{Width: 80, Height: 24}},
 		},
 	}
 	// Document child at (0,0)-(20,10).
-	docChild := newStub(layout.Rect{Size: layout.Size{Width: 20, Height: 10}})
+	docChild := newStub(geom.Rect{Size: geom.Size{Width: 20, Height: 10}})
 	addChild(&view.stubObject, docChild)
 
 	// Overlay at (5,5)-(15,15) covering the same point.
-	overlay := newStub(layout.Rect{
-		Origin: layout.Point{X: 5, Y: 5},
-		Size:   layout.Size{Width: 10, Height: 10},
+	overlay := newStub(geom.Rect{
+		Origin: geom.Point{X: 5, Y: 5},
+		Size:   geom.Size{Width: 10, Height: 10},
 	})
 	view.overlays = []event.EventTarget{overlay}
 
@@ -430,11 +430,11 @@ func TestHitTest_OverlayBeforeDocument(t *testing.T) {
 func TestHitTest_TopmostObject(t *testing.T) {
 	t.Parallel()
 
-	parent := newStub(layout.Rect{Size: layout.Size{Width: 80, Height: 24}})
-	child1 := newStub(layout.Rect{Size: layout.Size{Width: 40, Height: 10}})
-	child2 := newStub(layout.Rect{
-		Origin: layout.Point{X: 5, Y: 0},
-		Size:   layout.Size{Width: 40, Height: 10},
+	parent := newStub(geom.Rect{Size: geom.Size{Width: 80, Height: 24}})
+	child1 := newStub(geom.Rect{Size: geom.Size{Width: 40, Height: 10}})
+	child2 := newStub(geom.Rect{
+		Origin: geom.Point{X: 5, Y: 0},
+		Size:   geom.Size{Width: 40, Height: 10},
 	})
 	addChild(parent, child1)
 	addChild(parent, child2)
@@ -464,9 +464,9 @@ func (s *stubScrollable) OnWheel(e *event.WheelEvent) { s.calls = append(s.calls
 func TestWheel_RoutesToFirstScrollableAncestor(t *testing.T) {
 	t.Parallel()
 
-	root := newStub(layout.Rect{})
-	mid := newStub(layout.Rect{})
-	target := newStub(layout.Rect{})
+	root := newStub(geom.Rect{})
+	mid := newStub(geom.Rect{})
+	target := newStub(geom.Rect{})
 	addChild(root, mid)
 	addChild(mid, target)
 
@@ -476,7 +476,7 @@ func TestWheel_RoutesToFirstScrollableAncestor(t *testing.T) {
 	scrollables := map[event.EventTarget]event.Scrollable{mid: sc}
 
 	path := buildPath(root, mid, target)
-	e := event.NewWheelEvent(layout.Point{}, 0, 3, 0)
+	e := event.NewWheelEvent(geom.Point{}, 0, 3, 0)
 	d.DispatchWheel(e, path, scrollables)
 
 	if len(sc.calls) != 1 {
@@ -487,8 +487,8 @@ func TestWheel_RoutesToFirstScrollableAncestor(t *testing.T) {
 func TestWheel_NoScrollable_NoOp(t *testing.T) {
 	t.Parallel()
 
-	root := newStub(layout.Rect{})
-	target := newStub(layout.Rect{})
+	root := newStub(geom.Rect{})
+	target := newStub(geom.Rect{})
 
 	d := event.NewDispatcher()
 
@@ -498,7 +498,7 @@ func TestWheel_NoScrollable_NoOp(t *testing.T) {
 	})
 
 	path := buildPath(root, target)
-	e := event.NewWheelEvent(layout.Point{}, 0, 1, 0)
+	e := event.NewWheelEvent(geom.Point{}, 0, 1, 0)
 	d.DispatchWheel(e, path, nil)
 
 	// Without a Scrollable, the event still bubbles normally.
@@ -556,7 +556,7 @@ func TestClipboard_CopyCut_FromSelectionProvider(t *testing.T) {
 
 	focusedObj := &stubSelectionProvider{
 		stubObject: stubObject{
-			bounds: layout.Rect{Size: layout.Size{Width: 80, Height: 24}},
+			bounds: geom.Rect{Size: geom.Size{Width: 80, Height: 24}},
 		},
 		selected: "selected text",
 	}

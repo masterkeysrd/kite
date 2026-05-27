@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/layout"
+	geometry "github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -28,7 +29,7 @@ func BenchmarkListAlgorithm_Ordinal(b *testing.B) {
 		nodes = append(nodes, ro)
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -62,7 +63,7 @@ func BenchmarkListAlgorithm_FullList(b *testing.B) {
 		nodes = append(nodes, ro)
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

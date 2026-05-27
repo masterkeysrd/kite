@@ -5,7 +5,8 @@ import (
 
 	"image/color"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
@@ -18,7 +19,7 @@ func BenchmarkPaint_All(b *testing.B) {
 	const viewportHeight = 50
 
 	root := &layout.Fragment{
-		Size: layout.Size{Width: viewportWidth, Height: 2000}, // Very tall
+		Size: geom.Size{Width: viewportWidth, Height: 2000}, // Very tall
 		Node: &mockNode{s: &style.Computed{}},
 	}
 
@@ -32,13 +33,13 @@ func BenchmarkPaint_All(b *testing.B) {
 		}
 
 		child := &layout.Fragment{
-			Size: layout.Size{Width: 20, Height: 1},
+			Size: geom.Size{Width: 20, Height: 1},
 			Node: &mockNode{s: s},
 			Text: []text.Cluster{{Bytes: []byte("hello world"), CellWidth: 11}},
 		}
 
 		root.Children = append(root.Children, layout.FragmentLink{
-			Offset:   layout.Point{X: 0, Y: i * 2},
+			Offset:   geom.Point{X: 0, Y: i * 2},
 			Fragment: child,
 		})
 	}

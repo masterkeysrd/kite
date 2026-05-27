@@ -5,7 +5,7 @@ import (
 
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/focus/spatial"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 )
 
 // buildGridRightAnchor creates a root with n focusable children in a horizontal
@@ -17,17 +17,17 @@ func buildGridRightAnchor(n int) (*spatialObj, *spatialObj, *focus.Manager) {
 	const w, h = 3, 2
 	for i := range n - 1 {
 		x := i * (w + 1)
-		node := newFocusable(layout.Rect{
-			Origin: layout.Point{X: x, Y: 0},
-			Size:   layout.Size{Width: w, Height: h},
+		node := newFocusable(geom.Rect{
+			Origin: geom.Point{X: x, Y: 0},
+			Size:   geom.Size{Width: w, Height: h},
 		})
 		link(root, node)
 	}
 
 	curX := (n - 1) * (w + 1)
-	cur := newFocusable(layout.Rect{
-		Origin: layout.Point{X: curX, Y: 0},
-		Size:   layout.Size{Width: w, Height: h},
+	cur := newFocusable(geom.Rect{
+		Origin: geom.Point{X: curX, Y: 0},
+		Size:   geom.Size{Width: w, Height: h},
 	})
 	link(root, cur)
 
@@ -44,17 +44,17 @@ func buildGridLeftAnchor(n int) (*spatialObj, *spatialObj, *focus.Manager) {
 	root := newContainer()
 
 	const w, h = 3, 2
-	cur := newFocusable(layout.Rect{
-		Origin: layout.Point{X: 0, Y: 0},
-		Size:   layout.Size{Width: w, Height: h},
+	cur := newFocusable(geom.Rect{
+		Origin: geom.Point{X: 0, Y: 0},
+		Size:   geom.Size{Width: w, Height: h},
 	})
 	link(root, cur)
 
 	for i := range n - 1 {
 		x := (i + 1) * (w + 1)
-		node := newFocusable(layout.Rect{
-			Origin: layout.Point{X: x, Y: 0},
-			Size:   layout.Size{Width: w, Height: h},
+		node := newFocusable(geom.Rect{
+			Origin: geom.Point{X: x, Y: 0},
+			Size:   geom.Size{Width: w, Height: h},
 		})
 		link(root, node)
 	}

@@ -5,8 +5,8 @@ import (
 
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 )
 
 func TestButton_Click_Mouse(t *testing.T) {
@@ -20,19 +20,19 @@ func TestButton_Click_Mouse(t *testing.T) {
 	path := []event.EventTarget{btn}
 
 	// MouseDown
-	down := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	down := event.NewMouseEvent(event.EventMouseDown, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(down, path)
 	if clicked {
 		t.Error("clicked fired prematurely on MouseDown")
 	}
 
 	// MouseUp
-	up := event.NewMouseEvent(event.EventMouseUp, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	up := event.NewMouseEvent(event.EventMouseUp, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(up, path)
 
 	// In Kite, EventClick is synthesized by the engine's Synthesizer.
 	// Since we are using a raw Dispatcher here, we must dispatch it manually.
-	click := event.NewMouseEvent(event.EventClick, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	click := event.NewMouseEvent(event.EventClick, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(click, path)
 
 	if !clicked {
@@ -88,7 +88,7 @@ func TestButton_ActiveStyle(t *testing.T) {
 	path := []event.EventTarget{btn}
 
 	// MouseDown
-	down := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	down := event.NewMouseEvent(event.EventMouseDown, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(down, path)
 
 	ds = btn.DefaultStyle()
@@ -97,7 +97,7 @@ func TestButton_ActiveStyle(t *testing.T) {
 	}
 
 	// MouseUp
-	up := event.NewMouseEvent(event.EventMouseUp, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	up := event.NewMouseEvent(event.EventMouseUp, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
 	d.Dispatch(up, path)
 
 	ds = btn.DefaultStyle()

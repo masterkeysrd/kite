@@ -6,7 +6,7 @@ import (
 
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/paint"
 )
 
@@ -47,10 +47,10 @@ type Backend interface {
 	// recovery; it must not block.
 	Restore()
 
-	Resize(layout.Size)
+	Resize(geom.Size)
 
 	// Size returns the current dimensions of the backend's output area.
-	Size() layout.Size
+	Size() geom.Size
 
 	// Writer returns the terminal's output writer. Used by terminal extensions
 	// to send initialization or protocol-specific sequences.

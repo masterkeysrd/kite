@@ -3,6 +3,7 @@ package layout
 import (
 	"slices"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -68,7 +69,7 @@ func (a *AnonymousBlock) CachedMinMaxSizes() (MinMaxSizes, bool) {
 
 func (a *AnonymousBlock) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
 
-func (a *AnonymousBlock) SetOffset(p Point) {}
+func (a *AnonymousBlock) SetOffset(p geometry.Point) {}
 
 func (a *AnonymousBlock) IsAnonymous() bool {
 	return true
@@ -174,7 +175,7 @@ func (a *FlexAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 	return frag
 }
 
-func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space ConstraintSpace, hasScrollbarX, hasScrollbarY bool) (*Fragment, Size) {
+func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space ConstraintSpace, hasScrollbarX, hasScrollbarY bool) (*Fragment, geometry.Size) {
 	comp := node.Style()
 	geom := flexGeometry{direction: comp.FlexDirection}
 	decor := ResolveDecorations(node, hasScrollbarX, hasScrollbarY)
@@ -220,7 +221,6 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 		}
 	}
 
-	containerSize := Size{Width: resolvedWidth, Height: resolvedHeight}
 	contentWidth := max(0, resolvedWidth-decor.Insets.Left-decor.Insets.Right)
 	contentHeight := max(0, resolvedHeight-decor.Insets.Top-decor.Insets.Bottom)
 
@@ -250,7 +250,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 
 		var baseSize, minSize, maxSize int
 
-		// 1. Resolve Flex Basis (Main Size)
+		// 1. Resolve Flex Basis (Main geometry.Size)
 		basis := childStyle.Flex.Basis
 		if basis.Kind() == style.KindCells {
 			baseSize = basis.CellsValue()
@@ -341,8 +341,8 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 			}
 
 			measureCrossSize := contentCrossSizeForItems
-			flexContainingSpace := Size{Width: resolvedWidth, Height: resolvedHeight}
-			flexContainerSpace := Size{Width: contentWidth, Height: contentHeight}
+			flexContainingSpace := geometry.Size{Width: resolvedWidth, Height: resolvedHeight}
+			flexContainerSpace := geometry.Size{Width: contentWidth, Height: contentHeight}
 
 			childSpace := ConstraintSpace{
 				AvailableSize:     geom.MakeSize(childMainSize, measureCrossSize),
@@ -440,7 +440,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 		}
 	}
 
-	containerSize = Size{Width: resolvedWidth, Height: resolvedHeight}
+	containerSize := geometry.Size{Width: resolvedWidth, Height: resolvedHeight}
 	contentCrossSizeForItems = geom.CrossSize(containerSize) - (decor.Insets.Top + decor.Insets.Bottom)
 	if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
 		contentCrossSizeForItems = geom.CrossSize(containerSize) - (decor.Insets.Left + decor.Insets.Right)
@@ -498,7 +498,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 	// Add children to fragment builder using resolved offsets
 	for _, line := range lines {
 		for _, item := range line.Items {
-			offset := Point{
+			offset := geometry.Point{
 				X: decor.Insets.Left + item.Offset.X,
 				Y: decor.Insets.Top + item.Offset.Y,
 			}
@@ -515,7 +515,7 @@ func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
 	return ok
 }
 
-func (a *FlexAlgorithm) collectItems(ctx *Context, node Node, space ConstraintSpace, geom flexGeometry) []*FlexItem {
+func (a *FlexAlgorithm) collectItems(_ *Context, node Node, space ConstraintSpace, geom flexGeometry) []*FlexItem {
 	var allItems []*FlexItem
 
 	// Refactored to avoid iter.Pull and closures

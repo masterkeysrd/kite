@@ -18,7 +18,7 @@ We will introduce a dedicated builder pattern specifically for tables: `TableFra
 ### Responsibilities of the Builder:
 1. **Grouping State:** It will maintain the categorized slices of table sections (`headers`, `bodies`, `footers`) during the initial sorting traversal.
 2. **Matrix Management:** It will encapsulate the `MinMaxSizes` array for column tracks and expose methods to distribute `ColSpan` constraints across these tracks.
-3. **Coordinate Math:** It will encapsulate the implicit `-1` coordinate overlap logic. Instead of the algorithm doing raw math, the algorithm will call `builder.AddCell(frag, colIndex)`, and the builder will calculate the correct `layout.Point` utilizing the resolved column widths and the border collision state.
+3. **Coordinate Math:** It will encapsulate the implicit `-1` coordinate overlap logic. Instead of the algorithm doing raw math, the algorithm will call `builder.AddCell(frag, colIndex)`, and the builder will calculate the correct `geom.Point` utilizing the resolved column widths and the border collision state.
 4. **Finalization:** It will yield a standard, immutable `*layout.Fragment` identical in shape to what `BoxFragmentBuilder` produces.
 
 ## Consequences

@@ -3,7 +3,8 @@ package cursor
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/text"
 )
 
@@ -18,7 +19,7 @@ func textFrag(clusters []text.Cluster) *layout.Fragment {
 		w += c.CellWidth
 	}
 	return &layout.Fragment{
-		Size: layout.Size{Width: w, Height: 1},
+		Size: geom.Size{Width: w, Height: 1},
 		Text: clusters,
 	}
 }
@@ -26,7 +27,7 @@ func textFrag(clusters []text.Cluster) *layout.Fragment {
 // atomicFrag builds an atomic-inline Fragment (no text) with an explicit width.
 func atomicFrag(width int) *layout.Fragment {
 	return &layout.Fragment{
-		Size: layout.Size{Width: width, Height: 1},
+		Size: geom.Size{Width: width, Height: 1},
 	}
 }
 
@@ -36,13 +37,13 @@ func lineFrag(children ...*layout.Fragment) *layout.Fragment {
 	offsetX := 0
 	for i, c := range children {
 		links[i] = layout.FragmentLink{
-			Offset:   layout.Point{X: offsetX, Y: 0},
+			Offset:   geom.Point{X: offsetX, Y: 0},
 			Fragment: c,
 		}
 		offsetX += c.Size.Width
 	}
 	return &layout.Fragment{
-		Size:     layout.Size{Width: offsetX, Height: 1},
+		Size:     geom.Size{Width: offsetX, Height: 1},
 		Children: links,
 	}
 }
@@ -53,13 +54,13 @@ func ifcRoot(lines ...*layout.Fragment) *layout.Fragment {
 	offsetY := 0
 	for i, l := range lines {
 		links[i] = layout.FragmentLink{
-			Offset:   layout.Point{X: 0, Y: offsetY},
+			Offset:   geom.Point{X: 0, Y: offsetY},
 			Fragment: l,
 		}
 		offsetY += l.Size.Height
 	}
 	return &layout.Fragment{
-		Size:     layout.Size{Width: 80, Height: offsetY},
+		Size:     geom.Size{Width: 80, Height: offsetY},
 		Children: links,
 	}
 }
@@ -358,18 +359,18 @@ func TestFromTextFragment_RespectsOffsets(t *testing.T) {
 	i := textFrag(shapedASCII("i"))
 
 	line0 := &layout.Fragment{
-		Size: layout.Size{Width: 2, Height: 1},
+		Size: geom.Size{Width: 2, Height: 1},
 		Children: []layout.FragmentLink{
-			{Offset: layout.Point{X: 0, Y: 0}, Fragment: h},
-			{Offset: layout.Point{X: 1, Y: 0}, Fragment: i},
+			{Offset: geom.Point{X: 0, Y: 0}, Fragment: h},
+			{Offset: geom.Point{X: 1, Y: 0}, Fragment: i},
 		},
 	}
 
 	root := &layout.Fragment{
-		Size: layout.Size{Width: 10, Height: 3},
+		Size: geom.Size{Width: 10, Height: 3},
 		Children: []layout.FragmentLink{
 			{
-				Offset:   layout.Point{X: 2, Y: 1},
+				Offset:   geom.Point{X: 2, Y: 1},
 				Fragment: line0,
 			},
 		},

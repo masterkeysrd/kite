@@ -5,7 +5,8 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -41,9 +42,9 @@ func TestFlexRowInlineChildrenDoNotGroup(t *testing.T) {
 	input.SetComputedStyle(&sInput)
 	container.InsertChild(input, nil)
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 24}).
-		SetContainerSpace(layout.Size{Width: 100, Height: 24}).
-		SetContainingSpace(layout.Size{Width: 100, Height: 24}).
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 100, Height: 24}).
+		SetContainerSpace(geom.Size{Width: 100, Height: 24}).
+		SetContainingSpace(geom.Size{Width: 100, Height: 24}).
 		ToConstraintSpace()
 
 	algo := layout.GetAlgorithm(container)

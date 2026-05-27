@@ -19,6 +19,6 @@
 // individual render objects.
 //
 // The helper is a pure function with no side effects. It depends only on the
-// [github.com/masterkeysrd/kite/layout] and
+// [github.com/masterkeysrd/kite/internal/layout] and
 // [github.com/masterkeysrd/kite/text] packages.
 package cursor

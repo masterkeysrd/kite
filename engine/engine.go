@@ -18,7 +18,8 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/focus/spatial"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/paint"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
@@ -408,14 +409,14 @@ func (e *Engine) FocusManager() *focus.Manager { return e.focusManager }
 // event target at that position. It tests overlays (topmost-first) before
 // falling through to the main tree. Returns nil when no target is hit.
 func (e *Engine) HitTest(x, y int) event.EventTarget {
-	p := layout.Point{X: x, Y: y}
+	p := geom.Point{X: x, Y: y}
 
 	// Walk overlays from the end (topmost) to start.
 	overlays := e.renderView.Overlays()
 	for i := len(overlays) - 1; i >= 0; i-- {
 		ov := overlays[i]
 		offset := ov.Offset()
-		localP := layout.Point{
+		localP := geom.Point{
 			X: p.X - offset.X,
 			Y: p.Y - offset.Y,
 		}
@@ -565,7 +566,7 @@ func (e *Engine) PostMacro(fn func()) {
 // hitTestFragment walks the immutable layout Fragment tree and returns the deepest
 // render.Object whose computed bounds contain p. p is in the local coordinate space
 // of the given fragment.
-func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
+func hitTestFragment(frag *layout.Fragment, p geom.Point) render.Object {
 	if frag == nil {
 		return nil
 	}
@@ -592,7 +593,7 @@ func hitTestFragment(frag *layout.Fragment, p layout.Point) render.Object {
 	for i := len(frag.Children) - 1; i >= 0; i-- {
 		link := frag.Children[i]
 		// Translate point into child's coordinate space, accounting for scroll.
-		childPoint := layout.Point{
+		childPoint := geom.Point{
 			X: p.X - link.Offset.X + scrollX,
 			Y: p.Y - link.Offset.Y + scrollY,
 		}
@@ -727,7 +728,7 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 							scrollX = max(0, min(rawX, maxSX))
 							scrollY = max(0, min(rawY, maxSY))
 						}
-						cursorPos := layout.Point{
+						cursorPos := geom.Point{
 							X: bounds.Origin.X + state.X - scrollX,
 							Y: bounds.Origin.Y + state.Y - scrollY,
 						}
@@ -737,12 +738,12 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 						cs := ro.ComputedStyle()
 						if cs.OverflowX != style.OverflowVisible || cs.OverflowY != style.OverflowVisible {
 							bw := cs.Border.Widths()
-							contentBox := layout.Rect{
-								Origin: layout.Point{
+							contentBox := geom.Rect{
+								Origin: geom.Point{
 									X: bounds.Origin.X + bw.Left + cs.Padding.Left,
 									Y: bounds.Origin.Y + bw.Top + cs.Padding.Top,
 								},
-								Size: layout.Size{
+								Size: geom.Size{
 									Width:  max(0, bounds.Size.Width-bw.Left-bw.Right-cs.Padding.Left-cs.Padding.Right),
 									Height: max(0, bounds.Size.Height-bw.Top-bw.Bottom-cs.Padding.Top-cs.Padding.Bottom),
 								},
@@ -1021,7 +1022,7 @@ func (e *Engine) Dump(path string) error {
 	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
 	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 	root := e.renderView
-	e.paintEngine.PaintFragment(nil, root.Fragment(), layout.Point{}, fb)
+	e.paintEngine.PaintFragment(nil, root.Fragment(), geom.Point{}, fb)
 	for _, overlay := range root.Overlays() {
 		offset := overlay.Offset()
 		e.paintEngine.PaintFragment(nil, overlay.Fragment(), offset, fb)
@@ -1425,7 +1426,7 @@ func (e *Engine) setLocalWheelCoords(ev *event.WheelEvent, target dom.Node) {
 	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
 		// ScrolledAbsoluteBounds returns the scrolled border-box.
 		// Local coordinate in event should be relative to this scrolled box.
-		ev.Local = layout.Point{
+		ev.Local = geom.Point{
 			X: ev.Screen.X - bounds.Origin.X,
 			Y: ev.Screen.Y - bounds.Origin.Y,
 		}
@@ -1562,8 +1563,8 @@ func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
 }
 
 func (e *Engine) handleResize(ev *event.ResizeEvent) {
-	e.backend.Resize(layout.Size{Width: ev.Width, Height: ev.Height})
-	e.renderView.SetViewportSize(layout.Size{
+	e.backend.Resize(geom.Size{Width: ev.Width, Height: ev.Height})
+	e.renderView.SetViewportSize(geom.Size{
 		Width:  ev.Width,
 		Height: ev.Height,
 	})
@@ -1700,7 +1701,7 @@ func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
 	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
 		// ScrolledAbsoluteBounds returns the scrolled border-box.
 		// Local coordinate in event should be relative to this scrolled box.
-		ev.Local = layout.Point{
+		ev.Local = geom.Point{
 			X: ev.Screen.X - bounds.Origin.X,
 			Y: ev.Screen.Y - bounds.Origin.Y,
 		}

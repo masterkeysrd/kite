@@ -7,7 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -123,11 +123,11 @@ func (s *SelectElement) processSelectChildren(children []any) {
 		case dom.Node:
 			// If it's a node but not an OptionElement, add it to the group's metadata
 			// if it wraps one, otherwise ignore or handle as public child.
+			//
+			// We do NOT add options to the public children list to avoid
+			// rendering them in the main flow.
 			if opt, ok := v.EventTarget().(*OptionElement); ok {
 				s.options = append(s.options, opt)
-			} else {
-				// We do NOT add options to the public children list to avoid
-				// rendering them in the main flow.
 			}
 		default:
 			// Strings and other types are ignored for Select unless they are options.
@@ -236,7 +236,6 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 	content.ScrollbarY(true)
 
 	for _, opt := range s.options {
-		opt := opt // Capture for closure
 		btn := Button(" " + opt.text).Style(style.Style{
 			Display:   style.Some(style.DisplayBlock), // Ensure one per line
 			Width:     style.Some(style.Percent(100)),
@@ -252,7 +251,7 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 
 	s.overlay = NewOverlay(doc, content, OverlayConfig{
 		Anchor:    s,
-		Placement: layout.PlacementBottom,
+		Placement: geom.PlacementBottom,
 		Flip:      true,
 		ZIndex:    1000,
 	})
@@ -330,7 +329,7 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 					// The button's EventKeyDown handler already handles Enter/Space
 					// but it might not have been triggered if we are capturing.
 					// Let's manually trigger selection.
-					btn.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+					btn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 					e.StopPropagation()
 				}
 			}

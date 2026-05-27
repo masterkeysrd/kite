@@ -3,7 +3,8 @@ package inspector
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
@@ -37,8 +38,8 @@ type InspectorPayload struct {
 
 type FragmentSnapshot struct {
 	Name       string              `json:"name"`
-	Offset     layout.Point        `json:"offset"`
-	Size       layout.Size         `json:"size"`
+	Offset     geom.Point          `json:"offset"`
+	Size       geom.Size           `json:"size"`
 	Clusters   []ClusterSnapshot   `json:"clusters,omitempty"`
 	BreakToken *BreakTokenSnapshot `json:"breakToken,omitempty"`
 	Children   []*FragmentSnapshot `json:"children,omitempty"`
@@ -59,7 +60,7 @@ type NodeSnapshot struct {
 	Name        string          `json:"name"`
 	ID          string          `json:"id,omitempty"`
 	Class       string          `json:"class,omitempty"`
-	Rect        layout.Rect     `json:"rect"`
+	Rect        geom.Rect       `json:"rect"`
 	ScrollX     int             `json:"scrollX,omitempty"`
 	ScrollY     int             `json:"scrollY,omitempty"`
 	Disabled    bool            `json:"disabled,omitempty"`
@@ -76,11 +77,11 @@ func (i *Inspector) TakeSnapshot() *InspectorPayload {
 	doc := i.eng.Document()
 	rv := i.eng.RenderView()
 
-	boundsMap := make(map[layout.Node]layout.Rect)
-	i.computeAllBounds(rv.Fragment(), layout.Point{X: 0, Y: 0}, boundsMap)
+	boundsMap := make(map[layout.Node]geom.Rect)
+	i.computeAllBounds(rv.Fragment(), geom.Point{X: 0, Y: 0}, boundsMap)
 
 	for _, overlay := range rv.Overlays() {
-		offset := layout.Point{}
+		offset := geom.Point{}
 		if cs := overlay.ComputedStyle(); cs != nil {
 			offset.X = cs.Margin.Left
 			offset.Y = cs.Margin.Top
@@ -90,7 +91,7 @@ func (i *Inspector) TakeSnapshot() *InspectorPayload {
 
 	payload := &InspectorPayload{
 		DOM:       i.snapshotNode(doc, boundsMap),
-		Fragments: i.snapshotFragment(rv.Fragment(), layout.Point{X: 0, Y: 0}),
+		Fragments: i.snapshotFragment(rv.Fragment(), geom.Point{X: 0, Y: 0}),
 	}
 
 	for overlayEl := range doc.Overlays() {
@@ -98,7 +99,7 @@ func (i *Inspector) TakeSnapshot() *InspectorPayload {
 	}
 
 	for _, overlayRO := range rv.Overlays() {
-		offset := layout.Point{}
+		offset := geom.Point{}
 		if cs := overlayRO.ComputedStyle(); cs != nil {
 			offset.X = cs.Margin.Left
 			offset.Y = cs.Margin.Top
@@ -116,7 +117,7 @@ func (i *Inspector) TakeSnapshot() *InspectorPayload {
 	return payload
 }
 
-func (i *Inspector) snapshotFragment(f *layout.Fragment, offset layout.Point) *FragmentSnapshot {
+func (i *Inspector) snapshotFragment(f *layout.Fragment, offset geom.Point) *FragmentSnapshot {
 	if f == nil {
 		return nil
 	}
@@ -154,23 +155,23 @@ func (i *Inspector) snapshotFragment(f *layout.Fragment, offset layout.Point) *F
 	return s
 }
 
-func (i *Inspector) computeAllBounds(frag *layout.Fragment, origin layout.Point, m map[layout.Node]layout.Rect) {
+func (i *Inspector) computeAllBounds(frag *layout.Fragment, origin geom.Point, m map[layout.Node]geom.Rect) {
 	if frag == nil {
 		return
 	}
-	rect := layout.Rect{Origin: origin, Size: frag.Size}
+	rect := geom.Rect{Origin: origin, Size: frag.Size}
 	if frag.Node != nil {
 		if _, ok := m[frag.Node]; !ok {
 			m[frag.Node] = rect
 		} else {
 			existing := m[frag.Node]
-			newRect := layout.Rect{
-				Origin: layout.Point{
+			newRect := geom.Rect{
+				Origin: geom.Point{
 					X: min(existing.Origin.X, rect.Origin.X),
 					Y: min(existing.Origin.Y, rect.Origin.Y),
 				},
 			}
-			newRect.Size = layout.Size{
+			newRect.Size = geom.Size{
 				Width:  max(existing.Origin.X+existing.Size.Width, rect.Origin.X+rect.Size.Width) - newRect.Origin.X,
 				Height: max(existing.Origin.Y+existing.Size.Height, rect.Origin.Y+rect.Size.Height) - newRect.Origin.Y,
 			}
@@ -178,12 +179,12 @@ func (i *Inspector) computeAllBounds(frag *layout.Fragment, origin layout.Point,
 		}
 	}
 	for _, child := range frag.Children {
-		childOrigin := layout.Point{X: origin.X + child.Offset.X, Y: origin.Y + child.Offset.Y}
+		childOrigin := geom.Point{X: origin.X + child.Offset.X, Y: origin.Y + child.Offset.Y}
 		i.computeAllBounds(child.Fragment, childOrigin, m)
 	}
 }
 
-func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]layout.Rect) *NodeSnapshot {
+func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]geom.Rect) *NodeSnapshot {
 	s := &NodeSnapshot{Kind: n.Kind().String(), Name: n.NodeName(), TextContent: n.TextContent()}
 	if el, ok := n.(dom.Element); ok {
 		s.ID = el.ID()

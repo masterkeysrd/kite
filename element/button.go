@@ -5,7 +5,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -110,7 +110,7 @@ func (b *ButtonElement) handleKeyDown(e event.Event) {
 	// Space or Enter activates the button.
 	if ke.MatchString(" ") || ke.MatchString("enter") {
 		// Fire EventClick.
-		click := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonNone, ke.Mod)
+		click := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonNone, ke.Mod)
 		b.DispatchEvent(click)
 		e.StopPropagation()
 	}

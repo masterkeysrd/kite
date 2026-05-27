@@ -6,7 +6,7 @@ import (
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -30,7 +30,7 @@ func TestOverlay_Positioning(t *testing.T) {
 		}),
 		element.OverlayConfig{
 			Anchor:    anchor,
-			Placement: layout.PlacementBottom,
+			Placement: geom.PlacementBottom,
 			ZIndex:    100,
 		},
 	)
@@ -42,9 +42,9 @@ func TestOverlay_Positioning(t *testing.T) {
 
 	// Verify anchor position
 	anchorRect, _ := anchor.GetBoundingClientRect()
-	expectedAnchorRect := layout.Rect{
-		Origin: layout.Point{X: 10, Y: 5},
-		Size:   layout.Size{Width: 10, Height: 3},
+	expectedAnchorRect := geom.Rect{
+		Origin: geom.Point{X: 10, Y: 5},
+		Size:   geom.Size{Width: 10, Height: 3},
 	}
 	if anchorRect != expectedAnchorRect {
 		t.Errorf("anchor rect mismatch: expected %v, got %v", expectedAnchorRect, anchorRect)
@@ -58,7 +58,7 @@ func TestOverlay_Positioning(t *testing.T) {
 		t.Fatal("overlay render object not created")
 	}
 	ovlOffset := ovlRO.Offset()
-	expectedOvlOffset := layout.Point{X: 10, Y: 8}
+	expectedOvlOffset := geom.Point{X: 10, Y: 8}
 	if ovlOffset != expectedOvlOffset {
 		t.Errorf("overlay offset mismatch: expected %v, got %v", expectedOvlOffset, ovlOffset)
 	}
@@ -84,7 +84,7 @@ func TestOverlay_Flipping(t *testing.T) {
 		}),
 		element.OverlayConfig{
 			Anchor:    anchor,
-			Placement: layout.PlacementBottom,
+			Placement: geom.PlacementBottom,
 			Flip:      true,
 		},
 	)
@@ -100,7 +100,7 @@ func TestOverlay_Flipping(t *testing.T) {
 
 	ovlRO := ovl.RenderObject()
 	ovlOffset := ovlRO.Offset()
-	expectedOvlOffset := layout.Point{X: 10, Y: 15}
+	expectedOvlOffset := geom.Point{X: 10, Y: 15}
 	if ovlOffset != expectedOvlOffset {
 		t.Errorf("overlay should have flipped to Top: expected %v, got %v", expectedOvlOffset, ovlOffset)
 	}
@@ -131,7 +131,7 @@ func TestOverlay_BestFit(t *testing.T) {
 		}),
 		element.OverlayConfig{
 			Anchor:    anchor,
-			Placement: layout.PlacementTop, // Start at Top (space 5)
+			Placement: geom.PlacementTop, // Start at Top (space 5)
 			Flip:      true,
 		},
 	)
@@ -170,7 +170,7 @@ func TestOverlay_HorizontalBestFit(t *testing.T) {
 		}),
 		element.OverlayConfig{
 			Anchor:    anchor,
-			Placement: layout.PlacementLeft,
+			Placement: geom.PlacementLeft,
 			Flip:      true,
 		},
 	)

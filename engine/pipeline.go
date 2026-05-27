@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/paint"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"

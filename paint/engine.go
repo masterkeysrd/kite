@@ -5,7 +5,8 @@ import (
 	"unsafe"
 
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
@@ -20,21 +21,21 @@ func overflowClips(o style.Overflow) bool {
 type PaintEngine struct {
 	DebugXRay bool
 
-	borderPoints []layout.Point
-	clipStack    []layout.Rect
+	borderPoints []geom.Point
+	clipStack    []geom.Rect
 	rootSurface  Surface
 }
 
 // NewPaintEngine creates a new PaintEngine.
 func NewPaintEngine() *PaintEngine {
 	return &PaintEngine{
-		borderPoints: make([]layout.Point, 0, 1024),
-		clipStack:    make([]layout.Rect, 0, 16),
+		borderPoints: make([]geom.Point, 0, 1024),
+		clipStack:    make([]geom.Rect, 0, 16),
 	}
 }
 
 // PaintFragment draws the immutable fragment tree onto the surface at the given origin.
-func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin layout.Point, surface Surface) {
+func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin geom.Point, surface Surface) {
 	if frag == nil {
 		return
 	}
@@ -59,7 +60,7 @@ func (p *PaintEngine) Paint(ctx *Context, frag *layout.Fragment, surface Surface
 	}
 	defer ctx.Begin("Paint")()
 	p.borderPoints = p.borderPoints[:0]
-	p.PaintFragment(ctx, frag, layout.Point{}, surface)
+	p.PaintFragment(ctx, frag, geom.Point{}, surface)
 	p.ResolveBorders(ctx, surface)
 
 	var selection []SelectionRect
@@ -117,11 +118,11 @@ func (p *PaintEngine) setCell(x, y int, c Cell) {
 
 	p.rootSurface.Set(x, y, c)
 	if c.BorderStyle != BorderNone {
-		p.borderPoints = append(p.borderPoints, layout.Point{X: x, Y: y})
+		p.borderPoints = append(p.borderPoints, geom.Point{X: x, Y: y})
 	}
 }
 
-func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin layout.Point) {
+func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin geom.Point) {
 	if frag == nil {
 		return
 	}
@@ -129,7 +130,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 
 	// 0. Frustum Culling: skip if fragment is entirely outside current clip bounds.
 	clip := p.clipStack[len(p.clipStack)-1]
-	fragRect := layout.Rect{Origin: origin, Size: frag.Size}
+	fragRect := geom.Rect{Origin: origin, Size: frag.Size}
 	if !clip.Overlaps(fragRect) {
 		return
 	}
@@ -145,7 +146,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 
 		if hasVisuals {
 			if s.Background != nil && !isTransparent(s.Background) {
-				p.fillRect(layout.Rect{
+				p.fillRect(geom.Rect{
 					Origin: origin,
 					Size:   frag.Size,
 				}, " ", color.Transparent, s.Background)
@@ -154,7 +155,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			// Render border.
 			if s.Border.Edges.Top || s.Border.Edges.Bottom || s.Border.Edges.Left || s.Border.Edges.Right {
 				_, bg := p.getInheritedStyle(frag)
-				p.drawBorder(layout.Rect{
+				p.drawBorder(geom.Rect{
 					Origin: origin,
 					Size:   frag.Size,
 				}, s.Border, bg)
@@ -207,7 +208,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 
 	// 6. Recurse children (children are painted over parent).
 	for _, childLink := range frag.Children {
-		childOrigin := layout.Point{
+		childOrigin := geom.Point{
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
@@ -224,7 +225,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 	p.paintScrollbars(frag, origin)
 }
 
-func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin layout.Point) {
+func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) {
 	if !frag.HasScrollbarY && !frag.HasScrollbarX {
 		return
 	}
@@ -345,7 +346,7 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin layout.Point
 	}
 }
 
-func (p *PaintEngine) pushChildClip(frag *layout.Fragment, origin layout.Point) {
+func (p *PaintEngine) pushChildClip(frag *layout.Fragment, origin geom.Point) {
 	parentClip := p.clipStack[len(p.clipStack)-1]
 
 	if frag == nil || frag.Node == nil || frag.Node.Style() == nil {
@@ -373,7 +374,7 @@ func (p *PaintEngine) pushChildClip(frag *layout.Fragment, origin layout.Point) 
 	insetRight := bw.Right + pad.Right
 	insetBottom := bw.Bottom + pad.Bottom
 
-	var clipRect layout.Rect
+	var clipRect geom.Rect
 
 	if clipX {
 		clipRect.Origin.X = origin.X + insetLeft
@@ -400,7 +401,7 @@ func (p *PaintEngine) popClip() {
 	}
 }
 
-func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin layout.Point) {
+func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin geom.Point) {
 	s := frag.Node.Style()
 	if s == nil {
 		return
@@ -411,9 +412,9 @@ func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin layout.Point) {
 	mar := s.Margin
 
 	// 1. Margin Box (Red border/tint)
-	marginRect := layout.Rect{
-		Origin: layout.Point{X: origin.X - mar.Left, Y: origin.Y - mar.Top},
-		Size: layout.Size{
+	marginRect := geom.Rect{
+		Origin: geom.Point{X: origin.X - mar.Left, Y: origin.Y - mar.Top},
+		Size: geom.Size{
 			Width:  frag.Size.Width + mar.Left + mar.Right,
 			Height: frag.Size.Height + mar.Top + mar.Bottom,
 		},
@@ -421,9 +422,9 @@ func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin layout.Point) {
 	p.tintRect(marginRect, color.RGBA{100, 0, 0, 255})
 
 	// 2. Padding Box (Green border/tint)
-	paddingRect := layout.Rect{
-		Origin: layout.Point{X: origin.X + bw.Left, Y: origin.Y + bw.Top},
-		Size: layout.Size{
+	paddingRect := geom.Rect{
+		Origin: geom.Point{X: origin.X + bw.Left, Y: origin.Y + bw.Top},
+		Size: geom.Size{
 			Width:  max(0, frag.Size.Width-bw.Left-bw.Right),
 			Height: max(0, frag.Size.Height-bw.Top-bw.Bottom),
 		},
@@ -431,9 +432,9 @@ func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin layout.Point) {
 	p.tintRect(paddingRect, color.RGBA{0, 100, 0, 255})
 
 	// 3. Content Box (Blue border/tint)
-	contentRect := layout.Rect{
-		Origin: layout.Point{X: paddingRect.Origin.X + pad.Left, Y: paddingRect.Origin.Y + pad.Top},
-		Size: layout.Size{
+	contentRect := geom.Rect{
+		Origin: geom.Point{X: paddingRect.Origin.X + pad.Left, Y: paddingRect.Origin.Y + pad.Top},
+		Size: geom.Size{
 			Width:  max(0, paddingRect.Size.Width-pad.Left-pad.Right),
 			Height: max(0, paddingRect.Size.Height-pad.Top-pad.Bottom),
 		},
@@ -441,7 +442,7 @@ func (p *PaintEngine) drawXRay(frag *layout.Fragment, origin layout.Point) {
 	p.tintRect(contentRect, color.RGBA{0, 0, 100, 255})
 }
 
-func (p *PaintEngine) tintRect(r layout.Rect, c color.Color) {
+func (p *PaintEngine) tintRect(r geom.Rect, c color.Color) {
 	for y := 0; y < r.Size.Height; y++ {
 		for x := 0; x < r.Size.Width; x++ {
 			absX, absY := r.Origin.X+x, r.Origin.Y+y
@@ -635,7 +636,7 @@ func isScrollContainer(o style.Overflow) bool {
 	return o == style.OverflowScroll || o == style.OverflowAuto || o == style.OverflowHidden || o == style.OverflowClip
 }
 
-func (p *PaintEngine) fillRect(r layout.Rect, content string, fg, bg color.Color) {
+func (p *PaintEngine) fillRect(r geom.Rect, content string, fg, bg color.Color) {
 	clip := p.clipStack[len(p.clipStack)-1]
 
 	visibleRect := r.Intersect(clip)
@@ -655,7 +656,7 @@ func (p *PaintEngine) fillRect(r layout.Rect, content string, fg, bg color.Color
 	}
 }
 
-func (p *PaintEngine) drawBorder(r layout.Rect, border style.Border, bg color.Color) {
+func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Color) {
 	width := r.Size.Width
 	height := r.Size.Height
 	x := r.Origin.X

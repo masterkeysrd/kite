@@ -1,6 +1,9 @@
 package layout
 
-import "github.com/masterkeysrd/kite/style"
+import (
+	geometry "github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/style"
+)
 
 // BuildChildSpace constructs a ConstraintSpace for a block-level child element.
 //
@@ -14,7 +17,7 @@ import "github.com/masterkeysrd/kite/style"
 //
 // This function centralises the child constraint generation that was previously
 // duplicated across BlockAlgorithm and ListAlgorithm (ADR-018).
-func BuildChildSpace(child Node, containerSpace Size, containingSpace Size, parentSpace ConstraintSpace) ConstraintSpace {
+func BuildChildSpace(child Node, containerSpace geometry.Size, containingSpace geometry.Size, parentSpace ConstraintSpace) ConstraintSpace {
 	childStyle := child.Style()
 	childMargin := childStyle.Margin
 
@@ -22,7 +25,7 @@ func BuildChildSpace(child Node, containerSpace Size, containingSpace Size, pare
 	childAvailHeight := max(0, containerSpace.Height-childMargin.Top-childMargin.Bottom)
 
 	space := ConstraintSpace{
-		AvailableSize:   Size{Width: childAvailWidth, Height: childAvailHeight},
+		AvailableSize:   geometry.Size{Width: childAvailWidth, Height: childAvailHeight},
 		ContainingSpace: containingSpace,
 		ContainerSpace:  containerSpace,
 	}

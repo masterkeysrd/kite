@@ -3,32 +3,33 @@ package layout
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type mockOverlayNode struct {
 	mockNode
 	anchor    any
-	placement OverlayPlacement
+	placement geom.Placement
 	flip      bool
 }
 
-func (m *mockOverlayNode) Anchor() any                 { return m.anchor }
-func (m *mockOverlayNode) Placement() OverlayPlacement { return m.placement }
-func (m *mockOverlayNode) Flip() bool                  { return m.flip }
-func (m *mockOverlayNode) LogicalNode() any            { return m }
+func (m *mockOverlayNode) Anchor() any               { return m.anchor }
+func (m *mockOverlayNode) Placement() geom.Placement { return m.placement }
+func (m *mockOverlayNode) Flip() bool                { return m.flip }
+func (m *mockOverlayNode) LogicalNode() any          { return m }
 
 type mockAnchor struct {
-	rect Rect
+	rect geom.Rect
 }
 
-func (a *mockAnchor) GetBoundingClientRect() (Rect, bool) {
+func (a *mockAnchor) GetBoundingClientRect() (geom.Rect, bool) {
 	return a.rect, true
 }
 
 func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 	// Viewport 80x24.
-	viewport := Size{80, 24}
+	viewport := geom.Size{80, 24}
 	space := NewConstraintSpaceBuilder(viewport).
 		SetContainingSpace(viewport).
 		SetContainerSpace(viewport).
@@ -46,7 +47,7 @@ func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 	// Top space: 5, Bottom space: 24 - 7 = 17.
 	// Primary placement: Top.
 	// Should flip to Bottom.
-	anchorV := &mockAnchor{rect: Rect{Origin: Point{10, 5}, Size: Size{10, 2}}}
+	anchorV := &mockAnchor{rect: geom.Rect{Origin: geom.Point{10, 5}, Size: geom.Size{10, 2}}}
 	nodeV := &mockOverlayNode{
 		mockNode: mockNode{
 			style: &style.Computed{
@@ -55,7 +56,7 @@ func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 			firstChild: content,
 		},
 		anchor:    anchorV,
-		placement: PlacementTop,
+		placement: geom.PlacementTop,
 		flip:      true,
 	}
 
@@ -76,13 +77,13 @@ func TestOverlayAlgorithm_BestFitChoosing(t *testing.T) {
 
 type capturedOffsetNode struct {
 	mockOverlayNode
-	offset Point
+	offset geom.Point
 }
 
-func (m *capturedOffsetNode) SetOffset(p Point) { m.offset = p }
+func (m *capturedOffsetNode) SetOffset(p geom.Point) { m.offset = p }
 
 func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
-	viewport := Size{80, 24}
+	viewport := geom.Size{80, 24}
 	space := NewConstraintSpaceBuilder(viewport).
 		SetContainingSpace(viewport).
 		SetContainerSpace(viewport).
@@ -95,39 +96,39 @@ func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		anchor    Rect
-		placement OverlayPlacement
-		expected  Point
+		anchor    geom.Rect
+		placement geom.Placement
+		expected  geom.Point
 	}{
 		{
 			name:      "Vertical flip to Bottom (more space)",
-			anchor:    Rect{Origin: Point{10, 5}, Size: Size{10, 2}},
-			placement: PlacementTop,
-			expected:  Point{10, 7}, // anchor.Y + anchor.H
+			anchor:    geom.Rect{Origin: geom.Point{10, 5}, Size: geom.Size{10, 2}},
+			placement: geom.PlacementTop,
+			expected:  geom.Point{10, 7}, // anchor.Y + anchor.H
 		},
 		{
 			name:      "Vertical flip to Top (more space)",
-			anchor:    Rect{Origin: Point{10, 15}, Size: Size{10, 2}},
-			placement: PlacementBottom,
-			expected:  Point{10, 5}, // anchor.Y - content.H
+			anchor:    geom.Rect{Origin: geom.Point{10, 15}, Size: geom.Size{10, 2}},
+			placement: geom.PlacementBottom,
+			expected:  geom.Point{10, 5}, // anchor.Y - content.H
 		},
 		{
 			name:      "Horizontal flip to Right (more space)",
-			anchor:    Rect{Origin: Point{5, 10}, Size: Size{2, 10}},
-			placement: PlacementLeft,
-			expected:  Point{7, 10}, // anchor.X + anchor.W
+			anchor:    geom.Rect{Origin: geom.Point{5, 10}, Size: geom.Size{2, 10}},
+			placement: geom.PlacementLeft,
+			expected:  geom.Point{7, 10}, // anchor.X + anchor.W
 		},
 		{
 			name:      "Horizontal flip to Left (more space)",
-			anchor:    Rect{Origin: Point{65, 10}, Size: Size{2, 10}},
-			placement: PlacementRight,
-			expected:  Point{67, 10}, // Does not flip because it fits at Right.
+			anchor:    geom.Rect{Origin: geom.Point{65, 10}, Size: geom.Size{2, 10}},
+			placement: geom.PlacementRight,
+			expected:  geom.Point{67, 10}, // Does not flip because it fits at Right.
 		},
 		{
 			name:      "Horizontal flip to Right (more space) when at right edge",
-			anchor:    Rect{Origin: Point{75, 10}, Size: Size{2, 10}},
-			placement: PlacementRight,
-			expected:  Point{65, 10}, // Still flips to Left because Right overflows.
+			anchor:    geom.Rect{Origin: geom.Point{75, 10}, Size: geom.Size{2, 10}},
+			placement: geom.PlacementRight,
+			expected:  geom.Point{65, 10}, // Still flips to Left because Right overflows.
 		},
 	}
 
@@ -152,10 +153,10 @@ func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
 
 			// Manually set the cached fragment on the content node so OverlayAlgorithm
 			// can measure it without running a full block layout.
-			content.SetCachedLayout(ConstraintSpace{}, &Fragment{Size: Size{10, 10}})
+			content.SetCachedLayout(ConstraintSpace{}, &Fragment{Size: geom.Size{10, 10}})
 			// We must ALSO set it on the overlay node itself because OverlayAlgorithm
 			// will try to use BlockAlgorithm on node.
-			node.SetCachedLayout(space, &Fragment{Size: Size{10, 10}})
+			node.SetCachedLayout(space, &Fragment{Size: geom.Size{10, 10}})
 
 			algo.Layout(nil, node, space)
 

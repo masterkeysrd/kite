@@ -20,8 +20,9 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -59,7 +60,7 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 
 	frag := &layout.Fragment{
 		Node: ro,
-		Size: layout.Size{Width: 10, Height: 1},
+		Size: geom.Size{Width: 10, Height: 1},
 	}
 	ro.SetCachedLayout(layout.ConstraintSpace{}, frag)
 
@@ -77,12 +78,12 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 		prevChildren = prev.Children
 	}
 	newChildren := append(prevChildren, layout.FragmentLink{
-		Offset:   layout.Point{X: 0, Y: yOffset},
+		Offset:   geom.Point{X: 0, Y: yOffset},
 		Fragment: frag,
 	})
 	eng.renderView.SetCachedLayout(layout.ConstraintSpace{}, &layout.Fragment{
 		Node:     eng.renderView,
-		Size:     layout.Size{Width: 80, Height: 24},
+		Size:     geom.Size{Width: 80, Height: 24},
 		Children: newChildren,
 	})
 
@@ -132,7 +133,7 @@ func TestDispatchMouseEvent_NonFocusable_LeavesExistingFocus(t *testing.T) {
 	plainEl := eng.document.CreateElement("div", nil)
 	plainRO := render.NewBox(plainEl, plainEl)
 	plainRO.SetComputedStyle(&style.Computed{Display: style.DisplayBlock})
-	plainFrag := &layout.Fragment{Node: plainRO, Size: layout.Size{Width: 10, Height: 1}}
+	plainFrag := &layout.Fragment{Node: plainRO, Size: geom.Size{Width: 10, Height: 1}}
 	plainRO.SetCachedLayout(layout.ConstraintSpace{}, plainFrag)
 	plainEl.SetRenderObject(plainRO)
 	eng.renderView.InsertChild(plainRO, nil)
@@ -140,9 +141,9 @@ func TestDispatchMouseEvent_NonFocusable_LeavesExistingFocus(t *testing.T) {
 	prev := eng.renderView.Fragment()
 	eng.renderView.SetCachedLayout(layout.ConstraintSpace{}, &layout.Fragment{
 		Node: eng.renderView,
-		Size: layout.Size{Width: 80, Height: 24},
+		Size: geom.Size{Width: 80, Height: 24},
 		Children: append(prev.Children, layout.FragmentLink{
-			Offset:   layout.Point{X: 0, Y: 2},
+			Offset:   geom.Point{X: 0, Y: 2},
 			Fragment: plainFrag,
 		}),
 	})

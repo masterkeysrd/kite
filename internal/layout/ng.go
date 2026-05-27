@@ -3,6 +3,7 @@ package layout
 import (
 	"math"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
@@ -18,7 +19,7 @@ const InfiniteBlockSize = math.MaxInt32 / 2
 // allows fragments to be cached and reused across layout passes.
 type Fragment struct {
 	// Size is the computed physical dimensions of this fragment in terminal cells.
-	Size Size
+	Size geometry.Size
 
 	// Node is the layout node that generated this fragment.
 	Node Node
@@ -54,7 +55,7 @@ type BreakToken struct {
 // allowing the exact same Fragment to be reused in different positions.
 type FragmentLink struct {
 	// Offset is the physical position of the child relative to the parent fragment's origin.
-	Offset Point
+	Offset geometry.Point
 
 	// Fragment is the immutable child fragment.
 	Fragment *Fragment
@@ -74,15 +75,15 @@ type FragmentLink struct {
 //     outer size for algorithms that require it (e.g. intrinsic sizing, positioning).
 type ConstraintSpace struct {
 	// AvailableSize is the ideal size the node should consume, provided by the parent.
-	AvailableSize Size
+	AvailableSize geometry.Size
 
 	// ContainingSpace is the parent's resolved border-box dimensions.
-	ContainingSpace Size
+	ContainingSpace geometry.Size
 
 	// ContainerSpace is the parent's content-box dimensions
 	// (ContainingSpace minus border minus padding).
 	// KindPercent resolution and per-child AvailableSize derive from this field.
-	ContainerSpace Size
+	ContainerSpace geometry.Size
 
 	// IsFixedInlineSize indicates the inline size (width) is pre-determined.
 	IsFixedInlineSize bool
@@ -151,8 +152,8 @@ func ShouldReserveScrollbar(s *style.Computed) (x, y bool) {
 
 // ViewportSize returns the available content area for a fragment of the given
 // outer size, accounting for decorations.
-func (d ResolvedDecorations) ViewportSize(outer Size) Size {
-	return Size{
+func (d ResolvedDecorations) ViewportSize(outer geometry.Size) geometry.Size {
+	return geometry.Size{
 		Width:  max(0, outer.Width-d.Insets.Left-d.Insets.Right),
 		Height: max(0, outer.Height-d.Insets.Top-d.Insets.Bottom),
 	}
@@ -283,7 +284,7 @@ func IntrinsicBlockSize(ctx *Context, node Node, availableWidth int) int {
 	// Without this, a child with width:100% would resolve to 0 (ContainerSpace.Width=0),
 	// causing the IFC to place each character on its own line and return a wildly
 	// inflated block height.
-	probeSize := Size{Width: availableWidth, Height: InfiniteBlockSize}
+	probeSize := geometry.Size{Width: availableWidth, Height: InfiniteBlockSize}
 	space := NewConstraintSpaceBuilder(probeSize).
 		SetContainerSpace(probeSize).
 		SetContainingSpace(probeSize).
@@ -294,12 +295,12 @@ func IntrinsicBlockSize(ctx *Context, node Node, availableWidth int) int {
 // AbsoluteBounds traverses the fragment tree starting at root and computes the absolute
 // bounding rectangle of the target node. Returns the rect and true if found, or a zero
 // rect and false if the node is not present in the tree.
-func AbsoluteBounds(root *Fragment, target Node) (Rect, bool) {
+func AbsoluteBounds(root *Fragment, target Node) (geometry.Rect, bool) {
 	if root == nil {
-		return Rect{}, false
+		return geometry.Rect{}, false
 	}
 	if root.Node == target {
-		return Rect{Origin: Point{0, 0}, Size: root.Size}, true
+		return geometry.Rect{Origin: geometry.Point{0, 0}, Size: root.Size}, true
 	}
 	for _, childLink := range root.Children {
 		if rect, found := AbsoluteBounds(childLink.Fragment, target); found {
@@ -309,7 +310,7 @@ func AbsoluteBounds(root *Fragment, target Node) (Rect, bool) {
 			return rect, true
 		}
 	}
-	return Rect{}, false
+	return geometry.Rect{}, false
 }
 
 // ScrolledAbsoluteBounds returns the absolute bounding box of target, shifted
@@ -320,22 +321,22 @@ func AbsoluteBounds(root *Fragment, target Node) (Rect, bool) {
 //   - clip: the absolute content-box clip rectangle of the nearest clipping
 //     ancestor (intersected with all further clipping ancestors).
 //   - found: true if target was found in the subtree.
-func ScrolledAbsoluteBounds(root *Fragment, target Node) (rect Rect, clip Rect, found bool) {
-	return scrolledAbsoluteBounds(root, target, Point{0, 0}, InfiniteRect())
+func ScrolledAbsoluteBounds(root *Fragment, target Node) (rect geometry.Rect, clip geometry.Rect, found bool) {
+	return scrolledAbsoluteBounds(root, target, geometry.Point{0, 0}, InfiniteRect())
 }
 
 type scrollableElement interface {
 	Scroll() (x, y int)
 }
 
-func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentClip Rect) (Rect, Rect, bool) {
+func scrolledAbsoluteBounds(frag *Fragment, target Node, origin geometry.Point, currentClip geometry.Rect) (geometry.Rect, geometry.Rect, bool) {
 	if frag == nil {
-		return Rect{}, Rect{}, false
+		return geometry.Rect{}, geometry.Rect{}, false
 	}
 
 	// 1. If this is the target, we found it.
 	if frag.Node == target {
-		return Rect{Origin: origin, Size: frag.Size}, currentClip, true
+		return geometry.Rect{Origin: origin, Size: frag.Size}, currentClip, true
 	}
 
 	// 2. Compute the new clip rect if this fragment clips.
@@ -355,7 +356,7 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 			insetRight := bw.Right + pad.Right
 			insetBottom := bw.Bottom + pad.Bottom
 
-			var fragClip Rect
+			var fragClip geometry.Rect
 			if clipX {
 				fragClip.Origin.X = origin.X + insetLeft
 				fragClip.Size.Width = max(0, frag.Size.Width-insetLeft-insetRight)
@@ -392,7 +393,7 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 
 	// 4. Recurse.
 	for _, childLink := range frag.Children {
-		childOrigin := Point{
+		childOrigin := geometry.Point{
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
@@ -401,7 +402,7 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin Point, currentCl
 		}
 	}
 
-	return Rect{}, Rect{}, false
+	return geometry.Rect{}, geometry.Rect{}, false
 }
 
 // MaxScroll calculates the maximum horizontal and vertical scroll offsets

@@ -1,6 +1,8 @@
 package layout
 
 import (
+	"github.com/masterkeysrd/kite/geom"
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -60,7 +62,7 @@ type Node interface {
 	SetCachedMinMaxSizes(sizes MinMaxSizes)
 
 	// SetOffset updates the physical offset of this node.
-	SetOffset(Point)
+	SetOffset(geometry.Point)
 
 	// IsAnonymous reports whether this node is a virtual layout-only node
 	// (like flex's AnonymousBlock) that should trigger shrink-wrap for auto width.
@@ -105,17 +107,8 @@ func IsInlineLevel(node Node) bool {
 	return comp.Display == style.DisplayInline || comp.Display == style.DisplayInlineBlock || comp.Display == style.DisplayInlineFlex
 }
 
-type OverlayPlacement int
-
-const (
-	PlacementTop OverlayPlacement = iota
-	PlacementBottom
-	PlacementLeft
-	PlacementRight
-)
-
 type OverlayLever interface {
 	Anchor() any // Returns dom.Element, but typed as any to avoid cycle
-	Placement() OverlayPlacement
+	Placement() geom.Placement
 	Flip() bool
 }

@@ -3,7 +3,8 @@ package paint
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
@@ -16,16 +17,16 @@ func buildBenchTree(n int, rootStyle *style.Computed) *layout.Fragment {
 	children := make([]layout.FragmentLink, n)
 	for i := range children {
 		children[i] = layout.FragmentLink{
-			Offset: layout.Point{X: i, Y: 0},
+			Offset: geom.Point{X: i, Y: 0},
 			Fragment: &layout.Fragment{
-				Size: layout.Size{Width: 1, Height: 1},
+				Size: geom.Size{Width: 1, Height: 1},
 				Node: &mockNode{s: childStyle},
 				Text: []text.Cluster{{Bytes: []byte("x"), CellWidth: 1}},
 			},
 		}
 	}
 	return &layout.Fragment{
-		Size:     layout.Size{Width: n, Height: 1},
+		Size:     geom.Size{Width: n, Height: 1},
 		Node:     &mockNode{s: rootStyle},
 		Children: children,
 	}
@@ -40,16 +41,16 @@ func buildDeepBenchTree(depth, nLeaves int, wrapStyle, leafStyle *style.Computed
 	leaves := make([]layout.FragmentLink, nLeaves)
 	for i := range leaves {
 		leaves[i] = layout.FragmentLink{
-			Offset: layout.Point{X: i, Y: 0},
+			Offset: geom.Point{X: i, Y: 0},
 			Fragment: &layout.Fragment{
-				Size: layout.Size{Width: 1, Height: 1},
+				Size: geom.Size{Width: 1, Height: 1},
 				Node: &mockNode{s: leafStyle},
 				Text: []text.Cluster{{Bytes: []byte("x"), CellWidth: 1}},
 			},
 		}
 	}
 	current := &layout.Fragment{
-		Size:     layout.Size{Width: nLeaves, Height: 1},
+		Size:     geom.Size{Width: nLeaves, Height: 1},
 		Node:     &mockNode{s: leafStyle},
 		Children: leaves,
 	}
@@ -57,10 +58,10 @@ func buildDeepBenchTree(depth, nLeaves int, wrapStyle, leafStyle *style.Computed
 	// Wrap current in depth wrapper fragments, each with OverflowHidden.
 	for range depth {
 		current = &layout.Fragment{
-			Size: layout.Size{Width: nLeaves, Height: 1},
+			Size: geom.Size{Width: nLeaves, Height: 1},
 			Node: &mockNode{s: wrapStyle},
 			Children: []layout.FragmentLink{
-				{Offset: layout.Point{}, Fragment: current},
+				{Offset: geom.Point{}, Fragment: current},
 			},
 		}
 	}
@@ -83,7 +84,7 @@ func BenchmarkPaint_NoOverflow(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		fb.BumpVersion()
-		pe.PaintFragment(nil, frag, layout.Point{}, fb)
+		pe.PaintFragment(nil, frag, geom.Point{}, fb)
 	}
 }
 
@@ -107,6 +108,6 @@ func BenchmarkPaint_DeepNestedClips(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		fb.BumpVersion()
-		pe.PaintFragment(nil, frag, layout.Point{}, fb)
+		pe.PaintFragment(nil, frag, geom.Point{}, fb)
 	}
 }

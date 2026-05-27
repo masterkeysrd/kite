@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -37,9 +38,9 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			firstChild: c1,
 		}
 
-		space := NewConstraintSpaceBuilder(Size{20, 10}).
-			SetContainingSpace(Size{20, 10}).
-			SetContainerSpace(Size{20, 10}).
+		space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).
+			SetContainingSpace(geometry.Size{20, 10}).
+			SetContainerSpace(geometry.Size{20, 10}).
 			SetIsFixedInlineSize(true).
 			SetIsFixedBlockSize(true).
 			ToConstraintSpace()
@@ -64,7 +65,7 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 		}
 
 		// Check offsets
-		expectedOffsets := []Point{
+		expectedOffsets := []geometry.Point{
 			{0, 0}, {10, 0},
 			{0, 5}, {10, 5},
 		}
@@ -87,8 +88,8 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			firstChild: c1,
 		}
 
-		space := NewConstraintSpaceBuilder(Size{100, 100}).
-			SetContainerSpace(Size{100, 100}).
+		space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).
+			SetContainerSpace(geometry.Size{100, 100}).
 			ToConstraintSpace()
 
 		algo := GetAlgorithm(parent)
@@ -117,8 +118,8 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			firstChild: c1,
 		}
 
-		space := NewConstraintSpaceBuilder(Size{100, 100}).
-			SetContainerSpace(Size{100, 100}).
+		space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).
+			SetContainerSpace(geometry.Size{100, 100}).
 			ToConstraintSpace()
 
 		algo := GetAlgorithm(parent)
@@ -143,8 +144,8 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 				Width:               style.Auto,
 			},
 		}
-		space := NewConstraintSpaceBuilder(Size{85, 54}).
-			SetContainerSpace(Size{85, 54}).
+		space := NewConstraintSpaceBuilder(geometry.Size{85, 54}).
+			SetContainerSpace(geometry.Size{85, 54}).
 			ToConstraintSpace()
 		algo := GetAlgorithm(parent)
 		frag := algo.Layout(&Context{}, parent, space)
@@ -178,13 +179,13 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			firstChild: c1,
 		}
 
-		space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+		space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
 		algo := GetAlgorithm(parent)
 
 		// This should NOT panic or hang even if the child wants 100% of an indefinite height.
 		frag := algo.Layout(&Context{}, parent, space)
 
-		// Size should be at least 0.
+		// geometry.Size should be at least 0.
 		if frag.Size.Height < 0 {
 			t.Errorf("expected non-negative height, got %d", frag.Size.Height)
 		}
@@ -210,7 +211,7 @@ func TestGridAlgorithm_Layout(t *testing.T) {
 			firstChild: c1,
 		}
 
-		space := NewConstraintSpaceBuilder(Size{40, 10}).ToConstraintSpace()
+		space := NewConstraintSpaceBuilder(geometry.Size{40, 10}).ToConstraintSpace()
 		algo := GetAlgorithm(parent)
 		frag := algo.Layout(&Context{}, parent, space)
 
@@ -290,7 +291,7 @@ func TestGridAlgorithm_Rendering(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	ctx := &Context{}
 	frag := algo.Layout(ctx, parent, space)
@@ -336,7 +337,7 @@ func TestGridAlgorithm_ExplicitPlacement(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{30, 20}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{30, 20}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	ctx := &Context{}
 	frag := algo.Layout(ctx, parent, space)

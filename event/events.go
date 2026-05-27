@@ -3,8 +3,8 @@
 package event
 
 import (
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 )
 
 // EventType is a typed string identifier for event.
@@ -204,9 +204,9 @@ type MouseEvent struct {
 	BaseEvent
 
 	// Screen holds the absolute screen-space coordinates.
-	Screen layout.Point
+	Screen geom.Point
 	// Local holds the coordinates local to the Target's render bounds.
-	Local layout.Point
+	Local geom.Point
 	// Hit is the cached hit-test result from when the event was synthesized.
 	Hit HitResult
 	// Button is the mouse button involved.
@@ -216,7 +216,7 @@ type MouseEvent struct {
 }
 
 // NewMouseEvent creates a MouseEvent of the given type.
-func NewMouseEvent(typ EventType, screen layout.Point, button MouseButton, mods Modifiers) *MouseEvent {
+func NewMouseEvent(typ EventType, screen geom.Point, button MouseButton, mods Modifiers) *MouseEvent {
 	return &MouseEvent{
 		BaseEvent: BaseEvent{typ: typ, bubbles: true},
 		Screen:    screen,
@@ -230,9 +230,9 @@ type WheelEvent struct {
 	BaseEvent
 
 	// Screen holds the absolute screen-space coordinates.
-	Screen layout.Point
+	Screen geom.Point
 	// Local holds the coordinates local to the Target's render bounds.
-	Local layout.Point
+	Local geom.Point
 	// DeltaX is the horizontal scroll delta (positive = right).
 	DeltaX int
 	// DeltaY is the vertical scroll delta (positive = down).
@@ -242,7 +242,7 @@ type WheelEvent struct {
 }
 
 // NewWheelEvent creates a WheelEvent.
-func NewWheelEvent(screen layout.Point, dx, dy int, mods Modifiers) *WheelEvent {
+func NewWheelEvent(screen geom.Point, dx, dy int, mods Modifiers) *WheelEvent {
 	return &WheelEvent{
 		BaseEvent: BaseEvent{typ: EventWheel, bubbles: true},
 		Screen:    screen,

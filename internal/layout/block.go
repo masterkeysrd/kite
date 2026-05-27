@@ -1,6 +1,7 @@
 package layout
 
 import (
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -132,7 +133,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 				break
 			}
 			lineFrag := line.ToFragment()
-			offset := Point{
+			offset := geometry.Point{
 				X: decor.Insets.Left,
 				Y: builder.CurrentBlockOffset(),
 			}
@@ -144,10 +145,10 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		// one content row — just like a browser renders an empty line box.
 		if linesEmitted == 0 {
 			line := &LineBox{
-				Size: Size{Width: 0, Height: 1},
+				Size: geometry.Size{Width: 0, Height: 1},
 			}
 			lineFrag := line.ToFragment()
-			offset := Point{
+			offset := geometry.Point{
 				X: decor.Insets.Left,
 				Y: builder.CurrentBlockOffset(),
 			}
@@ -174,9 +175,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 
 		// 5. Constraint Generation: delegate to BuildChildSpace (ADR-018).
 		// Adjust container height for the space already consumed by previous children.
-		containingSpace := Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height}
-		containerSpace := Size{Width: contentWidth, Height: max(0, space.AvailableSize.Height-decor.Insets.Top-decor.Insets.Bottom)}
-		adjustedContainer := Size{
+		containingSpace := geometry.Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height}
+		containerSpace := geometry.Size{Width: contentWidth, Height: max(0, space.AvailableSize.Height-decor.Insets.Top-decor.Insets.Bottom)}
+		adjustedContainer := geometry.Size{
 			Width:  containerSpace.Width,
 			Height: max(0, containerSpace.Height-(builder.CurrentBlockOffset()-decor.Insets.Top)),
 		}
@@ -184,7 +185,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		childAlgo := GetAlgorithm(child)
 		childFrag := childAlgo.Layout(ctx, child, childSpace)
 
-		offset := Point{
+		offset := geometry.Point{
 			X: decor.Insets.Left + childMargin.Left,
 			Y: builder.CurrentBlockOffset() + childMargin.Top,
 		}

@@ -4,7 +4,8 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -16,7 +17,7 @@ func (n *stubNode) RawStyle() style.Style { return n.style }
 
 func TestRegression_InheritancePropagation(t *testing.T) {
 	view := NewRenderView()
-	view.SetViewportSize(layout.Size{Width: 80, Height: 24})
+	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
 	pNode := &stubNode{style: style.Style{
 		Foreground: style.Some[color.Color](color.White),
@@ -52,7 +53,7 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 
 func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	view := NewRenderView()
-	view.SetViewportSize(layout.Size{Width: 80, Height: 24})
+	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
 	fNode := &stubNode{style: style.Style{
 		Display: style.Some(style.DisplayFlex),
@@ -106,7 +107,7 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 
 func TestRegression_MultipleChildrenBlock(t *testing.T) {
 	view := NewRenderView()
-	view.SetViewportSize(layout.Size{Width: 80, Height: 24})
+	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
 	block := NewBlock(nil, nil)
 	view.InsertChild(block, nil)
@@ -141,7 +142,7 @@ func TestRegression_ListNoChildrenNoCrash(t *testing.T) {
 		ListStyleType: style.ListStyleDisc,
 	})
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := layout.GetAlgorithm(node)
 
 	// Should not crash

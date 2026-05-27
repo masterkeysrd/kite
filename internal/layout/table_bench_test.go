@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -51,7 +52,7 @@ func BenchmarkTableLayout_50x10(b *testing.B) {
 		firstChild: linkSiblings(rows),
 	}
 
-	space := NewConstraintSpaceBuilder(Size{Width: 200, Height: 1000}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 200, Height: 1000}).ToConstraintSpace()
 
 	for b.Loop() {
 		// Clear cache manually to benchmark pure layout time

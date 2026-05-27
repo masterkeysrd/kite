@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -26,7 +27,7 @@ func TestInlineLayout_BasicText(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -69,7 +70,7 @@ func TestInlineLayout_Wrapping(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -112,7 +113,7 @@ func TestInlineLayout_AtomicInline(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -166,7 +167,7 @@ func TestInlineLayout_InlineFlexAtomic(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -213,7 +214,7 @@ func TestInlineLayout_NoWrap(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -245,7 +246,7 @@ func TestInlineLayout_Alignment(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{10, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{10, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -312,7 +313,7 @@ func TestInlineLayout_SpaceCollapsing(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 1}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 1}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -352,7 +353,7 @@ func BenchmarkInlineLayout(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{50, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{50, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -376,7 +377,7 @@ func BenchmarkInlineLayout_Wrapping(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -408,7 +409,7 @@ func BenchmarkInlineLayout_Atomic(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -432,7 +433,7 @@ func BenchmarkInlineLayout_SpaceCollapsing(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 1}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 1}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -457,7 +458,7 @@ func BenchmarkInlineLayout_Alignment(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{10, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{10, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -500,7 +501,7 @@ func BenchmarkInlineLayoutComplex(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -524,7 +525,7 @@ func BenchmarkInlineLayout_Caching(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -549,7 +550,7 @@ func BenchmarkInlineBlockLayout(b *testing.B) {
 		firstChild: atomic,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -581,7 +582,7 @@ func BenchmarkMixedInlineBlockLayout(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -611,7 +612,7 @@ func BenchmarkInlineLayout_DeeplyNested(b *testing.B) {
 		firstChild: current, // Top-level inline node
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -641,7 +642,7 @@ func BenchmarkInlineLayout_LargeText(b *testing.B) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{50, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{50, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 
 	for b.Loop() {
@@ -684,7 +685,7 @@ func TestInlineLayout_VerticalAlignment(t *testing.T) {
 		firstChild: textNode1,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -757,7 +758,7 @@ func BenchmarkComplexInlineLayout_100k(b *testing.B) {
 		firstChild: firstChild,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{100, 100000}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100000}).ToConstraintSpace()
 
 	for b.Loop() {
 		// Clear cache to force full layout pass
@@ -828,7 +829,7 @@ func BenchmarkComplexInlineLayout_Nested_100k(b *testing.B) {
 		firstChild: firstChild,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{100, 100000}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100000}).ToConstraintSpace()
 
 	for b.Loop() {
 		parent.cachedFragment = nil
@@ -874,7 +875,7 @@ func BenchmarkComplexInlineLayout_DistinctStyles_100k(b *testing.B) {
 		firstChild: firstChild,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{100, 100000}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100000}).ToConstraintSpace()
 
 	for b.Loop() {
 		parent.cachedFragment = nil
@@ -902,7 +903,7 @@ func TestInlineLayout_MandatoryBreak(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -938,7 +939,7 @@ func TestInlineLayout_TrailingNewline(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{20, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{20, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -974,7 +975,7 @@ func TestInlineLayout_EmergencyBreak(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(Size{10, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{10, 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 

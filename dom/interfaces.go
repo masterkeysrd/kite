@@ -4,7 +4,7 @@ import (
 	"iter"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -223,7 +223,7 @@ type Element interface {
 	// GetBoundingClientRect returns the physical terminal rectangle occupied
 	// by this element. It returns (rect, true) if the element is connected
 	// and has been laid out; otherwise it returns (Rect{}, false).
-	GetBoundingClientRect() (layout.Rect, bool)
+	GetBoundingClientRect() (geom.Rect, bool)
 }
 
 // TextNode is a leaf node that carries character data. It has no children.

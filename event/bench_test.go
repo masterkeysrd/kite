@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 )
 
 // BenchmarkDispatcher_3Phase_DepthN measures the cost of dispatching a
@@ -13,7 +13,7 @@ func BenchmarkDispatcher_3Phase_DepthN(b *testing.B) {
 	const depth = 32
 	nodes := make([]*stubObject, depth)
 	for i := range depth {
-		nodes[i] = newStub(layout.Rect{})
+		nodes[i] = newStub(geom.Rect{})
 	}
 	for i := 1; i < depth; i++ {
 		nodes[i].parent = nodes[i-1]
@@ -33,7 +33,7 @@ func BenchmarkDispatcher_3Phase_DepthN(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		e := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+		e := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 		d.Dispatch(e, path)
 	}
 }
@@ -43,13 +43,13 @@ func BenchmarkDispatcher_3Phase_DepthN(b *testing.B) {
 func BenchmarkHitTest_FullScreenTree(b *testing.B) {
 	const cols = 80
 	const rows = 24
-	root := newStub(layout.Rect{Size: layout.Size{Width: cols, Height: rows}})
+	root := newStub(geom.Rect{Size: geom.Size{Width: cols, Height: rows}})
 	// Add one cell-sized child per cell.
 	for y := range rows {
 		for x := range cols {
-			child := newStub(layout.Rect{
-				Origin: layout.Point{X: x, Y: y},
-				Size:   layout.Size{Width: 1, Height: 1},
+			child := newStub(geom.Rect{
+				Origin: geom.Point{X: x, Y: y},
+				Size:   geom.Size{Width: 1, Height: 1},
 			})
 			addChild(root, child)
 		}
@@ -70,7 +70,7 @@ func BenchmarkHitTest_FullScreenTree(b *testing.B) {
 // BenchmarkSynthesizer_ClickStream_1k measures the cost of processing 1000
 // mousedown+mouseup pairs through the synthesizer.
 func BenchmarkSynthesizer_ClickStream_1k(b *testing.B) {
-	target := newStub(layout.Rect{Size: layout.Size{Width: 80, Height: 24}})
+	target := newStub(geom.Rect{Size: geom.Size{Width: 80, Height: 24}})
 	hit := &stubHitTester{result: target}
 	s := event.NewSynthesizer(hit, nil, event.SynthesizerOptions{})
 

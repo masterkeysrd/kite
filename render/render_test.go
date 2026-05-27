@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -70,8 +71,8 @@ func TestBaseRender_CachedLayout_Invalidation(t *testing.T) {
 	child := NewBlock(nil, nil)
 	parent.InsertChild(child, nil)
 
-	space := layout.ConstraintSpace{AvailableSize: layout.Size{Width: 100, Height: 100}}
-	frag := &layout.Fragment{Size: layout.Size{Width: 100, Height: 100}}
+	space := layout.ConstraintSpace{AvailableSize: geom.Size{Width: 100, Height: 100}}
+	frag := &layout.Fragment{Size: geom.Size{Width: 100, Height: 100}}
 
 	parent.SetCachedLayout(space, frag)
 	parent.ClearDirtyRecursive(DirtyLayout | ChildNeedsLayout)
@@ -100,7 +101,7 @@ func TestRenderView_SetViewportSize_DirtyFlags(t *testing.T) {
 	view := NewRenderView()
 	view.ClearDirtyRecursive(DirtyLayout | DirtyPaint)
 
-	view.SetViewportSize(layout.Size{Width: 100, Height: 100})
+	view.SetViewportSize(geom.Size{Width: 100, Height: 100})
 
 	if view.Flags()&DirtyLayout == 0 {
 		t.Error("expected DirtyLayout after SetViewportSize")

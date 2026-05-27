@@ -14,7 +14,7 @@ Unlike traditional layout engines that mutate the state of logical DOM nodes or 
 
 *   **`Node`**: An interface representing the input to the layout engine (implemented by `render.Box` and `render.Text`). It provides access to computed styles and an iterator over its children.
 *   **`ConstraintSpace`**: The input parameters for a layout operation. It defines the available size (width/height) and specifies whether those dimensions are fixed or flexible (e.g., shrink-to-fit).
-*   **`Fragment`**: The physical, read-only output. It contains a `layout.Size` and a slice of `FragmentLink`s (children fragments and their X/Y offsets).
+*   **`Fragment`**: The physical, read-only output. It contains a `geom.Size` and a slice of `FragmentLink`s (children fragments and their X/Y offsets).
 *   **`BoxFragmentBuilder`**: A mutable builder used by algorithms to accumulate inline size, block size, and child fragments. Calling `builder.ToFragment()` seals it into an immutable `Fragment`.
 *   **`FlexLineBuilder`**: A specialized builder for the flex algorithm that manages item collection, line breaking, space distribution, and alignment state.
 *   **`MinMaxSizes`**: Represents the intrinsic minimum (shrink-wrapped) and maximum (fully expanded) sizes of a node before flex or percentage rules are applied.

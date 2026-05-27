@@ -6,8 +6,8 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 )
 
 func TestCheckbox_Toggle(t *testing.T) {
@@ -33,7 +33,7 @@ func TestCheckbox_Toggle(t *testing.T) {
 	path := []event.EventTarget{cb}
 
 	// Click
-	click := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	click := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	d.Dispatch(click, path)
 
 	if !cb.Checked() {

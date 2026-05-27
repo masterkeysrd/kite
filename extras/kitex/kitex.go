@@ -9,7 +9,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -1548,7 +1548,7 @@ type OverlayProps struct {
 	Ref         refSetter
 	Anchor      dom.Element
 	ZIndex      int
-	Placement   layout.OverlayPlacement
+	Placement   geom.Placement
 	Flip        bool
 }
 

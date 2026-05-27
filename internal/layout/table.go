@@ -1,6 +1,7 @@
 package layout
 
 import (
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -108,9 +109,9 @@ func (a *TableAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) 
 		childAvailHeight := max(0, space.AvailableSize.Height-builder.CurrentBlockOffset()-padding.Top-padding.Bottom)
 
 		childSpace := ConstraintSpace{
-			AvailableSize:     Size{Width: childAvailWidth, Height: childAvailHeight},
-			ContainingSpace:   Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height},
-			ContainerSpace:    Size{Width: childAvailWidth, Height: childAvailHeight},
+			AvailableSize:     geometry.Size{Width: childAvailWidth, Height: childAvailHeight},
+			ContainingSpace:   geometry.Size{Width: resolvedInlineSize, Height: space.AvailableSize.Height},
+			ContainerSpace:    geometry.Size{Width: childAvailWidth, Height: childAvailHeight},
 			IsFixedInlineSize: true,
 		}
 
@@ -136,7 +137,7 @@ func (a *TableAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) 
 			rowIdx += numRows
 		}
 
-		offset := Point{
+		offset := geometry.Point{
 			X: sectionInsetX,
 			Y: builder.CurrentBlockOffset(),
 		}
@@ -254,9 +255,9 @@ func (a *TableSectionAlgorithm) LayoutWithData(ctx *Context, node Node, space Co
 		childAvailHeight := max(0, space.AvailableSize.Height-builder.CurrentBlockOffset()-(border.Top+border.Bottom+padding.Top+padding.Bottom))
 
 		childSpace := ConstraintSpace{
-			AvailableSize:     Size{Width: childAvailWidth, Height: childAvailHeight},
-			ContainingSpace:   Size{Width: space.AvailableSize.Width, Height: space.AvailableSize.Height},
-			ContainerSpace:    Size{Width: childAvailWidth, Height: childAvailHeight},
+			AvailableSize:     geometry.Size{Width: childAvailWidth, Height: childAvailHeight},
+			ContainingSpace:   geometry.Size{Width: space.AvailableSize.Width, Height: space.AvailableSize.Height},
+			ContainerSpace:    geometry.Size{Width: childAvailWidth, Height: childAvailHeight},
 			IsFixedInlineSize: true,
 		}
 
@@ -266,7 +267,7 @@ func (a *TableSectionAlgorithm) LayoutWithData(ctx *Context, node Node, space Co
 		}
 		childFrag := tableRowAlgo.LayoutWithData(ctx, rowNode, childSpace, tableBuilder, colWidths, rowData)
 
-		offset := Point{
+		offset := geometry.Point{
 			X: 0,
 			Y: builder.CurrentBlockOffset(),
 		}
@@ -356,9 +357,9 @@ func (a *TableRowAlgorithm) LayoutWithData(ctx *Context, node Node, space Constr
 			cellAvailWidth := max(0, cellWidth-childMargin.Left-childMargin.Right)
 
 			childSpace := ConstraintSpace{
-				AvailableSize:     Size{Width: cellAvailWidth, Height: space.AvailableSize.Height},
-				ContainingSpace:   Size{Width: cellWidth, Height: space.AvailableSize.Height},
-				ContainerSpace:    Size{Width: cellAvailWidth, Height: space.AvailableSize.Height},
+				AvailableSize:     geometry.Size{Width: cellAvailWidth, Height: space.AvailableSize.Height},
+				ContainingSpace:   geometry.Size{Width: cellWidth, Height: space.AvailableSize.Height},
+				ContainerSpace:    geometry.Size{Width: cellAvailWidth, Height: space.AvailableSize.Height},
 				IsFixedInlineSize: true,
 			}
 
@@ -372,7 +373,7 @@ func (a *TableRowAlgorithm) LayoutWithData(ctx *Context, node Node, space Constr
 				}
 			}
 
-			offset := Point{
+			offset := geometry.Point{
 				X: xOffset - totalShiftX,
 				Y: builder.CurrentBlockOffset(),
 			}
@@ -472,7 +473,7 @@ func (a *anonymousTableSection) CachedMinMaxSizes() (MinMaxSizes, bool) {
 
 func (a *anonymousTableSection) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
 
-func (a *anonymousTableSection) SetOffset(p Point) {}
+func (a *anonymousTableSection) SetOffset(p geometry.Point) {}
 
 func (a *anonymousTableSection) IsAnonymous() bool {
 	return true
@@ -545,7 +546,7 @@ func (a *anonymousTableRow) CachedMinMaxSizes() (MinMaxSizes, bool) {
 
 func (a *anonymousTableRow) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
 
-func (a *anonymousTableRow) SetOffset(p Point) {}
+func (a *anonymousTableRow) SetOffset(p geometry.Point) {}
 
 func (a *anonymousTableRow) IsAnonymous() bool {
 	return true

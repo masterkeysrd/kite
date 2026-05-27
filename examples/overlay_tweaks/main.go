@@ -13,7 +13,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -42,7 +42,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	// State for overlay configuration
-	currentPlacement := layout.PlacementBottom
+	currentPlacement := geom.PlacementBottom
 	flipEnabled := true
 
 	// Anchor element
@@ -59,13 +59,13 @@ func main() {
 	updateInfo := func() {
 		placementStr := ""
 		switch currentPlacement {
-		case layout.PlacementTop:
+		case geom.PlacementTop:
 			placementStr = "Top"
-		case layout.PlacementBottom:
+		case geom.PlacementBottom:
 			placementStr = "Bottom"
-		case layout.PlacementLeft:
+		case geom.PlacementLeft:
 			placementStr = "Left"
-		case layout.PlacementRight:
+		case geom.PlacementRight:
 			placementStr = "Right"
 		}
 		infoText.SetData(fmt.Sprintf("Placement: %s | Flip: %v", placementStr, flipEnabled))
@@ -143,16 +143,16 @@ func main() {
 		changed := false
 
 		if ke.MatchString("1") {
-			currentPlacement = layout.PlacementTop
+			currentPlacement = geom.PlacementTop
 			changed = true
 		} else if ke.MatchString("2") {
-			currentPlacement = layout.PlacementBottom
+			currentPlacement = geom.PlacementBottom
 			changed = true
 		} else if ke.MatchString("3") {
-			currentPlacement = layout.PlacementLeft
+			currentPlacement = geom.PlacementLeft
 			changed = true
 		} else if ke.MatchString("4") {
-			currentPlacement = layout.PlacementRight
+			currentPlacement = geom.PlacementRight
 			changed = true
 		} else if ke.MatchString("f") {
 			flipEnabled = !flipEnabled

@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -31,9 +32,9 @@ func TestLayout_ScrollbarSpaceReservation(t *testing.T) {
 	}
 	root.children = []Node{child}
 
-	space := NewConstraintSpaceBuilder(Size{Width: 10, Height: 10}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 10, Height: 10}).
 		SetIsFixedInlineSize(true).
-		SetContainerSpace(Size{Width: 10, Height: 10}).
+		SetContainerSpace(geometry.Size{Width: 10, Height: 10}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(root)
@@ -78,9 +79,9 @@ func TestLayout_ScrollbarAutoHidden(t *testing.T) {
 	}
 	root.children = []Node{child}
 
-	space := NewConstraintSpaceBuilder(Size{Width: 10, Height: 10}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 10, Height: 10}).
 		SetIsFixedInlineSize(true).
-		SetContainerSpace(Size{Width: 10, Height: 10}).
+		SetContainerSpace(geometry.Size{Width: 10, Height: 10}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(root)
@@ -138,5 +139,5 @@ func (m *mockLayoutNode) SetCachedLayout(space ConstraintSpace, frag *Fragment) 
 }
 func (m *mockLayoutNode) CachedMinMaxSizes() (MinMaxSizes, bool) { return MinMaxSizes{}, false }
 func (m *mockLayoutNode) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
-func (m *mockLayoutNode) SetOffset(p Point)                      {}
+func (m *mockLayoutNode) SetOffset(p geometry.Point)             {}
 func (m *mockLayoutNode) IsAnonymous() bool                      { return false }

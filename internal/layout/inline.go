@@ -4,6 +4,7 @@ import (
 	"sync"
 	"unicode"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/text"
 )
@@ -37,7 +38,7 @@ func ReleaseInlineItemsBuilder(b *InlineItemsBuilder) {
 
 // LineBox represents a single horizontal line of positioned inline fragments.
 type LineBox struct {
-	Size     Size
+	Size     geometry.Size
 	Children []FragmentLink
 }
 
@@ -332,7 +333,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	if l.currentIndex >= len(l.items) {
 		if l.hadForcedBreakAtEnd {
 			l.hadForcedBreakAtEnd = false
-			return &LineBox{Size: Size{Width: 0, Height: 1}}, true
+			return &LineBox{Size: geometry.Size{Width: 0, Height: 1}}, true
 		}
 		return nil, false
 	}
@@ -386,7 +387,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 
 		case InlineAtomic:
 			childSpace := ConstraintSpace{
-				AvailableSize: Size{Width: l.width, Height: 1000},
+				AvailableSize: geometry.Size{Width: l.width, Height: 1000},
 			}
 			childAlgo := GetAlgorithm(item.Node)
 			frag := childAlgo.Layout(ctx, item.Node, childSpace)
@@ -495,7 +496,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	}
 
 lineEnded:
-	line.Size = Size{Width: currentX, Height: lineHeight}
+	line.Size = geometry.Size{Width: currentX, Height: lineHeight}
 
 	// Horizontal Alignment (text-align)
 	var startX int
@@ -516,7 +517,7 @@ lineEnded:
 			frag = li.frag
 		} else {
 			frag = &Fragment{
-				Size:       Size{Width: li.width, Height: li.height},
+				Size:       geometry.Size{Width: li.width, Height: li.height},
 				Node:       li.node,
 				Text:       li.text,
 				ParentNode: li.parent,
@@ -547,7 +548,7 @@ lineEnded:
 		}
 
 		line.Children = append(line.Children, FragmentLink{
-			Offset:   Point{X: offsetX, Y: offsetY},
+			Offset:   geometry.Point{X: offsetX, Y: offsetY},
 			Fragment: frag,
 		})
 		offsetX += li.width

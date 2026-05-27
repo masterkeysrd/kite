@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -34,7 +35,7 @@ func BenchmarkGridLayout_10x10(b *testing.B) {
 		firstChild: items[0],
 	}
 
-	space := NewConstraintSpaceBuilder(Size{Width: 100, Height: 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	ctx := &Context{}
 
 	b.ResetTimer()
@@ -85,7 +86,7 @@ func BenchmarkGridLayout_Complex(b *testing.B) {
 		firstChild: items[0],
 	}
 
-	space := NewConstraintSpaceBuilder(Size{Width: 100, Height: 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	ctx := &Context{}
 
 	b.ResetTimer()

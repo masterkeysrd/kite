@@ -3,6 +3,8 @@ package layout
 import (
 	"slices"
 	"sync"
+
+	geometry "github.com/masterkeysrd/kite/geom"
 )
 
 // ConstraintSpaceBuilder is a helper to construct a ConstraintSpace.
@@ -12,7 +14,7 @@ type ConstraintSpaceBuilder struct {
 
 // NewConstraintSpaceBuilder creates a new builder initialized with the available size.
 // ContainingSpace and ContainerSpace default to zero and must be set explicitly by the caller.
-func NewConstraintSpaceBuilder(availableSize Size) *ConstraintSpaceBuilder {
+func NewConstraintSpaceBuilder(availableSize geometry.Size) *ConstraintSpaceBuilder {
 	return &ConstraintSpaceBuilder{
 		space: ConstraintSpace{
 			AvailableSize: availableSize,
@@ -22,14 +24,14 @@ func NewConstraintSpaceBuilder(availableSize Size) *ConstraintSpaceBuilder {
 
 // SetContainingSpace sets the parent's border-box size (ADR-018).
 // KindPercent resolution uses ContainerSpace (content-box), not this field.
-func (b *ConstraintSpaceBuilder) SetContainingSpace(size Size) *ConstraintSpaceBuilder {
+func (b *ConstraintSpaceBuilder) SetContainingSpace(size geometry.Size) *ConstraintSpaceBuilder {
 	b.space.ContainingSpace = size
 	return b
 }
 
 // SetContainerSpace sets the parent's content-box size (the available space for children
 // before per-child margins are subtracted) (ADR-018).
-func (b *ConstraintSpaceBuilder) SetContainerSpace(size Size) *ConstraintSpaceBuilder {
+func (b *ConstraintSpaceBuilder) SetContainerSpace(size geometry.Size) *ConstraintSpaceBuilder {
 	b.space.ContainerSpace = size
 	return b
 }
@@ -55,7 +57,7 @@ func (b *ConstraintSpaceBuilder) ToConstraintSpace() ConstraintSpace {
 type BoxFragmentBuilder struct {
 	node               Node
 	space              ConstraintSpace
-	size               Size
+	size               geometry.Size
 	children           []FragmentLink
 	currentBlockOffset int
 	breakToken         *BreakToken
@@ -77,7 +79,7 @@ func AcquireBoxFragmentBuilder(node Node, space ConstraintSpace) *BoxFragmentBui
 	b := boxBuilderPool.Get().(*BoxFragmentBuilder)
 	b.node = node
 	b.space = space
-	b.size = Size{}
+	b.size = geometry.Size{}
 	b.children = b.children[:0]
 	b.currentBlockOffset = comp.Border.Widths().Top + comp.Padding.Top
 	b.breakToken = nil
@@ -132,7 +134,7 @@ func (b *BoxFragmentBuilder) AdvanceBlockOffset(delta int) {
 }
 
 // AddChild adds a child fragment at the specified offset.
-func (b *BoxFragmentBuilder) AddChild(frag *Fragment, offset Point) {
+func (b *BoxFragmentBuilder) AddChild(frag *Fragment, offset geometry.Point) {
 	b.children = append(b.children, FragmentLink{
 		Offset:   offset,
 		Fragment: frag,

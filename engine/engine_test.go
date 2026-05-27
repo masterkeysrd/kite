@@ -12,7 +12,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/render"
 )
 
@@ -364,7 +364,7 @@ func TestEngine_Resize(t *testing.T) {
 	}
 
 	// 2. Simulate Resize
-	e.RenderView().SetViewportSize(layout.Size{Width: 120, Height: 40})
+	e.RenderView().SetViewportSize(geom.Size{Width: 120, Height: 40})
 
 	// Check if dirty bits are set
 	if e.RenderView().Flags()&render.DirtyLayout == 0 {

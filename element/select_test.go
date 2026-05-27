@@ -7,8 +7,8 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 )
 
 func TestSelect_OpenDropdown(t *testing.T) {
@@ -36,7 +36,7 @@ func TestSelect_OpenDropdown(t *testing.T) {
 		t.Fatalf("expected UA root child to be ButtonElement, got %T", uaRoot.FirstChild())
 	}
 
-	btn.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+	btn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 
 	// Verify overlay is added to document
 	foundOverlay := false
@@ -92,7 +92,7 @@ func TestSelect_KeyboardSelection(t *testing.T) {
 	t.Logf("Button data: %v", btn.TextContent())
 
 	// Press Enter on the focused button
-	click := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	click := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	btn.DispatchEvent(click)
 
 	if s.Value() != "opt1" {

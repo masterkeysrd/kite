@@ -3,7 +3,7 @@ package paint
 import (
 	"image/color"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 )
 
 // Surface is the drawing target provided by the backend. All paint
@@ -22,13 +22,13 @@ type Surface interface {
 
 	// Bounds returns the total drawable area of this surface in absolute
 	// terminal-cell coordinates.
-	Bounds() layout.Rect
+	Bounds() geom.Rect
 
 	// Clip returns a new Surface whose drawable area is restricted to the
 	// intersection of this surface's bounds and r. Coordinates passed to
 	// Set on the returned surface are still in absolute terms so that the
 	// clip can be composed without coordinate translations.
-	Clip(r layout.Rect) Surface
+	Clip(r geom.Rect) Surface
 }
 
 // CellAttrs holds the text-attribute bitmask for a terminal cell.
@@ -85,7 +85,7 @@ type Cell struct {
 
 // SelectionRect represents a physical rectangle of selected content.
 type SelectionRect struct {
-	Rect layout.Rect
+	Rect geom.Rect
 	FG   color.Color
 	BG   color.Color
 }

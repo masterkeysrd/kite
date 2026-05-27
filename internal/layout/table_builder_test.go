@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -10,7 +11,7 @@ func TestTableFragmentBuilder_DistributeSpan(t *testing.T) {
 	node := &mockNode{
 		style: &style.Computed{Display: style.DisplayTable},
 	}
-	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
 	builder := NewTableFragmentBuilder(node, space)
 
 	// initialize grid with 3 columns, empty min/max
@@ -58,7 +59,7 @@ func TestTableFragmentBuilder_GetCellShift(t *testing.T) {
 	tableNode := &mockNode{
 		style: &style.Computed{Display: style.DisplayTable},
 	}
-	space := NewConstraintSpaceBuilder(Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
 	builder := NewTableFragmentBuilder(tableNode, space)
 
 	t.Run("FirstCell_NoBorders_NoShift", func(t *testing.T) {

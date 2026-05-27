@@ -2,7 +2,8 @@ package element
 
 import (
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -15,7 +16,7 @@ type OverlayElement struct {
 type OverlayConfig struct {
 	Anchor    dom.Element
 	ZIndex    int
-	Placement layout.OverlayPlacement
+	Placement geom.Placement
 	Flip      bool
 }
 
@@ -60,7 +61,7 @@ func (o *OverlayElement) Anchor() any {
 }
 
 // Placement implements layout.OverlayLever.
-func (o *OverlayElement) Placement() layout.OverlayPlacement {
+func (o *OverlayElement) Placement() geom.Placement {
 	return o.config.Placement
 }
 

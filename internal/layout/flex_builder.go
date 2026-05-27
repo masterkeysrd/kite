@@ -4,6 +4,7 @@ import (
 	"sort"
 	"sync"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -12,46 +13,46 @@ type flexGeometry struct {
 	direction style.FlexDirection
 }
 
-func (g flexGeometry) MainSize(s Size) int {
+func (g flexGeometry) MainSize(s geometry.Size) int {
 	if g.direction == style.FlexColumn || g.direction == style.FlexColumnReverse {
 		return s.Height
 	}
 	return s.Width
 }
 
-func (g flexGeometry) CrossSize(s Size) int {
+func (g flexGeometry) CrossSize(s geometry.Size) int {
 	if g.direction == style.FlexColumn || g.direction == style.FlexColumnReverse {
 		return s.Width
 	}
 	return s.Height
 }
 
-func (g flexGeometry) MakeSize(main, cross int) Size {
+func (g flexGeometry) MakeSize(main, cross int) geometry.Size {
 	if g.direction == style.FlexColumn || g.direction == style.FlexColumnReverse {
-		return Size{Width: cross, Height: main}
+		return geometry.Size{Width: cross, Height: main}
 	}
-	return Size{Width: main, Height: cross}
+	return geometry.Size{Width: main, Height: cross}
 }
 
-func (g flexGeometry) MainAxis(p Point) int {
+func (g flexGeometry) MainAxis(p geometry.Point) int {
 	if g.direction == style.FlexColumn || g.direction == style.FlexColumnReverse {
 		return p.Y
 	}
 	return p.X
 }
 
-func (g flexGeometry) CrossAxis(p Point) int {
+func (g flexGeometry) CrossAxis(p geometry.Point) int {
 	if g.direction == style.FlexColumn || g.direction == style.FlexColumnReverse {
 		return p.X
 	}
 	return p.Y
 }
 
-func (g flexGeometry) MakePoint(main, cross int) Point {
+func (g flexGeometry) MakePoint(main, cross int) geometry.Point {
 	if g.direction == style.FlexColumn || g.direction == style.FlexColumnReverse {
-		return Point{X: cross, Y: main}
+		return geometry.Point{X: cross, Y: main}
 	}
-	return Point{X: main, Y: cross}
+	return geometry.Point{X: main, Y: cross}
 }
 
 // FlexItem represents a transient layout state for a flex child.
@@ -84,7 +85,7 @@ type FlexItem struct {
 	Fragment *Fragment
 
 	// Physical offset relative to container content box.
-	Offset Point
+	Offset geometry.Point
 }
 
 // FlexLine represents a group of flex items that fit on a single line.
@@ -209,7 +210,7 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 	freeSpace := availableMain - totalHypotheticalMainSize
 	useGrow := freeSpace > 0
 
-	// 2. Size inflexible items.
+	// 2. geometry.Size inflexible items.
 	for _, item := range line.Items {
 		item.Frozen = false
 		if (useGrow && item.Grow == 0) || (!useGrow && item.Shrink == 0) {

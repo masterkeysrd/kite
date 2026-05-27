@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -12,7 +13,7 @@ import (
 
 // makeParentSpace is a helper that creates a parent ConstraintSpace with the
 // given available/containing/container sizes.
-func makeParentSpace(available, containing, container Size, fixedBlock bool) ConstraintSpace {
+func makeParentSpace(available, containing, container geometry.Size, fixedBlock bool) ConstraintSpace {
 	space := ConstraintSpace{
 		AvailableSize:     available,
 		ContainingSpace:   containing,
@@ -31,8 +32,8 @@ func TestBuildChildSpace_KindCells(t *testing.T) {
 		Height: style.Auto,
 	}}
 
-	parentSpace := makeParentSpace(Size{50, 50}, Size{50, 50}, Size{40, 40}, false)
-	cs := BuildChildSpace(child, Size{40, 40}, Size{50, 50}, parentSpace)
+	parentSpace := makeParentSpace(geometry.Size{50, 50}, geometry.Size{50, 50}, geometry.Size{40, 40}, false)
+	cs := BuildChildSpace(child, geometry.Size{40, 40}, geometry.Size{50, 50}, parentSpace)
 
 	if !cs.IsFixedInlineSize {
 		t.Error("expected IsFixedInlineSize=true for KindCells")
@@ -49,8 +50,8 @@ func TestBuildChildSpace_KindPercent(t *testing.T) {
 		Height: style.Auto,
 	}}
 
-	containingSpace := Size{Width: 100, Height: 40}
-	containerSpace := Size{Width: 80, Height: 30} // content-box (smaller)
+	containingSpace := geometry.Size{Width: 100, Height: 40}
+	containerSpace := geometry.Size{Width: 80, Height: 30} // content-box (smaller)
 	parentSpace := makeParentSpace(containerSpace, containingSpace, containerSpace, false)
 	cs := BuildChildSpace(child, containerSpace, containingSpace, parentSpace)
 
@@ -71,8 +72,8 @@ func TestBuildChildSpace_KindAuto(t *testing.T) {
 		Margin: style.EdgeValues[int]{Left: 5, Right: 5},
 	}}
 
-	containerSpace := Size{Width: 80, Height: 40}
-	containingSpace := Size{Width: 100, Height: 50}
+	containerSpace := geometry.Size{Width: 80, Height: 40}
+	containingSpace := geometry.Size{Width: 100, Height: 50}
 	parentSpace := makeParentSpace(containerSpace, containingSpace, containerSpace, false)
 	cs := BuildChildSpace(child, containerSpace, containingSpace, parentSpace)
 
@@ -91,8 +92,8 @@ func TestBuildChildSpace_KindMaxContent(t *testing.T) {
 		Height: style.Auto,
 	}}
 
-	parentSpace := makeParentSpace(Size{80, 40}, Size{100, 50}, Size{80, 40}, false)
-	cs := BuildChildSpace(child, Size{80, 40}, Size{100, 50}, parentSpace)
+	parentSpace := makeParentSpace(geometry.Size{80, 40}, geometry.Size{100, 50}, geometry.Size{80, 40}, false)
+	cs := BuildChildSpace(child, geometry.Size{80, 40}, geometry.Size{100, 50}, parentSpace)
 
 	if cs.IsFixedInlineSize {
 		t.Error("expected IsFixedInlineSize=false for KindMaxContent")
@@ -105,8 +106,8 @@ func TestBuildChildSpace_HeightPercent_FixedParent(t *testing.T) {
 		Height: style.Percent(50),
 	}}
 
-	containingSpace := Size{Width: 100, Height: 40}
-	containerSpace := Size{Width: 80, Height: 30}
+	containingSpace := geometry.Size{Width: 100, Height: 40}
+	containerSpace := geometry.Size{Width: 80, Height: 30}
 	parentSpace := makeParentSpace(containerSpace, containingSpace, containerSpace, true) // fixed block
 
 	cs := BuildChildSpace(child, containerSpace, containingSpace, parentSpace)
@@ -126,8 +127,8 @@ func TestBuildChildSpace_HeightPercent_AutoParent(t *testing.T) {
 		Height: style.Percent(50),
 	}}
 
-	containingSpace := Size{Width: 100, Height: 40}
-	containerSpace := Size{Width: 80, Height: 30}
+	containingSpace := geometry.Size{Width: 100, Height: 40}
+	containerSpace := geometry.Size{Width: 80, Height: 30}
 	parentSpace := makeParentSpace(containerSpace, containingSpace, containerSpace, false) // NOT fixed block
 
 	cs := BuildChildSpace(child, containerSpace, containingSpace, parentSpace)
@@ -143,8 +144,8 @@ func TestBuildChildSpace_PassthroughFields(t *testing.T) {
 		Height: style.Auto,
 	}}
 
-	containingSpace := Size{Width: 80, Height: 60}
-	containerSpace := Size{Width: 60, Height: 40}
+	containingSpace := geometry.Size{Width: 80, Height: 60}
+	containerSpace := geometry.Size{Width: 60, Height: 40}
 	parentSpace := makeParentSpace(containerSpace, containingSpace, containerSpace, false)
 
 	cs := BuildChildSpace(child, containerSpace, containingSpace, parentSpace)
@@ -165,8 +166,8 @@ func TestBuildChildSpace_DisplayTable_Auto(t *testing.T) {
 		Height:  style.Auto,
 	}}
 
-	parentSpace := makeParentSpace(Size{80, 40}, Size{100, 50}, Size{80, 40}, false)
-	cs := BuildChildSpace(child, Size{80, 40}, Size{100, 50}, parentSpace)
+	parentSpace := makeParentSpace(geometry.Size{80, 40}, geometry.Size{100, 50}, geometry.Size{80, 40}, false)
+	cs := BuildChildSpace(child, geometry.Size{80, 40}, geometry.Size{100, 50}, parentSpace)
 
 	if cs.IsFixedInlineSize {
 		t.Error("expected IsFixedInlineSize=false for table with auto width")
@@ -225,9 +226,9 @@ func TestPercentResolvesAgainstContentBox(t *testing.T) {
 	parent := &mockNode{style: parentStyle, firstChild: child}
 
 	space := ConstraintSpace{
-		AvailableSize:   Size{Width: 100, Height: 100},
-		ContainingSpace: Size{Width: 100, Height: 100},
-		ContainerSpace:  Size{Width: 100, Height: 100},
+		AvailableSize:   geometry.Size{Width: 100, Height: 100},
+		ContainingSpace: geometry.Size{Width: 100, Height: 100},
+		ContainerSpace:  geometry.Size{Width: 100, Height: 100},
 	}
 
 	frag := blockAlgo.Layout(nil, parent, space)
@@ -264,9 +265,9 @@ func TestContainerSpaceFlowsToGrandchild(t *testing.T) {
 	}
 
 	space := ConstraintSpace{
-		AvailableSize:   Size{Width: 100, Height: 100},
-		ContainingSpace: Size{Width: 100, Height: 100},
-		ContainerSpace:  Size{Width: 100, Height: 100},
+		AvailableSize:   geometry.Size{Width: 100, Height: 100},
+		ContainingSpace: geometry.Size{Width: 100, Height: 100},
+		ContainerSpace:  geometry.Size{Width: 100, Height: 100},
 	}
 
 	rootFrag := blockAlgo.Layout(nil, root, space)
@@ -306,9 +307,9 @@ func TestBlockChildUsesContainerSpace(t *testing.T) {
 
 	// Do NOT fix inline size so parent resolves its own KindCells width=40.
 	space := ConstraintSpace{
-		AvailableSize:   Size{Width: 100, Height: 100},
-		ContainingSpace: Size{Width: 100, Height: 100},
-		ContainerSpace:  Size{Width: 100, Height: 100},
+		AvailableSize:   geometry.Size{Width: 100, Height: 100},
+		ContainingSpace: geometry.Size{Width: 100, Height: 100},
+		ContainerSpace:  geometry.Size{Width: 100, Height: 100},
 	}
 
 	frag := blockAlgo.Layout(nil, parent, space)
@@ -334,8 +335,8 @@ func BenchmarkBuildChildSpace(b *testing.B) {
 		Height: style.Auto,
 		Margin: style.EdgeValues[int]{Left: 2, Right: 2, Top: 1, Bottom: 1},
 	}}
-	containerSpace := Size{Width: 80, Height: 40}
-	containingSpace := Size{Width: 100, Height: 50}
+	containerSpace := geometry.Size{Width: 80, Height: 40}
+	containingSpace := geometry.Size{Width: 100, Height: 50}
 	parentSpace := makeParentSpace(containerSpace, containingSpace, containerSpace, false)
 
 	b.ResetTimer()
@@ -373,9 +374,9 @@ func BenchmarkLayoutWithContainerSpace(b *testing.B) {
 	}
 
 	space := ConstraintSpace{
-		AvailableSize:     Size{Width: 100, Height: 1000},
-		ContainingSpace:   Size{Width: 100, Height: 1000},
-		ContainerSpace:    Size{Width: 100, Height: 1000},
+		AvailableSize:     geometry.Size{Width: 100, Height: 1000},
+		ContainingSpace:   geometry.Size{Width: 100, Height: 1000},
+		ContainerSpace:    geometry.Size{Width: 100, Height: 1000},
 		IsFixedInlineSize: true,
 	}
 

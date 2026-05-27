@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/layout"
+	geometry "github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -32,7 +33,7 @@ func TestListLayout_MarkerSynthesis(t *testing.T) {
 				ListStyleType: tt.styleType,
 			})
 
-			space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
+			space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 			algo := &layout.ListAlgorithm{}
 			frag := algo.Layout(nil, node, space)
 
@@ -101,7 +102,7 @@ func TestListLayout_OrdinalCalculation(t *testing.T) {
 		domNodes = append(domNodes, el)
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 
 	for i, node := range nodes {
 		algo := &layout.ListAlgorithm{}
@@ -146,7 +147,7 @@ func TestListLayout_InterruptedOrdinal(t *testing.T) {
 	createItem(false) // Interrupter
 	_, i3 := createItem(true)
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 100, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 
 	check := func(node layout.Node, expected string) {
 		algo := &layout.ListAlgorithm{}
@@ -179,12 +180,12 @@ func TestListLayout_MultiLineWrapping(t *testing.T) {
 	node.InsertChild(render.NewText(textNode, nil), nil)
 
 	// Available width 10. Marker is 2. Content width is 8.
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 10, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 10, Height: 100}).ToConstraintSpace()
 	algo := &layout.ListAlgorithm{}
 	frag := algo.Layout(nil, node, space)
 
 	// Marker should be at (0,0)
-	if frag.Children[0].Offset != (layout.Point{X: 0, Y: 0}) {
+	if frag.Children[0].Offset != (geometry.Point{X: 0, Y: 0}) {
 		t.Errorf("expected marker at (0,0), got %v", frag.Children[0].Offset)
 	}
 

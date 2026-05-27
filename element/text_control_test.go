@@ -15,8 +15,8 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -190,8 +190,8 @@ func TestTextControlBase_MouseDown_HitTest_AfterScroll(t *testing.T) {
 
 	// Click at local (0, 0) — which, after applying scrollY=3, maps to
 	// buffer row 3, column 0, i.e. the start of "line3" at byte offset 18.
-	ev := event.NewMouseEvent(event.EventMouseDown, layout.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
-	ev.Local = layout.Point{X: 0, Y: 0}
+	ev := event.NewMouseEvent(event.EventMouseDown, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	ev.Local = geom.Point{X: 0, Y: 0}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, []event.EventTarget{txa})
 

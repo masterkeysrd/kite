@@ -3,7 +3,8 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -44,7 +45,7 @@ func (m *mockNode) CachedLayout(space layout.ConstraintSpace) *layout.Fragment  
 func (m *mockNode) SetCachedLayout(space layout.ConstraintSpace, frag *layout.Fragment) {}
 func (m *mockNode) CachedMinMaxSizes() (layout.MinMaxSizes, bool)                       { return layout.MinMaxSizes{}, false }
 func (m *mockNode) SetCachedMinMaxSizes(sizes layout.MinMaxSizes)                       {}
-func (m *mockNode) SetOffset(p layout.Point)                                            {}
+func (m *mockNode) SetOffset(p geom.Point)                                              {}
 
 func TestFlexGapInColumn(t *testing.T) {
 	// Create a column flex container with 2 children and a gap.
@@ -78,7 +79,7 @@ func TestFlexGapInColumn(t *testing.T) {
 		children: []layout.Node{child1, child2},
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 20, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 20, Height: 100}).ToConstraintSpace()
 	algo := layout.GetAlgorithm(container)
 	frag := algo.Layout(nil, container, space)
 
@@ -133,7 +134,7 @@ func TestFlexJustifyBetweenNegativeSpace(t *testing.T) {
 		children: []layout.Node{child1, child2},
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 15, Height: 1}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 15, Height: 1}).ToConstraintSpace()
 	algo := layout.GetAlgorithm(container)
 	frag := algo.Layout(nil, container, space)
 
@@ -176,7 +177,7 @@ func TestFlexSqueezedHeight(t *testing.T) {
 	}
 
 	// Squeezed height = 0
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 10, Height: 0}).
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 10, Height: 0}).
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
 
@@ -230,7 +231,7 @@ func TestFlexColumnGap(t *testing.T) {
 		children: []layout.Node{child1, child2, child3},
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 10, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 10, Height: 100}).ToConstraintSpace()
 	algo := layout.GetAlgorithm(container)
 	frag := algo.Layout(nil, container, space)
 
@@ -297,7 +298,7 @@ func TestFlexNestedHeight(t *testing.T) {
 		children: []layout.Node{inner},
 	}
 
-	space := layout.NewConstraintSpaceBuilder(layout.Size{Width: 20, Height: 100}).ToConstraintSpace()
+	space := layout.NewConstraintSpaceBuilder(geom.Size{Width: 20, Height: 100}).ToConstraintSpace()
 	algo := layout.GetAlgorithm(outer)
 	frag := algo.Layout(nil, outer, space)
 

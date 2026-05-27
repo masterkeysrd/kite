@@ -1,6 +1,8 @@
 package layout
 
 import (
+	"github.com/masterkeysrd/kite/geom"
+	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -40,7 +42,7 @@ func (a *OverlayAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace
 	x, y := 0, 0
 
 	if anchorEl, ok := anchor.(interface {
-		GetBoundingClientRect() (Rect, bool)
+		GetBoundingClientRect() (geometry.Rect, bool)
 	}); ok {
 		anchorRect, found := anchorEl.GetBoundingClientRect()
 		if found {
@@ -48,12 +50,12 @@ func (a *OverlayAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace
 		}
 	}
 
-	node.SetOffset(Point{X: x, Y: y})
+	node.SetOffset(geometry.Point{X: x, Y: y})
 
 	return frag
 }
 
-func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement OverlayPlacement, flip bool, availableSize Size) (int, int) {
+func (a *OverlayAlgorithm) calculatePosition(anchor geometry.Rect, size geometry.Size, placement geom.Placement, flip bool, availableSize geometry.Size) (int, int) {
 	x, y := a.resolvePlacement(anchor, size, placement)
 
 	if flip {
@@ -79,16 +81,16 @@ func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement O
 			rightSpace := max(0, availableSize.Width-(anchor.Origin.X+anchor.Size.Width))
 
 			switch placement {
-			case PlacementTop, PlacementBottom:
+			case geom.PlacementTop, geom.PlacementBottom:
 				if topSpace >= bottomSpace {
-					return a.resolvePlacement(anchor, size, PlacementTop)
+					return a.resolvePlacement(anchor, size, geom.PlacementTop)
 				}
-				return a.resolvePlacement(anchor, size, PlacementBottom)
-			case PlacementLeft, PlacementRight:
+				return a.resolvePlacement(anchor, size, geom.PlacementBottom)
+			case geom.PlacementLeft, geom.PlacementRight:
 				if leftSpace >= rightSpace {
-					return a.resolvePlacement(anchor, size, PlacementLeft)
+					return a.resolvePlacement(anchor, size, geom.PlacementLeft)
 				}
-				return a.resolvePlacement(anchor, size, PlacementRight)
+				return a.resolvePlacement(anchor, size, geom.PlacementRight)
 			}
 		}
 	}
@@ -96,31 +98,31 @@ func (a *OverlayAlgorithm) calculatePosition(anchor Rect, size Size, placement O
 	return x, y
 }
 
-func (a *OverlayAlgorithm) resolvePlacement(anchor Rect, size Size, placement OverlayPlacement) (int, int) {
+func (a *OverlayAlgorithm) resolvePlacement(anchor geometry.Rect, size geometry.Size, placement geom.Placement) (int, int) {
 	switch placement {
-	case PlacementTop:
+	case geom.PlacementTop:
 		return anchor.Origin.X, anchor.Origin.Y - size.Height
-	case PlacementBottom:
+	case geom.PlacementBottom:
 		return anchor.Origin.X, anchor.Origin.Y + anchor.Size.Height
-	case PlacementLeft:
+	case geom.PlacementLeft:
 		return anchor.Origin.X - size.Width, anchor.Origin.Y
-	case PlacementRight:
+	case geom.PlacementRight:
 		return anchor.Origin.X + anchor.Size.Width, anchor.Origin.Y
 	default:
 		return anchor.Origin.X, anchor.Origin.Y
 	}
 }
 
-func (a *OverlayAlgorithm) oppositePlacement(p OverlayPlacement) OverlayPlacement {
+func (a *OverlayAlgorithm) oppositePlacement(p geom.Placement) geom.Placement {
 	switch p {
-	case PlacementTop:
-		return PlacementBottom
-	case PlacementBottom:
-		return PlacementTop
-	case PlacementLeft:
-		return PlacementRight
-	case PlacementRight:
-		return PlacementLeft
+	case geom.PlacementTop:
+		return geom.PlacementBottom
+	case geom.PlacementBottom:
+		return geom.PlacementTop
+	case geom.PlacementLeft:
+		return geom.PlacementRight
+	case geom.PlacementRight:
+		return geom.PlacementLeft
 	default:
 		return p
 	}

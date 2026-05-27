@@ -3,7 +3,8 @@ package spatial
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 )
 
 // Direction represents the four cardinal directions for spatial navigation.
@@ -251,7 +252,7 @@ func nextPreOrder(n, root dom.Node) dom.Node {
 //   - Down:  candidate's top edge (cb.MinY) > curB's bottom edge (curB.MaxY)
 //   - Left:  candidate's right edge (cb.MaxX) < curB's left edge (curB.MinX)
 //   - Right: candidate's left edge (cb.MinX) > curB's right edge (curB.MaxX)
-func inHalfPlane(curB, cb layout.Rect, dir Direction) bool {
+func inHalfPlane(curB, cb geom.Rect, dir Direction) bool {
 	switch dir {
 	case DirectionUp:
 		return rectMaxY(cb) <= rectMinY(curB)
@@ -272,7 +273,7 @@ func inHalfPlane(curB, cb layout.Rect, dir Direction) bool {
 //	score = primaryDistance + offAxisPenalty * offAxisDistance
 //
 // Both distances are measured between the nearest edges of the bounding boxes.
-func score(curB, cb layout.Rect, dir Direction) float64 {
+func score(curB, cb geom.Rect, dir Direction) float64 {
 	var primary, offAxis float64
 	switch dir {
 	case DirectionUp:
@@ -304,7 +305,7 @@ func score(curB, cb layout.Rect, dir Direction) float64 {
 
 // horizontalGap returns the off-axis (horizontal) gap between two rects.
 // Returns 0 if they overlap horizontally.
-func horizontalGap(a, b layout.Rect) int {
+func horizontalGap(a, b geom.Rect) int {
 	// Overlap region on X axis: max(minX) to min(maxX)
 	overlapLeft := max(rectMinX(a), rectMinX(b))
 	overlapRight := min(rectMaxX(a), rectMaxX(b))
@@ -317,7 +318,7 @@ func horizontalGap(a, b layout.Rect) int {
 
 // verticalGap returns the off-axis (vertical) gap between two rects.
 // Returns 0 if they overlap vertically.
-func verticalGap(a, b layout.Rect) int {
+func verticalGap(a, b geom.Rect) int {
 	overlapTop := max(rectMinY(a), rectMinY(b))
 	overlapBot := min(rectMaxY(a), rectMaxY(b))
 	if overlapBot > overlapTop {
@@ -328,7 +329,7 @@ func verticalGap(a, b layout.Rect) int {
 
 // --- Rect edge helpers -------------------------------------------------------
 
-func rectMinX(r layout.Rect) int { return r.Origin.X }
-func rectMaxX(r layout.Rect) int { return r.Origin.X + r.Size.Width }
-func rectMinY(r layout.Rect) int { return r.Origin.Y }
-func rectMaxY(r layout.Rect) int { return r.Origin.Y + r.Size.Height }
+func rectMinX(r geom.Rect) int { return r.Origin.X }
+func rectMaxX(r geom.Rect) int { return r.Origin.X + r.Size.Width }
+func rectMinY(r geom.Rect) int { return r.Origin.Y }
+func rectMaxY(r geom.Rect) int { return r.Origin.Y + r.Size.Height }

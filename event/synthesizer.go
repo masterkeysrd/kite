@@ -3,8 +3,8 @@ package event
 import (
 	"strings"
 
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
-	"github.com/masterkeysrd/kite/layout"
 )
 
 // FocusReader returns the currently focused render object. The Synthesizer
@@ -40,7 +40,7 @@ type Synthesizer struct {
 	// pendingDown is set when a mousedown is received; cleared on mouseup.
 	pendingDown *MouseEvent
 	// pendingDownPos is the screen position of the pending mousedown.
-	pendingDownPos layout.Point
+	pendingDownPos geom.Point
 }
 
 // NewSynthesizer creates a Synthesizer with the given HitTester, FocusReader,
@@ -173,7 +173,7 @@ func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
 // processMouse converts a RawMouseEvent into mouse events, synthesizing click
 // and drag as appropriate.
 func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
-	pos := layout.Point{X: raw.X, Y: raw.Y}
+	pos := geom.Point{X: raw.X, Y: raw.Y}
 	hitTarget := s.hitTest(pos)
 
 	var events []Event
@@ -287,7 +287,7 @@ func (s *Synthesizer) processClipboard(raw *RawClipboardEvent) []Event {
 }
 
 // hitTest resolves the target at p, or nil if the hit tester is unset.
-func (s *Synthesizer) hitTest(p layout.Point) EventTarget {
+func (s *Synthesizer) hitTest(p geom.Point) EventTarget {
 	if s.hit == nil {
 		return nil
 	}
@@ -295,7 +295,7 @@ func (s *Synthesizer) hitTest(p layout.Point) EventTarget {
 }
 
 // beyondTolerance reports whether b is outside the click radius relative to a.
-func (s *Synthesizer) beyondTolerance(a, b layout.Point) bool {
+func (s *Synthesizer) beyondTolerance(a, b geom.Point) bool {
 	dx := a.X - b.X
 	if dx < 0 {
 		dx = -dx

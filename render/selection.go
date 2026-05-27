@@ -3,15 +3,17 @@ package render
 import (
 	"unicode/utf8"
 
-	"github.com/masterkeysrd/kite/layout"
-	"github.com/masterkeysrd/kite/style"
 	"image/color"
 	"reflect"
+
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/style"
 )
 
 // SelectionRect represents a physical rectangle of selected content.
 type SelectionRect struct {
-	Rect layout.Rect
+	Rect geom.Rect
 	FG   color.Color
 	BG   color.Color
 }
@@ -61,7 +63,7 @@ func resolveRange(root *layout.Fragment, rng SelectionRange, nodeOrder map[any]N
 		rects:       &rects,
 	}
 
-	walkFragments(root, layout.Point{}, layout.InfiniteRect(), state)
+	walkFragments(root, geom.Point{}, layout.InfiniteRect(), state)
 	return rects
 }
 
@@ -75,7 +77,7 @@ type walkState struct {
 	stopped bool
 }
 
-func walkFragments(frag *layout.Fragment, origin layout.Point, clip layout.Rect, s *walkState) {
+func walkFragments(frag *layout.Fragment, origin geom.Point, clip geom.Rect, s *walkState) {
 	if frag == nil || s.stopped {
 		return
 	}
@@ -137,9 +139,9 @@ func walkFragments(frag *layout.Fragment, origin layout.Point, clip layout.Rect,
 		if cs.OverflowX != style.OverflowVisible || cs.OverflowY != style.OverflowVisible {
 			bw := cs.Border.Widths()
 			pad := cs.Padding
-			inset := layout.Rect{
-				Origin: layout.Point{X: origin.X + bw.Left + pad.Left, Y: origin.Y + bw.Top + pad.Top},
-				Size: layout.Size{
+			inset := geom.Rect{
+				Origin: geom.Point{X: origin.X + bw.Left + pad.Left, Y: origin.Y + bw.Top + pad.Top},
+				Size: geom.Size{
 					Width:  max(0, frag.Size.Width-bw.Left-bw.Right-pad.Left-pad.Right),
 					Height: max(0, frag.Size.Height-bw.Top-bw.Bottom-pad.Top-pad.Bottom),
 				},
@@ -168,7 +170,7 @@ func walkFragments(frag *layout.Fragment, origin layout.Point, clip layout.Rect,
 			}
 		}
 
-		childOrigin := layout.Point{
+		childOrigin := geom.Point{
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
@@ -206,7 +208,7 @@ func getBase(n any) any {
 	return v.Interface()
 }
 
-func calculateTextSelectionRect(frag *layout.Fragment, origin layout.Point, clip layout.Rect, node any, s *walkState) *SelectionRect {
+func calculateTextSelectionRect(frag *layout.Fragment, origin geom.Point, clip geom.Rect, node any, s *walkState) *SelectionRect {
 	baseN := getBase(node)
 	baseStart := getBase(s.rng.StartContainerAny())
 	baseEnd := getBase(s.rng.EndContainerAny())
@@ -263,9 +265,9 @@ func calculateTextSelectionRect(frag *layout.Fragment, origin layout.Point, clip
 		return nil
 	}
 
-	resRect := layout.Rect{
-		Origin: layout.Point{X: origin.X + firstSelectedX, Y: origin.Y},
-		Size:   layout.Size{Width: lastSelectedX - firstSelectedX, Height: frag.Size.Height},
+	resRect := geom.Rect{
+		Origin: geom.Point{X: origin.X + firstSelectedX, Y: origin.Y},
+		Size:   geom.Size{Width: lastSelectedX - firstSelectedX, Height: frag.Size.Height},
 	}
 
 	resRect = resRect.Intersect(clip)

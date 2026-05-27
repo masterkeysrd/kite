@@ -4,7 +4,7 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/paint"
 )
 
@@ -69,11 +69,11 @@ func (c *CellAssertion) ToNotHaveAttribute(attr paint.CellAttrs) *ScreenAssertio
 // RegionAssertion scopes assertions to a rectangular region on the framebuffer.
 type RegionAssertion struct {
 	screen *ScreenAssertion
-	rect   layout.Rect
+	rect   geom.Rect
 }
 
-// RegionRect scopes assertions to a layout.Rect region.
-func (s *ScreenAssertion) RegionRect(r layout.Rect) *RegionAssertion {
+// RegionRect scopes assertions to a geom.Rect region.
+func (s *ScreenAssertion) RegionRect(r geom.Rect) *RegionAssertion {
 	s.t.Helper()
 	return &RegionAssertion{screen: s, rect: r}
 }
@@ -81,7 +81,7 @@ func (s *ScreenAssertion) RegionRect(r layout.Rect) *RegionAssertion {
 // Region is a convenience that accepts raw coordinates and size.
 func (s *ScreenAssertion) Region(x, y, w, h int) *RegionAssertion {
 	s.t.Helper()
-	return s.RegionRect(layout.Rect{Origin: layout.Point{X: x, Y: y}, Size: layout.Size{Width: w, Height: h}})
+	return s.RegionRect(geom.Rect{Origin: geom.Point{X: x, Y: y}, Size: geom.Size{Width: w, Height: h}})
 }
 
 // ToHaveBackground asserts that EVERY cell in the region has the specified background.

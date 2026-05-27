@@ -7,7 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -307,26 +307,26 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		overlayProps := OverlayProps{
 			ID:        "over1",
 			ZIndex:    10,
-			Placement: layout.PlacementTop,
+			Placement: geom.PlacementTop,
 			Flip:      true,
 		}
 		overlayNode := Overlay(overlayProps, nil)
 		realOverlay := overlayNode.Instantiate(doc).(*element.OverlayElement)
 
-		if realOverlay.Placement() != layout.PlacementTop {
+		if realOverlay.Placement() != geom.PlacementTop {
 			t.Errorf("expected overlay placement top")
 		}
 
 		newOverlayProps := OverlayProps{
 			ID:        "over1",
 			ZIndex:    20,
-			Placement: layout.PlacementBottom,
+			Placement: geom.PlacementBottom,
 			Flip:      false,
 		}
 		newOverlayNode := Overlay(newOverlayProps, nil)
 		newOverlayNode.Update(realOverlay, overlayNode)
 
-		if realOverlay.Placement() != layout.PlacementBottom {
+		if realOverlay.Placement() != geom.PlacementBottom {
 			t.Errorf("expected updated overlay placement bottom")
 		}
 
@@ -365,7 +365,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	realBtn := btnNode1.Instantiate(doc).(*element.ButtonElement)
 
 	// Trigger click on realBtn
-	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 	if clickCount1 != 1 {
 		t.Errorf("expected clickCount1 to be 1, got %d", clickCount1)
 	}
@@ -377,7 +377,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	btnNode2.Update(realBtn, btnNode1)
 
 	// Trigger click on realBtn again
-	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 	if clickCount1 != 1 {
 		t.Errorf("expected clickCount1 to stay 1, got %d", clickCount1)
 	}
@@ -392,7 +392,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	btnNode3.Update(realBtn, btnNode2)
 
 	// Trigger click on realBtn again
-	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 	if clickCount2 != 1 {
 		t.Errorf("expected clickCount2 to stay 1, got %d", clickCount2)
 	}

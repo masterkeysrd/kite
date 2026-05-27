@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -27,18 +28,18 @@ func TestGetBoundingClientRect(t *testing.T) {
 	// Build Fragment tree
 	// Target fragment (for div)
 	childFrag := &layout.Fragment{
-		Size: layout.Size{Width: 10, Height: 5},
+		Size: geom.Size{Width: 10, Height: 5},
 	}
 
 	// Root fragment (for Document)
 	rootFrag := &layout.Fragment{
 		Children: []layout.FragmentLink{
 			{
-				Offset:   layout.Point{X: 2, Y: 3},
+				Offset:   geom.Point{X: 2, Y: 3},
 				Fragment: childFrag,
 			},
 		},
-		Size: layout.Size{Width: 80, Height: 24},
+		Size: geom.Size{Width: 80, Height: 24},
 	}
 
 	// We need to set RenderObjects
@@ -63,9 +64,9 @@ func TestGetBoundingClientRect(t *testing.T) {
 		t.Fatal("GetBoundingClientRect returned !ok")
 	}
 
-	expected := layout.Rect{
-		Origin: layout.Point{X: 2, Y: 3},
-		Size:   layout.Size{Width: 10, Height: 5},
+	expected := geom.Rect{
+		Origin: geom.Point{X: 2, Y: 3},
+		Size:   geom.Size{Width: 10, Height: 5},
 	}
 	if rect != expected {
 		t.Errorf("got %+v, want %+v", rect, expected)
@@ -83,29 +84,29 @@ func TestGetBoundingClientRect_Scrolled(t *testing.T) {
 	// Build Fragment tree
 	// Target fragment (for div)
 	childFrag := &layout.Fragment{
-		Size: layout.Size{Width: 10, Height: 5},
+		Size: geom.Size{Width: 10, Height: 5},
 	}
 
 	// Container fragment
 	containerFrag := &layout.Fragment{
 		Children: []layout.FragmentLink{
 			{
-				Offset:   layout.Point{X: 5, Y: 5},
+				Offset:   geom.Point{X: 5, Y: 5},
 				Fragment: childFrag,
 			},
 		},
-		Size: layout.Size{Width: 5, Height: 5},
+		Size: geom.Size{Width: 5, Height: 5},
 	}
 
 	// Root fragment
 	rootFrag := &layout.Fragment{
 		Children: []layout.FragmentLink{
 			{
-				Offset:   layout.Point{X: 0, Y: 0},
+				Offset:   geom.Point{X: 0, Y: 0},
 				Fragment: containerFrag,
 			},
 		},
-		Size: layout.Size{Width: 80, Height: 24},
+		Size: geom.Size{Width: 80, Height: 24},
 	}
 
 	// Mock RenderObjects
@@ -139,9 +140,9 @@ func TestGetBoundingClientRect_Scrolled(t *testing.T) {
 	if !ok {
 		t.Fatal("GetBoundingClientRect returned !ok")
 	}
-	expected := layout.Rect{
-		Origin: layout.Point{X: 5, Y: 5},
-		Size:   layout.Size{Width: 10, Height: 5},
+	expected := geom.Rect{
+		Origin: geom.Point{X: 5, Y: 5},
+		Size:   geom.Size{Width: 10, Height: 5},
 	}
 	if rect != expected {
 		t.Errorf("Initial: got %+v, want %+v", rect, expected)
@@ -155,9 +156,9 @@ func TestGetBoundingClientRect_Scrolled(t *testing.T) {
 	if !ok {
 		t.Fatal("GetBoundingClientRect returned !ok after scroll")
 	}
-	expectedScrolled := layout.Rect{
-		Origin: layout.Point{X: 3, Y: 2}, // (5-2, 5-3)
-		Size:   layout.Size{Width: 10, Height: 5},
+	expectedScrolled := geom.Rect{
+		Origin: geom.Point{X: 3, Y: 2}, // (5-2, 5-3)
+		Size:   geom.Size{Width: 10, Height: 5},
 	}
 	if rect != expectedScrolled {
 		t.Errorf("Scrolled: got %+v, want %+v", rect, expectedScrolled)

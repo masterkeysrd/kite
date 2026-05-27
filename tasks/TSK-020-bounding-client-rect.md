@@ -4,7 +4,7 @@
 Elements must be able to report their physical terminal bounds so that anchored overlays (like dropdowns) know where to draw themselves.
 
 1. **Update `dom.Element` Interface:**
-   - Add `GetBoundingClientRect() (layout.Rect, bool)` to `dom/interfaces.go`.
+   - Add `GetBoundingClientRect() (geom.Rect, bool)` to `dom/interfaces.go`.
 
 2. **Implement in `dom.element`:**
    - The logical element must retrieve its `RenderObject()`.

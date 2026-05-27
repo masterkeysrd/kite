@@ -8,7 +8,8 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/focus/spatial"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -25,7 +26,7 @@ type spatialObj struct {
 	focusable     bool
 	disabled      bool
 	display       style.Display
-	bounds        layout.Rect
+	bounds        geom.Rect
 	computedStyle *style.Computed // cached to avoid per-call allocs
 	render        *spatialRender
 }
@@ -35,7 +36,7 @@ type spatialRender struct {
 }
 
 // newFocusable creates a focusable spatialObj at the given bounds.
-func newFocusable(b layout.Rect) *spatialObj {
+func newFocusable(b geom.Rect) *spatialObj {
 	obj := &spatialObj{
 		focusable: true,
 		display:   style.DisplayBlock,
@@ -272,7 +273,7 @@ func (r *spatialRender) Fragment() *layout.Fragment {
 	for _, c := range r.node.children {
 		cFrag := c.render.Fragment()
 		// Convert absolute bounds back to relative offsets for the mock tree.
-		offset := layout.Point{
+		offset := geom.Point{
 			X: c.bounds.Origin.X - r.node.bounds.Origin.X,
 			Y: c.bounds.Origin.Y - r.node.bounds.Origin.Y,
 		}
@@ -297,10 +298,10 @@ func (r *spatialRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 func (r *spatialRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
 func (r *spatialRender) LogicalNode() any                        { return r.node }
 
-func (r *spatialRender) Offset() layout.Point   { return layout.Point{} }
-func (r *spatialRender) SetOffset(layout.Point) {}
-func (r *spatialRender) IsAnonymous() bool      { return false }
-func (r *spatialRender) MaxScroll() (int, int)  { return 0, 0 }
+func (r *spatialRender) Offset() geom.Point    { return geom.Point{} }
+func (r *spatialRender) SetOffset(geom.Point)  {}
+func (r *spatialRender) IsAnonymous() bool     { return false }
+func (r *spatialRender) MaxScroll() (int, int) { return 0, 0 }
 
 var _ dom.Node = (*spatialObj)(nil)
 var _ render.Object = (*spatialRender)(nil)
@@ -315,11 +316,11 @@ func makeManager(root *spatialObj) *focus.Manager {
 	return focus.NewManager(root, d)
 }
 
-// rect is a convenience constructor for layout.Rect.
-func rect(x, y, w, h int) layout.Rect {
-	return layout.Rect{
-		Origin: layout.Point{X: x, Y: y},
-		Size:   layout.Size{Width: w, Height: h},
+// rect is a convenience constructor for geom.Rect.
+func rect(x, y, w, h int) geom.Rect {
+	return geom.Rect{
+		Origin: geom.Point{X: x, Y: y},
+		Size:   geom.Size{Width: w, Height: h},
 	}
 }
 

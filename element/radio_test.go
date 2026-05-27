@@ -6,7 +6,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 )
 
 func TestRadioGroup(t *testing.T) {
@@ -33,7 +33,7 @@ func TestRadioGroup(t *testing.T) {
 	d := event.NewDispatcher()
 
 	// Click r2
-	click := event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0)
+	click := event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0)
 	d.Dispatch(click, []event.EventTarget{rg, r2})
 
 	if rg.Value() != "2" {
@@ -88,7 +88,7 @@ func TestRadioGroup_Nested(t *testing.T) {
 		t.Errorf("expected checked glyph, got %q", root1.TextContent())
 	}
 
-	r1.DispatchEvent(event.NewMouseEvent(event.EventClick, layout.Point{}, event.ButtonLeft, 0))
+	r1.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 	if rg.Value() != "1" {
 		t.Errorf("expected value 1, got %q", rg.Value())
 	}

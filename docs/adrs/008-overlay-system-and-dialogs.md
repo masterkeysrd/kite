@@ -15,7 +15,7 @@ We will implement an **Overlay System** managed directly by the logical Document
    - The `RenderView` processes the main flow first. Then, it layouts and paints the overlays sequentially. Overlays inherently paint on top of the main layout, respecting their explicit `zIndex`.
 
 3. **Absolute Positioning via `GetBoundingClientRect`:**
-   - The `dom.Element` interface will expose `GetBoundingClientRect() (layout.Rect, bool)`, mirroring the browser API. This queries the cached layout fragment tree to return absolute terminal screen coordinates.
+   - The `dom.Element` interface will expose `GetBoundingClientRect() (geom.Rect, bool)`, mirroring the browser API. This queries the cached layout fragment tree to return absolute terminal screen coordinates.
    - We will not implement global "page scroll"; the viewport is strictly the hardware terminal size, meaning client coordinates equal screen coordinates.
 
 4. **Anchored Overlays with Smart Flipping (`element.Overlay`):**

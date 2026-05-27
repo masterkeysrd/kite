@@ -1,8 +1,9 @@
 package dom
 
 import (
-	"github.com/masterkeysrd/kite/event"
 	"testing"
+
+	"github.com/masterkeysrd/kite/event"
 )
 
 func TestRange_String(t *testing.T) {

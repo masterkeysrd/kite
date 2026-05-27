@@ -4,7 +4,8 @@ import (
 	"iter"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -83,9 +84,9 @@ type Object interface {
 	// Offset returns the physical offset of this object relative to its parent.
 	// For most objects, this is managed by the parent's layout algorithm.
 	// For overlays, this is calculated by the overlay's own layout algorithm.
-	Offset() layout.Point
+	Offset() geom.Point
 	// SetOffset updates the physical offset of this object.
-	SetOffset(layout.Point)
+	SetOffset(geom.Point)
 
 	// IsAnonymous reports whether this object is a virtual layout-only node.
 	IsAnonymous() bool

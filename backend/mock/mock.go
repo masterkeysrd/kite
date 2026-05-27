@@ -8,7 +8,7 @@ import (
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/layout"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/paint"
 )
 
@@ -120,13 +120,13 @@ func (b *Backend) Events() <-chan event.RawEvent { return b.events }
 // Restore records the call. In the mock backend this is a no-op.
 func (b *Backend) Restore() { b.RestoreCalls++ }
 
-func (b *Backend) Resize(size layout.Size) {
+func (b *Backend) Resize(size geom.Size) {
 	b.width = size.Width
 	b.height = size.Height
 }
 
 // Size returns the simulated dimensions.
-func (b *Backend) Size() layout.Size { return layout.Size{Width: b.width, Height: b.height} }
+func (b *Backend) Size() geom.Size { return geom.Size{Width: b.width, Height: b.height} }
 
 // Writer returns the mock output buffer.
 func (b *Backend) Writer() io.Writer { return &b.Output }
