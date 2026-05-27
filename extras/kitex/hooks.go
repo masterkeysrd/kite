@@ -221,6 +221,16 @@ func SetPostMacroFn(fn func(func())) {
 	postMacroFn = fn
 }
 
+// PostMacro schedules a function to run as a macrotask on the main thread via the registered postMacroFn.
+func PostMacro(fn func()) {
+	if postMacroFn != nil {
+		postMacroFn(fn)
+	} else {
+		// Fallback or run directly if not registered (e.g. in tests)
+		go fn()
+	}
+}
+
 func scheduleEffectFlush() {
 	if postMacroFn != nil {
 		postMacroFn(flushPendingEffects)

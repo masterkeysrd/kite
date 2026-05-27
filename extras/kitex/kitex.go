@@ -71,6 +71,7 @@ type ElementProps struct {
 	Class       string
 	Style       style.Style
 	Hidden      bool
+	Disabled    bool
 	OnKeyDown   func(event.Event)
 	OnKeyUp     func(event.Event)
 	OnKeyPress  func(event.Event)
@@ -630,6 +631,50 @@ func setHidden(el element.Element, h bool) {
 	}
 }
 
+// setDisabled invokes the Disabled method of an element using a type switch.
+func setDisabled(el element.Element, d bool) {
+	switch x := el.(type) {
+	case *element.BoxElement:
+		x.Disabled(d)
+	case *element.SpanElement:
+		x.Disabled(d)
+	case *element.ButtonElement:
+		x.Disabled(d)
+	case *element.CheckboxElement:
+		x.Disabled(d)
+	case *element.RadioGroupElement:
+		x.Disabled(d)
+	case *element.RadioElement:
+		x.Disabled(d)
+	case *element.SelectElement:
+		x.Disabled(d)
+	case *element.OptionElement:
+		x.Disabled(d)
+	case *element.InputElement:
+		x.Disabled(d)
+	case *element.TextAreaElement:
+		x.Disabled(d)
+	case *element.TableElement:
+		x.Disabled(d)
+	case *element.TableHeaderElement:
+		x.Disabled(d)
+	case *element.TableBodyElement:
+		x.Disabled(d)
+	case *element.TableFooterElement:
+		x.Disabled(d)
+	case *element.TableRowElement:
+		x.Disabled(d)
+	case *element.TableCellElement:
+		x.Disabled(d)
+	case *element.BrElement:
+		x.Disabled(d)
+	case *element.OverlayElement:
+		x.Disabled(d)
+	case *element.DialogElement:
+		x.Disabled(d)
+	}
+}
+
 var emptyElementProps ElementProps
 
 // updateElementBase syncs core style, identity and listeners on any element.
@@ -645,6 +690,9 @@ func updateElementBase(el element.Element, old, new *ElementProps) {
 	}
 	if old.Hidden != new.Hidden {
 		setHidden(el, new.Hidden)
+	}
+	if old.Disabled != new.Disabled {
+		setDisabled(el, new.Disabled)
 	}
 	setStyle(el, new.Style)
 
@@ -774,6 +822,7 @@ type ButtonProps struct {
 func (p ButtonProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
@@ -834,6 +883,7 @@ type CheckboxProps struct {
 	Class          string
 	Style          style.Style
 	Hidden         bool
+	Disabled       bool
 	OnKeyDown      func(event.Event)
 	OnKeyUp        func(event.Event)
 	OnKeyPress     func(event.Event)
@@ -857,6 +907,7 @@ type CheckboxProps struct {
 func (p CheckboxProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
@@ -918,12 +969,14 @@ func Checkbox(props CheckboxProps) Node {
 
 // RadioGroupProps specifies attributes for RadioGroup elements.
 type RadioGroupProps struct {
-	Key           string
-	ID            string
-	Class         string
-	Style         style.Style
-	Hidden        bool
-	OnKeyDown     func(event.Event)
+	Key       string
+	ID        string
+	Class     string
+	Style     style.Style
+	Hidden    bool
+	Disabled  bool
+	OnKeyDown func(event.Event)
+
 	OnKeyUp       func(event.Event)
 	OnKeyPress    func(event.Event)
 	OnMouseDown   func(event.Event)
@@ -944,6 +997,7 @@ type RadioGroupProps struct {
 func (p RadioGroupProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
@@ -1079,12 +1133,14 @@ func Radio(props RadioProps) Node {
 
 // SelectProps specifies attributes for Select elements.
 type SelectProps struct {
-	Key           string
-	ID            string
-	Class         string
-	Style         style.Style
-	Hidden        bool
-	OnKeyDown     func(event.Event)
+	Key       string
+	ID        string
+	Class     string
+	Style     style.Style
+	Hidden    bool
+	Disabled  bool
+	OnKeyDown func(event.Event)
+
 	OnKeyUp       func(event.Event)
 	OnKeyPress    func(event.Event)
 	OnMouseDown   func(event.Event)
@@ -1106,6 +1162,7 @@ type SelectProps struct {
 func (p SelectProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
@@ -1239,6 +1296,7 @@ type InputProps struct {
 	Class       string
 	Style       style.Style
 	Hidden      bool
+	Disabled    bool
 	OnKeyDown   func(event.Event)
 	OnKeyUp     func(event.Event)
 	OnKeyPress  func(event.Event)
@@ -1260,6 +1318,7 @@ type InputProps struct {
 func (p InputProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
@@ -1310,6 +1369,7 @@ type TextAreaProps struct {
 	Class       string
 	Style       style.Style
 	Hidden      bool
+	Disabled    bool
 	OnKeyDown   func(event.Event)
 	OnKeyUp     func(event.Event)
 	OnKeyPress  func(event.Event)
@@ -1331,6 +1391,7 @@ type TextAreaProps struct {
 func (p TextAreaProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,

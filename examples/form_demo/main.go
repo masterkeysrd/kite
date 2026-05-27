@@ -12,6 +12,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/form"
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/kitex/kitexdt"
 	"github.com/masterkeysrd/kite/style"
@@ -28,15 +29,43 @@ var (
 	colAccent    = color.RGBA{R: 74, G: 222, B: 128, A: 255}  // Emerald neon
 	colButtonBG  = color.RGBA{R: 79, G: 70, B: 229, A: 255}   // Cyber indigo
 	colSeparator = color.RGBA{R: 38, G: 42, B: 59, A: 255}    // Dark iron
+	colError     = color.RGBA{R: 248, G: 113, B: 113, A: 255} // Red error
 )
 
-var App = kitex.SimpleFC("App", func() kitex.Node {
-	// Local state to store submitted form data
-	submittedData, setSubmittedData := kitex.UseState[map[string]any](nil)
+type ProfileData struct {
+	Username    string `json:"username"`
+	AccessClass string `json:"access_class"`
+	Theme       string `json:"theme"`
+	Newsletter  bool   `json:"newsletter"`
+}
 
-	handleSubmit := func(data map[string]any) {
-		setSubmittedData(data)
-	}
+var App = kitex.SimpleFC("App", func() kitex.Node {
+	notification, setNotification := kitex.UseState("")
+	hasSubmitted, setHasSubmitted := kitex.UseState(false)
+
+	f := form.Use(form.Options[ProfileData]{
+		InitialValues: ProfileData{
+			Username:    "neo",
+			AccessClass: "operator",
+			Theme:       "emerald",
+			Newsletter:  true,
+		},
+		Validate: func(d ProfileData) map[string]string {
+			errs := make(map[string]string)
+			if len(d.Username) < 3 {
+				errs["username"] = "Username must be at least 3 characters."
+			}
+			return errs
+		},
+		OnSubmit: func(d ProfileData) error {
+			// Set success message and flag
+			setNotification(fmt.Sprintf("SUCCESS: Profile for '%s' initialized.", d.Username))
+			setHasSubmitted(true)
+			return nil
+		},
+	})
+
+	s := f.State()
 
 	return kitex.Box(kitex.BoxProps{
 		Style: style.Style{
@@ -59,6 +88,20 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				Padding:       style.Some(style.Edges(1, 2)),
 			},
 		},
+			// Success Notification
+			kitex.If(notification() != "",
+				kitex.Box(kitex.BoxProps{
+					Style: style.Style{
+						Background: style.Some[color.Color](colAccent),
+						Foreground: style.Some[color.Color](colBG),
+						Padding:    style.Some(style.Edges(0, 1)),
+						Margin:     style.Some(style.Edges(0, 0, 1, 0)),
+						Bold:       style.Some(true),
+						TextAlign:  style.Some(style.TextAlignCenter),
+					},
+				}, kitex.Text(notification())),
+			),
+
 			// Title
 			kitex.Box(kitex.BoxProps{
 				Style: style.Style{
@@ -81,7 +124,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 			// Form Wrapper
 			kitex.Form(kitex.FormProps{
-				OnSubmit: handleSubmit,
+				OnSubmit: f.HandleSubmit,
 				Style: style.Style{
 					Display:       style.Some(style.DisplayFlex),
 					FlexDirection: style.Some(style.FlexColumn),
@@ -99,8 +142,9 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Style: style.Style{Foreground: style.Some[color.Color](colLabel)},
 					}, kitex.Text("Username")),
 					kitex.Input(kitex.InputProps{
-						Name:  "username",
-						Value: "neo",
+						Name:     "username",
+						Value:    s.Values.Username,
+						Disabled: s.IsSubmitting,
 						Style: style.Style{
 							Width:      style.Some(style.Percent(100)),
 							Background: style.Some[color.Color](colInputBG),
@@ -108,6 +152,11 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 							Padding:    style.Some(style.Edges(0, 1)),
 						},
 					}),
+					kitex.If(s.Errors["username"] != "",
+						kitex.Span(kitex.SpanProps{
+							Style: style.Style{Foreground: style.Some[color.Color](colError)},
+						}, kitex.Text(s.Errors["username"])),
+					),
 				),
 
 				// Field: Role (Select Dropdown) Box
@@ -122,8 +171,9 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Style: style.Style{Foreground: style.Some[color.Color](colLabel)},
 					}, kitex.Text("Access Class")),
 					kitex.Select(kitex.SelectProps{
-						Name:  "access_class",
-						Value: "operator",
+						Name:     "access_class",
+						Value:    s.Values.AccessClass,
+						Disabled: s.IsSubmitting,
 						Style: style.Style{
 							Width: style.Some(style.Percent(100)),
 						},
@@ -146,7 +196,8 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Style: style.Style{Foreground: style.Some[color.Color](colLabel)},
 					}, kitex.Text("Visual Spectrum")),
 					kitex.RadioGroup(kitex.RadioGroupProps{
-						Value: "emerald",
+						Value:    s.Values.Theme,
+						Disabled: s.IsSubmitting,
 						Style: style.Style{
 							Display:       style.Some(style.DisplayFlex),
 							FlexDirection: style.Some(style.FlexRow),
@@ -190,8 +241,9 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					},
 				},
 					kitex.Checkbox(kitex.CheckboxProps{
-						Name:    "newsletter",
-						Checked: true,
+						Name:     "newsletter",
+						Checked:  s.Values.Newsletter,
+						Disabled: s.IsSubmitting,
 					}),
 					kitex.Span(kitex.SpanProps{
 						Style: style.Style{Foreground: style.Some[color.Color](colText), Margin: style.Some(style.Edges(0, 0, 0, 1))},
@@ -200,7 +252,8 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 				// Submit Button
 				kitex.Button(kitex.ButtonProps{
-					Type: "submit",
+					Type:     "submit",
+					Disabled: s.IsSubmitting,
 					Style: style.Style{
 						Display:        style.Some(style.DisplayFlex),
 						JustifyContent: style.Some(style.JustifyCenter),
@@ -212,7 +265,12 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Height:         style.Some(style.Cells(3)),
 						Margin:         style.Some(style.Edges(1, 0, 0, 0)),
 					},
-				}, kitex.Text("Initialize Profile")),
+				}, kitex.Text(func() string {
+					if s.IsSubmitting {
+						return "Processing..."
+					}
+					return "Initialize Profile"
+				}())),
 			),
 
 			// Divider
@@ -236,16 +294,15 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					Style: style.Style{Foreground: style.Some[color.Color](colLabel), Bold: style.Some(true)},
 				}, kitex.Text("Decrypted Transmission Payload:")),
 
-				kitex.IfElse(submittedData() != nil,
+				kitex.IfElse(hasSubmitted() || s.IsSubmitting,
 					kitex.Span(kitex.SpanProps{
 						Style: style.Style{Foreground: style.Some[color.Color](colAccent), Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 0, 0))},
 					}, kitex.Text(func() string {
-						data := submittedData()
-						if data == nil {
-							return ""
+						if s.IsSubmitting {
+							return "Encrypting packet..."
 						}
 						return fmt.Sprintf("Username: %v | Access: %v | Spectrum: %v | Feed: %v",
-							data["username"], data["access_class"], data["theme"], data["newsletter"])
+							s.Values.Username, s.Values.AccessClass, s.Values.Theme, s.Values.Newsletter)
 					}())),
 					kitex.Span(kitex.SpanProps{
 						Style: style.Style{Foreground: style.Some[color.Color](colLabel), Italic: style.Some(true)},
@@ -275,6 +332,7 @@ func main() {
 
 	// Create and start engine
 	eng := engine.New(b, engine.Options{Logger: logger})
+	kitex.SetPostMacroFn(eng.PostMacro)
 
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())
