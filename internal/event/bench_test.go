@@ -3,8 +3,10 @@ package event_test
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	internal "github.com/masterkeysrd/kite/internal/event"
 )
 
 // BenchmarkDispatcher_3Phase_DepthN measures the cost of dispatching a
@@ -72,13 +74,13 @@ func BenchmarkHitTest_FullScreenTree(b *testing.B) {
 func BenchmarkSynthesizer_ClickStream_1k(b *testing.B) {
 	target := newStub(geom.Rect{Size: geom.Size{Width: 80, Height: 24}})
 	hit := &stubHitTester{result: target}
-	s := event.NewSynthesizer(hit, nil, event.SynthesizerOptions{})
+	s := internal.NewSynthesizer(hit, nil, internal.SynthesizerOptions{})
 
 	b.ResetTimer()
 	for range b.N {
 		for range 1000 {
-			s.Process(&event.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft})
-			s.Process(&event.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft, Up: true})
+			s.Process(&backend.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft})
+			s.Process(&backend.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft, Up: true})
 		}
 	}
 }

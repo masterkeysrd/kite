@@ -7,14 +7,15 @@ import (
 	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
 )
 
-func translateEvent(ev uv.Event) (out event.RawEvent) {
+func translateEvent(ev uv.Event) (out backend.RawEvent) {
 	switch e := ev.(type) {
 	case uv.KeyPressEvent:
-		return &event.RawKeyEvent{
+		return &backend.RawKeyEvent{
 			Key: key.Key{
 				Text:     e.Text,
 				Code:     e.Code,
@@ -24,7 +25,7 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 			Up: false,
 		}
 	case uv.KeyReleaseEvent:
-		return &event.RawKeyEvent{
+		return &backend.RawKeyEvent{
 			Key: key.Key{
 				Text: e.Text,
 				Code: e.Code,
@@ -33,12 +34,12 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 			Up: true,
 		}
 	case uv.WindowSizeEvent:
-		return &event.RawResizeEvent{
+		return &backend.RawResizeEvent{
 			Width:  e.Width,
 			Height: e.Height,
 		}
 	case uv.MouseClickEvent:
-		return &event.RawMouseEvent{
+		return &backend.RawMouseEvent{
 			X:      e.X,
 			Y:      e.Y,
 			Button: translateMouseButton(e.Button),
@@ -47,7 +48,7 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 			Mod:    translateModifiers(e.Mod),
 		}
 	case uv.MouseReleaseEvent:
-		return &event.RawMouseEvent{
+		return &backend.RawMouseEvent{
 			X:      e.X,
 			Y:      e.Y,
 			Button: translateMouseButton(e.Button),
@@ -56,7 +57,7 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 			Mod:    translateModifiers(e.Mod),
 		}
 	case uv.MouseMotionEvent:
-		return &event.RawMouseEvent{
+		return &backend.RawMouseEvent{
 			X:      e.X,
 			Y:      e.Y,
 			Button: translateMouseButton(e.Button),
@@ -77,7 +78,7 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 		case uv.MouseWheelRight:
 			deltaX = 1
 		}
-		return &event.RawMouseEvent{
+		return &backend.RawMouseEvent{
 			X:      m.X,
 			Y:      m.Y,
 			DeltaX: deltaX,
@@ -85,11 +86,11 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 			Mod:    translateModifiers(m.Mod),
 		}
 	case uv.PasteEvent:
-		return &event.RawBracketedPaste{
+		return &backend.RawBracketedPaste{
 			Text: e.Content,
 		}
 	case *uv.PasteEvent:
-		return &event.RawBracketedPaste{
+		return &backend.RawBracketedPaste{
 			Text: e.Content,
 		}
 	case uv.ClipboardEvent:
@@ -111,36 +112,36 @@ func translateEvent(ev uv.Event) (out event.RawEvent) {
 	case uv.UnknownCsiEvent:
 		s := string(e)
 		slog.Info("UV: Received Unknown CSI", "raw", fmt.Sprintf("%q", s))
-		return &event.RawUnknownEvent{Payload: prefixCSI + s}
+		return &backend.RawUnknownEvent{Payload: prefixCSI + s}
 	case uv.UnknownDcsEvent:
 		s := string(e)
 		slog.Info("UV: Received Unknown DCS", "raw", fmt.Sprintf("%q", s))
-		return &event.RawUnknownEvent{Payload: prefixDCS + s}
+		return &backend.RawUnknownEvent{Payload: prefixDCS + s}
 	case uv.UnknownApcEvent:
 		s := string(e)
-		return &event.RawUnknownEvent{Payload: prefixAPC + s}
+		return &backend.RawUnknownEvent{Payload: prefixAPC + s}
 	case uv.UnknownEvent:
 		s := string(e)
-		return &event.RawUnknownEvent{Payload: prefixUNK + s}
+		return &backend.RawUnknownEvent{Payload: prefixUNK + s}
 	case uv.BackgroundColorEvent:
-		return &event.RawUnknownEvent{Payload: prefixBGC + e.String()}
+		return &backend.RawUnknownEvent{Payload: prefixBGC + e.String()}
 	case uv.PixelSizeEvent:
-		return &event.RawUnknownEvent{Payload: e}
+		return &backend.RawUnknownEvent{Payload: e}
 	case uv.ModeReportEvent:
 		s := fmt.Sprintf("\x1b[?%d;%d$y", e.Mode, e.Value)
-		return &event.RawUnknownEvent{Payload: s}
+		return &backend.RawUnknownEvent{Payload: s}
 	case *uv.ModeReportEvent:
 		s := fmt.Sprintf("\x1b[?%d;%d$y", e.Mode, e.Value)
-		return &event.RawUnknownEvent{Payload: s}
+		return &backend.RawUnknownEvent{Payload: s}
 	}
 
 	slog.Info("UV: Unhandled event type", "type", fmt.Sprintf("%T", ev), "val", fmt.Sprintf("%#v", ev))
-	return &event.RawUnknownEvent{
+	return &backend.RawUnknownEvent{
 		Payload: ev,
 	}
 }
 
-func parseOsc(s string) event.RawEvent {
+func parseOsc(s string) backend.RawEvent {
 	const escBEL = "\x07"
 
 	// Strip ESC ] if present
@@ -162,7 +163,7 @@ func parseOsc(s string) event.RawEvent {
 		data = s
 	}
 
-	return &event.RawOscEvent{
+	return &backend.RawOscEvent{
 		Code: code,
 		Data: data,
 	}
@@ -213,7 +214,7 @@ func translateMouseButton(button uv.MouseButton) event.MouseButton {
 	}
 }
 
-func translateClipboardEvent(e uv.ClipboardEvent) (event.RawEvent, bool) {
+func translateClipboardEvent(e uv.ClipboardEvent) (backend.RawEvent, bool) {
 	var selection rune = 0
 	switch e.Selection {
 	case uv.PrimaryClipboard:
@@ -226,7 +227,7 @@ func translateClipboardEvent(e uv.ClipboardEvent) (event.RawEvent, bool) {
 		slog.Info("UV: Unknown clipboard selection", "selection", e.Selection)
 		return nil, false
 	}
-	return &event.RawClipboardEvent{
+	return &backend.RawClipboardEvent{
 		Selection: selection,
 		Content:   e.Content,
 	}, true

@@ -16,6 +16,7 @@ package engine
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
@@ -109,7 +110,7 @@ func TestDispatchMouseEvent_Mousedown_FocusesHitTarget(t *testing.T) {
 	}
 
 	// A mousedown at (0,0) hits the element planted at y=0.
-	eng.processRawEvent(&event.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
+	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
 
 	if eng.focusManager.Current() != fe {
 		t.Errorf("after mousedown: focused = %v, want the pressed element", eng.focusManager.Current())
@@ -154,7 +155,7 @@ func TestDispatchMouseEvent_NonFocusable_LeavesExistingFocus(t *testing.T) {
 	}
 
 	// Mousedown on the plain div at y=2.
-	eng.processRawEvent(&event.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
+	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
 
 	if eng.focusManager.Current() != feInput {
 		t.Errorf("after mousedown on non-focusable: focused = %v, want original input element",
@@ -177,7 +178,7 @@ func TestDispatchMouseEvent_PreventDefault_DoesNotFocus(t *testing.T) {
 		e.PreventDefault()
 	})
 
-	eng.processRawEvent(&event.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
+	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
 
 	if eng.focusManager.Current() != nil {
 		t.Errorf("PreventDefault on mousedown: focused = %v, want nil (opt-out honoured)",
@@ -196,13 +197,13 @@ func TestDispatchMouseEvent_SwitchesFocus_BetweenTwoInputs(t *testing.T) {
 	second, _ := plantFocusable(eng, "input-second", 2)
 
 	// Focus the first element.
-	eng.processRawEvent(&event.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
+	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
 	if eng.focusManager.Current() != first {
 		t.Fatalf("precondition: could not focus first element, got %v", eng.focusManager.Current())
 	}
 
 	// Now press the second element (at y=2).
-	eng.processRawEvent(&event.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
+	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
 
 	if eng.focusManager.Current() != second {
 		t.Errorf("after pressing second element: focused = %v, want second element",

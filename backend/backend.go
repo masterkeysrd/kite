@@ -39,7 +39,7 @@ type Backend interface {
 
 	// Events returns a read-only channel of input events from the terminal. The
 	// channel is closed when the backend stops.
-	Events() <-chan event.RawEvent
+	Events() <-chan RawEvent
 
 	// Restore unconditionally restores the terminal to its state before the
 	// backend was started (exit alt-screen, disable raw mode, show cursor).
@@ -85,7 +85,7 @@ type TerminalExtension interface {
 	// HandleEvent intercepts a raw backend event. If the extension recognizes
 	// the event, it returns handled=true and an optional structured event
 	// to be dispatched.
-	HandleEvent(raw event.RawEvent) (handled bool, ev event.Event)
+	HandleEvent(raw RawEvent) (handled bool, ev event.Event)
 }
 
 // MouseSupport describes the level of mouse event support available from the

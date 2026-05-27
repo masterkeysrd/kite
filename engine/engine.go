@@ -19,6 +19,7 @@ import (
 	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/focus/spatial"
 	"github.com/masterkeysrd/kite/geom"
+	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
@@ -89,7 +90,7 @@ type Engine struct {
 	dispatcher *event.Dispatcher
 
 	// synthesizer converts raw backend input into structured events.
-	synthesizer *event.Synthesizer
+	synthesizer *internalevent.Synthesizer
 
 	// focusManager owns focus state and scope stack.
 	focusManager *focus.Manager
@@ -175,10 +176,10 @@ type Engine struct {
 	extensions []backend.TerminalExtension
 
 	// eventBuffer holds raw events to be processed before the next frame.
-	eventBuffer []event.RawEvent
+	eventBuffer []backend.RawEvent
 
 	// Reusable buffers for event coalescing to avoid per-frame allocations.
-	rawCoalescedBuf []event.RawEvent
+	rawCoalescedBuf []backend.RawEvent
 	structuredBuf   []event.Event
 	coalescedBuf    []event.Event
 	wheelMap        map[event.EventTarget]*event.WheelEvent
@@ -287,7 +288,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.document.MarkNeedsSync()
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
 	e.document.SetFocusManager(e.focusManager)
-	e.synthesizer = event.NewSynthesizer(e, e, event.SynthesizerOptions{
+	e.synthesizer = internalevent.NewSynthesizer(e, e, internalevent.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})
 
@@ -1222,7 +1223,7 @@ func (e *Engine) Run(ctx context.Context) error {
 // ProcessRawEvent converts a raw backend event into a sequence of DOM events
 // and dispatches them through the tree. It is used primarily for testing
 // and for custom event-loop implementations.
-func (e *Engine) ProcessRawEvent(raw event.RawEvent) {
+func (e *Engine) ProcessRawEvent(raw backend.RawEvent) {
 	e.processRawEvent(raw)
 }
 
@@ -1266,7 +1267,7 @@ func (e *Engine) drainEvents() {
 	}
 }
 
-func (e *Engine) coalesceRawEvents(events []event.RawEvent) []event.RawEvent {
+func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent {
 	if len(events) <= 1 {
 		return events
 	}
@@ -1281,14 +1282,14 @@ func (e *Engine) coalesceRawEvents(events []event.RawEvent) []event.RawEvent {
 	// Find index of the absolute last mouse move in the whole batch.
 	lastMoveIdx := -1
 	for i := len(events) - 1; i >= 0; i-- {
-		if m, ok := events[i].(*event.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
+		if m, ok := events[i].(*backend.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
 			lastMoveIdx = i
 			break
 		}
 	}
 
 	for i, ev := range events {
-		m, isMouse := ev.(*event.RawMouseEvent)
+		m, isMouse := ev.(*backend.RawMouseEvent)
 		if !isMouse {
 			e.rawCoalescedBuf = append(e.rawCoalescedBuf, ev)
 			continue
@@ -1308,7 +1309,7 @@ func (e *Engine) coalesceRawEvents(events []event.RawEvent) []event.RawEvent {
 		if isWheel {
 			// Check if we can merge with the previous event in the result slice.
 			if len(e.rawCoalescedBuf) > 0 {
-				if prev, ok := e.rawCoalescedBuf[len(e.rawCoalescedBuf)-1].(*event.RawMouseEvent); ok {
+				if prev, ok := e.rawCoalescedBuf[len(e.rawCoalescedBuf)-1].(*backend.RawMouseEvent); ok {
 					if prev.X == m.X && prev.Y == m.Y && prev.Mod == m.Mod && (prev.DeltaX != 0 || prev.DeltaY != 0) {
 						prev.DeltaX += m.DeltaX
 						prev.DeltaY += m.DeltaY
@@ -1397,7 +1398,7 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 	}
 }
 
-func (e *Engine) processRawEvent(raw event.RawEvent) {
+func (e *Engine) processRawEvent(raw backend.RawEvent) {
 	evts := e.synthesizer.Process(raw)
 	for _, ev := range evts {
 		e.dispatchEvent(ev)

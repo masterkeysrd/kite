@@ -4,8 +4,10 @@ import (
 	"iter"
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	internal "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
@@ -294,14 +296,14 @@ func TestSynthesizer_ClickWithinTolerance(t *testing.T) {
 	target := newStub(geom.Rect{})
 	hit := &stubHitTester{result: target}
 	focus := &stubFocus{target: target}
-	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{ClickRadius: 3})
+	s := internal.NewSynthesizer(hit, focus, internal.SynthesizerOptions{ClickRadius: 3})
 
 	// Mouse down at (5,5).
-	evts := s.Process(&event.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft})
+	evts := s.Process(&backend.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft})
 	hasType(t, evts, event.EventMouseDown)
 
 	// Mouse up at (6,5) — within 3-cell tolerance → click synthesized.
-	evts = s.Process(&event.RawMouseEvent{X: 6, Y: 5, Button: event.ButtonLeft, Up: true})
+	evts = s.Process(&backend.RawMouseEvent{X: 6, Y: 5, Button: event.ButtonLeft, Up: true})
 	hasType(t, evts, event.EventMouseUp)
 	hasType(t, evts, event.EventClick)
 }
@@ -312,18 +314,18 @@ func TestSynthesizer_DragBeyondTolerance(t *testing.T) {
 	target := newStub(geom.Rect{})
 	hit := &stubHitTester{result: target}
 	focus := &stubFocus{target: target}
-	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{ClickRadius: 3})
+	s := internal.NewSynthesizer(hit, focus, internal.SynthesizerOptions{ClickRadius: 3})
 
 	// Mouse down.
-	s.Process(&event.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft})
+	s.Process(&backend.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft})
 
 	// Move beyond tolerance (>3 cells).
-	evts := s.Process(&event.RawMouseEvent{X: 10, Y: 0, Button: event.ButtonLeft, Move: true})
+	evts := s.Process(&backend.RawMouseEvent{X: 10, Y: 0, Button: event.ButtonLeft, Move: true})
 	hasType(t, evts, event.EventMouseMove)
 	hasType(t, evts, event.EventDrag)
 
 	// Mouse up — no click because drag cancelled it.
-	evts = s.Process(&event.RawMouseEvent{X: 10, Y: 0, Button: event.ButtonLeft, Up: true})
+	evts = s.Process(&backend.RawMouseEvent{X: 10, Y: 0, Button: event.ButtonLeft, Up: true})
 	hasType(t, evts, event.EventMouseUp)
 	if containsType(evts, event.EventClick) {
 		t.Error("click should not be synthesized after drag beyond tolerance")
@@ -336,9 +338,9 @@ func TestSynthesizer_ResolvesHitTarget(t *testing.T) {
 	target := newStub(geom.Rect{Origin: geom.Point{X: 5, Y: 5}, Size: geom.Size{Width: 10, Height: 5}})
 	hit := &stubHitTester{result: target}
 	focus := &stubFocus{}
-	s := event.NewSynthesizer(hit, focus, event.SynthesizerOptions{})
+	s := internal.NewSynthesizer(hit, focus, internal.SynthesizerOptions{})
 
-	evts := s.Process(&event.RawMouseEvent{X: 7, Y: 6})
+	evts := s.Process(&backend.RawMouseEvent{X: 7, Y: 6})
 	if len(evts) == 0 {
 		t.Fatal("expected event from synthesizer")
 	}
@@ -524,9 +526,9 @@ func (c *stubClipboard) RequestClipboard()        { c.requested = true }
 func TestPaste_BracketedSequence_BecomesSinglePasteEvent(t *testing.T) {
 	t.Parallel()
 
-	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{})
+	s := internal.NewSynthesizer(nil, nil, internal.SynthesizerOptions{})
 
-	evts := s.Process(&event.RawBracketedPaste{Text: "hello"})
+	evts := s.Process(&backend.RawBracketedPaste{Text: "hello"})
 
 	var pasteEvt *event.PasteEvent
 	for _, ev := range evts {
@@ -562,10 +564,10 @@ func TestClipboard_CopyCut_FromSelectionProvider(t *testing.T) {
 	}
 	focus := &stubFocus{target: focusedObj}
 	cb := &stubClipboard{}
-	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{})
+	s := internal.NewSynthesizer(nil, focus, internal.SynthesizerOptions{})
 
 	// Ctrl+C.
-	evts := s.Process(&event.RawKeyEvent{Key: key.Key{Code: 'c', Mod: key.ModCtrl}})
+	evts := s.Process(&backend.RawKeyEvent{Key: key.Key{Code: 'c', Mod: key.ModCtrl}})
 	var copyEvt *event.ClipboardEvent
 	for _, ev := range evts {
 		if ce, ok := ev.(*event.ClipboardEvent); ok && ce.ClipType == event.ClipboardCopy {
@@ -588,7 +590,7 @@ func TestClipboard_CopyCut_FromSelectionProvider(t *testing.T) {
 	}
 
 	// Ctrl+X.
-	evts = s.Process(&event.RawKeyEvent{Key: key.Key{Code: 'x', Mod: key.ModCtrl}})
+	evts = s.Process(&backend.RawKeyEvent{Key: key.Key{Code: 'x', Mod: key.ModCtrl}})
 	var cutEvt *event.ClipboardEvent
 	for _, ev := range evts {
 		if ce, ok := ev.(*event.ClipboardEvent); ok && ce.ClipType == event.ClipboardCut {
@@ -605,7 +607,7 @@ func TestClipboard_Synthesizer_PlatformShortcuts(t *testing.T) {
 	t.Parallel()
 
 	focus := &stubFocus{}
-	s := event.NewSynthesizer(nil, focus, event.SynthesizerOptions{})
+	s := internal.NewSynthesizer(nil, focus, internal.SynthesizerOptions{})
 
 	tests := []struct {
 		name string
@@ -620,7 +622,7 @@ func TestClipboard_Synthesizer_PlatformShortcuts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			evts := s.Process(&event.RawKeyEvent{Key: tt.key})
+			evts := s.Process(&backend.RawKeyEvent{Key: tt.key})
 			var ce *event.ClipboardEvent
 			for _, e := range evts {
 				if c, ok := e.(*event.ClipboardEvent); ok && c.ClipType == tt.want {
@@ -638,10 +640,10 @@ func TestClipboard_Synthesizer_PlatformShortcuts(t *testing.T) {
 func TestClipboard_Paste_FromCtrlV_AndBracketedPaste(t *testing.T) {
 	t.Parallel()
 
-	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{})
+	s := internal.NewSynthesizer(nil, nil, internal.SynthesizerOptions{})
 
 	// Ctrl+V → emits ClipboardEvent immediately.
-	evts := s.Process(&event.RawKeyEvent{Key: key.Key{Code: 'v', Mod: key.ModCtrl}})
+	evts := s.Process(&backend.RawKeyEvent{Key: key.Key{Code: 'v', Mod: key.ModCtrl}})
 	var foundPaste bool
 	for _, ev := range evts {
 		if ce, ok := ev.(*event.ClipboardEvent); ok && ce.ClipType == event.ClipboardPaste {
@@ -654,7 +656,7 @@ func TestClipboard_Paste_FromCtrlV_AndBracketedPaste(t *testing.T) {
 	}
 
 	// Bracketed paste → ClipboardEvent{Paste}.
-	evts = s.Process(&event.RawBracketedPaste{Text: "pasted"})
+	evts = s.Process(&backend.RawBracketedPaste{Text: "pasted"})
 	var pasteEvt *event.ClipboardEvent
 	for _, ev := range evts {
 		if ce, ok := ev.(*event.ClipboardEvent); ok && ce.ClipType == event.ClipboardPaste {
@@ -677,8 +679,8 @@ func TestClipboard_Paste_FromCtrlV_AndBracketedPaste(t *testing.T) {
 func TestEngine_DispatchesResizeOnViewportChange(t *testing.T) {
 	t.Parallel()
 
-	s := event.NewSynthesizer(nil, nil, event.SynthesizerOptions{})
-	evts := s.Process(&event.RawResizeEvent{Width: 120, Height: 40})
+	s := internal.NewSynthesizer(nil, nil, internal.SynthesizerOptions{})
+	evts := s.Process(&backend.RawResizeEvent{Width: 120, Height: 40})
 	if len(evts) != 1 {
 		t.Fatalf("expected 1 event for resize, got %d", len(evts))
 	}

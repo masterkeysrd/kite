@@ -15,7 +15,6 @@ import (
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/cursor"
-	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/paint"
 )
@@ -47,7 +46,7 @@ type Backend struct {
 	caps     backend.Caps
 
 	wg      sync.WaitGroup
-	eventCh chan event.RawEvent
+	eventCh chan backend.RawEvent
 
 	// current is the FrameBuffer prepared by BeginFrame and drawn into by the
 	// paint engine. It is handed to the render goroutine in EndFrame.
@@ -125,7 +124,7 @@ func New() (*Backend, error) {
 		screen:   screen,
 		width:    w,
 		height:   h,
-		eventCh:  make(chan event.RawEvent),
+		eventCh:  make(chan backend.RawEvent),
 		renderCh: make(chan renderRequest, 2),
 	}
 	b.fbPool.New = func() any {
@@ -218,7 +217,7 @@ func (b *Backend) Stop() {
 }
 
 // Events returns the terminal event channel.
-func (b *Backend) Events() <-chan event.RawEvent {
+func (b *Backend) Events() <-chan backend.RawEvent {
 	return b.eventCh
 }
 

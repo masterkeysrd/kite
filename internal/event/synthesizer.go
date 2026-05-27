@@ -3,6 +3,8 @@ package event
 import (
 	"strings"
 
+	"github.com/masterkeysrd/kite/backend"
+	pub "github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
 )
@@ -11,7 +13,7 @@ import (
 // uses it to route key events and paste events.
 type FocusReader interface {
 	// FocusedObject returns the currently focused render object, or nil.
-	FocusedTarget() EventTarget
+	FocusedTarget() pub.EventTarget
 }
 
 // SynthesizerOptions configures a Synthesizer.
@@ -23,29 +25,29 @@ type SynthesizerOptions struct {
 
 	// ScrollableResolver maps a target to its Scrollable, or nil.
 	// Used by DispatchWheel.
-	ScrollableResolver func(EventTarget) Scrollable
+	ScrollableResolver func(pub.EventTarget) pub.Scrollable
 }
 
-// Synthesizer converts raw backend input (RawEvent) into structured events
+// Synthesizer converts raw backend input (backend.RawEvent) into structured events
 // ready for dispatch. Click and drag synthesis applies movement tolerance.
 // Hit testing assigns the target render object.
 //
 // Synthesizer is not safe for concurrent use.
 type Synthesizer struct {
-	hit                HitTester
+	hit                pub.HitTester
 	focus              FocusReader
 	clickRadius        int
-	scrollableResolver func(EventTarget) Scrollable
+	scrollableResolver func(pub.EventTarget) pub.Scrollable
 
 	// pendingDown is set when a mousedown is received; cleared on mouseup.
-	pendingDown *MouseEvent
+	pendingDown *pub.MouseEvent
 	// pendingDownPos is the screen position of the pending mousedown.
 	pendingDownPos geom.Point
 }
 
 // NewSynthesizer creates a Synthesizer with the given HitTester, FocusReader,
 // and options.
-func NewSynthesizer(hit HitTester, focus FocusReader, opts SynthesizerOptions) *Synthesizer {
+func NewSynthesizer(hit pub.HitTester, focus FocusReader, opts SynthesizerOptions) *Synthesizer {
 	radius := opts.ClickRadius
 	if radius <= 0 {
 		radius = 3
@@ -60,11 +62,11 @@ func NewSynthesizer(hit HitTester, focus FocusReader, opts SynthesizerOptions) *
 
 // ResolveScrollables takes a path of event targets and returns a map of those
 // that implement Scrollable.
-func (s *Synthesizer) ResolveScrollables(path []EventTarget) map[EventTarget]Scrollable {
+func (s *Synthesizer) ResolveScrollables(path []pub.EventTarget) map[pub.EventTarget]pub.Scrollable {
 	if s.scrollableResolver == nil {
 		return nil
 	}
-	res := make(map[EventTarget]Scrollable)
+	res := make(map[pub.EventTarget]pub.Scrollable)
 	for _, t := range path {
 		if s := s.scrollableResolver(t); s != nil {
 			res[t] = s
@@ -74,38 +76,38 @@ func (s *Synthesizer) ResolveScrollables(path []EventTarget) map[EventTarget]Scr
 }
 
 // Process converts a raw backend event into zero or more high-level events.
-func (s *Synthesizer) Process(raw RawEvent) []Event {
+func (s *Synthesizer) Process(raw backend.RawEvent) []pub.Event {
 	switch e := raw.(type) {
-	case *RawMouseEvent:
+	case *backend.RawMouseEvent:
 		return s.processMouse(e)
-	case *RawKeyEvent:
+	case *backend.RawKeyEvent:
 		return s.processKey(e)
-	case *RawResizeEvent:
+	case *backend.RawResizeEvent:
 		return s.processResize(e)
-	case *RawBracketedPaste:
+	case *backend.RawBracketedPaste:
 		return s.processBracketedPaste(e)
-	case *RawClipboardEvent:
+	case *backend.RawClipboardEvent:
 		return s.processClipboard(e)
 	}
 	return nil
 }
 
-// processKey converts a RawKeyEvent into a KeyEvent, and optionally a
+// processKey converts a backend.RawKeyEvent into a KeyEvent, and optionally a
 // ClipboardEvent when Ctrl+C / Ctrl+X / Ctrl+V is pressed.
-func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
-	typ := EventKeyDown
+func (s *Synthesizer) processKey(raw *backend.RawKeyEvent) []pub.Event {
+	typ := pub.EventKeyDown
 	if raw.Up {
-		typ = EventKeyUp
+		typ = pub.EventKeyUp
 	}
-	ke := NewKeyEvent(typ, raw.Key)
+	ke := pub.NewKeyEvent(typ, raw.Key)
 
 	// Route to the focused element.
 	if s.focus != nil {
-		ke.setTarget(s.focus.FocusedTarget())
+		ke.SetTarget(s.focus.FocusedTarget())
 	}
 
 	// Clipboard synthesis.
-	var events []Event
+	var events []pub.Event
 	events = append(events, ke)
 
 	isPaste := !raw.Up && (raw.MatchString("ctrl+v") || raw.MatchString("cmd+v") || raw.MatchString("alt+v") || ke.Code == key.CtrlV)
@@ -124,9 +126,9 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 	case isPaste:
 		// Emit a paste event. The engine or document will handle fetching
 		// data from providers if the Items map is empty.
-		ce := NewClipboardEvent(EventPaste, ClipboardPaste)
+		ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
 		if s.focus != nil {
-			ce.setTarget(s.focus.FocusedTarget())
+			ce.SetTarget(s.focus.FocusedTarget())
 		}
 		events = append(events, ce)
 	}
@@ -135,13 +137,13 @@ func (s *Synthesizer) processKey(raw *RawKeyEvent) []Event {
 }
 
 // synthesizeCopy creates a ClipboardEvent{Copy}.
-func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
-	ce := NewClipboardEvent(EventCopy, ClipboardCopy)
+func (s *Synthesizer) synthesizeCopy(_ *pub.KeyEvent) *pub.ClipboardEvent {
+	ce := pub.NewClipboardEvent(pub.EventCopy, pub.ClipboardCopy)
 	if s.focus != nil {
 		focused := s.focus.FocusedTarget()
 		if focused != nil {
-			ce.setTarget(focused)
-			if sp, ok := focused.(SelectionProvider); ok {
+			ce.SetTarget(focused)
+			if sp, ok := focused.(pub.SelectionProvider); ok {
 				text := sp.SelectedText()
 				if text != "" {
 					ce.Items["text/plain"] = []byte(text)
@@ -153,13 +155,13 @@ func (s *Synthesizer) synthesizeCopy(_ *KeyEvent) *ClipboardEvent {
 }
 
 // synthesizeCut creates a ClipboardEvent{Cut}.
-func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
-	ce := NewClipboardEvent(EventCut, ClipboardCut)
+func (s *Synthesizer) synthesizeCut(_ *pub.KeyEvent) *pub.ClipboardEvent {
+	ce := pub.NewClipboardEvent(pub.EventCut, pub.ClipboardCut)
 	if s.focus != nil {
 		focused := s.focus.FocusedTarget()
 		if focused != nil {
-			ce.setTarget(focused)
-			if sp, ok := focused.(SelectionProvider); ok {
+			ce.SetTarget(focused)
+			if sp, ok := focused.(pub.SelectionProvider); ok {
 				text := sp.SelectedText()
 				if text != "" {
 					ce.Items["text/plain"] = []byte(text)
@@ -170,27 +172,27 @@ func (s *Synthesizer) synthesizeCut(_ *KeyEvent) *ClipboardEvent {
 	return ce
 }
 
-// processMouse converts a RawMouseEvent into mouse events, synthesizing click
+// processMouse converts a backend.RawMouseEvent into mouse events, synthesizing click
 // and drag as appropriate.
-func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
+func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 	pos := geom.Point{X: raw.X, Y: raw.Y}
 	hitTarget := s.hitTest(pos)
 
-	var events []Event
+	var events []pub.Event
 
 	if raw.DeltaX != 0 || raw.DeltaY != 0 {
 		// Wheel event.
-		we := NewWheelEvent(pos, raw.DeltaX, raw.DeltaY, raw.Mod)
-		we.setTarget(hitTarget)
+		we := pub.NewWheelEvent(pos, raw.DeltaX, raw.DeltaY, raw.Mod)
+		we.SetTarget(hitTarget)
 		events = append(events, we)
 		return events
 	}
 
 	if !raw.Up && !raw.Move {
 		// Mouse down.
-		me := NewMouseEvent(EventMouseDown, pos, raw.Button, raw.Mod)
-		me.Hit = HitResult{Target: hitTarget}
-		me.setTarget(hitTarget)
+		me := pub.NewMouseEvent(pub.EventMouseDown, pos, raw.Button, raw.Mod)
+		me.Hit = pub.HitResult{Target: hitTarget}
+		me.SetTarget(hitTarget)
 		s.pendingDown = me
 		s.pendingDownPos = pos
 		events = append(events, me)
@@ -199,16 +201,16 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 
 	if raw.Move {
 		// Mouse move.
-		me := NewMouseEvent(EventMouseMove, pos, raw.Button, raw.Mod)
-		me.Hit = HitResult{Target: hitTarget}
-		me.setTarget(hitTarget)
+		me := pub.NewMouseEvent(pub.EventMouseMove, pos, raw.Button, raw.Mod)
+		me.Hit = pub.HitResult{Target: hitTarget}
+		me.SetTarget(hitTarget)
 		events = append(events, me)
 
 		// Check for drag: down pending and movement beyond tolerance.
 		if s.pendingDown != nil && s.beyondTolerance(s.pendingDownPos, pos) {
-			drag := NewMouseEvent(EventDrag, pos, raw.Button, raw.Mod)
-			drag.Hit = HitResult{Target: hitTarget}
-			drag.setTarget(hitTarget)
+			drag := pub.NewMouseEvent(pub.EventDrag, pos, raw.Button, raw.Mod)
+			drag.Hit = pub.HitResult{Target: hitTarget}
+			drag.SetTarget(hitTarget)
 			events = append(events, drag)
 			s.pendingDown = nil // drag cancels pending click
 		}
@@ -217,18 +219,18 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 
 	if raw.Up {
 		// Mouse up.
-		me := NewMouseEvent(EventMouseUp, pos, raw.Button, raw.Mod)
-		me.Hit = HitResult{Target: hitTarget}
-		me.setTarget(hitTarget)
+		me := pub.NewMouseEvent(pub.EventMouseUp, pos, raw.Button, raw.Mod)
+		me.Hit = pub.HitResult{Target: hitTarget}
+		me.SetTarget(hitTarget)
 		events = append(events, me)
 
 		// Synthesize click if we have a pending down on the same target and
 		// within tolerance.
 		if s.pendingDown != nil {
 			if !s.beyondTolerance(s.pendingDownPos, pos) {
-				click := NewMouseEvent(EventClick, pos, raw.Button, raw.Mod)
-				click.Hit = HitResult{Target: hitTarget}
-				click.setTarget(hitTarget)
+				click := pub.NewMouseEvent(pub.EventClick, pos, raw.Button, raw.Mod)
+				click.Hit = pub.HitResult{Target: hitTarget}
+				click.SetTarget(hitTarget)
 				events = append(events, click)
 			}
 			s.pendingDown = nil
@@ -239,30 +241,30 @@ func (s *Synthesizer) processMouse(raw *RawMouseEvent) []Event {
 	return events
 }
 
-func (s *Synthesizer) processResize(raw *RawResizeEvent) []Event {
-	re := NewResizeEvent(raw.Width, raw.Height)
-	return []Event{re}
+func (s *Synthesizer) processResize(raw *backend.RawResizeEvent) []pub.Event {
+	re := pub.NewResizeEvent(raw.Width, raw.Height)
+	return []pub.Event{re}
 }
 
-// processBracketedPaste converts a RawBracketedPaste into a PasteEvent and
+// processBracketedPaste converts a backend.RawBracketedPaste into a PasteEvent and
 // a ClipboardEvent.
-func (s *Synthesizer) processBracketedPaste(raw *RawBracketedPaste) []Event {
-	pe := NewPasteEvent(raw.Text)
+func (s *Synthesizer) processBracketedPaste(raw *backend.RawBracketedPaste) []pub.Event {
+	pe := pub.NewPasteEvent(raw.Text)
 	if s.focus != nil {
-		pe.setTarget(s.focus.FocusedTarget())
+		pe.SetTarget(s.focus.FocusedTarget())
 	}
-	ce := NewClipboardEvent(EventPaste, ClipboardPaste)
+	ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
 	if s.focus != nil {
-		ce.setTarget(s.focus.FocusedTarget())
+		ce.SetTarget(s.focus.FocusedTarget())
 	}
 	ce.Items["text/plain"] = []byte(raw.Text)
-	return []Event{pe, ce}
+	return []pub.Event{pe, ce}
 }
 
-// processClipboard converts a RawClipboardEvent into a ClipboardEvent.
+// processClipboard converts a backend.RawClipboardEvent into a ClipboardEvent.
 //
 // This happend when the terminal sends us clipboard content directly in response of an OSC 52 request.
-func (s *Synthesizer) processClipboard(raw *RawClipboardEvent) []Event {
+func (s *Synthesizer) processClipboard(raw *backend.RawClipboardEvent) []pub.Event {
 	content := strings.TrimSpace(raw.Content)
 	if len(content) == 0 {
 		// OSC 52 response with empty content is sent when the clipboard is empty or
@@ -270,24 +272,24 @@ func (s *Synthesizer) processClipboard(raw *RawClipboardEvent) []Event {
 		return nil
 	}
 
-	if raw.Selection != SystemClipboard && raw.Selection != UnknownClipboard {
+	if raw.Selection != pub.SystemClipboard && raw.Selection != pub.UnknownClipboard {
 		// We don't synthesize primary selection events, as they are not user-initiated.
 		// Primary is just mouse-driven and doesn't have a standard paste
 		//shortcut, so we can safely ignore it.
 		return nil
 	}
 
-	ce := NewClipboardEvent(EventPaste, ClipboardPaste)
+	ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
 	if s.focus != nil {
-		ce.setTarget(s.focus.FocusedTarget())
+		ce.SetTarget(s.focus.FocusedTarget())
 	}
 	// We use the raw content to preserve any newlines or other whitespace.
 	ce.Items["text/plain"] = []byte(raw.Content)
-	return []Event{ce}
+	return []pub.Event{ce}
 }
 
 // hitTest resolves the target at p, or nil if the hit tester is unset.
-func (s *Synthesizer) hitTest(p geom.Point) EventTarget {
+func (s *Synthesizer) hitTest(p geom.Point) pub.EventTarget {
 	if s.hit == nil {
 		return nil
 	}

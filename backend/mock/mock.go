@@ -7,7 +7,6 @@ import (
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/cursor"
-	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/paint"
 )
@@ -31,7 +30,7 @@ type Backend struct {
 	width, height int
 
 	// events is the channel returned by Events().
-	events chan event.RawEvent
+	events chan backend.RawEvent
 
 	// caps holds the simulated terminal capabilities for this backend.
 	// Tests may set fields on caps before passing the backend to an engine.
@@ -70,7 +69,7 @@ func New(width, height int) *Backend {
 	return &Backend{
 		width:  width,
 		height: height,
-		events: make(chan event.RawEvent),
+		events: make(chan backend.RawEvent),
 	}
 }
 
@@ -81,7 +80,7 @@ func NewWithCaps(width, height int, caps backend.Caps) *Backend {
 		width:  width,
 		height: height,
 		caps:   caps,
-		events: make(chan event.RawEvent),
+		events: make(chan backend.RawEvent),
 	}
 }
 
@@ -115,7 +114,7 @@ func (b *Backend) EndFrame() error {
 func (b *Backend) Caps() backend.Caps { return b.caps }
 
 // Events returns a channel of input events.
-func (b *Backend) Events() <-chan event.RawEvent { return b.events }
+func (b *Backend) Events() <-chan backend.RawEvent { return b.events }
 
 // Restore records the call. In the mock backend this is a no-op.
 func (b *Backend) Restore() { b.RestoreCalls++ }

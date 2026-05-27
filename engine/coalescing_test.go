@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
@@ -31,9 +32,9 @@ func TestEngine_EventCoalescing_MouseMove(t *testing.T) {
 
 	// Push multiple mouse moves into the buffer.
 	e.eventBuffer = append(e.eventBuffer,
-		&event.RawMouseEvent{X: 1, Y: 1, Move: true},
-		&event.RawMouseEvent{X: 2, Y: 2, Move: true},
-		&event.RawMouseEvent{X: 3, Y: 3, Move: true},
+		&backend.RawMouseEvent{X: 1, Y: 1, Move: true},
+		&backend.RawMouseEvent{X: 2, Y: 2, Move: true},
+		&backend.RawMouseEvent{X: 3, Y: 3, Move: true},
 	)
 
 	e.drainEvents()
@@ -67,9 +68,9 @@ func TestEngine_EventCoalescing_WheelEvents(t *testing.T) {
 
 	// Push multiple wheel events.
 	e.eventBuffer = append(e.eventBuffer,
-		&event.RawMouseEvent{X: 1, Y: 1, DeltaY: 1},
-		&event.RawMouseEvent{X: 1, Y: 1, DeltaY: 2},
-		&event.RawMouseEvent{X: 1, Y: 1, DeltaY: 3},
+		&backend.RawMouseEvent{X: 1, Y: 1, DeltaY: 1},
+		&backend.RawMouseEvent{X: 1, Y: 1, DeltaY: 2},
+		&backend.RawMouseEvent{X: 1, Y: 1, DeltaY: 3},
 	)
 
 	e.drainEvents()
@@ -120,7 +121,7 @@ func BenchmarkEngine_ScrollBurst_Coalesced(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Simulate 500 wheel ticks arriving before the 8ms ticker fires.
 		for j := 0; j < 500; j++ {
-			e.eventBuffer = append(e.eventBuffer, &event.RawMouseEvent{
+			e.eventBuffer = append(e.eventBuffer, &backend.RawMouseEvent{
 				X: 10, Y: 10, DeltaY: 1,
 			})
 		}
@@ -146,7 +147,7 @@ func BenchmarkEngine_ScrollBurst_NonCoalesced(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Simulate 500 wheel ticks, each triggering a frame (no coalescing).
 		for j := 0; j < 500; j++ {
-			e.eventBuffer = append(e.eventBuffer, &event.RawMouseEvent{
+			e.eventBuffer = append(e.eventBuffer, &backend.RawMouseEvent{
 				X: 10, Y: 10, DeltaY: 1,
 			})
 			e.drainEvents()

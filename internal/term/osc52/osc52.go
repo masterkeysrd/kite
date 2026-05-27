@@ -48,8 +48,8 @@ func (e *Extension) writeEsc(s string) {
 	fmt.Fprint(e.out, s)
 }
 
-func (e *Extension) HandleEvent(raw event.RawEvent) (bool, event.Event) {
-	if osc, ok := raw.(*event.RawOscEvent); ok && osc.Code == 52 {
+func (e *Extension) HandleEvent(raw backend.RawEvent) (bool, event.Event) {
+	if osc, ok := raw.(*backend.RawOscEvent); ok && osc.Code == 52 {
 		// Data format is "c;<base64>" or "p;<base64>" etc.
 		parts := strings.SplitN(osc.Data, ";", 2)
 		if len(parts) == 2 {

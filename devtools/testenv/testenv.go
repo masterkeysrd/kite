@@ -12,6 +12,7 @@ import (
 
 	"iter"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
@@ -102,7 +103,7 @@ func (e *Environment) Mount(n dom.Node) {
 }
 
 func (e *Environment) Resize(width, height int) {
-	e.Engine.ProcessRawEvent(&event.RawResizeEvent{
+	e.Engine.ProcessRawEvent(&backend.RawResizeEvent{
 		Width:  width,
 		Height: height,
 	})
@@ -135,7 +136,7 @@ func (e *Environment) QuerySelector(selector string) dom.Element {
 
 // SendKey simulates a key event.
 func (e *Environment) SendKey(k key.Key) {
-	e.Engine.ProcessRawEvent(&event.RawKeyEvent{
+	e.Engine.ProcessRawEvent(&backend.RawKeyEvent{
 		Key: k,
 	})
 }
@@ -217,7 +218,7 @@ func (e *Environment) Click(x, y int) {
 
 // MouseDown simulates a mouse button press at (x, y).
 func (e *Environment) MouseDown(x, y int, button event.MouseButton) {
-	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
+	e.Engine.ProcessRawEvent(&backend.RawMouseEvent{
 		X:      x,
 		Y:      y,
 		Button: button,
@@ -226,7 +227,7 @@ func (e *Environment) MouseDown(x, y int, button event.MouseButton) {
 
 // MouseMove simulates a mouse move to (x, y).
 func (e *Environment) MouseMove(x, y int) {
-	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
+	e.Engine.ProcessRawEvent(&backend.RawMouseEvent{
 		X:    x,
 		Y:    y,
 		Move: true,
@@ -235,7 +236,7 @@ func (e *Environment) MouseMove(x, y int) {
 
 // MouseUp simulates a mouse button release at (x, y).
 func (e *Environment) MouseUp(x, y int, button event.MouseButton) {
-	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
+	e.Engine.ProcessRawEvent(&backend.RawMouseEvent{
 		X:      x,
 		Y:      y,
 		Button: button,
@@ -245,7 +246,7 @@ func (e *Environment) MouseUp(x, y int, button event.MouseButton) {
 
 // Wheel simulates a mouse wheel event at (x, y).
 func (e *Environment) Wheel(x, y, dx, dy int) {
-	e.Engine.ProcessRawEvent(&event.RawMouseEvent{
+	e.Engine.ProcessRawEvent(&backend.RawMouseEvent{
 		X:      x,
 		Y:      y,
 		DeltaX: dx,

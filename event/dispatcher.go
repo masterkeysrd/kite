@@ -57,7 +57,7 @@ type subscription struct {
 // Cancel removes the listener. Idempotent.
 func (s *subscription) Cancel() {
 	if s.reg.cancelled.CompareAndSwap(false, true) {
-		s.target.removeRegistration(s.reg.id)
+		s.target.RemoveRegistration(s.reg.id)
 	}
 }
 
@@ -67,16 +67,6 @@ var regIDGen atomic.Uint64
 func nextRegID() uint64 { return regIDGen.Add(1) }
 
 // --- Dispatcher --------------------------------------------------------------
-
-// HitTester resolves the event target at a screen-space point. This is
-// typically implemented by the engine.
-type HitTester interface {
-	HitTest(x, y int) EventTarget
-}
-
-// AncestorWalker returns the ancestor chain from target up to the root
-// (inclusive), in child-to-root order.
-type AncestorWalker func(target EventTarget) []EventTarget
 
 // Dispatcher performs 3-phase (capture → target → bubble) event dispatch.
 //
@@ -101,13 +91,13 @@ func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 	realTarget := path[len(path)-1]
 
 	// Phase 1: Capture — root → target's parent.
-	e.setPhase(PhaseCapture)
+	e.SetPhase(PhaseCapture)
 	for i, et := range path[:len(path)-1] {
 		if e.PropagationStopped() {
 			return
 		}
-		e.setTarget(targets[i])
-		e.setCurrentTarget(et)
+		e.SetTarget(targets[i])
+		e.SetCurrentTarget(et)
 		et.DispatchTo(e)
 	}
 
@@ -116,9 +106,9 @@ func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 	}
 
 	// Phase 2: Target — both capture and bubble listeners fire.
-	e.setPhase(PhaseTarget)
-	e.setTarget(realTarget)
-	e.setCurrentTarget(realTarget)
+	e.SetPhase(PhaseTarget)
+	e.SetTarget(realTarget)
+	e.SetCurrentTarget(realTarget)
 	realTarget.DispatchToTarget(e)
 
 	if e.PropagationStopped() || !e.Bubbles() {
@@ -126,14 +116,14 @@ func (d *Dispatcher) Dispatch(e Event, path []EventTarget) {
 	}
 
 	// Phase 3: Bubble — target's parent → root.
-	e.setPhase(PhaseBubble)
+	e.SetPhase(PhaseBubble)
 	for i := len(path) - 2; i >= 0; i-- {
 		if e.PropagationStopped() {
 			return
 		}
 		et := path[i]
-		e.setTarget(targets[i])
-		e.setCurrentTarget(et)
+		e.SetTarget(targets[i])
+		e.SetCurrentTarget(et)
 		et.DispatchTo(e)
 	}
 }
@@ -152,13 +142,13 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 	realTarget := path[len(path)-1]
 
 	// Capture.
-	e.setPhase(PhaseCapture)
+	e.SetPhase(PhaseCapture)
 	for i, et := range path[:len(path)-1] {
 		if e.PropagationStopped() {
 			return
 		}
-		e.setTarget(targets[i])
-		e.setCurrentTarget(et)
+		e.SetTarget(targets[i])
+		e.SetCurrentTarget(et)
 		et.DispatchTo(e)
 	}
 
@@ -167,9 +157,9 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 	}
 
 	// Target.
-	e.setPhase(PhaseTarget)
-	e.setTarget(realTarget)
-	e.setCurrentTarget(realTarget)
+	e.SetPhase(PhaseTarget)
+	e.SetTarget(realTarget)
+	e.SetCurrentTarget(realTarget)
 	realTarget.DispatchToTarget(e)
 
 	// Check if target itself is Scrollable.
@@ -183,19 +173,19 @@ func (d *Dispatcher) DispatchWheel(e *WheelEvent, path []EventTarget, scrollable
 	}
 
 	// Bubble — stop at first Scrollable ancestor.
-	e.setPhase(PhaseBubble)
+	e.SetPhase(PhaseBubble)
 	for i := len(path) - 2; i >= 0; i-- {
 		if e.PropagationStopped() {
 			return
 		}
 		et := path[i]
-		e.setTarget(targets[i])
+		e.SetTarget(targets[i])
 		if sc, ok := scrollables[et]; ok {
-			e.setCurrentTarget(et)
+			e.SetCurrentTarget(et)
 			sc.OnWheel(e)
 			return
 		}
-		e.setCurrentTarget(et)
+		e.SetCurrentTarget(et)
 		et.DispatchTo(e)
 	}
 }
@@ -247,11 +237,17 @@ func computeRetargeting(path []EventTarget) []EventTarget {
 	return res
 }
 
+// HitTester resolves the event target at a screen-space point. This is
+// typically implemented by the engine.
+type HitTester interface {
+	HitTest(x, y int) EventTarget
+}
+
 type EventTarget interface {
 	AddEventListener(typ EventType, fn Listener, opts ...Option) Subscription
 	DispatchTo(e Event)
 	DispatchToTarget(e Event)
-	removeRegistration(id uint64)
+	RemoveRegistration(id uint64)
 	// EventTarget returns the user-visible event target for this object.
 	// For logical nodes in a UA shadow subtree, this returns the host element;
 	// otherwise it returns the object itself.
@@ -290,10 +286,6 @@ func (t *Target) AddEventListener(typ EventType, fn Listener, opts ...Option) Su
 	}
 	t.listeners[typ] = append(t.listeners[typ], reg)
 	return &subscription{reg: reg, target: t}
-}
-
-func (t *Target) removeRegistration(id uint64) {
-	t.RemoveRegistration(id)
 }
 
 // RemoveRegistration removes the registration with the given id.
