@@ -16,8 +16,8 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )

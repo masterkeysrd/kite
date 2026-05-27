@@ -6,7 +6,6 @@ import (
 
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
@@ -384,7 +383,7 @@ func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
 	e.RenderFrame()
 
 	if !e.HasFocus(txa) {
-		t.Errorf("TextArea should be auto-focused after key press, got %v", e.Engine.FocusManager().Current())
+		t.Errorf("TextArea should be auto-focused after key press, got %v", e.Engine.Document().CurrentFocus())
 	}
 
 	if txa.Value() != "x" {
@@ -423,7 +422,7 @@ func TestTextArea_Regression_ScrollCursorPos(t *testing.T) {
 	e.Mount(root)
 
 	// Focus the textarea so the engine tracks its cursor.
-	e.Engine.FocusManager().Focus(txa, focus.ReasonProgrammatic)
+	e.Engine.Document().Focus(txa)
 	e.RenderFrame()
 
 	// Place cursor at "Line 3" (offset 14)

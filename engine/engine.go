@@ -16,11 +16,12 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/focus/spatial"
-	"github.com/masterkeysrd/kite/geom"
 	_ "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
+	"github.com/masterkeysrd/kite/internal/focus"
+
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus/spatial"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
@@ -88,7 +89,7 @@ type Engine struct {
 	paintEngine *paint.PaintEngine
 
 	// dispatcher performs 3-phase event dispatch.
-	dispatcher *event.Dispatcher
+	dispatcher event.Dispatcher
 
 	// synthesizer converts raw backend input into structured events.
 	synthesizer *internalevent.Synthesizer
@@ -286,10 +287,10 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.renderView.SetLogicalNode(e.document)
 	e.renderView.SetViewportSize(b.Size())
 
-	// Mark document for initial sync
 	e.document.MarkNeedsSync()
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
-	e.document.SetFocusManager(e.focusManager)
+
+	e.document.SetFocusHandle(e.focusManager)
 	e.synthesizer = internalevent.NewSynthesizer(e, e, internalevent.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})
@@ -1403,7 +1404,7 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 		e.handleResize(evt)
 	default:
 		// For generic events (paste, etc), dispatch to focused element.
-		target := e.focusManager.Current()
+		var target dom.Node = e.focusManager.Current()
 		if target == nil {
 			// Fallback to document for global events.
 			target = e.document
@@ -1513,7 +1514,15 @@ func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
 		// right target. Listeners may call ev.PreventDefault() on the
 		// mousedown to opt out.
 		if ev.Type() == event.EventMouseDown && !ev.DefaultPrevented() {
-			e.focusManager.Focus(node, focus.ReasonPointer)
+			focused := false
+			if el, ok := node.(dom.Element); ok {
+				if e.focusManager.SetFocus(el, focus.ReasonPointer) {
+					focused = true
+				}
+			}
+			if !focused {
+				e.focusManager.Blur()
+			}
 		}
 	}
 }

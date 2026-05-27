@@ -20,13 +20,34 @@ import (
 // stubObject is a minimal render.Object used by tests. It supports Parent()
 // to allow ancestor-chain construction.
 type stubObject struct {
-	event.Target
+	target   event.EventTarget
 	parent   event.EventTarget
 	bounds   geom.Rect
 	children []event.EventTarget
 }
 
-func newStub(bounds geom.Rect) *stubObject { return &stubObject{bounds: bounds} }
+func newStub(bounds geom.Rect) *stubObject {
+	return &stubObject{
+		bounds: bounds,
+		target: event.NewTarget(),
+	}
+}
+
+func (s *stubObject) AddEventListener(typ event.EventType, fn event.Listener, opts ...event.Option) event.Subscription {
+	return s.target.AddEventListener(typ, fn, opts...)
+}
+
+func (s *stubObject) DispatchTo(e event.Event) {
+	s.target.DispatchTo(e)
+}
+
+func (s *stubObject) DispatchToTarget(e event.Event) {
+	s.target.DispatchToTarget(e)
+}
+
+func (s *stubObject) RemoveRegistration(id uint64) {
+	s.target.RemoveRegistration(id)
+}
 
 func (s *stubObject) Parent() event.EventTarget { return s.parent }
 func (s *stubObject) FirstChild() event.EventTarget {
@@ -92,7 +113,7 @@ func buildPath(objs ...*stubObject) []event.EventTarget {
 	return path
 }
 
-// newRegistry builds an event.Target map for registering targets.
+// newRegistry builds an event.EventTarget map for registering targets.
 func newRegistry() map[event.EventTarget]event.EventTarget {
 	return make(map[event.EventTarget]event.EventTarget)
 }

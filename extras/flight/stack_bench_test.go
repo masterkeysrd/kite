@@ -6,13 +6,13 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/internal/focus"
 )
 
 func BenchmarkStack_PushPop(b *testing.B) {
 	doc := dom.NewDocument()
 	fm := focus.NewManager(doc, event.NewDispatcher())
-	doc.SetFocusManager(fm)
+	doc.SetFocusHandle(fm)
 
 	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
 	doc.AppendChild(container)
@@ -62,7 +62,7 @@ func BenchmarkStack_Init(b *testing.B) {
 		b.StopTimer()
 		doc := dom.NewDocument()
 		fm := focus.NewManager(doc, event.NewDispatcher())
-		doc.SetFocusManager(fm)
+		doc.SetFocusHandle(fm)
 
 		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
 		doc.AppendChild(container)

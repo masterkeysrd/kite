@@ -634,15 +634,9 @@ func setHidden(el element.Element, h bool) {
 // setDisabled invokes the Disabled method of an element using a type switch.
 func setDisabled(el element.Element, d bool) {
 	switch x := el.(type) {
-	case *element.BoxElement:
-		x.Disabled(d)
-	case *element.SpanElement:
-		x.Disabled(d)
 	case *element.ButtonElement:
 		x.Disabled(d)
 	case *element.CheckboxElement:
-		x.Disabled(d)
-	case *element.RadioGroupElement:
 		x.Disabled(d)
 	case *element.RadioElement:
 		x.Disabled(d)
@@ -653,24 +647,6 @@ func setDisabled(el element.Element, d bool) {
 	case *element.InputElement:
 		x.Disabled(d)
 	case *element.TextAreaElement:
-		x.Disabled(d)
-	case *element.TableElement:
-		x.Disabled(d)
-	case *element.TableHeaderElement:
-		x.Disabled(d)
-	case *element.TableBodyElement:
-		x.Disabled(d)
-	case *element.TableFooterElement:
-		x.Disabled(d)
-	case *element.TableRowElement:
-		x.Disabled(d)
-	case *element.TableCellElement:
-		x.Disabled(d)
-	case *element.BrElement:
-		x.Disabled(d)
-	case *element.OverlayElement:
-		x.Disabled(d)
-	case *element.DialogElement:
 		x.Disabled(d)
 	}
 }

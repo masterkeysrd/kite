@@ -2,8 +2,8 @@ package spatial
 
 import (
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/internal/layout"
 )
 
@@ -32,7 +32,7 @@ const offAxisPenalty = 2.0
 //
 // On success, focus is set with focus.ReasonKeyboard.
 func Navigate(m *focus.Manager, dir Direction) bool {
-	scope := m.ActiveScope()
+	scope := m.ActiveScopeInternal()
 	if scope == nil {
 		return false
 	}
@@ -55,14 +55,14 @@ func Navigate(m *focus.Manager, dir Direction) bool {
 	if best == nil {
 		return false
 	}
-	return m.Focus(best, focus.ReasonKeyboard)
+	return m.SetFocus(best, focus.ReasonKeyboard)
 }
 
-// Candidates returns the focusable nodes in dir from the current focus,
+// Candidates returns the focusable elements in dir from the current focus,
 // ranked by suitability (lowest score first). It is exposed for advanced use
 // such as showing a navigation preview. Most callers want Navigate.
-func Candidates(m *focus.Manager, dir Direction) []dom.Node {
-	scope := m.ActiveScope()
+func Candidates(m *focus.Manager, dir Direction) []dom.Element {
+	scope := m.ActiveScopeInternal()
 	if scope == nil {
 		return nil
 	}
@@ -84,9 +84,9 @@ func Candidates(m *focus.Manager, dir Direction) []dom.Node {
 
 // --- helpers -----------------------------------------------------------------
 
-// firstFocusable returns the first focusable node in DOM order within scope,
+// firstFocusable returns the first focusable element in DOM order within scope,
 // or nil if there are none.
-func firstFocusable(scope *focus.Scope) dom.Node {
+func firstFocusable(scope *dom.FocusScope) dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
@@ -94,11 +94,13 @@ func firstFocusable(scope *focus.Scope) dom.Node {
 }
 
 // firstFocusableInSubtree walks the subtree rooted at root and returns the
-// first focusable node in DOM pre-order, or nil.
-func firstFocusableInSubtree(root dom.Node, scope *focus.Scope) dom.Node {
+// first focusable element in DOM pre-order, or nil.
+func firstFocusableInSubtree(root dom.Node, scope *dom.FocusScope) dom.Element {
 	for n := root; n != nil; n = nextPreOrder(n, root) {
-		if focus.IsFocusable(n, scope) {
-			return n
+		if el, ok := n.(dom.Element); ok {
+			if focus.IsFocusable(el, scope) {
+				return el
+			}
 		}
 	}
 	return nil
@@ -108,7 +110,7 @@ func firstFocusableInSubtree(root dom.Node, scope *focus.Scope) dom.Node {
 // from current within scope, or nil if none qualify.
 //
 // This function is on the hot path of Navigate and must not allocate.
-func bestCandidate(scope *focus.Scope, current dom.Node, dir Direction) dom.Node {
+func bestCandidate(scope *dom.FocusScope, current dom.Element, dir Direction) dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
@@ -127,18 +129,23 @@ func bestCandidate(scope *focus.Scope, current dom.Node, dir Direction) dom.Node
 		return nil
 	}
 
-	var bestNode dom.Node
+	var bestNode dom.Element
 	const maxScore = 1<<53 - 1 // large sentinel; avoids math.MaxFloat64 import
 	bestScore := float64(maxScore)
 
-	for n := scope.Root; n != nil; n = nextPreOrder(n, scope.Root) {
+	var n dom.Node = scope.Root
+	for ; n != nil; n = nextPreOrder(n, scope.Root) {
 		if n == current {
 			continue
 		}
-		if !focus.IsFocusable(n, scope) {
+		el, ok := n.(dom.Element)
+		if !ok {
 			continue
 		}
-		ro := n.RenderObject()
+		if !focus.IsFocusable(el, scope) {
+			continue
+		}
+		ro := el.RenderObject()
 		if ro == nil {
 			continue
 		}
@@ -152,7 +159,7 @@ func bestCandidate(scope *focus.Scope, current dom.Node, dir Direction) dom.Node
 		s := score(curBounds, nb, dir)
 		if s < bestScore {
 			bestScore = s
-			bestNode = n
+			bestNode = el
 		}
 	}
 
@@ -161,7 +168,7 @@ func bestCandidate(scope *focus.Scope, current dom.Node, dir Direction) dom.Node
 
 // rankedCandidates returns all focusable candidates in dir from current,
 // sorted ascending by score. Ties preserve DOM order.
-func rankedCandidates(scope *focus.Scope, current dom.Node, dir Direction) []dom.Node {
+func rankedCandidates(scope *dom.FocusScope, current dom.Element, dir Direction) []dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
@@ -181,19 +188,24 @@ func rankedCandidates(scope *focus.Scope, current dom.Node, dir Direction) []dom
 	}
 
 	type entry struct {
-		node  dom.Node
+		node  dom.Element
 		score float64
 	}
 	var entries []entry
 
-	for n := scope.Root; n != nil; n = nextPreOrder(n, scope.Root) {
+	var n dom.Node = scope.Root
+	for ; n != nil; n = nextPreOrder(n, scope.Root) {
 		if n == current {
 			continue
 		}
-		if !focus.IsFocusable(n, scope) {
+		el, ok := n.(dom.Element)
+		if !ok {
 			continue
 		}
-		ro := n.RenderObject()
+		if !focus.IsFocusable(el, scope) {
+			continue
+		}
+		ro := el.RenderObject()
 		if ro == nil {
 			continue
 		}
@@ -204,7 +216,7 @@ func rankedCandidates(scope *focus.Scope, current dom.Node, dir Direction) []dom
 		if !inHalfPlane(curBounds, nb, dir) {
 			continue
 		}
-		entries = append(entries, entry{node: n, score: score(curBounds, nb, dir)})
+		entries = append(entries, entry{node: el, score: score(curBounds, nb, dir)})
 	}
 
 	// Stable insertion sort — the input is already in DOM order, so equal
@@ -215,7 +227,7 @@ func rankedCandidates(scope *focus.Scope, current dom.Node, dir Direction) []dom
 		}
 	}
 
-	out := make([]dom.Node, len(entries))
+	out := make([]dom.Element, len(entries))
 	for i, e := range entries {
 		out[i] = e.node
 	}

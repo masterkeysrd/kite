@@ -6,8 +6,8 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -16,8 +16,9 @@ import (
 // It is a metadata-only element that does not participate in the main render tree.
 type OptionElement struct {
 	elementBase[OptionElement]
-	value string
-	text  string
+	value    string
+	text     string
+	disabled bool
 }
 
 var _ Element = (*OptionElement)(nil)
@@ -51,6 +52,13 @@ func (o *OptionElement) SetValue(value string) *OptionElement {
 	return o
 }
 
+func (o *OptionElement) IsDisabled() bool   { return o.disabled }
+func (o *OptionElement) SetDisabled(v bool) { o.disabled = v }
+func (o *OptionElement) Disabled(v bool) *OptionElement {
+	o.disabled = v
+	return o
+}
+
 type uaSelectRoot struct {
 	dom.Element
 }
@@ -77,7 +85,8 @@ type SelectElement struct {
 	escSub   event.Subscription
 	clickSub event.Subscription
 
-	name string
+	name     string
+	disabled bool
 }
 
 var (
@@ -212,17 +221,29 @@ func (s *SelectElement) OnChange(fn func(string)) *SelectElement {
 
 func (s *SelectElement) wireEvents() {
 	s.OnEvent(event.EventClick, func(e event.Event) {
+		if s.IsDisabled() {
+			return
+		}
 		s.openDropdown(e)
 	})
 	s.OnEvent(event.EventMouseDown, func(e event.Event) {
+		if s.IsDisabled() {
+			return
+		}
 		if me, ok := e.(*event.MouseEvent); ok && me.Button == event.ButtonLeft {
 			s.uaButton.SetActive(true)
 		}
 	})
 	s.OnEvent(event.EventMouseUp, func(e event.Event) {
+		if s.IsDisabled() {
+			return
+		}
 		s.uaButton.SetActive(false)
 	})
 	s.OnEvent(event.EventKeyDown, func(e event.Event) {
+		if s.IsDisabled() {
+			return
+		}
 		if ke, ok := e.(*event.KeyEvent); ok {
 			if ke.MatchString("up") || ke.MatchString("down") {
 				s.openDropdown(e)
@@ -323,23 +344,21 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 		autofocus = content.FirstChild()
 	}
 
-	if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-		fm.PushScope(&focus.Scope{Root: s.overlay, Autofocus: autofocus})
+	doc.PushScope(&focus.Scope{Root: s.overlay, Autofocus: autofocus.(dom.Element)})
 
-		// Handle initial navigation if opened via arrow keys
-		if trigger != nil {
-			if ke, ok := trigger.(*event.KeyEvent); ok {
-				if ke.MatchString("down") {
-					if s.value != "" {
-						fm.Next()
-					}
-				} else if ke.MatchString("up") {
-					if s.value == "" {
-						// wrap to last
-						fm.Previous()
-					} else {
-						fm.Previous()
-					}
+	// Handle initial navigation if opened via arrow keys
+	if trigger != nil {
+		if ke, ok := trigger.(*event.KeyEvent); ok {
+			if ke.MatchString("down") {
+				if s.value != "" {
+					doc.NextFocus()
+				}
+			} else if ke.MatchString("up") {
+				if s.value == "" {
+					// wrap to last
+					doc.PreviousFocus()
+				} else {
+					doc.PreviousFocus()
 				}
 			}
 		}
@@ -355,21 +374,14 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 			s.closeDropdown()
 			e.StopPropagation()
 		} else if ke.MatchString("up") {
-			if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-				fm.Previous()
-				e.StopPropagation()
-			}
+			doc.PreviousFocus()
+			e.StopPropagation()
 		} else if ke.MatchString("down") {
-			if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-				fm.Next()
-				e.StopPropagation()
-			}
+			doc.NextFocus()
+			e.StopPropagation()
 		} else if ke.MatchString("enter") || ke.MatchString(" ") {
-			if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-				if btn, ok := fm.Current().(*ButtonElement); ok {
-					// The button's EventKeyDown handler already handles Enter/Space
-					// but it might not have been triggered if we are capturing.
-					// Let's manually trigger selection.
+			if focused := doc.CurrentFocus(); focused != nil {
+				if btn, ok := focused.(*ButtonElement); ok {
 					btn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
 					e.StopPropagation()
 				}
@@ -418,9 +430,7 @@ func (s *SelectElement) closeDropdown() {
 	doc.RemoveChild(s.overlay)
 	s.overlay = nil
 
-	if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-		fm.PopScope()
-	}
+	doc.PopScope()
 	s.uaButton.Focus()
 }
 
@@ -436,4 +446,11 @@ func (s *SelectElement) emitChange() {
 
 func (s *SelectElement) SetData(data string) {
 	s.uaButton.SetData(data)
+}
+
+func (s *SelectElement) IsDisabled() bool   { return s.disabled }
+func (s *SelectElement) SetDisabled(v bool) { s.disabled = v }
+func (s *SelectElement) Disabled(v bool) *SelectElement {
+	s.disabled = v
+	return s
 }

@@ -34,7 +34,8 @@ type TextAreaElement struct {
 	elementBase[TextAreaElement]
 	textControlBase[*TextAreaElement]
 
-	name string
+	name     string
+	disabled bool
 }
 
 // uaTextAreaDiv is the inner UA block element that wraps the text content.
@@ -333,4 +334,11 @@ func (txa *TextAreaElement) OnWheel(e *event.WheelEvent) {
 	if newX != oldX || newY != oldY {
 		e.StopPropagation()
 	}
+}
+
+func (txa *TextAreaElement) IsDisabled() bool   { return txa.disabled }
+func (txa *TextAreaElement) SetDisabled(v bool) { txa.disabled = v }
+func (txa *TextAreaElement) Disabled(v bool) *TextAreaElement {
+	txa.disabled = v
+	return txa
 }

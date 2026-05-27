@@ -14,7 +14,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -365,12 +365,8 @@ func TestInput_Regression_EngineCursorIntegration(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	// Focus the input.
-	if ok := eng.FocusManager().Focus(inp, focus.ReasonProgrammatic); !ok {
-		t.Fatal("failed to focus input")
-	}
-
 	// Frame calls updateHardwareCursor.
+	inp.Focus()
 	eng.Frame()
 
 	if !b.Cursor.Visible {
@@ -405,7 +401,7 @@ func TestInput_Regression_ScrollBackOnBackspace(t *testing.T) {
 	eng.Frame()
 
 	// Focus the input.
-	eng.FocusManager().Focus(inp, focus.ReasonProgrammatic)
+	eng.Document().Focus(inp)
 
 	// Type 15 characters into a 10-cell box.
 	// scrollX should end at 6.

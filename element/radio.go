@@ -100,8 +100,8 @@ type RadioElement struct {
 	uncheckedGlyph string
 	checkedGlyph   string
 	uaText         dom.TextNode
-
-	name string
+	disabled       bool
+	name           string
 }
 
 var (
@@ -231,4 +231,11 @@ func (r *RadioElement) selectSelf() {
 	if rg := r.findGroup(); rg != nil {
 		rg.notifySelected(r.value)
 	}
+}
+
+func (r *RadioElement) IsDisabled() bool   { return r.disabled }
+func (r *RadioElement) SetDisabled(v bool) { r.disabled = v }
+func (r *RadioElement) Disabled(v bool) *RadioElement {
+	r.disabled = v
+	return r
 }

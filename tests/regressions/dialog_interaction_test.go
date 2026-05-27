@@ -52,7 +52,7 @@ func TestDialogInteraction(t *testing.T) {
 	}
 
 	// 3. Verify dialog is focused (because we added IsFocusable and Autofocus)
-	focused := env.Engine.FocusManager().Current()
+	focused := env.Engine.Document().CurrentFocus()
 	if focused != activeDialog {
 		t.Errorf("expected dialog to be focused, got %T", focused)
 	}

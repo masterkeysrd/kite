@@ -15,7 +15,8 @@ type CheckboxElement struct {
 	checkedGlyph   string
 	uaText         dom.TextNode
 
-	name string
+	name     string
+	disabled bool
 }
 
 var (
@@ -139,4 +140,11 @@ func (c *CheckboxElement) emitChange() {
 	if ro := c.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyStyle)
 	}
+}
+
+func (c *CheckboxElement) IsDisabled() bool   { return c.disabled }
+func (c *CheckboxElement) SetDisabled(v bool) { c.disabled = v }
+func (c *CheckboxElement) Disabled(v bool) *CheckboxElement {
+	c.disabled = v
+	return c
 }

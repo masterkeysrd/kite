@@ -19,6 +19,9 @@ type Element struct {
 	class   string
 	uaRoot  dom.Node // closed UA shadow subtree root; nil by default (ADR-009)
 	scroll  *ScrollState
+
+	tabIndex    int
+	hasTabIndex bool
 }
 
 type ScrollState struct {
@@ -244,4 +247,40 @@ func setOuterRecursive(n dom.Node, outer dom.Node) {
 	for child := range n.ChildNodes() {
 		setOuterRecursive(child, outer)
 	}
+}
+
+func isFocusableByDefault(tag string) bool {
+	return tag == "button" || tag == "input" || tag == "textarea" || tag == "checkbox" || tag == "radio" || tag == "select"
+}
+
+func (e *Element) IsFocusable() bool {
+	if e.hasTabIndex {
+		return true
+	}
+	return isFocusableByDefault(e.tagName)
+}
+
+func (e *Element) TabIndex() int {
+	if e.hasTabIndex {
+		return e.tabIndex
+	}
+	if isFocusableByDefault(e.tagName) {
+		return 0
+	}
+	return -1
+}
+
+func (e *Element) SetTabIndex(index int) {
+	e.tabIndex = index
+	e.hasTabIndex = true
+}
+
+func (e *Element) Focus() {
+	if doc := e.ownerDocument; doc != nil {
+		doc.Focus(e)
+	}
+}
+
+func (e *Element) Blur() {
+	// Base implementation is a no-op, but must satisfy dom.Element.
 }

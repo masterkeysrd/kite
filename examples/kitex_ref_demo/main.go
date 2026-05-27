@@ -14,7 +14,6 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/kitex/kitexdt"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -44,10 +43,8 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		if inputRef.Current != nil {
 			// Find document focus manager and focus the element
 			doc := inputRef.Current.OwnerDocument()
-			if fm := doc.FocusManager(); fm != nil {
-				if mgr, ok := fm.(*focus.Manager); ok {
-					mgr.Focus(inputRef.Current, focus.ReasonProgrammatic)
-				}
+			if doc != nil {
+				doc.Focus(inputRef.Current)
 			}
 		}
 	}

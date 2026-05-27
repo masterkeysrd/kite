@@ -6,9 +6,10 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/focus/spatial"
 	"github.com/masterkeysrd/kite/geom"
+	_ "github.com/masterkeysrd/kite/internal/event"
+	"github.com/masterkeysrd/kite/internal/focus"
+	"github.com/masterkeysrd/kite/internal/focus/spatial"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -20,7 +21,8 @@ import (
 
 // spatialObj is a lightweight dom.Node for spatial tests.
 type spatialObj struct {
-	event.Target
+	dom.Element   // stub
+	target        event.EventTarget
 	parent        *spatialObj
 	children      []*spatialObj
 	focusable     bool
@@ -29,6 +31,7 @@ type spatialObj struct {
 	bounds        geom.Rect
 	computedStyle *style.Computed // cached to avoid per-call allocs
 	render        *spatialRender
+	tabIndex      int
 }
 
 type spatialRender struct {
@@ -41,6 +44,7 @@ func newFocusable(b geom.Rect) *spatialObj {
 		focusable: true,
 		display:   style.DisplayBlock,
 		bounds:    b,
+		target:    event.NewTarget(),
 	}
 	obj.render = &spatialRender{node: obj}
 	return obj
@@ -48,7 +52,7 @@ func newFocusable(b geom.Rect) *spatialObj {
 
 // newContainer creates a non-focusable spatialObj (container / root).
 func newContainer() *spatialObj {
-	obj := &spatialObj{display: style.DisplayBlock}
+	obj := &spatialObj{display: style.DisplayBlock, target: event.NewTarget()}
 	obj.render = &spatialRender{node: obj}
 	return obj
 }
@@ -154,13 +158,29 @@ func (o *spatialObj) NextLayoutSibling(child dom.Node) dom.Node {
 	return nil
 }
 
-func (o *spatialObj) Unwrap() dom.Node               { return nil }
-func (o *spatialObj) TextContent() string            { return "" }
-func (o *spatialObj) CloneNode(bool) dom.Node        { return nil }
-func (o *spatialObj) NeedsSync() bool                { return false }
-func (o *spatialObj) ChildNeedsSync() bool           { return false }
-func (o *spatialObj) MarkNeedsSync()                 {}
-func (o *spatialObj) ClearSyncFlags()                {}
+func (o *spatialObj) Unwrap() dom.Node        { return nil }
+func (o *spatialObj) TextContent() string     { return "" }
+func (o *spatialObj) CloneNode(bool) dom.Node { return nil }
+func (o *spatialObj) NeedsSync() bool         { return false }
+func (o *spatialObj) ChildNeedsSync() bool    { return false }
+func (o *spatialObj) MarkNeedsSync()          {}
+func (o *spatialObj) ClearSyncFlags()         {}
+func (o *spatialObj) AddEventListener(typ event.EventType, fn event.Listener, opts ...event.Option) event.Subscription {
+	return o.target.AddEventListener(typ, fn, opts...)
+}
+
+func (o *spatialObj) DispatchTo(e event.Event) {
+	o.target.DispatchTo(e)
+}
+
+func (o *spatialObj) DispatchToTarget(e event.Event) {
+	o.target.DispatchToTarget(e)
+}
+
+func (o *spatialObj) RemoveRegistration(id uint64) {
+	o.target.RemoveRegistration(id)
+}
+
 func (o *spatialObj) EventTarget() event.EventTarget { return o }
 
 // --- dom.Focusable and dom.Disableable ---
@@ -172,6 +192,8 @@ func (o *spatialObj) IsDisabled() bool  { return o.disabled }
 func (o *spatialObj) SetDisabled(v bool) {
 	o.disabled = v
 }
+func (o *spatialObj) TabIndex() int         { return o.tabIndex }
+func (o *spatialObj) SetTabIndex(index int) { o.tabIndex = index }
 
 // --- render.Object interface (spatialRender) ---
 
@@ -303,7 +325,7 @@ func (r *spatialRender) SetOffset(geom.Point)  {}
 func (r *spatialRender) IsAnonymous() bool     { return false }
 func (r *spatialRender) MaxScroll() (int, int) { return 0, 0 }
 
-var _ dom.Node = (*spatialObj)(nil)
+var _ dom.Element = (*spatialObj)(nil)
 var _ render.Object = (*spatialRender)(nil)
 
 // ---------------------------------------------------------------------------
@@ -351,7 +373,7 @@ func TestNavigate_PicksClosestInDirection(t *testing.T) {
 	}
 
 	m := makeManager(root)
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 
 	if !spatial.Navigate(m, spatial.DirectionUp) {
 		t.Fatal("Navigate returned false; expected true")
@@ -385,7 +407,7 @@ func TestNavigate_OffAxisPenaltyAffectsTiebreaker(t *testing.T) {
 	}
 
 	m := makeManager(root)
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 
 	if !spatial.Navigate(m, spatial.DirectionUp) {
 		t.Fatal("Navigate returned false; expected true")
@@ -413,7 +435,7 @@ func TestNavigate_RejectsCandidatesBehind(t *testing.T) {
 	}
 
 	m := makeManager(root)
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 
 	if spatial.Navigate(m, spatial.DirectionUp) {
 		t.Error("Navigate Up returned true; expected false (all candidates behind)")
@@ -436,7 +458,7 @@ func TestNavigate_NoCandidate_ReturnsFalse(t *testing.T) {
 	link(root, cur)
 
 	m := makeManager(root)
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 
 	for _, dir := range []spatial.Direction{
 		spatial.DirectionUp,
@@ -477,7 +499,7 @@ func TestNavigate_RespectsActiveScope(t *testing.T) {
 	m := makeManager(root)
 	// Push a scope rooted at modal so only modal subtree is considered.
 	m.PushScope(&focus.Scope{Root: modal})
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 
 	if !spatial.Navigate(m, spatial.DirectionUp) {
 		t.Fatal("Navigate returned false; expected true (inside is above cur)")
@@ -526,7 +548,7 @@ func TestNavigate_AllFourDirections(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset focus to cur before each sub-test.
-			m.Focus(cur, focus.ReasonProgrammatic)
+			m.SetFocus(cur, focus.ReasonProgrammatic)
 
 			if !spatial.Navigate(m, tc.dir) {
 				t.Fatalf("Navigate(%s) returned false; expected true", tc.name)

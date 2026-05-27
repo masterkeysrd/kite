@@ -6,7 +6,6 @@ import (
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -132,14 +131,14 @@ func TestSelect_KeyboardNavigation(t *testing.T) {
 	env.Flush()
 
 	// 1. Press Down on closed select -> opens and focuses Option 1
-	fm := env.Engine.FocusManager()
-	fm.Focus(s, focus.ReasonKeyboard)
+	doc := env.Engine.Document()
+	doc.Focus(s)
 	env.Flush()
 
 	env.SendKey(key.Key{Code: key.KeyDown})
 	env.Flush()
 
-	current := fm.Current()
+	current := doc.CurrentFocus()
 	if current == nil {
 		t.Fatal("expected focused element")
 	}
@@ -161,7 +160,7 @@ func TestSelect_KeyboardNavigation(t *testing.T) {
 	// 2. Press Down again -> focuses Option 2
 	env.SendKey(key.Key{Code: key.KeyDown})
 	env.Flush()
-	current = fm.Current()
+	current = doc.CurrentFocus()
 	if current.(*element.ButtonElement).TextContent() != " Option 2" {
 		t.Errorf("expected focused Option 2, got %q", current.(*element.ButtonElement).TextContent())
 	}
@@ -169,7 +168,7 @@ func TestSelect_KeyboardNavigation(t *testing.T) {
 	// 3. Press Up -> focuses Option 1
 	env.SendKey(key.Key{Code: key.KeyUp})
 	env.Flush()
-	current = fm.Current()
+	current = doc.CurrentFocus()
 	if current.(*element.ButtonElement).TextContent() != " Option 1" {
 		t.Errorf("expected focused Option 1, got %q", current.(*element.ButtonElement).TextContent())
 	}

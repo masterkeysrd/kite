@@ -6,15 +6,15 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/key"
 )
 
 func TestSelect_OpenDropdown(t *testing.T) {
 	doc := dom.NewDocument()
 	fm := focus.NewManager(doc, event.NewDispatcher())
-	doc.SetFocusManager(fm)
+	doc.SetFocusHandle(fm)
 
 	s := element.NewSelect(doc,
 		element.Option("Option 1", "opt1"),
@@ -49,7 +49,7 @@ func TestSelect_OpenDropdown(t *testing.T) {
 	}
 
 	// Verify focus scope is pushed
-	if fm.ActiveScope().Root == nil {
+	if scope := doc.ActiveScope(); scope == nil || scope.Root == nil {
 		t.Error("expected active scope root to be set")
 	}
 }
@@ -58,7 +58,7 @@ func TestSelect_KeyboardSelection(t *testing.T) {
 	t.Skip("Skping until we can simulate focus changes in tests. See")
 	doc := dom.NewDocument()
 	fm := focus.NewManager(doc, event.NewDispatcher())
-	doc.SetFocusManager(fm)
+	doc.SetFocusHandle(fm)
 
 	s := element.NewSelect(doc,
 		element.Option("Option 1", "opt1"),
@@ -67,14 +67,17 @@ func TestSelect_KeyboardSelection(t *testing.T) {
 	doc.AppendChild(s)
 
 	// Focus select and press down to open
-	fm.Focus(s, focus.ReasonKeyboard)
+	fm.SetFocus(s, focus.ReasonKeyboard)
 	s.DispatchEvent(event.NewKeyEvent(event.EventKeyDown, key.Key{Code: key.KeyDown}))
 
 	// NewSelect calls fm.PushScope which should have updated focus to autofocus
 	current := fm.Current()
 	if current == s {
-		// If it's still s, let's manually focus autofocus to simulate what Engine does
-		fm.Focus(fm.ActiveScope().Autofocus, focus.ReasonProgrammatic)
+		scope := doc.ActiveScope()
+		if scope == nil || scope.Autofocus == nil {
+			t.Fatal("expected active scope with autofocus")
+		}
+		fm.SetFocus(scope.Autofocus, focus.ReasonProgrammatic)
 		current = fm.Current()
 	}
 

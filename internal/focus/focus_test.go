@@ -6,8 +6,9 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	_ "github.com/masterkeysrd/kite/internal/event"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -19,13 +20,15 @@ import (
 
 // testObject is a lightweight dom.Node for focus tests.
 type testObject struct {
-	event.Target
-	parent    *testObject
-	children  []*testObject
-	focusable bool
-	disabled  bool
-	display   style.Display
-	render    *testRender
+	dom.Element // stub
+	target      event.EventTarget
+	parent      *testObject
+	children    []*testObject
+	focusable   bool
+	disabled    bool
+	display     style.Display
+	render      *testRender
+	tabIndex    int
 }
 
 type testRender struct {
@@ -35,14 +38,14 @@ type testRender struct {
 
 // newFocusable returns a testObject that can receive focus (display=Block).
 func newFocusable() *testObject {
-	obj := &testObject{focusable: true, display: style.DisplayBlock}
+	obj := &testObject{focusable: true, display: style.DisplayBlock, target: event.NewTarget()}
 	obj.render = &testRender{node: obj}
 	return obj
 }
 
 // newNonFocusable returns a testObject that cannot receive focus.
 func newNonFocusable() *testObject {
-	obj := &testObject{focusable: false, display: style.DisplayBlock}
+	obj := &testObject{focusable: false, display: style.DisplayBlock, target: event.NewTarget()}
 	obj.render = &testRender{node: obj}
 	return obj
 }
@@ -148,13 +151,29 @@ func (o *testObject) NextLayoutSibling(child dom.Node) dom.Node {
 	return nil
 }
 
-func (o *testObject) Unwrap() dom.Node               { return nil }
-func (o *testObject) TextContent() string            { return "" }
-func (o *testObject) CloneNode(bool) dom.Node        { return nil }
-func (o *testObject) NeedsSync() bool                { return false }
-func (o *testObject) ChildNeedsSync() bool           { return false }
-func (o *testObject) MarkNeedsSync()                 {}
-func (o *testObject) ClearSyncFlags()                {}
+func (o *testObject) Unwrap() dom.Node        { return nil }
+func (o *testObject) TextContent() string     { return "" }
+func (o *testObject) CloneNode(bool) dom.Node { return nil }
+func (o *testObject) NeedsSync() bool         { return false }
+func (o *testObject) ChildNeedsSync() bool    { return false }
+func (o *testObject) MarkNeedsSync()          {}
+func (o *testObject) ClearSyncFlags()         {}
+func (o *testObject) AddEventListener(typ event.EventType, fn event.Listener, opts ...event.Option) event.Subscription {
+	return o.target.AddEventListener(typ, fn, opts...)
+}
+
+func (o *testObject) DispatchTo(e event.Event) {
+	o.target.DispatchTo(e)
+}
+
+func (o *testObject) DispatchToTarget(e event.Event) {
+	o.target.DispatchToTarget(e)
+}
+
+func (o *testObject) RemoveRegistration(id uint64) {
+	o.target.RemoveRegistration(id)
+}
+
 func (o *testObject) EventTarget() event.EventTarget { return o }
 
 // --- dom.Focusable and dom.Disableable ---------------------------------------
@@ -166,6 +185,8 @@ func (o *testObject) IsDisabled() bool  { return o.disabled }
 func (o *testObject) SetDisabled(v bool) {
 	o.disabled = v
 }
+func (o *testObject) TabIndex() int         { return o.tabIndex }
+func (o *testObject) SetTabIndex(index int) { o.tabIndex = index }
 
 // --- render.Object interface (testRender) ------------------------------------
 
@@ -270,7 +291,7 @@ func (r *testRender) SetOffset(geom.Point)  {}
 func (r *testRender) IsAnonymous() bool     { return false }
 func (r *testRender) MaxScroll() (int, int) { return 0, 0 }
 
-var _ dom.Node = (*testObject)(nil)
+var _ dom.Element = (*testObject)(nil)
 var _ render.Object = (*testRender)(nil)
 
 // ---------------------------------------------------------------------------
@@ -328,10 +349,10 @@ func TestManager_SetFocus_EmitsFocusevent(t *testing.T) {
 	}
 
 	// Focus a → b: should emit focusout (bubbling) then focusin (bubbling).
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 	fired = nil // reset; we only care about the a→b transition
 
-	m.Focus(b, focus.ReasonProgrammatic)
+	m.SetFocus(b, focus.ReasonProgrammatic)
 
 	hasFocusOut := false
 	hasFocusIn := false
@@ -431,7 +452,7 @@ func TestManager_SkipsNonFocusable(t *testing.T) {
 	link(root, b)
 
 	m, _ := makeManager(root)
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 	m.Next()
 
 	if m.Current() != b {
@@ -454,7 +475,7 @@ func TestManager_SkipsDisabled(t *testing.T) {
 	link(root, b)
 
 	m, _ := makeManager(root)
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 	m.Next()
 
 	if m.Current() != b {
@@ -477,7 +498,7 @@ func TestManager_SkipsDisplayNone(t *testing.T) {
 	link(root, b)
 
 	m, _ := makeManager(root)
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 	m.Next()
 
 	if m.Current() != b {
@@ -498,7 +519,7 @@ func TestScope_PushCapturesPreviousFocus(t *testing.T) {
 	link(root, modal)
 
 	m, _ := makeManager(root)
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 
 	s := &focus.Scope{Root: modal}
 	m.PushScope(s)
@@ -523,11 +544,11 @@ func TestScope_PopRestoresFocus_ReasonRestore(t *testing.T) {
 	link(modal, modalBtn)
 
 	m, _ := makeManager(root)
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 
 	s := &focus.Scope{Root: modal}
 	m.PushScope(s)
-	m.Focus(modalBtn, focus.ReasonProgrammatic)
+	m.SetFocus(modalBtn, focus.ReasonProgrammatic)
 
 	m.PopScope()
 
@@ -550,22 +571,22 @@ func TestIsFocusVisible_OnlyKeyboardReason(t *testing.T) {
 
 	m, _ := makeManager(root)
 
-	m.Focus(a, focus.ReasonPointer)
+	m.SetFocus(a, focus.ReasonPointer)
 	if m.IsFocusVisible(a) {
 		t.Error("IsFocusVisible should be false for ReasonPointer")
 	}
 
-	m.Focus(a, focus.ReasonProgrammatic)
+	m.SetFocus(a, focus.ReasonProgrammatic)
 	if m.IsFocusVisible(a) {
 		t.Error("IsFocusVisible should be false for ReasonProgrammatic")
 	}
 
-	m.Focus(a, focus.ReasonKeyboard)
+	m.SetFocus(a, focus.ReasonKeyboard)
 	if !m.IsFocusVisible(a) {
 		t.Error("IsFocusVisible should be true for ReasonKeyboard")
 	}
 
-	m.Focus(a, focus.ReasonRestore)
+	m.SetFocus(a, focus.ReasonRestore)
 	if m.IsFocusVisible(a) {
 		t.Error("IsFocusVisible should be false for ReasonRestore")
 	}
@@ -586,14 +607,14 @@ func TestFocusFilter_RespectsScopeBoundary(t *testing.T) {
 
 	m, _ := makeManager(root)
 	// Focus outside first (in root scope).
-	m.Focus(outside, focus.ReasonProgrammatic)
+	m.SetFocus(outside, focus.ReasonProgrammatic)
 
 	// Push inner scope limited to modal subtree.
 	s := &focus.Scope{Root: modal}
 	m.PushScope(s)
 
 	// Direct focus on outside should fail — it's not in the inner scope.
-	ok := m.Focus(outside, focus.ReasonProgrammatic)
+	ok := m.SetFocus(outside, focus.ReasonProgrammatic)
 	if ok {
 		t.Error("Focus on object outside active scope should return false")
 	}

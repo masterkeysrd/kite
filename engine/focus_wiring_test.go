@@ -20,8 +20,8 @@ import (
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/key"
@@ -41,6 +41,7 @@ type focusableWiringElement struct {
 func (f *focusableWiringElement) IsFocusable() bool { return true }
 func (f *focusableWiringElement) Focus()            {}
 func (f *focusableWiringElement) Blur()             {}
+func (f *focusableWiringElement) TabIndex() int     { return 0 }
 func (f *focusableWiringElement) Unwrap() dom.Node  { return f.Element }
 
 // plantFocusable creates a focusable element owned by the engine's document,
@@ -120,10 +121,10 @@ func TestDispatchMouseEvent_Mousedown_FocusesHitTarget(t *testing.T) {
 	}
 }
 
-// TestDispatchMouseEvent_NonFocusable_LeavesExistingFocus verifies that
-// pressing a non-focusable element (a plain box with no dom.Focusable) does
-// not steal focus from the currently focused element.
-func TestDispatchMouseEvent_NonFocusable_LeavesExistingFocus(t *testing.T) {
+// TestDispatchMouseEvent_NonFocusable_BlursExistingFocus verifies that
+// pressing a non-focusable element (a plain box with no dom.Focusable) blurs
+// the currently focused element.
+func TestDispatchMouseEvent_NonFocusable_BlursExistingFocus(t *testing.T) {
 	b := mock.New(80, 24)
 	eng := New(b, Options{})
 	defer eng.Stop()
@@ -150,15 +151,23 @@ func TestDispatchMouseEvent_NonFocusable_LeavesExistingFocus(t *testing.T) {
 	})
 
 	// Focus the input first.
-	if !eng.focusManager.Focus(feInput, focus.ReasonProgrammatic) {
+	if !eng.focusManager.SetFocus(feInput, focus.ReasonProgrammatic) {
 		t.Fatal("precondition: could not focus input element")
 	}
 
 	// Mousedown on the plain div at y=2.
 	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
 
-	if eng.focusManager.Current() != feInput {
-		t.Errorf("after mousedown on non-focusable: focused = %v, want original input element",
+	if eng.focusManager.Current() != nil {
+		t.Errorf("after mousedown on non-focusable: focused = %v, want nil (focus cleared)",
+			eng.focusManager.Current())
+	}
+
+	// Trigger the rendering pipeline sync phase and verify focus remains nil.
+	eng.Frame()
+
+	if eng.focusManager.Current() != nil {
+		t.Errorf("after Frame sync: focused = %v, want nil (focus should remain cleared)",
 			eng.focusManager.Current())
 	}
 }
@@ -265,7 +274,7 @@ func TestDispatchKeyEvent_NoAutoFocus_WhenAlreadyFocused(t *testing.T) {
 	_, _ = plantFocusable(eng, "input-first", 0)
 	second, _ := plantFocusable(eng, "input-second", 2)
 
-	if !eng.focusManager.Focus(second, focus.ReasonProgrammatic) {
+	if !eng.focusManager.SetFocus(second, focus.ReasonProgrammatic) {
 		t.Fatal("precondition: could not focus second element")
 	}
 

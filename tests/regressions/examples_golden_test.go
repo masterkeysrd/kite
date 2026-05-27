@@ -8,7 +8,6 @@ import (
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -422,7 +421,7 @@ func TestExampleInputGolden(t *testing.T) {
 	env.MatchGolden(t, "example_input_default")
 
 	// 1. Focus username and type
-	env.Engine.FocusManager().Focus(usernameInp, focus.ReasonKeyboard)
+	env.Engine.Document().Focus(usernameInp)
 	env.Type("KiteUser")
 	env.Flush()
 
@@ -790,7 +789,7 @@ func TestExampleTextAreaGolden(t *testing.T) {
 	env.MatchGolden(t, "example_textarea_default")
 
 	// 1. Type at the end
-	env.Engine.FocusManager().Focus(txa, focus.ReasonKeyboard)
+	env.Engine.Document().Focus(txa)
 	env.Type("\nAdding some new content here.")
 	env.Flush()
 	env.MatchGolden(t, "example_textarea_typed")

@@ -6,7 +6,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/internal/focus"
 )
 
 type HomeRoute struct{}
@@ -15,7 +15,7 @@ type DetailsRoute struct{ ID string }
 func TestStackNavigation(t *testing.T) {
 	doc := dom.NewDocument()
 	fm := focus.NewManager(doc, event.NewDispatcher())
-	doc.SetFocusManager(fm)
+	doc.SetFocusHandle(fm)
 
 	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
 	doc.AppendChild(container)
@@ -108,7 +108,7 @@ func TestStackNavigation(t *testing.T) {
 func TestFocusScopeIsolation(t *testing.T) {
 	doc := dom.NewDocument()
 	fm := focus.NewManager(doc, event.NewDispatcher())
-	doc.SetFocusManager(fm)
+	doc.SetFocusHandle(fm)
 
 	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
 	doc.AppendChild(container)
@@ -131,9 +131,9 @@ func TestFocusScopeIsolation(t *testing.T) {
 
 	kitex.Render(app(), container)
 
-	fm, ok := doc.FocusManager().(*focus.Manager)
-	if !ok {
-		t.Fatal("expected FocusManager to be of type *focus.Manager")
+	scope := doc.ActiveScope()
+	if scope == nil {
+		t.Fatal("expected Document to provide ActiveScope()")
 	}
 
 	outerBtn := doc.GetElementByID("outer-btn")
@@ -147,7 +147,7 @@ func TestFocusScopeIsolation(t *testing.T) {
 	screenEl := doc.GetElementByID("screen")
 
 	// Verify that the focus scope is active
-	activeScope := fm.ActiveScope()
+	activeScope := doc.ActiveScope()
 	if activeScope == nil {
 		t.Fatal("expected active focus scope")
 	}
@@ -156,20 +156,20 @@ func TestFocusScopeIsolation(t *testing.T) {
 	}
 
 	// Set focus to innerBtn1
-	fm.Focus(innerBtn1, focus.ReasonProgrammatic)
-	if fm.Current() != innerBtn1 {
-		t.Errorf("expected inner-btn-1 to be focused, got %v", fm.Current())
+	doc.Focus(innerBtn1)
+	if doc.CurrentFocus() != innerBtn1 {
+		t.Errorf("expected inner-btn-1 to be focused, got %v", doc.CurrentFocus())
 	}
 
 	// Cycle next: innerBtn1 -> innerBtn2
-	fm.Next()
-	if fm.Current() != innerBtn2 {
-		t.Errorf("expected focus to move to inner-btn-2, got %v", fm.Current())
+	doc.NextFocus()
+	if doc.CurrentFocus() != innerBtn2 {
+		t.Errorf("expected focus to move to inner-btn-2, got %v", doc.CurrentFocus())
 	}
 
 	// Cycle next: innerBtn2 -> innerBtn1 (should wrap within scope, skipping outerBtn!)
-	fm.Next()
-	if fm.Current() != innerBtn1 {
-		t.Errorf("expected focus to wrap to inner-btn-1, got %v", fm.Current())
+	doc.NextFocus()
+	if doc.CurrentFocus() != innerBtn1 {
+		t.Errorf("expected focus to wrap to inner-btn-1, got %v", doc.CurrentFocus())
 	}
 }

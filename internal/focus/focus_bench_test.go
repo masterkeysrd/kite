@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/internal/focus"
 )
 
 // newBenchManager returns a Manager with a simple no-op dispatcher/resolver,
@@ -45,7 +45,7 @@ func BenchmarkScope_PushPop_Cost(b *testing.B) {
 	link(modal, inside)
 
 	m := newBenchManager(root)
-	m.Focus(prev, focus.ReasonProgrammatic)
+	m.SetFocus(prev, focus.ReasonProgrammatic)
 
 	b.ResetTimer()
 	for range b.N {

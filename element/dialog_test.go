@@ -17,10 +17,10 @@ func TestDialog_Lifecycle(t *testing.T) {
 	// Mount triggers OnConnected
 	eng.Document().AppendChild(dialog)
 
-	fm := eng.FocusManager()
+	doc := eng.Document()
 
 	// Verify Focus Scope was pushed
-	activeScope := fm.ActiveScope()
+	activeScope := doc.ActiveScope()
 	if activeScope == nil {
 		t.Fatal("expected active focus scope")
 	}
@@ -56,7 +56,10 @@ func TestDialog_Lifecycle(t *testing.T) {
 	}
 
 	// Verify Focus Scope was popped
-	activeScope = fm.ActiveScope()
+	activeScope = doc.ActiveScope()
+	if activeScope == nil {
+		t.Fatal("expected active focus scope")
+	}
 	if activeScope != nil && activeScope.Root == dialog {
 		t.Error("dialog focus scope should have been popped")
 	}

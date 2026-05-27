@@ -171,6 +171,7 @@ func main() {
 	}
 
 	eng := engine.New(b, engine.Options{Logger: logger})
+	kitex.SetPostMacroFn(eng.PostMacro)
 
 	container := element.NewBox(eng.Document())
 	container.Style(style.Style{

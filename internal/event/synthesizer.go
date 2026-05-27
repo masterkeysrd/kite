@@ -103,7 +103,9 @@ func (s *Synthesizer) processKey(raw *backend.RawKeyEvent) []pub.Event {
 
 	// Route to the focused element.
 	if s.focus != nil {
-		ke.SetTarget(s.focus.FocusedTarget())
+		if ie, ok := any(ke).(pub.InternalEvent); ok {
+			ie.SetTarget(s.focus.FocusedTarget())
+		}
 	}
 
 	// Clipboard synthesis.
@@ -128,7 +130,9 @@ func (s *Synthesizer) processKey(raw *backend.RawKeyEvent) []pub.Event {
 		// data from providers if the Items map is empty.
 		ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
 		if s.focus != nil {
-			ce.SetTarget(s.focus.FocusedTarget())
+			if ie, ok := any(ce).(pub.InternalEvent); ok {
+				ie.SetTarget(s.focus.FocusedTarget())
+			}
 		}
 		events = append(events, ce)
 	}
@@ -142,7 +146,9 @@ func (s *Synthesizer) synthesizeCopy(_ *pub.KeyEvent) *pub.ClipboardEvent {
 	if s.focus != nil {
 		focused := s.focus.FocusedTarget()
 		if focused != nil {
-			ce.SetTarget(focused)
+			if ie, ok := any(ce).(pub.InternalEvent); ok {
+				ie.SetTarget(focused)
+			}
 			if sp, ok := focused.(pub.SelectionProvider); ok {
 				text := sp.SelectedText()
 				if text != "" {
@@ -160,7 +166,9 @@ func (s *Synthesizer) synthesizeCut(_ *pub.KeyEvent) *pub.ClipboardEvent {
 	if s.focus != nil {
 		focused := s.focus.FocusedTarget()
 		if focused != nil {
-			ce.SetTarget(focused)
+			if ie, ok := any(ce).(pub.InternalEvent); ok {
+				ie.SetTarget(focused)
+			}
 			if sp, ok := focused.(pub.SelectionProvider); ok {
 				text := sp.SelectedText()
 				if text != "" {
@@ -183,7 +191,9 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 	if raw.DeltaX != 0 || raw.DeltaY != 0 {
 		// Wheel event.
 		we := pub.NewWheelEvent(pos, raw.DeltaX, raw.DeltaY, raw.Mod)
-		we.SetTarget(hitTarget)
+		if ie, ok := any(we).(pub.InternalEvent); ok {
+			ie.SetTarget(hitTarget)
+		}
 		events = append(events, we)
 		return events
 	}
@@ -192,7 +202,9 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		// Mouse down.
 		me := pub.NewMouseEvent(pub.EventMouseDown, pos, raw.Button, raw.Mod)
 		me.Hit = pub.HitResult{Target: hitTarget}
-		me.SetTarget(hitTarget)
+		if ie, ok := any(me).(pub.InternalEvent); ok {
+			ie.SetTarget(hitTarget)
+		}
 		s.pendingDown = me
 		s.pendingDownPos = pos
 		events = append(events, me)
@@ -203,14 +215,18 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		// Mouse move.
 		me := pub.NewMouseEvent(pub.EventMouseMove, pos, raw.Button, raw.Mod)
 		me.Hit = pub.HitResult{Target: hitTarget}
-		me.SetTarget(hitTarget)
+		if ie, ok := any(me).(pub.InternalEvent); ok {
+			ie.SetTarget(hitTarget)
+		}
 		events = append(events, me)
 
 		// Check for drag: down pending and movement beyond tolerance.
 		if s.pendingDown != nil && s.beyondTolerance(s.pendingDownPos, pos) {
 			drag := pub.NewMouseEvent(pub.EventDrag, pos, raw.Button, raw.Mod)
 			drag.Hit = pub.HitResult{Target: hitTarget}
-			drag.SetTarget(hitTarget)
+			if ie, ok := any(drag).(pub.InternalEvent); ok {
+				ie.SetTarget(hitTarget)
+			}
 			events = append(events, drag)
 			s.pendingDown = nil // drag cancels pending click
 		}
@@ -221,7 +237,9 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		// Mouse up.
 		me := pub.NewMouseEvent(pub.EventMouseUp, pos, raw.Button, raw.Mod)
 		me.Hit = pub.HitResult{Target: hitTarget}
-		me.SetTarget(hitTarget)
+		if ie, ok := any(me).(pub.InternalEvent); ok {
+			ie.SetTarget(hitTarget)
+		}
 		events = append(events, me)
 
 		// Synthesize click if we have a pending down on the same target and
@@ -230,7 +248,9 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 			if !s.beyondTolerance(s.pendingDownPos, pos) {
 				click := pub.NewMouseEvent(pub.EventClick, pos, raw.Button, raw.Mod)
 				click.Hit = pub.HitResult{Target: hitTarget}
-				click.SetTarget(hitTarget)
+				if ie, ok := any(click).(pub.InternalEvent); ok {
+					ie.SetTarget(hitTarget)
+				}
 				events = append(events, click)
 			}
 			s.pendingDown = nil
@@ -251,11 +271,15 @@ func (s *Synthesizer) processResize(raw *backend.RawResizeEvent) []pub.Event {
 func (s *Synthesizer) processBracketedPaste(raw *backend.RawBracketedPaste) []pub.Event {
 	pe := pub.NewPasteEvent(raw.Text)
 	if s.focus != nil {
-		pe.SetTarget(s.focus.FocusedTarget())
+		if ie, ok := any(pe).(pub.InternalEvent); ok {
+			ie.SetTarget(s.focus.FocusedTarget())
+		}
 	}
 	ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
 	if s.focus != nil {
-		ce.SetTarget(s.focus.FocusedTarget())
+		if ie, ok := any(ce).(pub.InternalEvent); ok {
+			ie.SetTarget(s.focus.FocusedTarget())
+		}
 	}
 	ce.Items["text/plain"] = []byte(raw.Text)
 	return []pub.Event{pe, ce}
@@ -281,7 +305,9 @@ func (s *Synthesizer) processClipboard(raw *backend.RawClipboardEvent) []pub.Eve
 
 	ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
 	if s.focus != nil {
-		ce.SetTarget(s.focus.FocusedTarget())
+		if ie, ok := any(ce).(pub.InternalEvent); ok {
+			ie.SetTarget(s.focus.FocusedTarget())
+		}
 	}
 	// We use the raw content to preserve any newlines or other whitespace.
 	ce.Items["text/plain"] = []byte(raw.Content)

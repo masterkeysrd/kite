@@ -65,7 +65,8 @@ type InputElement struct {
 	// the shared geometry math; we keep a typed copy here for syncText.
 	uaInputDivEl *uaInputDiv
 
-	name string
+	name     string
+	disabled bool
 }
 
 // Compile-time interface assertions.
@@ -250,3 +251,10 @@ func (inp *InputElement) syncText() {
 
 // OnWheel implements event.Scrollable. Input disables wheel scrolling.
 func (inp *InputElement) OnWheel(e *event.WheelEvent) {}
+
+func (inp *InputElement) IsDisabled() bool   { return inp.disabled }
+func (inp *InputElement) SetDisabled(v bool) { inp.disabled = v }
+func (inp *InputElement) Disabled(v bool) *InputElement {
+	inp.disabled = v
+	return inp
+}

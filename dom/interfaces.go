@@ -224,6 +224,17 @@ type Element interface {
 	// by this element. It returns (rect, true) if the element is connected
 	// and has been laid out; otherwise it returns (Rect{}, false).
 	GetBoundingClientRect() (geom.Rect, bool)
+
+	// TabIndex returns the tab index of the element.
+	TabIndex() int
+	// SetTabIndex sets the tab index of the element.
+	SetTabIndex(index int)
+	// Focus attempts to move focus to this element.
+	Focus()
+	// Blur removes focus from this element.
+	Blur()
+	// IsFocusable reports whether this element is currently focusable.
+	IsFocusable() bool
 }
 
 // TextNode is a leaf node that carries character data. It has no children.
@@ -263,6 +274,29 @@ type Lifecycle interface {
 type Disableable interface {
 	IsDisabled() bool
 	SetDisabled(bool)
+}
+
+// FocusScope is a focus containment region. While a FocusScope is active, tab navigation
+// and focusable-filter queries are restricted to the subtree rooted at Root.
+//
+// Lifecycle:
+//   - PushScope captures the current focus into PreviousFocus.
+//   - PopScope restores PreviousFocus with ReasonRestore, or blurs if the
+//     previous node is no longer focusable.
+type FocusScope struct {
+	// Root is the logical node that acts as the boundary for tab navigation
+	// and focus queries while this scope is active. Must not be nil.
+	Root Node
+
+	// Autofocus is the initial focus target when the scope is pushed.
+	// If nil no autofocus is applied; focus stays on the previous element
+	// until a navigation or programmatic Focus call.
+	Autofocus Element
+
+	// PreviousFocus is captured automatically on PushScope. It is restored
+	// with ReasonRestore when PopScope is called. Do not set this field
+	// manually; Manager writes it on PushScope.
+	PreviousFocus Element
 }
 
 // Focusable indicates that an element can be focused.
@@ -312,6 +346,20 @@ type Document interface {
 	// If no body is mounted, it returns nil.
 	Body() Element
 
+	// Focus acquisition and state.
+	Focus(el Element)
+	IsFocused(el Element) bool
+
+	// Focus scoping.
+	PushScope(scope *FocusScope)
+	PopScope()
+	ActiveScope() *FocusScope
+
+	// Focus navigation.
+	CurrentFocus() Element
+	NextFocus() bool
+	PreviousFocus() bool
+
 	// QuerySelector returns the first element matching the selector in this document's subtree.
 	// It pierces UA shadow subtrees.
 	QuerySelector(selector string) Element
@@ -338,16 +386,26 @@ type Document interface {
 	// CreateRange creates a new Range for this document.
 	CreateRange() Range
 
-	// FocusManager returns the focus manager for this document.
-	// Typed as any to avoid import cycle with the focus package.
-	FocusManager() any
-	// SetFocusManager sets the focus manager for this document.
-	SetFocusManager(fm any)
+	// SetFocusHandle injects the focus management implementation into the document.
+	SetFocusHandle(handle FocusHandle)
 
 	// Clipboard returns the high-level clipboard provider for this document.
 	Clipboard() event.ClipboardProvider
 	// SetClipboardProvider sets the high-level clipboard provider for this document.
 	SetClipboardProvider(p event.ClipboardProvider)
+}
+
+// FocusHandle is the interface for the focus management implementation injected
+// by the engine. It decouples the logical DOM from the focus package.
+type FocusHandle interface {
+	Focus(el Element)
+	IsFocused(el Element) bool
+	PushScope(scope *FocusScope)
+	PopScope()
+	ActiveScope() *FocusScope
+	Current() Element
+	Next() bool
+	Previous() bool
 }
 
 // Range represents a fragment of a document that can contain nodes and parts

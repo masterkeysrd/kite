@@ -4,6 +4,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	_ "github.com/masterkeysrd/kite/internal/dom"
+	_ "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -16,9 +17,6 @@ type Element interface {
 
 	// RawStyle returns the author-set style for this element.
 	RawStyle() style.Style
-
-	// IsDisabled reports whether the element is in the disabled state.
-	IsDisabled() bool
 
 	// IsHidden reports whether the element is in the hidden state.
 	IsHidden() bool
@@ -62,9 +60,8 @@ type elementBase[Self any] struct {
 	// See ADR-010.
 	intrinsicStyle style.Style
 
-	// disabled and hidden are intrinsic boolean state flags.
-	disabled bool
-	hidden   bool
+	// hidden is an intrinsic boolean state flag.
+	hidden bool
 
 	// listeners holds event registrations made via OnEvent.
 	listeners []PendingListener
@@ -98,9 +95,6 @@ func (b *elementBase[Self]) DefaultStyle() style.Style { return b.defaultStyle }
 // (e.g. Display:InlineBlock, OverflowX:Clip). See ADR-010.
 func (b *elementBase[Self]) IntrinsicStyle() style.Style { return b.intrinsicStyle }
 
-// IsDisabled reports whether the element is disabled.
-func (b *elementBase[Self]) IsDisabled() bool { return b.disabled }
-
 // IsHidden reports whether the element is hidden.
 func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 
@@ -129,9 +123,9 @@ func (b *elementBase[Self]) WithID(id string) *Self {
 	return b.self
 }
 
-// Disabled sets or clears the disabled state and returns *Self.
-func (b *elementBase[Self]) Disabled(v bool) *Self {
-	b.disabled = v
+// WithTabIndex sets the tab index on the element and returns *Self.
+func (b *elementBase[Self]) WithTabIndex(index int) *Self {
+	b.SetTabIndex(index)
 	return b.self
 }
 
@@ -199,25 +193,6 @@ func (b *elementBase[Self]) AddChild(child dom.Node) *Self {
 	b.AppendChild(child)
 	return b.self
 }
-
-// --- dom.Disableable and dom.Focusable implementation -------------------
-
-// SetDisabled sets the disabled state.
-func (b *elementBase[Self]) SetDisabled(v bool) {
-	b.disabled = v
-}
-
-// IsFocusable reports whether the element is focusable.
-func (b *elementBase[Self]) IsFocusable() bool {
-	tag := b.TagName()
-	return tag == "button" || tag == "input" || tag == "textarea" || tag == "checkbox" || tag == "radio" || tag == "select"
-}
-
-// Focus is a no-op placeholder for focus acquisition.
-func (b *elementBase[Self]) Focus() {}
-
-// Blur is a no-op placeholder for focus loss.
-func (b *elementBase[Self]) Blur() {}
 
 // --- Internal helpers --------------------------------------------------------
 

@@ -13,8 +13,9 @@ import (
 // ButtonElement implements a clickable button component.
 type ButtonElement struct {
 	elementBase[ButtonElement]
-	active  bool
-	btnType string
+	active   bool
+	btnType  string
+	disabled bool
 }
 
 var _ Element = (*ButtonElement)(nil)
@@ -150,4 +151,11 @@ func (b *ButtonElement) SetActive(active bool) {
 	if ro := b.RenderObject(); ro != nil {
 		ro.MarkDirty(render.DirtyStyle)
 	}
+}
+
+func (b *ButtonElement) IsDisabled() bool   { return b.disabled }
+func (b *ButtonElement) SetDisabled(v bool) { b.disabled = v }
+func (b *ButtonElement) Disabled(v bool) *ButtonElement {
+	b.disabled = v
+	return b
 }

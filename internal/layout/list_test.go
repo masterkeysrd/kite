@@ -6,6 +6,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
+	_ "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -82,7 +83,7 @@ func TestListLayout_OrdinalCalculation(t *testing.T) {
 	var nodes []layout.Node
 	var domNodes []dom.Node
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		el := doc.CreateElement("li", nil)
 		ro := render.NewBox(el, el)
 		ro.SetComputedStyle(&style.Computed{

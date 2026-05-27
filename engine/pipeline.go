@@ -27,9 +27,12 @@ func (p *StandardPipeline) Sync(e *Engine) {
 		e.syncOverlays(e.document)
 	}
 
-	if e.focusManager.Current() == nil {
-		e.focusManager.Next()
+	// Clean up disconnected focus target.
+	if focused := e.focusManager.Current(); focused != nil && !focused.IsConnected() {
+		e.focusManager.Blur()
 	}
+
+	e.focusManager.SetInitialFocus()
 }
 
 func (p *StandardPipeline) Tasks(e *Engine) {

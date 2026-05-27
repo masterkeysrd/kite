@@ -6,8 +6,8 @@ import (
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -32,6 +32,7 @@ type focusableElement struct {
 func (f *focusableElement) IsFocusable() bool { return true }
 func (f *focusableElement) Focus()            {}
 func (f *focusableElement) Blur()             {}
+func (f *focusableElement) TabIndex() int     { return 0 }
 
 func TestEngineCursorIntegration(t *testing.T) {
 	b := mock.New(80, 24)
@@ -91,7 +92,7 @@ func TestEngineCursorIntegration(t *testing.T) {
 	e.renderView.SetCachedLayout(layout.ConstraintSpace{}, viewFrag)
 
 	// Focus the element
-	if ok := e.focusManager.Focus(fe, focus.ReasonProgrammatic); !ok {
+	if ok := e.focusManager.SetFocus(fe, focus.ReasonProgrammatic); !ok {
 		t.Fatalf("failed to focus element")
 	}
 

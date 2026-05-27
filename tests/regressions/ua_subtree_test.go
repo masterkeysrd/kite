@@ -10,8 +10,8 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -171,6 +171,7 @@ type testFocusableElement struct {
 func (f *testFocusableElement) IsFocusable() bool { return true }
 func (f *testFocusableElement) Focus()            {}
 func (f *testFocusableElement) Blur()             {}
+func (f *testFocusableElement) TabIndex() int     { return 0 }
 func (f *testFocusableElement) Unwrap() dom.Node  { return f.Element }
 
 // TestUASubtree_Focus_SkipsUANodes verifies that a focusable element inside a

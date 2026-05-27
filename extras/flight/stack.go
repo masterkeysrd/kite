@@ -1,8 +1,9 @@
 package flight
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/internal/focus"
 )
 
 // StackProps specifies the configuration properties for the Stack navigation component.
@@ -88,10 +89,6 @@ var Stack = kitex.FC("Stack", func(props StackProps) kitex.Node {
 		if doc == nil {
 			return nil
 		}
-		fm, ok := doc.FocusManager().(*focus.Manager)
-		if !ok || fm == nil {
-			return nil
-		}
 
 		el := getElement()
 		if el == nil {
@@ -107,14 +104,15 @@ var Stack = kitex.FC("Stack", func(props StackProps) kitex.Node {
 			}
 		}
 
+		domEl := rawEl.(dom.Element)
 		scope := &focus.Scope{
-			Root:      rawEl,
-			Autofocus: rawEl,
+			Root:      domEl,
+			Autofocus: domEl,
 		}
-		fm.PushScope(scope)
+		doc.PushScope(scope)
 
 		return func() {
-			fm.PopScope()
+			doc.PopScope()
 		}
 	}, []any{active})
 

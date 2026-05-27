@@ -34,8 +34,8 @@ type Document struct {
 	overlays  []OverlayRecord
 	nextOrder int
 
-	focusManager any
-	clipboard    event.ClipboardProvider
+	focusHandle dom.FocusHandle
+	clipboard   event.ClipboardProvider
 
 	selection *Selection
 
@@ -167,12 +167,61 @@ func (d *Document) Overlays() iter.Seq[dom.Element] {
 	}
 }
 
-func (d *Document) FocusManager() any {
-	return d.focusManager
+func (d *Document) Focus(el dom.Element) {
+	if d.focusHandle != nil {
+		d.focusHandle.Focus(el)
+	}
 }
 
-func (d *Document) SetFocusManager(fm any) {
-	d.focusManager = fm
+func (d *Document) IsFocused(el dom.Element) bool {
+	if d.focusHandle != nil {
+		return d.focusHandle.IsFocused(el)
+	}
+	return false
+}
+
+func (d *Document) PushScope(scope *dom.FocusScope) {
+	if d.focusHandle != nil {
+		d.focusHandle.PushScope(scope)
+	}
+}
+
+func (d *Document) PopScope() {
+	if d.focusHandle != nil {
+		d.focusHandle.PopScope()
+	}
+}
+
+func (d *Document) ActiveScope() *dom.FocusScope {
+	if d.focusHandle != nil {
+		return d.focusHandle.ActiveScope()
+	}
+	return nil
+}
+
+func (d *Document) CurrentFocus() dom.Element {
+	if d.focusHandle != nil {
+		return d.focusHandle.Current()
+	}
+	return nil
+}
+
+func (d *Document) NextFocus() bool {
+	if d.focusHandle != nil {
+		return d.focusHandle.Next()
+	}
+	return false
+}
+
+func (d *Document) PreviousFocus() bool {
+	if d.focusHandle != nil {
+		return d.focusHandle.Previous()
+	}
+	return false
+}
+
+func (d *Document) SetFocusHandle(handle dom.FocusHandle) {
+	d.focusHandle = handle
 }
 
 func (d *Document) Selection() dom.Selection {

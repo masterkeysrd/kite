@@ -9,9 +9,15 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-type mockTarget struct {
-	event.Target
+type mockTarget struct{}
+
+func (m *mockTarget) AddEventListener(typ event.EventType, fn event.Listener, opts ...event.Option) event.Subscription {
+	return nil
 }
+func (m *mockTarget) DispatchTo(e event.Event)       {}
+func (m *mockTarget) DispatchToTarget(e event.Event) {}
+func (m *mockTarget) RemoveRegistration(id uint64)   {}
+func (m *mockTarget) EventTarget() event.EventTarget { return m }
 
 func TestTextRenderObject(t *testing.T) {
 	target := &mockTarget{}

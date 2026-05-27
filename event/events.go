@@ -89,7 +89,13 @@ type Event interface {
 
 	// DefaultPrevented reports whether PreventDefault was called.
 	DefaultPrevented() bool
+}
 
+// InternalEvent is the interface implemented by event types that can be
+// updated during the dispatch process. It is used by the Dispatcher and
+// Synthesizer in internal/event.
+type InternalEvent interface {
+	Event
 	// SetTarget sets the event target. Used internally by Dispatcher.
 	SetTarget(EventTarget)
 
@@ -462,4 +468,133 @@ func NewSubmitEvent(formData map[string]any) *SubmitEvent {
 		BaseEvent: BaseEvent{typ: EventSubmit, bubbles: true},
 		FormData:  formData,
 	}
+}
+
+// --- Interfaces and Target --------------------------------------------------
+
+// Subscription is a cancellable event listener registration. Call Cancel to
+// remove the listener from its target. Subscription values are safe to cancel
+// from any goroutine; the actual removal is deferred to the next listener
+// invocation to avoid map mutation under iteration.
+type Subscription interface {
+	// Cancel removes this listener registration. It is idempotent: calling
+	// Cancel more than once is safe and has no additional effect.
+	Cancel()
+}
+
+// Listener is a function that handles an Event.
+type Listener func(Event)
+
+// EventTarget is the interface implemented by objects that can receive events
+// and have listeners registered on them.
+type EventTarget interface {
+	// AddEventListener registers fn as a listener for event of type typ on this
+	// target. Options control the phase (capture vs bubble), auto-cancellation
+	// (once), and the passive hint. The returned Subscription can be used to
+	// remove the listener without pointer comparison.
+	AddEventListener(typ EventType, fn Listener, opts ...Option) Subscription
+
+	// DispatchTo fires listeners on this target for the given event. It
+	// respects the phase and the once flag.
+	DispatchTo(e Event)
+
+	// DispatchToTarget invokes capture-registered listeners followed by
+	// bubble-registered listeners for the target phase.
+	DispatchToTarget(e Event)
+
+	// RemoveRegistration removes the registration with the given id.
+	RemoveRegistration(id uint64)
+
+	// EventTarget returns the user-visible event target for this object.
+	// For logical nodes in a UA shadow subtree, this returns the host element;
+	// otherwise it returns the object itself.
+	EventTarget() EventTarget
+}
+
+// Option configures how a listener is registered.
+type Option func(any)
+
+// OptionSetter is the interface implemented by internal registration objects
+// to allow public options to configure them.
+type OptionSetter interface {
+	SetCapture(bool)
+	SetOnce(bool)
+	SetPassive(bool)
+}
+
+// Capture returns an Option that registers the listener for the capture phase
+// (default is bubble phase).
+func Capture() Option {
+	return func(r any) {
+		if s, ok := r.(OptionSetter); ok {
+			s.SetCapture(true)
+		}
+	}
+}
+
+// Once returns an Option that causes the listener to auto-cancel after its
+// first invocation.
+func Once() Option {
+	return func(r any) {
+		if s, ok := r.(OptionSetter); ok {
+			s.SetOnce(true)
+		}
+	}
+}
+
+// Passive returns an Option that hints the engine that the handler will never
+// call PreventDefault (used for performance; not enforced).
+func Passive() Option {
+	return func(r any) {
+		if s, ok := r.(OptionSetter); ok {
+			s.SetPassive(true)
+		}
+	}
+}
+
+// --- Registration API -------------------------------------------------------
+
+// HitTester resolves the event target at a screen-space point. This is
+// typically implemented by the engine.
+type HitTester interface {
+	HitTest(x, y int) EventTarget
+}
+
+// Dispatcher performs 3-phase (capture → target → bubble) event dispatch.
+type Dispatcher interface {
+	// Dispatch routes e through the ancestor chain described by path.
+	// path must be ordered root → target (index 0 = root, last = target).
+	Dispatch(e Event, path []EventTarget)
+
+	// DispatchWheel routes a WheelEvent through the ancestor chain, stopping at
+	// the first ancestor that implements Scrollable.
+	DispatchWheel(e *WheelEvent, path []EventTarget, scrollables map[EventTarget]Scrollable)
+}
+
+// Implementation defines the set of factory functions provided by the
+// internal/event package.
+type Implementation struct {
+	NewDispatcher func() Dispatcher
+	NewTarget     func() EventTarget
+}
+
+var impl Implementation
+
+// RegisterImplementation registers the concrete implementation of events.
+// This is called by internal/event's init() function.
+func RegisterImplementation(i Implementation) {
+	impl = i
+}
+
+// NewDispatcher creates a new Dispatcher.
+func NewDispatcher() Dispatcher {
+	if impl.NewDispatcher == nil {
+		panic("event: implementation not registered. Did you forget to import internal/event?")
+	}
+	return impl.NewDispatcher()
+}
+
+// NewTarget creates a new EventTarget implementation.
+func NewTarget() EventTarget {
+	return impl.NewTarget()
 }

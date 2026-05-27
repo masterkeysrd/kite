@@ -3,9 +3,9 @@ package spatial_test
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/focus"
-	"github.com/masterkeysrd/kite/focus/spatial"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
+	"github.com/masterkeysrd/kite/internal/focus/spatial"
 )
 
 // buildGridRightAnchor creates a root with n focusable children in a horizontal
@@ -32,7 +32,7 @@ func buildGridRightAnchor(n int) (*spatialObj, *spatialObj, *focus.Manager) {
 	link(root, cur)
 
 	m := makeManager(root)
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 	return root, cur, m
 }
 
@@ -60,7 +60,7 @@ func buildGridLeftAnchor(n int) (*spatialObj, *spatialObj, *focus.Manager) {
 	}
 
 	m := makeManager(root)
-	m.Focus(cur, focus.ReasonProgrammatic)
+	m.SetFocus(cur, focus.ReasonProgrammatic)
 	return root, cur, m
 }
 
@@ -101,7 +101,7 @@ func BenchmarkNavigate_100Candidates_WithMove(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		m.Focus(cur, focus.ReasonProgrammatic)
+		m.SetFocus(cur, focus.ReasonProgrammatic)
 		spatial.Navigate(m, spatial.DirectionLeft)
 	}
 }

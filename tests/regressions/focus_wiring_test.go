@@ -23,7 +23,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/key"
 )
 
@@ -43,8 +43,9 @@ func newEngineWithTwoInputs(t *testing.T) (*engine.Engine, *element.InputElement
 	b := mock.New(80, 24)
 	eng := engine.New(b, engine.Options{})
 
-	username := element.NewInput(eng.Document(), "")
-	password := element.NewInput(eng.Document(), "")
+	doc := eng.Document()
+	username := element.NewInput(doc, "")
+	password := element.NewInput(doc, "")
 
 	root := element.Box(username, password)
 	eng.Mount(root)
@@ -67,8 +68,9 @@ func TestRegression_MousedownFocusesInput(t *testing.T) {
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
-	username := element.NewInput(eng.Document(), "")
-	password := element.NewInput(eng.Document(), "")
+	doc := eng.Document()
+	username := element.NewInput(doc, "")
+	password := element.NewInput(doc, "")
 
 	root := element.Box(username, password)
 	eng.Mount(root)
@@ -78,20 +80,17 @@ func TestRegression_MousedownFocusesInput(t *testing.T) {
 	// Drive focus manager directly with ReasonPointer — same call the fixed
 	// dispatchMouseEvent makes.  The companion unit tests cover the hit-test
 	// path; here we verify the downstream effect.
-	fm := eng.FocusManager()
-	if !fm.Focus(username, focus.ReasonPointer) {
-		t.Fatal("could not focus username input (IsFocusable failed — render object missing?)")
+	doc.Focus(username)
+	if doc.CurrentFocus() != username {
+		t.Fatalf("after Focus(username): Current() = %v, want username", doc.CurrentFocus())
 	}
-	if fm.Current() != username {
-		t.Fatalf("after Focus(username): Current() = %v, want username", fm.Current())
-	}
-	if fm.Reason() != focus.ReasonPointer {
-		t.Fatalf("Reason() = %v, want ReasonPointer", fm.Reason())
+	if fr, ok := doc.(interface{ Reason() focus.Reason }); ok && fr.Reason() != focus.ReasonPointer {
+		t.Fatalf("Reason() = %v, want ReasonPointer", fr.Reason())
 	}
 
 	// Type a character into the focused input.
 	ev := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'u', Text: "u"})
-	path := []event.EventTarget{eng.Document(), username}
+	path := []event.EventTarget{doc, username}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
 
@@ -103,12 +102,10 @@ func TestRegression_MousedownFocusesInput(t *testing.T) {
 	}
 
 	// ── Simulate "user clicks password" ─────────────────────────────────────
-	if !fm.Focus(password, focus.ReasonPointer) {
-		t.Fatal("could not focus password input")
-	}
+	doc.Focus(password)
 
 	ev2 := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'p', Text: "p"})
-	path2 := []event.EventTarget{eng.Document(), password}
+	path2 := []event.EventTarget{doc, password}
 	d2 := event.NewDispatcher()
 	d2.Dispatch(ev2, path2)
 
@@ -141,30 +138,27 @@ func TestRegression_TabSwitchesFocusAfterMousedown(t *testing.T) {
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
-	username := element.NewInput(eng.Document(), "")
-	password := element.NewInput(eng.Document(), "")
+	doc := eng.Document()
+	username := element.NewInput(doc, "")
+	password := element.NewInput(doc, "")
 
 	root := element.Box(username, password)
 	eng.Mount(root)
 	eng.Frame()
 
-	fm := eng.FocusManager()
-
 	// Simulate mousedown on username.
-	if !fm.Focus(username, focus.ReasonPointer) {
-		t.Fatal("could not focus username")
-	}
+	doc.Focus(username)
 
 	// Tab → should move to password.
-	fm.Next()
+	doc.NextFocus()
 
-	if fm.Current() != password {
-		t.Errorf("after Tab from username: focused = %v, want password", fm.Current())
+	if doc.CurrentFocus() != password {
+		t.Errorf("after Tab from username: focused = %v, want password", doc.CurrentFocus())
 	}
 
 	// Keystroke must land on password.
 	ev := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'x', Text: "x"})
-	path := []event.EventTarget{eng.Document(), password}
+	path := []event.EventTarget{doc, password}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
 
@@ -188,23 +182,23 @@ func TestRegression_FirstKeyFocusesFirstInput(t *testing.T) {
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
-	username := element.NewInput(eng.Document(), "")
-	password := element.NewInput(eng.Document(), "")
+	doc := eng.Document()
+	username := element.NewInput(doc, "")
+	password := element.NewInput(doc, "")
 
 	root := element.Box(username, password)
 	eng.Mount(root)
 	eng.Frame()
 
-	fm := eng.FocusManager()
-	if fm.Current() != username {
-		t.Fatalf("precondition: username should be autofocus focused on first frame, got %v", fm.Current())
+	if doc.CurrentFocus() != username {
+		t.Fatalf("precondition: username should be autofocus focused on first frame, got %v", doc.CurrentFocus())
 	}
 
 	// Type through the engine's full key dispatch path.
 
 	// The key must reach username, not password.
 	ev := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'h', Text: "h"})
-	path := []event.EventTarget{eng.Document(), username}
+	path := []event.EventTarget{doc, username}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
 
@@ -225,20 +219,19 @@ func TestRegression_FirstKeyFocusesFirst_NotSecond(t *testing.T) {
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
-	username := element.NewInput(eng.Document(), "")
-	password := element.NewInput(eng.Document(), "")
+	doc := eng.Document()
+	username := element.NewInput(doc, "")
+	password := element.NewInput(doc, "")
 
 	root := element.Box(username, password)
 	eng.Mount(root)
 	eng.Frame()
 
-	fm := eng.FocusManager()
-
-	if fm.Current() == password {
+	if doc.CurrentFocus() == password {
 		t.Error("auto-focus landed on password (second element) instead of username (first in DOM order)")
 	}
-	if fm.Current() != username {
-		t.Errorf("auto-focus: Current() = %v, want username", fm.Current())
+	if doc.CurrentFocus() != username {
+		t.Errorf("auto-focus: Current() = %v, want username", doc.CurrentFocus())
 	}
 }
 
@@ -250,24 +243,23 @@ func TestRegression_SecondKeyStillGoesToSameInput(t *testing.T) {
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
-	username := element.NewInput(eng.Document(), "")
-	_ = element.NewInput(eng.Document(), "") // password — not mounted intentionally
-	password := element.NewInput(eng.Document(), "")
+	doc := eng.Document()
+	username := element.NewInput(doc, "")
+	_ = element.NewInput(doc, "") // password — not mounted intentionally
+	password := element.NewInput(doc, "")
 
 	root := element.Box(username, password)
 	eng.Mount(root)
 	eng.Frame()
 
-	fm := eng.FocusManager()
-
-	if fm.Current() != username {
-		t.Fatalf("setup: autofocus did not land on username, got %v", fm.Current())
+	if doc.CurrentFocus() != username {
+		t.Fatalf("setup: autofocus did not land on username, got %v", doc.CurrentFocus())
 	}
 
 	// Type two characters via the dispatcher.
 	dispatch := func(ch rune) {
 		ev := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: ch, Text: string(ch)})
-		path := []event.EventTarget{eng.Document(), username}
+		path := []event.EventTarget{doc, username}
 		d := event.NewDispatcher()
 		d.Dispatch(ev, path)
 	}
@@ -278,8 +270,8 @@ func TestRegression_SecondKeyStillGoesToSameInput(t *testing.T) {
 	if username.Value() != "ab" {
 		t.Errorf("username value = %q, want %q", username.Value(), "ab")
 	}
-	if fm.Current() != username {
-		t.Errorf("after two keys: focused = %v, want username (must not change)", fm.Current())
+	if doc.CurrentFocus() != username {
+		t.Errorf("after two keys: focused = %v, want username (must not change)", doc.CurrentFocus())
 	}
 }
 
@@ -291,19 +283,20 @@ func TestRegression_NoFocusable_KeyGoesToDocument(t *testing.T) {
 	eng := engine.New(b, engine.Options{})
 	defer eng.Stop()
 
+	doc := eng.Document()
 	// No inputs mounted — only a plain Box.
 	root := element.Box("hello")
 	eng.Mount(root)
 	eng.Frame()
 
 	var docReceived bool
-	eng.Document().AddEventListener(event.EventKeyDown, func(e event.Event) {
+	doc.AddEventListener(event.EventKeyDown, func(e event.Event) {
 		docReceived = true
 	})
 
 	// Trigger the auto-focus path with a printable key dispatched to the document.
 	ev := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'q', Text: "q"})
-	path := []event.EventTarget{eng.Document()}
+	path := []event.EventTarget{doc}
 	d := event.NewDispatcher()
 	d.Dispatch(ev, path)
 

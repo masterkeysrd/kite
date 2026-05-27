@@ -171,9 +171,7 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	// Hardware cursor is only visible if the host element is focused.
 	focused := false
 	if doc := b.host.OwnerDocument(); doc != nil {
-		if fm, ok := doc.FocusManager().(interface{ IsFocused(dom.Node) bool }); ok {
-			focused = fm.IsFocused(b.host)
-		}
+		focused = doc.IsFocused(b.host)
 	}
 
 	// Add the host's border and padding insets.

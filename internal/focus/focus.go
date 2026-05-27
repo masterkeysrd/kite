@@ -7,6 +7,9 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+// Scope is a type alias for dom.FocusScope to preserve backwards compatibility.
+type Scope = dom.FocusScope
+
 // Reason describes how focus was acquired on the current element. It is used
 // by painters to decide whether to draw a visible focus indicator (ring).
 type Reason uint8
@@ -24,39 +27,19 @@ const (
 	ReasonRestore
 )
 
-// Scope is a focus containment region. While a Scope is active, tab navigation
-// and focusable-filter queries are restricted to the subtree rooted at Root.
-//
-// Lifecycle:
-//   - PushScope captures the current focus into PreviousFocus.
-//   - PopScope restores PreviousFocus with ReasonRestore, or blurs if the
-//     previous node is no longer focusable.
-type Scope struct {
-	// Root is the logical node that acts as the boundary for tab navigation
-	// and focus queries while this scope is active. Must not be nil.
-	Root dom.Node
-
-	// Autofocus is the initial focus target when the scope is pushed.
-	// If nil no autofocus is applied; focus stays on the previous element
-	// until a navigation or programmatic Focus call.
-	Autofocus dom.Node
-
-	// PreviousFocus is captured automatically on PushScope. It is restored
-	// with ReasonRestore when PopScope is called. Do not set this field
-	// manually; Manager writes it on PushScope.
-	PreviousFocus dom.Node
-}
-
 // Manager owns focus state, the scope stack, and tab-navigation for a single
 // logical tree. All methods must be called from the single main-loop goroutine.
 //
 // A Manager must be constructed with NewManager; the zero value is invalid.
 type Manager struct {
-	current    dom.Node
-	reason     Reason
-	scopes     []*Scope
-	dispatcher *event.Dispatcher
+	current          dom.Element
+	reason           Reason
+	scopes           []*dom.FocusScope
+	dispatcher       event.Dispatcher
+	initialFocusDone bool
 }
+
+var _ dom.FocusHandle = (*Manager)(nil)
 
 // NewManager creates a Manager backed by dispatcher.
 // A default root scope covering the entire tree (with root as Root) is
@@ -66,61 +49,71 @@ type Manager struct {
 // dispatcher routes focus / blur event through the logical tree.
 func NewManager(
 	root dom.Node,
-	dispatcher *event.Dispatcher,
+	dispatcher event.Dispatcher,
 ) *Manager {
 	m := &Manager{
 		dispatcher: dispatcher,
 	}
-	m.PushScope(&Scope{Root: root})
+	m.PushScope(&dom.FocusScope{Root: root})
 	return m
 }
 
 // --- Read accessors -----------------------------------------------------------
 
-// Current returns the currently focused logical node, or nil.
-func (m *Manager) Current() dom.Node { return m.current }
+// Current returns the currently focused logical element, or nil.
+func (m *Manager) Current() dom.Element { return m.current }
 
 // Reason returns the reason the current focus was acquired.
 func (m *Manager) Reason() Reason { return m.reason }
 
-// IsFocused reports whether n is the currently focused node.
-func (m *Manager) IsFocused(n dom.Node) bool { return n != nil && m.current == n }
+// IsFocused reports whether el is the currently focused element.
+func (m *Manager) IsFocused(el dom.Element) bool { return el != nil && m.current == el }
 
-// IsFocusVisible reports whether n is focused AND focus was acquired via the
+// IsFocusVisible reports whether el is focused AND focus was acquired via the
 // keyboard. Painters consult this to decide whether to draw a focus ring,
 // matching the web :focus-visible heuristic.
-func (m *Manager) IsFocusVisible(n dom.Node) bool {
-	return m.IsFocused(n) && m.reason == ReasonKeyboard
+func (m *Manager) IsFocusVisible(el dom.Element) bool {
+	return m.IsFocused(el) && m.reason == ReasonKeyboard
 }
 
-// ActiveScope returns the top of the scope stack, or nil if the stack is
+// ActiveScopeInternal returns the top of the scope stack, or nil if the stack is
 // empty (should not happen after NewManager).
-func (m *Manager) ActiveScope() *Scope {
+func (m *Manager) ActiveScopeInternal() *dom.FocusScope {
 	if len(m.scopes) == 0 {
 		return nil
 	}
 	return m.scopes[len(m.scopes)-1]
 }
 
+// ActiveScope implements dom.FocusHandle.
+func (m *Manager) ActiveScope() *dom.FocusScope {
+	return m.ActiveScopeInternal()
+}
+
 // --- Mutation -----------------------------------------------------------------
 
-// Focus attempts to move keyboard focus to n with the supplied reason.
-// It returns false (and is a no-op) if n does not pass the focusable filter:
+// SetFocus attempts to move keyboard focus to el with the supplied reason.
+// It returns false (and is a no-op) if el does not pass the focusable filter:
 //
-//   - n must implement dom.Focusable and IsFocusable() must be true
-//   - if n implements dom.Disableable, IsDisabled() must be false
+//   - el's IsFocusable() must be true
+//   - if el implements dom.Disableable, IsDisabled() must be false
 //   - its render object's ComputedStyle().Display must not be DisplayNone
-//   - n must be a descendant of (or equal to) the active scope's Root
+//   - el must be a descendant of (or equal to) the active scope's Root
 //
 // When the focus changes, blur/focusout are dispatched on the previous
-// target and focus/focusin are dispatched on n. DirtyPaint is marked on
+// target and focus/focusin are dispatched on el. DirtyPaint is marked on
 // both the old and new nodes so painters can update focus rings.
-func (m *Manager) Focus(n dom.Node, reason Reason) bool {
-	if !IsFocusable(n, m.ActiveScope()) {
+func (m *Manager) SetFocus(el dom.Element, reason Reason) bool {
+	if !IsFocusable(el, m.ActiveScopeInternal()) {
 		return false
 	}
-	m.setFocus(n, reason)
+	m.setFocus(el, reason)
 	return true
+}
+
+// Focus implements dom.FocusHandle.
+func (m *Manager) Focus(el dom.Element) {
+	m.SetFocus(el, ReasonProgrammatic)
 }
 
 // Blur clears the current focus without moving it to another element.
@@ -134,11 +127,15 @@ func (m *Manager) Blur() {
 
 // setFocus is the single point through which all focus state changes flow.
 // It emits focus event and marks paint-dirty on the affected nodes.
-func (m *Manager) setFocus(next dom.Node, reason Reason) {
+func (m *Manager) setFocus(next dom.Element, reason Reason) {
 	if m.current == next {
 		// Re-focusing the same element still updates the reason.
 		m.reason = reason
 		return
+	}
+
+	if next != nil {
+		m.initialFocusDone = true
 	}
 
 	old := m.current
@@ -180,7 +177,7 @@ func (m *Manager) setFocus(next dom.Node, reason Reason) {
 // left-to-right) within the active scope, wrapping to the first focusable if
 // at the end. Returns false if no focusable candidate exists.
 func (m *Manager) Next() bool {
-	scope := m.ActiveScope()
+	scope := m.ActiveScopeInternal()
 	if scope == nil {
 		return false
 	}
@@ -197,7 +194,7 @@ func (m *Manager) Next() bool {
 // the active scope, wrapping to the last focusable if at the beginning. Returns
 // false if no focusable candidate exists.
 func (m *Manager) Previous() bool {
-	scope := m.ActiveScope()
+	scope := m.ActiveScopeInternal()
 	if scope == nil {
 		return false
 	}
@@ -215,35 +212,56 @@ func (m *Manager) Previous() bool {
 // PushScope pushes s onto the scope stack. The current focus is captured into
 // s.PreviousFocus. If s.Autofocus is set and passes the focusable filter,
 // focus is moved to it with ReasonProgrammatic.
-func (m *Manager) PushScope(s *Scope) {
+// PushScope pushes s onto the scope stack. The current focus is captured into
+// s.PreviousFocus. If s.Autofocus is set and passes the focusable filter,
+// focus is moved to it with ReasonProgrammatic.
+func (m *Manager) PushScope(s *dom.FocusScope) {
 	s.PreviousFocus = m.current
 	m.scopes = append(m.scopes, s)
-	if s.Autofocus != nil && IsFocusable(s.Autofocus, s) {
-		m.setFocus(s.Autofocus, ReasonProgrammatic)
+	if s.Autofocus != nil {
+		if IsFocusable(s.Autofocus, s) {
+			m.setFocus(s.Autofocus, ReasonProgrammatic)
+		} else {
+			// If the autofocus target itself is not focusable, walk its descendants
+			// in pre-order to find the first focusable element.
+			var firstFocusable dom.Element
+			walkPreOrder(s.Autofocus, func(n dom.Node) {
+				if firstFocusable != nil {
+					return
+				}
+				if el, ok := n.(dom.Element); ok && el != s.Autofocus {
+					if IsFocusable(el, s) {
+						firstFocusable = el
+					}
+				}
+			})
+			if firstFocusable != nil {
+				m.setFocus(firstFocusable, ReasonProgrammatic)
+			}
+		}
 	}
 }
 
-// PopScope removes the top scope from the stack and returns it. If the
-// captured PreviousFocus is still focusable (passes the new active scope's
-// filter after the pop), focus is restored to it with ReasonRestore; otherwise
-// Blur is called.
+// PopScope removes the top scope from the stack. If the captured
+// PreviousFocus is still focusable (passes the new active scope's filter after
+// the pop), focus is restored to it with ReasonRestore; otherwise Blur is
+// called.
 //
-// PopScope is a no-op (returns nil) when only the root scope remains.
-func (m *Manager) PopScope() *Scope {
+// PopScope is a no-op when only the root scope remains.
+func (m *Manager) PopScope() {
 	if len(m.scopes) <= 1 {
 		// Never pop the root scope.
-		return nil
+		return
 	}
 	top := m.scopes[len(m.scopes)-1]
 	m.scopes = m.scopes[:len(m.scopes)-1]
 
 	prev := top.PreviousFocus
-	if prev != nil && IsFocusable(prev, m.ActiveScope()) {
+	if prev != nil && IsFocusable(prev, m.ActiveScopeInternal()) {
 		m.setFocus(prev, ReasonRestore)
 	} else {
 		m.setFocus(nil, ReasonProgrammatic)
 	}
-	return top
 }
 
 // ResetScope clears all scopes except the root, and restores focus to the root's PreviousFocus if possible. This is useful for recovering from unexpected states
@@ -253,35 +271,47 @@ func (m *Manager) ResetScope() {
 		return
 	}
 	root := m.scopes[0]
-	m.scopes = []*Scope{root}
+	m.scopes = []*dom.FocusScope{root}
 	m.setFocus(root.PreviousFocus, ReasonRestore)
+	m.initialFocusDone = false
+}
+
+// SetInitialFocus establishes the initial focus on startup or mount.
+// It is a no-op if initial focus has already been set since the last reset.
+func (m *Manager) SetInitialFocus() {
+	if m.initialFocusDone {
+		return
+	}
+	m.initialFocusDone = true
+	if m.current == nil {
+		m.Next()
+	}
 }
 
 // --- Focusable filter --------------------------------------------------------
 
-// IsFocusable reports whether n is a valid focus target within scope.
-// A node is focusable iff all four conditions hold:
+// IsFocusable reports whether el is a valid focus target within scope.
+// An element is focusable iff all four conditions hold:
 //
-//  1. The logical node implements dom.Focusable and IsFocusable() returns true.
-//  2. If the logical node implements dom.Disableable, IsDisabled() must be false.
-//  3. n's render object must exist and ComputedStyle().Display must not be DisplayNone.
-//  4. n is a descendant of (or equal to) scope.Root
+//  1. el's IsFocusable() returns true.
+//  2. If the element implements dom.Disableable, IsDisabled() must be false.
+//  3. el's render object must exist and ComputedStyle().Display must not be DisplayNone.
+//  4. el is a descendant of (or equal to) scope.Root
 //
 // IsFocusable is the single source of truth; all callers (Focus, Next,
 // Previous, PushScope Autofocus) delegate to it.
-func IsFocusable(n dom.Node, scope *Scope) bool {
-	if n == nil {
+func IsFocusable(el dom.Element, scope *dom.FocusScope) bool {
+	if el == nil {
 		return false
 	}
 
-	// 1. Check Focusable interface
-	f, ok := n.(dom.Focusable)
-	if !ok || !f.IsFocusable() {
+	// 1. Check IsFocusable()
+	if !el.IsFocusable() {
 		return false
 	}
 
 	// 2. Check Disableable interface
-	if d, ok := n.(dom.Disableable); ok && d.IsDisabled() {
+	if d, ok := el.(dom.Disableable); ok && d.IsDisabled() {
 		return false
 	}
 
@@ -289,7 +319,7 @@ func IsFocusable(n dom.Node, scope *Scope) bool {
 	// If the render object hasn't been created yet (e.g. before the first
 	// frame sync), we allow focus to be set based on logical state alone.
 	// This ensures initial focus can be established at startup.
-	if ro := n.RenderObject(); ro != nil {
+	if ro := el.RenderObject(); ro != nil {
 		cs := ro.ComputedStyle()
 		if cs != nil && cs.Display == style.DisplayNone {
 			return false
@@ -299,7 +329,7 @@ func IsFocusable(n dom.Node, scope *Scope) bool {
 	if scope == nil {
 		return true
 	}
-	return isDescendantOrEqual(n, scope.Root)
+	return isDescendantOrEqual(el, scope.Root)
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -317,16 +347,18 @@ func isDescendantOrEqual(n, root dom.Node) bool {
 	return false
 }
 
-// collectFocusable returns all focusable nodes within scope in DOM tree order
+// collectFocusable returns all focusable elements within scope in DOM tree order
 // (depth-first, left-to-right pre-order walk of the scope's subtree).
-func collectFocusable(scope *Scope) []dom.Node {
+func collectFocusable(scope *dom.FocusScope) []dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
-	var out []dom.Node
+	var out []dom.Element
 	walkPreOrder(scope.Root, func(n dom.Node) {
-		if IsFocusable(n, scope) {
-			out = append(out, n)
+		if el, ok := n.(dom.Element); ok {
+			if IsFocusable(el, scope) && el.TabIndex() >= 0 {
+				out = append(out, el)
+			}
 		}
 	})
 	return out
@@ -346,7 +378,7 @@ func walkPreOrder(root dom.Node, fn func(dom.Node)) {
 
 // findNext returns the element that follows current in candidates (wrapping
 // around). If current is nil or not in the list, it returns the first element.
-func findNext(candidates []dom.Node, current dom.Node) dom.Node {
+func findNext(candidates []dom.Element, current dom.Element) dom.Element {
 	if current == nil {
 		return candidates[0]
 	}
@@ -361,7 +393,7 @@ func findNext(candidates []dom.Node, current dom.Node) dom.Node {
 
 // findPrev returns the element that precedes current in candidates (wrapping
 // around). If current is nil or not in the list, it returns the last element.
-func findPrev(candidates []dom.Node, current dom.Node) dom.Node {
+func findPrev(candidates []dom.Element, current dom.Element) dom.Element {
 	if current == nil {
 		return candidates[len(candidates)-1]
 	}

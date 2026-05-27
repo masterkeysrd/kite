@@ -2,14 +2,13 @@ package element
 
 import (
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type DialogElement struct {
 	elementBase[DialogElement]
 	zIndex int
-	scope  *focus.Scope
+	scope  *dom.FocusScope
 }
 
 var _ Element = (*DialogElement)(nil)
@@ -52,20 +51,14 @@ func (d *DialogElement) SetZIndex(zIndex int) *DialogElement {
 func (d *DialogElement) OnConnected() {
 	if doc := d.OwnerDocument(); doc != nil {
 		doc.ShowOverlay(d, d.zIndex)
-
-		if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-			d.scope = &focus.Scope{Root: d.self, Autofocus: d.self}
-			fm.PushScope(d.scope)
-		}
+		doc.PushScope(&dom.FocusScope{Root: d.self, Autofocus: d.self})
 	}
 }
 
 func (d *DialogElement) OnDisconnected() {
 	if doc := d.OwnerDocument(); doc != nil {
 		doc.HideOverlay(d)
-		if fm, ok := doc.FocusManager().(*focus.Manager); ok {
-			fm.PopScope()
-		}
+		doc.PopScope()
 	}
 }
 

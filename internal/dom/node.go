@@ -6,13 +6,14 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/render"
 )
 
 var _ dom.Node = (*BaseNode)(nil)
 
 type BaseNode struct {
-	event.Target
+	internalevent.Target
 
 	name           string
 	kind           dom.Kind

@@ -9,8 +9,8 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -208,7 +208,7 @@ func TestTextArea_WheelScroll_DoesNotSnapBack(t *testing.T) {
 
 	// Focus the textarea
 	fm := focus.NewManager(eng.Document(), event.NewDispatcher())
-	fm.Focus(txa, 0)
+	fm.SetFocus(txa, 0)
 	eng.Frame()
 
 	// Simulate wheel scroll down (deltaY > 0)

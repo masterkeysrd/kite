@@ -7,7 +7,6 @@ import (
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/focus"
 	"github.com/masterkeysrd/kite/key"
 )
 
@@ -23,7 +22,7 @@ func TestPaste_CtrlV(t *testing.T) {
 	env.Flush()
 
 	// Focus the input.
-	env.Engine.FocusManager().Focus(input, focus.ReasonProgrammatic)
+	env.Engine.Document().Focus(input)
 	env.Flush()
 
 	// Simulate Ctrl+V (using 0x16 as code).
