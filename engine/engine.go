@@ -98,6 +98,7 @@ type Engine struct {
 	// backend is the output target.
 	backend backend.Backend
 
+	taskMu sync.Mutex
 	// macroQueue holds pending macrotasks.
 	macroQueue []func()
 	// microQueue holds pending microtasks.
@@ -553,7 +554,10 @@ func (e *Engine) Submit(j Job) {
 //
 // Post is safe to call from any goroutine.
 func (e *Engine) Post(fn func()) {
+	e.taskMu.Lock()
 	e.microQueue = append(e.microQueue, fn)
+	e.taskMu.Unlock()
+	e.RequestFrame()
 }
 
 // PostMacro schedules fn as a macrotask. Macrotasks are drained once per
@@ -561,7 +565,10 @@ func (e *Engine) Post(fn func()) {
 //
 // PostMacro is safe to call from any goroutine.
 func (e *Engine) PostMacro(fn func()) {
+	e.taskMu.Lock()
 	e.macroQueue = append(e.macroQueue, fn)
+	e.taskMu.Unlock()
+	e.RequestFrame()
 }
 
 // hitTestFragment walks the immutable layout Fragment tree and returns the deepest
@@ -793,9 +800,11 @@ func (e *Engine) drainWorkerResults() {
 		case r := <-e.workerResults:
 			job := r.job
 			err := r.err
+			e.taskMu.Lock()
 			e.microQueue = append(e.microQueue, func() {
 				job.OnComplete(nil, err)
 			})
+			e.taskMu.Unlock()
 		default:
 			return
 		}
@@ -807,15 +816,16 @@ func (e *Engine) drainWorkerResults() {
 func (e *Engine) drainMacroTasks() {
 	deadline := e.clock.Now().Add(e.macroTaskDuration)
 	drained := 0
-	for len(e.macroQueue) > 0 {
-		if drained >= e.macroTaskBudget {
-			break
-		}
-		if e.clock.Now().After(deadline) {
+	for {
+		e.taskMu.Lock()
+		if len(e.macroQueue) == 0 || drained >= e.macroTaskBudget || e.clock.Now().After(deadline) {
+			e.taskMu.Unlock()
 			break
 		}
 		task := e.macroQueue[0]
 		e.macroQueue = e.macroQueue[1:]
+		e.taskMu.Unlock()
+
 		task()
 		drained++
 		e.drainMicroTasks()
@@ -825,9 +835,16 @@ func (e *Engine) drainMacroTasks() {
 // drainMicroTasks empties the microtask queue. Any microtasks posted by a
 // microtask callback are processed in the same drain call.
 func (e *Engine) drainMicroTasks() {
-	for len(e.microQueue) > 0 {
+	for {
+		e.taskMu.Lock()
+		if len(e.microQueue) == 0 {
+			e.taskMu.Unlock()
+			break
+		}
 		task := e.microQueue[0]
 		e.microQueue = e.microQueue[1:]
+		e.taskMu.Unlock()
+
 		task()
 	}
 }
