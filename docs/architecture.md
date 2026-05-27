@@ -117,7 +117,34 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **VDOM Primitives:** The `kitex` package defines lightweight, fully-typed VDOM representations (e.g., `kitex.Button(kitex.ButtonProps{...})`) that map 1:1 to the real, heavy DOM nodes in the root `element` package. The reconciler translates these VDOM nodes into imperative updates on the underlying `element` nodes.
 - **Convenience Hooks (`/extras/kitex/hooks`):** Terminal-specific hooks built on the core primitives: `UseFocus(ref)` subscribes to focus/blur events and returns a reactive boolean; `UseKeyboard(handler, deps)` registers scoped keyboard handlers. These demonstrate composability and are shipped as a separate sub-package.
 
-### 3.12. Clipboard System
+### 3.12. Global State Management (`/extras/kites`)
+- **Responsibility:** Provide a thread-safe, external state management solution ("Kite Store") decoupled from the VDOM.
+- **Architecture:** Follows a Zustand/Redux-style "External Store" model. Global state is instantiated via `kites.Create[T](initialState)`, wrapping the state in a `sync.RWMutex`. This allows concurrent mutations from background goroutines or network handlers without data races.
+- **Kitex Integration:** Components subscribe to state slices using the `kites.Use(store, selector)` hook. The selector function extracts a specific slice of the global state.
+- **Render Optimization:** The `kites.Use` hook leverages Go's `comparable` constraint on the selector's return type. When the global store updates, the hook evaluates the new slice; it only triggers a component re-render if the new slice differs from the previous one, providing automatic performance bailouts for unaffected components.
+
+### 3.13. Navigation & Routing (`/extras/flight`)
+- **Responsibility:** Provide a stack-based navigation system for switching between full-screen views in `kitex` applications.
+- **Architecture:** Bypasses web-style URL/Path routing in favor of a "Stack Navigator" paradigm, which is more natural for TUIs (drill-down and pop). The `flight.Stack` component maintains a history slice of pushed routes.
+- **Type Safety:** Routes are defined as an empty interface (`flight.Route`). Developers define routes using standard Go structs (e.g., `type ProfileRoute struct { ID string }`), ensuring strict type safety for route parameters without resorting to maps or generic dictionaries. The `RenderRoute` function resolves the component via a standard Go type switch.
+- **Explicit Interaction:** The framework does not magically hijack keys (like `Esc`) for navigation. Developers explicitly bind navigation actions using `kitex` keyboard hooks.
+- **Focus Isolation:** The `flight.Stack` automatically wraps the currently active route in an `element.FocusScope`. This guarantees that when a new screen is pushed, keyboard navigation (Tabbing) cannot accidentally interact with buttons on the hidden screens beneath it.
+
+### 3.14. Async Data Fetching & Caching (`/extras/wind`)
+- **Responsibility:** Provide robust async data fetching, caching, and background refetching for Kitex components.
+- **Architecture:** Inspired by React Query. Uses a `QueryClient` provided via Kitex Context.
+- **Type-Safe Keys:** Uses Go's generic `comparable` constraint for cache keys (`K comparable`), ensuring strict type safety and zero-reflection performance when matching cache entries.
+- **Hooks:** 
+  - `UseQuery`: Manages the async state machine (`IsLoading`, `Data`, `Error`) and dedupes concurrent requests for the same key.
+  - `UseMutation`: Executes side-effects (e.g., POST/DELETE) and injects a `MutationContext` into its `OnSuccess`/`OnError` callbacks. This context provides direct access to the `Client` so developers can call `Client.InvalidateQueries(exactKey)` without requiring additional hook lookups.
+
+### 3.15. Form Architecture & Validation (`/extras/form`)
+- **Responsibility:** Provide a unified pipeline from raw terminal input up to strongly-typed, validated Go structs.
+- **Low-Level DOM (`element.Form`):** The core engine implements a `<form>` primitive. Form controls (`<input>`, `<checkbox>`) implement `dom.FormControl` to expose `Name()` and `Value()`. The `element.Form` intercepts "Enter" keystrokes and `type="submit"` button clicks to implicitly gather all control values and dispatch a single `event.SubmitEvent` carrying a `map[string]any` payload.
+- **Kitex Integration:** Developers use `kitex.Form(kitex.FormProps{...})` to wrap their controls declaratively.
+- **High-Level Validation (`extras/form`):** Inspired by React Hook Form, this package provides the `form.Use[T]` API. It takes the raw `map[string]any` from the `kitex.Form`, securely maps it into the user's defined generic struct `T`, runs synchronous validation logic, and manages the meta-state (`IsSubmitting`, `Errors`, `IsValid`) during async submission.
+
+### 3.16. Clipboard System
 - **Responsibility:** Managing global text selection and synchronizing data with the system clipboard.
 - **Multi-MIME Data:** The `event.ClipboardEvent` follows a `DataTransfer`-like model, carrying a map of payloads keyed by MIME type (e.g., `text/plain`, `image/png`). This allows components to negotiate their preferred data format during a paste.
 - **Global Integration:** The `dom.Document` acts as a central coordinator. If a focused element does not handle a copy/paste event, the Document falls back to the global `dom.Selection` to ensure seamless system-wide synchronization.
