@@ -266,6 +266,10 @@ func TestUseLayoutEffect_ReentrancyCap(t *testing.T) {
 	})
 
 	Render(comp(), container)
+	// Unmount to clear global activeRoots state and prevent dirty-component
+	// pollution from leaking into subsequent benchmarks.
+	defer Render(nil, container)
+
 	// Initial render + 10 re-renders = 11 total renders (cap at 10 iterations)
 	if renderCount != 11 {
 		t.Errorf("expected renderCount to be capped at 11, got %d", renderCount)

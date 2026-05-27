@@ -94,6 +94,35 @@ Kitex provides several standard hooks to manage component logic:
 - **`UseLayoutEffect(effect func(), deps []any)`**: Schedules a side effect that runs synchronously after reconciliation but before the layout is painted.
 - **`UseLayoutEffectCleanup(effect func() func(), deps []any)`**: Schedules a layout side effect with a cleanup function.
 
+## 🌐 Context System
+
+The Context system allows sharing values deep down the component tree without manually passing props through every level (avoiding "prop drilling").
+
+### 1. Create a Context
+```go
+type Theme string
+var ThemeContext = kitex.CreateContext[Theme]("light")
+```
+
+### 2. Provide a Value
+Wrap your subtree with the context provider:
+```go
+ThemeContext.Provider("dark", 
+    MyApp(),
+)
+```
+
+### 3. Consume the Value
+Call `UseContext` inside any functional component in the subtree:
+```go
+var Button = kitex.SimpleFC("Button", func() kitex.Node {
+    theme := kitex.UseContext(ThemeContext)
+    return kitex.Box(kitex.BoxProps{}, kitex.Text(string(theme)))
+})
+```
+
+When the provider value changes, only the components consuming the context (via `UseContext`) will re-render. Memoized wrapper components will not block this update, and the VDOM reconciler flattens the provider node to guarantee **zero DOM footprint** (no layout-breaking elements).
+
 ## 🛠 Developer Tools
 
 When using Kitex, you can enable the **Components** inspector in the Kite Web Inspector. This provides a live view of your VDOM tree, including:

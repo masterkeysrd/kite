@@ -50,6 +50,9 @@ type nodeInternal interface {
 	// O(N) and is used by ComponentNode to decide whether memoization is worth
 	// the overhead of a reflection-based props comparison.
 	complexity() int
+	containsProvider() bool
+	isProvider() bool
+	hasDirectProvider() bool
 }
 
 // Ensure compile-time interface compliance.
@@ -98,18 +101,28 @@ type elementNode[P any] struct {
 	// (1 for self + sum of children's complexity). Set once at construction time.
 	score int
 
+	// hasProvider is true if any node in the subtree rooted at this element
+	// is a context provider.
+	hasProvider bool
+
+	// hasDirectP is true if any direct child is a context provider.
+	hasDirectP bool
+
 	declFile string
 	declLine int
 	instFile string
 	instLine int
 }
 
-func (n *elementNode[P]) TagName() string    { return n.tagName }
-func (n *elementNode[P]) Props() any         { return n.props }
-func (n *elementNode[P]) Children() []Node   { return n.children }
-func (n *elementNode[P]) Key() string        { return n.key }
-func (n *elementNode[P]) realNode() dom.Node { return n.ref }
-func (n *elementNode[P]) complexity() int    { return n.score }
+func (n *elementNode[P]) TagName() string         { return n.tagName }
+func (n *elementNode[P]) Props() any              { return n.props }
+func (n *elementNode[P]) Children() []Node        { return n.children }
+func (n *elementNode[P]) Key() string             { return n.key }
+func (n *elementNode[P]) realNode() dom.Node      { return n.ref }
+func (n *elementNode[P]) complexity() int         { return n.score }
+func (n *elementNode[P]) containsProvider() bool  { return n.hasProvider }
+func (n *elementNode[P]) isProvider() bool        { return false }
+func (n *elementNode[P]) hasDirectProvider() bool { return n.hasDirectP }
 
 func (n *elementNode[P]) Release() {
 	if n.tagName == "" {
@@ -129,11 +142,21 @@ func (n *elementNode[P]) Release() {
 func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 	n.ref = n.instantiate(doc)
 	n.update(n.ref, nil, &n.props)
-	for _, child := range n.children {
-		if child != nil {
-			childReal := child.Instantiate(doc)
+	if n.hasDirectP {
+		flatChildren := flattenNodes(n.children, nil, nil)
+		for _, childFlat := range flatChildren {
+			childReal := instantiateFlat(n.ref.(dom.Element), childFlat)
 			if childReal != nil {
 				n.ref.AppendChild(childReal)
+			}
+		}
+	} else {
+		for _, child := range n.children {
+			if child != nil {
+				childReal := child.Instantiate(doc)
+				if childReal != nil {
+					n.ref.AppendChild(childReal)
+				}
 			}
 		}
 	}
@@ -172,11 +195,14 @@ type textNode struct {
 // complexity for a text leaf is always 1.
 func (t *textNode) complexity() int { return 1 }
 
-func (t *textNode) TagName() string    { return "#text" }
-func (t *textNode) Props() any         { return t.content }
-func (t *textNode) Children() []Node   { return nil }
-func (t *textNode) Key() string        { return "" }
-func (t *textNode) realNode() dom.Node { return t.ref }
+func (t *textNode) TagName() string         { return "#text" }
+func (t *textNode) Props() any              { return t.content }
+func (t *textNode) Children() []Node        { return nil }
+func (t *textNode) Key() string             { return "" }
+func (t *textNode) realNode() dom.Node      { return t.ref }
+func (t *textNode) containsProvider() bool  { return false }
+func (t *textNode) isProvider() bool        { return false }
+func (t *textNode) hasDirectProvider() bool { return false }
 
 func (t *textNode) Release() {
 	if t.content == "" && t.ref == nil {
@@ -236,16 +262,27 @@ func computeComplexity(n Node) int {
 	return 1
 }
 
-// buildElementScore computes the score for an elementNode from its children
-// slice and is called by every element factory.
-func buildElementScore(children []Node) int {
+// buildElementInfo computes the score and provider-presence for an elementNode
+// from its children slice and is called by every element factory.
+func buildElementInfo(children []Node) (int, bool, bool) {
 	s := 1
+	hasP := false
+	hasDirectP := false
 	for _, c := range children {
 		if c != nil {
 			s += computeComplexity(c)
+			if ni, ok := c.(nodeInternal); ok {
+				isP := ni.isProvider()
+				if isP {
+					hasDirectP = true
+					hasP = true
+				} else if !hasP && ni.containsProvider() {
+					hasP = true
+				}
+			}
 		}
 	}
-	return s
+	return s, hasP, hasDirectP
 }
 
 // deepEqualProps performs a depth-limited recursive equality check between two
@@ -649,6 +686,7 @@ func boxUpdate(el dom.Node, old, new *BoxProps) {
 // Box creates a VDOM representation of a BoxElement container.
 func Box(props BoxProps, children ...Node) Node {
 	n := elementNodePool.Get().(*elementNode[ElementProps])
+	score, hasP, hasDirectP := buildElementInfo(children)
 	*n = elementNode[ElementProps]{
 		tagName:     "box",
 		props:       props,
@@ -656,7 +694,9 @@ func Box(props BoxProps, children ...Node) Node {
 		instantiate: boxInstantiate,
 		update:      boxUpdate,
 		key:         props.Key,
-		score:       buildElementScore(children),
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}
 	return trackSource(n, 1)
 }
@@ -664,6 +704,7 @@ func Box(props BoxProps, children ...Node) Node {
 // Div creates a VDOM representation of a BoxElement container (web div alias).
 func Div(props BoxProps, children ...Node) Node {
 	n := elementNodePool.Get().(*elementNode[ElementProps])
+	score, hasP, hasDirectP := buildElementInfo(children)
 	*n = elementNode[ElementProps]{
 		tagName:     "div",
 		props:       props,
@@ -671,7 +712,9 @@ func Div(props BoxProps, children ...Node) Node {
 		instantiate: boxInstantiate,
 		update:      boxUpdate,
 		key:         props.Key,
-		score:       buildElementScore(children),
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}
 	return trackSource(n, 1)
 }
@@ -687,6 +730,7 @@ func spanUpdate(el dom.Node, old, new *SpanProps) {
 // Span creates a VDOM representation of a SpanElement container.
 func Span(props SpanProps, children ...Node) Node {
 	n := elementNodePool.Get().(*elementNode[ElementProps])
+	score, hasP, hasDirectP := buildElementInfo(children)
 	*n = elementNode[ElementProps]{
 		tagName:     "span",
 		props:       props,
@@ -694,7 +738,9 @@ func Span(props SpanProps, children ...Node) Node {
 		instantiate: spanInstantiate,
 		update:      spanUpdate,
 		key:         props.Key,
-		score:       buildElementScore(children),
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}
 	return trackSource(n, 1)
 }
@@ -761,6 +807,7 @@ func buttonUpdate(el dom.Node, old, new *ButtonProps) {
 
 // Button creates a VDOM representation of a ButtonElement.
 func Button(props ButtonProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[ButtonProps]{
 		tagName:     "button",
 		props:       props,
@@ -768,7 +815,9 @@ func Button(props ButtonProps, children ...Node) Node {
 		instantiate: buttonInstantiate,
 		update:      buttonUpdate,
 		key:         props.Key,
-		score:       buildElementScore(children),
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -841,6 +890,7 @@ func checkboxUpdate(el dom.Node, old, new *CheckboxProps) {
 
 // Checkbox creates a VDOM representation of a CheckboxElement.
 func Checkbox(props CheckboxProps) Node {
+	score, hasP, hasDirectP := buildElementInfo(nil)
 	return trackSource(&elementNode[CheckboxProps]{
 		tagName:     "checkbox",
 		props:       props,
@@ -848,7 +898,9 @@ func Checkbox(props CheckboxProps) Node {
 		instantiate: checkboxInstantiate,
 		update:      checkboxUpdate,
 		key:         props.Key,
-		score:       1,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -912,6 +964,7 @@ func radioGroupUpdate(el dom.Node, old, new *RadioGroupProps) {
 
 // RadioGroup creates a VDOM representation of a RadioGroupElement.
 func RadioGroup(props RadioGroupProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[RadioGroupProps]{
 		tagName:     "radiogroup",
 		props:       props,
@@ -919,7 +972,9 @@ func RadioGroup(props RadioGroupProps, children ...Node) Node {
 		instantiate: radioGroupInstantiate,
 		update:      radioGroupUpdate,
 		key:         props.Key,
-		score:       buildElementScore(children),
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -990,6 +1045,7 @@ func radioUpdate(el dom.Node, old, new *RadioProps) {
 
 // Radio creates a VDOM representation of a RadioElement.
 func Radio(props RadioProps) Node {
+	score, hasP, hasDirectP := buildElementInfo(nil)
 	return trackSource(&elementNode[RadioProps]{
 		tagName:     "radio",
 		props:       props,
@@ -997,7 +1053,9 @@ func Radio(props RadioProps) Node {
 		instantiate: radioInstantiate,
 		update:      radioUpdate,
 		key:         props.Key,
-		score:       1,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -1039,6 +1097,7 @@ func (p SelectProps) elementProps() ElementProps {
 
 // Select creates a VDOM representation of a SelectElement.
 func Select(props SelectProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[SelectProps]{
 		tagName:  "select",
 		props:    props,
@@ -1071,8 +1130,10 @@ func Select(props SelectProps, children ...Node) Node {
 			}
 			s.SetOptions(opts)
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -1140,8 +1201,10 @@ func Option(props OptionProps) Node {
 				opt.SetValue(new.Value)
 			}
 		},
-		key:   props.Key,
-		score: 1,
+		key:         props.Key,
+		score:       1,
+		hasProvider: false,
+		hasDirectP:  false,
 	}, 1)
 }
 
@@ -1203,8 +1266,10 @@ func Input(props InputProps) Node {
 				inp.SetValue(new.Value)
 			}
 		},
-		key:   props.Key,
-		score: 1,
+		key:         props.Key,
+		score:       1,
+		hasProvider: false,
+		hasDirectP:  false,
 	}, 1)
 }
 
@@ -1266,13 +1331,16 @@ func TextArea(props TextAreaProps) Node {
 				txa.SetValue(new.Value)
 			}
 		},
-		key:   props.Key,
-		score: 1,
+		key:         props.Key,
+		score:       1,
+		hasProvider: false,
+		hasDirectP:  false,
 	}, 1)
 }
 
 // Table creates a VDOM representation of a TableElement.
 func Table(props TableProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TableProps]{
 		tagName:  "table",
 		props:    props,
@@ -1283,13 +1351,16 @@ func Table(props TableProps, children ...Node) Node {
 		update: func(el dom.Node, old, new *TableProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
 // THead creates a VDOM representation of a TableHeaderElement (thead).
 func THead(props THeadProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[THeadProps]{
 		tagName:  "thead",
 		props:    props,
@@ -1300,13 +1371,16 @@ func THead(props THeadProps, children ...Node) Node {
 		update: func(el dom.Node, old, new *THeadProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
 // TBody creates a VDOM representation of a TableBodyElement (tbody).
 func TBody(props TBodyProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TBodyProps]{
 		tagName:  "tbody",
 		props:    props,
@@ -1317,13 +1391,16 @@ func TBody(props TBodyProps, children ...Node) Node {
 		update: func(el dom.Node, old, new *TBodyProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
 // TFoot creates a VDOM representation of a TableFooterElement (tfoot).
 func TFoot(props TFootProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TFootProps]{
 		tagName:  "tfoot",
 		props:    props,
@@ -1334,13 +1411,16 @@ func TFoot(props TFootProps, children ...Node) Node {
 		update: func(el dom.Node, old, new *TFootProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
 // TR creates a VDOM representation of a TableRowElement (tr).
 func TR(props TRProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TRProps]{
 		tagName:  "tr",
 		props:    props,
@@ -1351,8 +1431,10 @@ func TR(props TRProps, children ...Node) Node {
 		update: func(el dom.Node, old, new *TRProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -1394,6 +1476,7 @@ func (p TDProps) elementProps() ElementProps {
 
 // TD creates a VDOM representation of a TableCellElement (td).
 func TD(props TDProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TDProps]{
 		tagName:  "td",
 		props:    props,
@@ -1416,8 +1499,10 @@ func TD(props TDProps, children ...Node) Node {
 				td.SetRowSpan(new.RowSpan)
 			}
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -1433,8 +1518,10 @@ func Br(props BrProps) Node {
 		update: func(el dom.Node, old, new *BrProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
-		key:   props.Key,
-		score: 1,
+		key:         props.Key,
+		score:       1,
+		hasProvider: false,
+		hasDirectP:  false,
 	}, 1)
 }
 
@@ -1482,6 +1569,7 @@ func Overlay(props OverlayProps, content Node) Node {
 	if content != nil {
 		children = []Node{content}
 	}
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[OverlayProps]{
 		tagName:  "overlay",
 		props:    props,
@@ -1513,8 +1601,10 @@ func Overlay(props OverlayProps, content Node) Node {
 				o.SetConfig(config)
 			}
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -1559,6 +1649,7 @@ func Dialog(props DialogProps, content Node) Node {
 	if content != nil {
 		children = []Node{content}
 	}
+	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[DialogProps]{
 		tagName:  "dialog",
 		props:    props,
@@ -1578,8 +1669,10 @@ func Dialog(props DialogProps, content Node) Node {
 				d.SetZIndex(new.ZIndex)
 			}
 		},
-		key:   props.Key,
-		score: buildElementScore(children),
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
 	}, 1)
 }
 
@@ -1726,6 +1819,16 @@ var _ Node = (*ComponentNode[struct{}])(nil)
 func (c *ComponentNode[P]) TagName() string { return c.Name }
 func (c *ComponentNode[P]) Props() any      { return c.PropsVal }
 func (c *ComponentNode[P]) Key() string     { return c.key }
+func (c *ComponentNode[P]) containsProvider() bool {
+	if c.rendered != nil {
+		if ni, ok := c.rendered.(nodeInternal); ok {
+			return ni.containsProvider()
+		}
+	}
+	return false
+}
+func (c *ComponentNode[P]) isProvider() bool        { return false }
+func (c *ComponentNode[P]) hasDirectProvider() bool { return false }
 
 func (c *ComponentNode[P]) Children() []Node {
 	if c.rendered == nil {
@@ -1784,7 +1887,7 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	// and reuse the previously rendered subtree. The depth limit (3) caps the
 	// worst-case reflection time so the frame budget is never blown by a single
 	// pathological component.
-	if c.shouldMemo && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
+	if c.shouldMemo && !oldComp.IsDirty() && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
 		c.rendered = oldComp.rendered
 		oldComp.rendered = nil // Prevent Release() from destroying the reused tree
 		oldComp.Release()
@@ -1894,6 +1997,9 @@ func (c *ComponentNode[P]) Destroy() {
 			}
 			eff.pending = false
 		}
+		if unsub, ok := h.(contextUnsubscriber); ok {
+			unsub.unsubscribe(c)
+		}
 	}
 	if c.componentRef != nil {
 		c.componentRef.mu.Lock()
@@ -1940,7 +2046,7 @@ var OnComponentDirty func(node Node)
 
 var (
 	renderStackMutex sync.Mutex
-	renderStack      []any
+	renderStack      = make([]any, 0, 32)
 )
 
 func pushCurrentComponent(c any) {

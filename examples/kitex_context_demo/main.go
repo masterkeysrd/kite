@@ -1,0 +1,237 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"image/color"
+	"log/slog"
+	"os"
+
+	"github.com/masterkeysrd/kite/backend/uv"
+	"github.com/masterkeysrd/kite/devtools"
+	"github.com/masterkeysrd/kite/element"
+	"github.com/masterkeysrd/kite/engine"
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/kitex/kitexdt"
+	"github.com/masterkeysrd/kite/style"
+)
+
+// Define Theme type and Context
+type Theme string
+
+const (
+	ThemeLight Theme = "light"
+	ThemeDark  Theme = "dark"
+	ThemeBlue  Theme = "blue"
+)
+
+var ThemeContext = kitex.CreateContext[Theme](ThemeLight)
+
+// themeColors maps a theme to visual styles
+func getThemeStyle(theme Theme) style.Style {
+	var bg, fg color.Color
+	switch theme {
+	case ThemeDark:
+		bg = color.RGBA{R: 25, G: 25, B: 30, A: 255}
+		fg = color.RGBA{R: 240, G: 240, B: 245, A: 255}
+	case ThemeBlue:
+		bg = color.RGBA{R: 15, G: 35, B: 75, A: 255}
+		fg = color.RGBA{R: 210, G: 230, B: 255, A: 255}
+	default: // ThemeLight
+		bg = color.RGBA{R: 245, G: 245, B: 245, A: 255}
+		fg = color.RGBA{R: 30, G: 30, B: 35, A: 255}
+	}
+
+	return style.Style{
+		Background: style.Some(bg),
+		Foreground: style.Some(fg),
+		Border:     style.SingleBorder().Some(),
+		Padding:    style.Some(style.Edges(1, 2)),
+		Margin:     style.Some(style.Edges(1, 0)),
+	}
+}
+
+// ConsumerComponent consumes ThemeContext and displays itself accordingly.
+var ConsumerComponent = kitex.SimpleFC("ConsumerComponent", func() kitex.Node {
+	theme := kitex.UseContext(ThemeContext)
+	themeStyle := getThemeStyle(theme)
+
+	return kitex.Box(kitex.BoxProps{
+		Style: themeStyle,
+	},
+		kitex.Text(fmt.Sprintf("Consumer (Current Theme: %s)", theme)),
+	)
+})
+
+// DefaultConsumer does not sit under any Provider and shows default value.
+var DefaultConsumer = kitex.SimpleFC("DefaultConsumer", func() kitex.Node {
+	theme := kitex.UseContext(ThemeContext)
+	themeStyle := getThemeStyle(theme)
+	// Override margin/title styles
+	themeStyle.Border = style.DoubleBorder().Some()
+
+	return kitex.Box(kitex.BoxProps{
+		Style: themeStyle,
+	},
+		kitex.Text(fmt.Sprintf("Default Consumer - Outside Provider (Theme: %s)", theme)),
+	)
+})
+
+// App root component
+var App = kitex.SimpleFC("App", func() kitex.Node {
+	outerTheme, setOuterTheme := kitex.UseState(ThemeDark)
+	innerTheme, setInnerTheme := kitex.UseState(ThemeBlue)
+
+	toggleOuter := func() {
+		switch outerTheme() {
+		case ThemeLight:
+			setOuterTheme(ThemeDark)
+		case ThemeDark:
+			setOuterTheme(ThemeBlue)
+		case ThemeBlue:
+			setOuterTheme(ThemeLight)
+		}
+	}
+
+	toggleInner := func() {
+		switch innerTheme() {
+		case ThemeLight:
+			setInnerTheme(ThemeDark)
+		case ThemeDark:
+			setInnerTheme(ThemeBlue)
+		case ThemeBlue:
+			setInnerTheme(ThemeLight)
+		}
+	}
+
+	btnStyle := style.Style{
+		Background: style.Some[color.Color](color.RGBA{R: 70, G: 70, B: 90, A: 255}),
+		Foreground: style.Some[color.Color](color.White),
+		Padding:    style.Some(style.Edges(0, 1)),
+		Margin:     style.Some(style.Edges(0, 1)),
+	}
+
+	return kitex.Box(kitex.BoxProps{
+		Style: style.Style{
+			Display:       style.Some(style.DisplayFlex),
+			FlexDirection: style.Some(style.FlexColumn),
+			Padding:       style.Some(style.Edges(1, 2)),
+			Background:    style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 20, A: 255}),
+		},
+	},
+		// Title
+		kitex.Box(kitex.BoxProps{
+			Style: style.Style{
+				Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 200, B: 50, A: 255}),
+				Bold:       style.Some(true),
+				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
+			},
+		}, kitex.Text("⚛️ Kitex Context System Demo")),
+
+		// Top Actions
+		kitex.Box(kitex.BoxProps{
+			Style: style.Style{
+				Display:       style.Some(style.DisplayFlex),
+				FlexDirection: style.Some(style.FlexRow),
+				Margin:        style.Some(style.Edges(0, 0, 1, 0)),
+			},
+		},
+			kitex.Button(kitex.ButtonProps{
+				OnClick: func(e event.Event) { toggleOuter() },
+				Style:   btnStyle,
+			}, kitex.Text("Toggle Outer Theme")),
+
+			kitex.Button(kitex.ButtonProps{
+				OnClick: func(e event.Event) { toggleInner() },
+				Style:   btnStyle,
+			}, kitex.Text("Toggle Inner Theme")),
+		),
+
+		// Default consumer (outside any provider)
+		DefaultConsumer(),
+
+		// Theme Provider (Outer)
+		ThemeContext.Provider(outerTheme(),
+			kitex.Box(kitex.BoxProps{
+				Style: style.Style{
+					Border:  style.SingleBorder().Some(),
+					Padding: style.Some(style.Edges(1, 1)),
+					Margin:  style.Some(style.Edges(1, 0)),
+				},
+			},
+				kitex.Text(fmt.Sprintf("Outer Provider (Providing: %s)", outerTheme())),
+				
+				// Outer Consumer
+				ConsumerComponent(),
+
+				// Nested Theme Provider (Inner)
+				ThemeContext.Provider(innerTheme(),
+					kitex.Box(kitex.BoxProps{
+						Style: style.Style{
+							Border:  style.SingleBorder().Some(),
+							Padding: style.Some(style.Edges(1, 1)),
+							Margin:  style.Some(style.Edges(1, 0)),
+						},
+					},
+						kitex.Text(fmt.Sprintf("Nested Inner Provider (Providing: %s)", innerTheme())),
+						
+						// Inner Consumer
+						ConsumerComponent(),
+					),
+				),
+			),
+		),
+
+		// Help/Exit instructions
+		kitex.Box(kitex.BoxProps{
+			Style: style.Style{
+				Foreground: style.Some[color.Color](color.RGBA{R: 120, G: 120, B: 130, A: 255}),
+				Margin:     style.Some(style.Edges(1, 0, 0, 0)),
+			},
+		}, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
+	)
+})
+
+func main() {
+	f, _ := os.Create("kitex_context_demo.log")
+	defer f.Close()
+	logger := slog.New(slog.NewTextHandler(f, nil))
+	slog.SetDefault(logger)
+
+	b, err := uv.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize UV backend: %v\n", err)
+		os.Exit(1)
+	}
+
+	eng := engine.New(b, engine.Options{Logger: logger})
+
+	container := element.NewBox(eng.Document())
+	container.Style(style.Style{
+		Width:  style.Some(style.Percent(100)),
+		Height: style.Some(style.Percent(100)),
+	})
+	eng.Mount(container)
+
+	kitex.EnableDevMode = true
+
+	kitex.Render(App(), container)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	eng.Document().AddEventListener(event.EventKeyDown, func(e event.Event) {
+		ke := e.(*event.KeyEvent)
+		if ke.MatchString("q") || ke.MatchString("ctrl+c") {
+			cancel()
+		}
+	})
+
+	insp, _ := devtools.Install(eng, devtools.Options{})
+	kitexdt.Register(insp)
+
+	if err := eng.Run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "engine exited: %v\n", err)
+	}
+}
