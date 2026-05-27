@@ -5,7 +5,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/editor"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 

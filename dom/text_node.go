@@ -1,7 +1,7 @@
 package dom
 
 import (
-	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/internal/render"
 )
 
 // textNode is the concrete, unexported implementation of TextNode.

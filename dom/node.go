@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/internal/render"
 )
 
 var _ Node = (*baseNode)(nil)

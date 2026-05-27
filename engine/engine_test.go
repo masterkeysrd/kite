@@ -13,7 +13,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/render"
+	"github.com/masterkeysrd/kite/internal/render"
 )
 
 // ---------------------------------------------------------------------------
