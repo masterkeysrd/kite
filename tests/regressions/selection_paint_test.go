@@ -8,7 +8,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/paint"
+	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/style"
 )
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend/mock"
-	"github.com/masterkeysrd/kite/paint"
+	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // TestBackend_Mock_RecordsBeginEndFrame verifies that the mock backend

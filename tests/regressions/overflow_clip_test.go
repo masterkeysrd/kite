@@ -15,7 +15,7 @@ import (
 
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/paint"
+	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/style"
 )
 

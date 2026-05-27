@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/paint"
+	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // ScreenAssertion provides fluent assertions over a rendered framebuffer.
