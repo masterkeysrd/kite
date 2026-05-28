@@ -25,7 +25,7 @@ func TestRegression_TableFaultToleranceAndInvalidation(t *testing.T) {
 	eng.Frame()
 
 	// Check table layout width
-	tableFrag := table.RenderObject().Fragment()
+	tableFrag := eng.RenderObject(table).Fragment()
 	if tableFrag == nil {
 		t.Fatal("expected table to have a fragment")
 	}
@@ -42,7 +42,7 @@ func TestRegression_TableFaultToleranceAndInvalidation(t *testing.T) {
 	// The text update should dirty the DOM and propagate DirtyLayout to the table
 	eng.Frame()
 
-	tableFrag2 := table.RenderObject().Fragment()
+	tableFrag2 := eng.RenderObject(table).Fragment()
 	if tableFrag2 == nil {
 		t.Fatal("expected table to have a fragment")
 	}

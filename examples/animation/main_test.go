@@ -73,12 +73,14 @@ func dumpDOMTree(t *testing.T, n dom.Node, indent string) {
 	}
 	fragSize := "nil"
 	offset := "nil"
-	if ro := n.RenderObject(); ro != nil {
-		if f := ro.Fragment(); f != nil {
-			fragSize = fmt.Sprintf("%dx%d", f.Size.Width, f.Size.Height)
+	if eng != nil {
+		if ro := eng.RenderObject(n); ro != nil {
+			if f := ro.Fragment(); f != nil {
+				fragSize = fmt.Sprintf("%dx%d", f.Size.Width, f.Size.Height)
+			}
+			p := ro.Offset()
+			offset = fmt.Sprintf("%d,%d", p.X, p.Y)
 		}
-		p := ro.Offset()
-		offset = fmt.Sprintf("%d,%d", p.X, p.Y)
 	}
 	t.Logf("%s<%s> size=%s offset=%s", indent, tag, fragSize, offset)
 	for child := range n.ChildNodes() {

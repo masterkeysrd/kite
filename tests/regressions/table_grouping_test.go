@@ -39,7 +39,7 @@ func TestTableGrouping_AnonymousGroups(t *testing.T) {
 	env.Mount(table)
 	env.RenderFrame()
 
-	tableFrag := table.RenderObject().Fragment()
+	tableFrag := env.RenderObject(table).Fragment()
 	// Should have 1 child (anonymous tbody)
 	if len(tableFrag.Children) != 1 {
 		t.Fatalf("expected 1 anonymous section fragment, got %d", len(tableFrag.Children))
@@ -67,7 +67,7 @@ func TestTableGrouping_ColumnSynchronization(t *testing.T) {
 	env.Mount(table)
 	env.RenderFrame()
 
-	tableFrag := table.RenderObject().Fragment()
+	tableFrag := env.RenderObject(table).Fragment()
 	// Total width should be at least 12 (width of "Wide Content")
 	if tableFrag.Size.Width < 12 {
 		t.Errorf("expected table width to be at least 12, got %d", tableFrag.Size.Width)

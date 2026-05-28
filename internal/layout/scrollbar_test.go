@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -125,7 +126,7 @@ func (m *mockLayoutNode) NextLayoutSibling(child Node) Node {
 	}
 	return nil
 }
-func (m *mockLayoutNode) LogicalNode() any         { return nil }
+func (m *mockLayoutNode) LogicalNode() dom.Node    { return nil }
 func (m *mockLayoutNode) IsDirtyLayout() bool      { return true }
 func (m *mockLayoutNode) IsDirtyPaint() bool       { return true }
 func (m *mockLayoutNode) HasChildNeedsPaint() bool { return true }

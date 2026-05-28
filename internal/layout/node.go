@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -21,9 +22,9 @@ type Node interface {
 	// NextLayoutSibling returns the next layout-visible sibling of the given child.
 	NextLayoutSibling(child Node) Node
 
-	// LogicalNode returns the logical DOM node that owns this render object,
-	// typed as any to avoid an import cycle. May be nil.
-	LogicalNode() any
+	// LogicalNode returns the logical DOM node that owns this render object.
+	// May be nil.
+	LogicalNode() dom.Node
 
 	// IsDirtyLayout reports whether this node's layout is stale. The engine
 	// uses this signal to decide whether cached intrinsic sizes are still
@@ -107,7 +108,7 @@ func IsInlineLevel(node Node) bool {
 }
 
 type OverlayLever interface {
-	Anchor() any // Returns dom.Element, but typed as any to avoid cycle
+	Anchor() dom.Node
 	Placement() geom.Placement
 	Flip() bool
 }

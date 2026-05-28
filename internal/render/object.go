@@ -3,18 +3,12 @@ package render
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
-
-// HostNode is the interface that logical nodes must implement to host a render object.
-// This is typically implemented by dom.Node.
-type HostNode interface {
-	RenderObject() Object
-	SetRenderObject(Object)
-}
 
 // RenderObjectHook is an optional interface that logical nodes can implement
 // to be notified when their render object is created or replaced.
@@ -79,7 +73,7 @@ type Object interface {
 	SetCachedLayout(layout.ConstraintSpace, *layout.Fragment)
 	CachedMinMaxSizes() (layout.MinMaxSizes, bool)
 	SetCachedMinMaxSizes(layout.MinMaxSizes)
-	LogicalNode() any
+	LogicalNode() dom.Node
 
 	// Offset returns the physical offset of this object relative to its parent.
 	// For most objects, this is managed by the parent's layout algorithm.

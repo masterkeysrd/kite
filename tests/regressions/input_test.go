@@ -65,7 +65,7 @@ func TestInput_Regression_IntrinsicStyleWins(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := inp.RenderObject()
+	ro := eng.RenderObject(inp)
 	if ro == nil {
 		t.Fatal("no render object on input after Frame")
 	}
@@ -261,7 +261,7 @@ func TestInput_Regression_EmptyBorderedInput_Height(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := inp.RenderObject()
+	ro := eng.RenderObject(inp)
 	if ro == nil {
 		t.Fatal("input has no render object after Frame")
 	}
@@ -299,7 +299,7 @@ func TestInput_Regression_EmptyUnborderedInput_Height(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := inp.RenderObject()
+	ro := eng.RenderObject(inp)
 	if ro == nil {
 		t.Fatal("input has no render object after Frame")
 	}
@@ -333,7 +333,7 @@ func TestInput_Regression_NonEmptyBorderedInput_Height(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := inp.RenderObject()
+	ro := eng.RenderObject(inp)
 	if ro == nil {
 		t.Fatal("input has no render object after Frame")
 	}

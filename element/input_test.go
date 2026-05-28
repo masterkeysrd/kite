@@ -123,7 +123,7 @@ func TestInput_AuthorStyle_OverridesDefault(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := inp.RenderObject()
+	ro := eng.RenderObject(inp)
 	if ro == nil {
 		t.Fatal("InputElement has no render object after Frame")
 	}

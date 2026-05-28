@@ -64,11 +64,11 @@ func TestListComponents_Inheritance(t *testing.T) {
 	eng.Frame()
 
 	// Verify li1 and li2 inherited Decimal from ol
-	if li1.RenderObject().ComputedStyle().ListStyleType != style.ListStyleDecimal {
-		t.Errorf("li1 should inherit Decimal, got %v", li1.RenderObject().ComputedStyle().ListStyleType)
+	if eng.RenderObject(li1).ComputedStyle().ListStyleType != style.ListStyleDecimal {
+		t.Errorf("li1 should inherit Decimal, got %v", eng.RenderObject(li1).ComputedStyle().ListStyleType)
 	}
-	if li2.RenderObject().ComputedStyle().ListStyleType != style.ListStyleDecimal {
-		t.Errorf("li2 should inherit Decimal, got %v", li2.RenderObject().ComputedStyle().ListStyleType)
+	if eng.RenderObject(li2).ComputedStyle().ListStyleType != style.ListStyleDecimal {
+		t.Errorf("li2 should inherit Decimal, got %v", eng.RenderObject(li2).ComputedStyle().ListStyleType)
 	}
 
 	// Change ol to Square
@@ -79,8 +79,8 @@ func TestListComponents_Inheritance(t *testing.T) {
 	// Resolve styles again
 	eng.Frame()
 
-	if li1.RenderObject().ComputedStyle().ListStyleType != style.ListStyleSquare {
-		t.Errorf("li1 should now be Square, got %v", li1.RenderObject().ComputedStyle().ListStyleType)
+	if eng.RenderObject(li1).ComputedStyle().ListStyleType != style.ListStyleSquare {
+		t.Errorf("li1 should now be Square, got %v", eng.RenderObject(li1).ComputedStyle().ListStyleType)
 	}
 }
 
@@ -97,10 +97,10 @@ func TestListComponents_NestedInheritance(t *testing.T) {
 
 	eng.Frame()
 
-	if li.RenderObject().ComputedStyle().ListStyleType != style.ListStyleDisc {
+	if eng.RenderObject(li).ComputedStyle().ListStyleType != style.ListStyleDisc {
 		t.Errorf("li should be Disc")
 	}
-	if innerLi.RenderObject().ComputedStyle().ListStyleType != style.ListStyleDecimal {
+	if eng.RenderObject(innerLi).ComputedStyle().ListStyleType != style.ListStyleDecimal {
 		t.Errorf("innerLi should be Decimal, overriding inherited Disc")
 	}
 }

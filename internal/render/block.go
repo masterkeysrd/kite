@@ -1,6 +1,7 @@
 package render
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -13,7 +14,7 @@ type Block struct {
 var _ Object = (*Block)(nil)
 
 // NewBlock creates a new Block render object.
-func NewBlock(logicalNode any, target event.EventTarget) *Block {
+func NewBlock(logicalNode dom.Node, target event.EventTarget) *Block {
 	b := &Block{}
 	b.Init(b, logicalNode, target)
 	// Default block style

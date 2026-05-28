@@ -1,13 +1,18 @@
 package layout
 
 import (
+	"iter"
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 	geometry "github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/marker"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type mockNode struct {
+	marker.NodeMarker
 	style          *style.Computed
 	firstChild     Node
 	nextSibling    Node
@@ -16,6 +21,7 @@ type mockNode struct {
 	cachedFragment *Fragment
 	cachedMinMax   MinMaxSizes
 	minMaxValid    bool
+	self           dom.Node
 }
 
 func (m *mockNode) Style() *style.Computed { return m.style }
@@ -24,13 +30,18 @@ func (m *mockNode) FirstLayoutChild() Node {
 }
 
 func (m *mockNode) NextLayoutSibling(child Node) Node {
-	type nextSib interface{ NextSibling() Node }
-	return child.(nextSib).NextSibling()
+	return child.(interface{ next() Node }).next()
 }
 
-func (m *mockNode) FirstChild() Node { return m.firstChild }
+func (m *mockNode) next() Node { return m.nextSibling }
 
-func (m *mockNode) LogicalNode() any         { return nil }
+func (m *mockNode) LogicalNode() dom.Node {
+	if m.self != nil {
+		return m.self
+	}
+	return m
+}
+
 func (m *mockNode) IsDirtyLayout() bool      { return m.dirty }
 func (m *mockNode) IsDirtyPaint() bool       { return m.dirty }
 func (m *mockNode) HasChildNeedsPaint() bool { return m.dirty }
@@ -64,15 +75,69 @@ func (m *mockNode) SetOffset(geometry.Point) {}
 
 func (m *mockNode) IsAnonymous() bool { return false }
 
-func (m *mockNode) NextSibling() Node { return m.nextSibling }
+func (m *mockNode) NextSibling() dom.Node {
+	if m.nextSibling == nil {
+		return nil
+	}
+	return m.nextSibling.LogicalNode()
+}
+
+// --- dom.Node stubs for mockNode ---
+func (m *mockNode) Kind() dom.Kind                           { return dom.KindElement }
+func (m *mockNode) NodeName() string                         { return "mock" }
+func (m *mockNode) Parent() dom.Node                         { return nil }
+func (m *mockNode) ParentElement() dom.Element               { return nil }
+func (m *mockNode) PreviousSibling() dom.Node                { return nil }
+func (m *mockNode) OwnerDocument() dom.Document              { return nil }
+func (m *mockNode) IsConnected() bool                        { return true }
+func (m *mockNode) AppendChild(dom.Node) dom.Node            { return nil }
+func (m *mockNode) InsertBefore(dom.Node, dom.Node) dom.Node { return nil }
+func (m *mockNode) RemoveChild(dom.Node) dom.Node            { return nil }
+func (m *mockNode) ReplaceChild(dom.Node, dom.Node) dom.Node { return nil }
+func (m *mockNode) FirstChild() dom.Node {
+	if m.firstChild == nil {
+		return nil
+	}
+	return m.firstChild.LogicalNode()
+}
+
+func (m *mockNode) LastChild() dom.Node    { return nil }
+func (m *mockNode) HasChildNodes() bool    { return m.firstChild != nil }
+func (m *mockNode) Contains(dom.Node) bool { return false }
+func (m *mockNode) ChildNodes() iter.Seq[dom.Node] {
+	return func(yield func(dom.Node) bool) {
+		for curr := m.firstChild; curr != nil; curr = curr.(*mockNode).nextSibling {
+			if !yield(curr.LogicalNode()) {
+				return
+			}
+		}
+	}
+}
+func (m *mockNode) Unwrap() dom.Node               { return nil }
+func (m *mockNode) TextContent() string            { return "" }
+func (m *mockNode) CloneNode(bool) dom.Node        { return nil }
+func (m *mockNode) NeedsSync() bool                { return false }
+func (m *mockNode) ChildNeedsSync() bool           { return false }
+func (m *mockNode) MarkNeedsSync()                 {}
+func (m *mockNode) ClearSyncFlags()                {}
+func (m *mockNode) EventTarget() event.EventTarget { return nil }
+func (m *mockNode) AddEventListener(event.EventType, event.Listener, ...event.Option) event.Subscription {
+	return nil
+}
+func (m *mockNode) DispatchTo(event.Event)       {}
+func (m *mockNode) DispatchToTarget(event.Event) {}
+func (m *mockNode) RemoveRegistration(uint64)    {}
 
 type mockTextNode struct {
 	mockNode
 	data string
 }
 
-func (m *mockTextNode) Data() string        { return m.data }
-func (m *mockTextNode) LogicalNode() any    { return m }
+func (m *mockTextNode) Data() string          { return m.data }
+func (m *mockTextNode) LogicalNode() dom.Node { return m }
+func (m *mockTextNode) Kind() dom.Kind {
+	return dom.KindText
+}
 func (m *mockTextNode) IsInlineLevel() bool { return true }
 
 func TestBlockLayout_VerticalStacking(t *testing.T) {

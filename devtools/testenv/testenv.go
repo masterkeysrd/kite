@@ -18,6 +18,7 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/paint"
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/key"
 )
 
@@ -117,6 +118,11 @@ func (e *Environment) Flush() {
 // RenderFrame is an alias for Flush.
 func (e *Environment) RenderFrame() {
 	e.Flush()
+}
+
+// RenderObject returns the render object for the given logical node.
+func (e *Environment) RenderObject(n dom.Node) render.Object {
+	return e.Engine.RenderObject(n)
 }
 
 // GetNodeByID returns the element with the given ID from the logical DOM.

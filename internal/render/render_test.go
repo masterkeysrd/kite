@@ -21,7 +21,7 @@ func (m *mockTarget) EventTarget() event.EventTarget { return m }
 
 func TestTextRenderObject(t *testing.T) {
 	target := &mockTarget{}
-	text := NewText("logical", target)
+	text := NewText(nil, target)
 
 	if text.ComputedStyle().Display != style.DisplayInline {
 		t.Errorf("expected DisplayInline, got %v", text.ComputedStyle().Display)

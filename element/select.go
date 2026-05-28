@@ -8,7 +8,6 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/focus"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -281,8 +280,12 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 
 	// Calculate width from Select element
 	width := style.Cells(25)
-	if ro := s.RenderObject(); ro != nil {
-		width = style.Cells(max(25, ro.Fragment().Size.Width))
+	if d := s.OwnerDocument(); d != nil {
+		if v := d.View(); v != nil {
+			if rect, ok := v.GetBoundingClientRect(s); ok {
+				width = style.Cells(max(25, rect.Size.Width))
+			}
+		}
 	}
 
 	// Create overlay content
@@ -439,9 +442,7 @@ func (s *SelectElement) emitChange() {
 		s.onChange(s.value)
 	}
 	s.DispatchEvent(event.NewChange(s.value))
-	if ro := s.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	s.MarkNeedsSync()
 }
 
 func (s *SelectElement) SetData(data string) {

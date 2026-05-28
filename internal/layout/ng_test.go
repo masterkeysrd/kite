@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -11,8 +12,29 @@ type mockCursorNode struct {
 	mockNode
 }
 
-func (m *mockCursorNode) ProvidesCursor() bool { return true }
-func (m *mockCursorNode) LogicalNode() any     { return m }
+func (m *mockCursorNode) ProvidesCursor() bool                         { return true }
+func (m *mockCursorNode) LogicalNode() dom.Node                        { return m }
+func (m *mockCursorNode) TagName() string                              { return "input" }
+func (m *mockCursorNode) ID() string                                   { return "" }
+func (m *mockCursorNode) SetID(string)                                 {}
+func (m *mockCursorNode) Class() string                                { return "" }
+func (m *mockCursorNode) SetClass(string)                              {}
+func (m *mockCursorNode) QuerySelector(string) dom.Element             { return nil }
+func (m *mockCursorNode) ReplaceWith(...dom.Node) dom.Element          { return m }
+func (m *mockCursorNode) IntrinsicStyle() style.Style                  { return style.Style{} }
+func (m *mockCursorNode) AttachUARoot(dom.Node)                        {}
+func (m *mockCursorNode) Scroll() (int, int)                           { return 0, 0 }
+func (m *mockCursorNode) ScrollTo(int, int)                            {}
+func (m *mockCursorNode) ScrollBy(int, int)                            {}
+func (m *mockCursorNode) ScrollCursorIntoView()                        {}
+func (m *mockCursorNode) GetBoundingClientRect() (geometry.Rect, bool) { return geometry.Rect{}, false }
+func (m *mockCursorNode) TabIndex() int                                { return 0 }
+func (m *mockCursorNode) SetTabIndex(int)                              {}
+func (m *mockCursorNode) Focus()                                       {}
+func (m *mockCursorNode) Blur()                                        {}
+func (m *mockCursorNode) IsFocusable() bool                            { return true }
+
+var _ dom.Element = (*mockCursorNode)(nil)
 
 func TestMaxScroll_CursorProvider(t *testing.T) {
 	// Viewport 10x1.

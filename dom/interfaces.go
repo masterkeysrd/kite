@@ -6,7 +6,6 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/marker"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/terminal"
 )
@@ -37,8 +36,7 @@ func (k Kind) String() string {
 }
 
 // Node is the base interface for every node in the logical DOM tree.
-// It carries parent/sibling links, owner-document reference, and an optional
-// back-reference to the render object created for this node by the engine.
+// It carries parent/sibling links and owner-document reference.
 // DOM nodes do not own dirty flags, layout state, or computed style — those
 // live on render.Object.
 type Node interface {
@@ -74,14 +72,6 @@ type Node interface {
 	// RemoveChild, and ReplaceChild.
 	IsConnected() bool
 
-	// RenderObject returns the render.Object associated with this node, or nil
-	// if the node does not (yet) participate in rendering.
-	RenderObject() render.Object
-
-	// SetRenderObject attaches or detaches the render object for this node.
-	// Called by the engine during the attachment phase.
-	SetRenderObject(render.Object)
-
 	// AppendChild adds child as the last child of this node and returns child.
 	AppendChild(child Node) Node
 
@@ -114,12 +104,6 @@ type Node interface {
 	// Unwrap returns the underlying Node being decorated by this wrapper, or nil
 	// if this node is a base implementation.
 	Unwrap() Node
-
-	// FirstLayoutChild returns the first layout-visible child, including UA shadow children.
-	FirstLayoutChild() Node
-
-	// NextLayoutSibling returns the next layout-visible sibling of child.
-	NextLayoutSibling(child Node) Node
 
 	// TextContent returns the concatenation of all text content in this node's subtree. For Text
 	// nodes it is the same as Data(). For Element and Document nodes it is the concatenation of
@@ -401,6 +385,50 @@ type Document interface {
 	Terminal() terminal.Terminal
 	// SetTerminal sets the terminal object for this document.
 	SetTerminal(t terminal.Terminal)
+
+	// View returns the layout/style view for this document.
+	View() View
+	// SetView sets the layout/style view for this document.
+	SetView(v View)
+
+	// FindNodeAtByteOffset performs a structural walk to find the text node
+	// and rune offset corresponding to a flat byte offset in the document.
+	FindNodeAtByteOffset(root Node, targetOffset int) (Node, int)
+}
+
+// View provides read-only access to computed style and layout information
+// for a DOM tree without coupling the DOM to the render engine.
+type View interface {
+	// GetBoundingClientRect returns the physical terminal rectangle occupied
+	// by the node.
+	GetBoundingClientRect(n Node) (geom.Rect, bool)
+
+	// GetComputedStyle returns the fully-resolved computed style for the node.
+	GetComputedStyle(n Node) *style.Computed
+
+	// GetSize returns the physical size of the node's layout fragment.
+	GetSize(n Node) (geom.Size, bool)
+
+	// GetMaxScroll returns the maximum horizontal and vertical scroll offsets
+	// for the node.
+	GetMaxScroll(n Node) (x, y int)
+
+	// GetCaretPosition returns the content-relative coordinates (relative to
+	// the content box origin) for the given rune offset in the node.
+	GetCaretPosition(n Node, offset int) (geom.Point, bool)
+
+	// MoveCursorVertically returns the new rune offset after moving up (delta < 0)
+	// or down (delta > 0) from the current offset. x and y are the current
+	// content-relative coordinates used for vertical tracking.
+	MoveCursorVertically(n Node, offset int, delta int, x, y int) int
+
+	// ByteOffsetAtPoint returns the byte offset within the node at the given
+	// content-relative coordinates.
+	ByteOffsetAtPoint(n Node, x, y int) int
+
+	// NodeAtPoint returns the leaf node and its rune offset at the given
+	// screen coordinates.
+	NodeAtPoint(x, y int) (Node, int)
 }
 
 // FocusHandle is the interface for the focus management implementation injected

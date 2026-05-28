@@ -1,6 +1,7 @@
 package render
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -13,7 +14,7 @@ type Overlay struct {
 var _ Object = (*Overlay)(nil)
 
 // NewOverlay creates a new Overlay render object.
-func NewOverlay(logicalNode any, target event.EventTarget) *Overlay {
+func NewOverlay(logicalNode dom.Node, target event.EventTarget) *Overlay {
 	o := &Overlay{}
 	o.Init(o, logicalNode, target)
 	// Overlays are usually block containers for their content

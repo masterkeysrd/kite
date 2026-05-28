@@ -2,8 +2,8 @@ package layout
 
 import (
 	"fmt"
-	"reflect"
 
+	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -229,47 +229,33 @@ func (a *ListAlgorithm) getMarkerText(node Node) string {
 
 func (a *ListAlgorithm) computeOrdinal(node Node) int {
 	ordinal := 1
-	logical := node.LogicalNode()
+	var logical dom.Node = node.LogicalNode()
 	if logical == nil {
 		return 1
 	}
 
+	doc := logical.OwnerDocument()
+	if doc == nil {
+		return 1
+	}
+	view := doc.View()
+
 	curr := logical
 	for {
-		currVal := reflect.ValueOf(curr)
-		method := currVal.MethodByName("PreviousSibling")
-		if !method.IsValid() {
+		prev := curr.PreviousSibling()
+		if prev == nil {
 			break
 		}
-		results := method.Call(nil)
-		if len(results) == 0 || results[0].IsNil() {
-			break
-		}
-		curr = results[0].Interface()
+		curr = prev
 
-		roMethod := reflect.ValueOf(curr).MethodByName("RenderObject")
-		if !roMethod.IsValid() {
-			break
-		}
-		roResults := roMethod.Call(nil)
-		if len(roResults) == 0 || roResults[0].IsNil() {
-			continue
-		}
-		ro := roResults[0].Interface()
-
-		type hasStyle interface {
-			Style() *style.Computed
-		}
-		if s, ok := ro.(hasStyle); ok {
-			comp := s.Style()
-			if comp != nil && comp.Display == style.DisplayListItem {
-				ordinal++
-			} else {
+		if view != nil {
+			cs := view.GetComputedStyle(curr)
+			if cs != nil && cs.Display != style.DisplayListItem {
+				// Non-list-item sibling resets the count.
 				break
 			}
-		} else {
-			break
 		}
+		ordinal++
 	}
 	return ordinal
 }

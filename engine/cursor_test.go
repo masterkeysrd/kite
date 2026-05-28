@@ -62,7 +62,7 @@ func TestEngineCursorIntegration(t *testing.T) {
 	myRO.SetComputedStyle(&style.Computed{})
 
 	// Manually attach it to the element
-	el.SetRenderObject(myRO)
+	e.setRenderObject(fe, myRO)
 
 	// In kite, AbsoluteBounds traverses the fragment tree.
 	// We need myRO to have a fragment and be in the tree.

@@ -24,7 +24,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/editor"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -176,18 +175,11 @@ func (txa *TextAreaElement) syncText() {
 		txa.rebuildUASubtree()
 		txa.lastSyncedVersion = v
 
-		if ro := txa.uaDiv.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		}
-		if ro := txa.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-			ro.MarkChildrenDirty()
-		}
+		txa.uaDiv.MarkNeedsSync()
+		txa.MarkNeedsSync()
 	} else {
 		// Just cursor move: only need to repaint to update hardware cursor.
-		if ro := txa.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyPaint)
-		}
+		txa.MarkNeedsSync()
 	}
 	txa.UpdateSelectionRange()
 }

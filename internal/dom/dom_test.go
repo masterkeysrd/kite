@@ -67,7 +67,7 @@ func (f *fakeRO) CachedLayout(layout.ConstraintSpace) *layout.Fragment     { ret
 func (f *fakeRO) SetCachedLayout(layout.ConstraintSpace, *layout.Fragment) {}
 func (f *fakeRO) CachedMinMaxSizes() (layout.MinMaxSizes, bool)            { return layout.MinMaxSizes{}, false }
 func (f *fakeRO) SetCachedMinMaxSizes(layout.MinMaxSizes)                  {}
-func (f *fakeRO) LogicalNode() any                                         { return nil }
+func (f *fakeRO) LogicalNode() dom.Node                                    { return nil }
 
 func (f *fakeRO) Offset() geom.Point    { return geom.Point{} }
 func (f *fakeRO) SetOffset(geom.Point)  {}

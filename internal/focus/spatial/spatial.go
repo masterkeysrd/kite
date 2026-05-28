@@ -4,7 +4,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/focus"
-	"github.com/masterkeysrd/kite/internal/layout"
 )
 
 // Direction represents the four cardinal directions for spatial navigation.
@@ -41,17 +40,17 @@ func Navigate(m *focus.Manager, dir Direction) bool {
 	// first focusable in DOM order.
 	current := m.Current()
 	if current == nil {
-		if scope.Autofocus != nil && focus.IsFocusable(scope.Autofocus, scope) {
+		if scope.Autofocus != nil && m.IsFocusable(scope.Autofocus, scope) {
 			current = scope.Autofocus
 		} else {
-			current = firstFocusable(scope)
+			current = firstFocusable(m, scope)
 		}
 	}
 	if current == nil {
 		return false
 	}
 
-	best := bestCandidate(scope, current, dir)
+	best := bestCandidate(m, scope, current, dir)
 	if best == nil {
 		return false
 	}
@@ -69,36 +68,36 @@ func Candidates(m *focus.Manager, dir Direction) []dom.Element {
 
 	current := m.Current()
 	if current == nil {
-		if scope.Autofocus != nil && focus.IsFocusable(scope.Autofocus, scope) {
+		if scope.Autofocus != nil && m.IsFocusable(scope.Autofocus, scope) {
 			current = scope.Autofocus
 		} else {
-			current = firstFocusable(scope)
+			current = firstFocusable(m, scope)
 		}
 	}
 	if current == nil {
 		return nil
 	}
 
-	return rankedCandidates(scope, current, dir)
+	return rankedCandidates(m, scope, current, dir)
 }
 
 // --- helpers -----------------------------------------------------------------
 
 // firstFocusable returns the first focusable element in DOM order within scope,
 // or nil if there are none.
-func firstFocusable(scope *dom.FocusScope) dom.Element {
+func firstFocusable(m *focus.Manager, scope *dom.FocusScope) dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
-	return firstFocusableInSubtree(scope.Root, scope)
+	return firstFocusableInSubtree(m, scope.Root, scope)
 }
 
 // firstFocusableInSubtree walks the subtree rooted at root and returns the
 // first focusable element in DOM pre-order, or nil.
-func firstFocusableInSubtree(root dom.Node, scope *dom.FocusScope) dom.Element {
+func firstFocusableInSubtree(m *focus.Manager, root dom.Node, scope *dom.FocusScope) dom.Element {
 	for n := root; n != nil; n = nextPreOrder(n, root) {
 		if el, ok := n.(dom.Element); ok {
-			if focus.IsFocusable(el, scope) {
+			if m.IsFocusable(el, scope) {
 				return el
 			}
 		}
@@ -110,21 +109,17 @@ func firstFocusableInSubtree(root dom.Node, scope *dom.FocusScope) dom.Element {
 // from current within scope, or nil if none qualify.
 //
 // This function is on the hot path of Navigate and must not allocate.
-func bestCandidate(scope *dom.FocusScope, current dom.Element, dir Direction) dom.Element {
+func bestCandidate(m *focus.Manager, scope *dom.FocusScope, current dom.Element, dir Direction) dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
 
-	rootRO := scope.Root.RenderObject()
-	if rootRO == nil {
-		return nil
-	}
-	currentRO := current.RenderObject()
-	if currentRO == nil {
+	view := m.Document().View()
+	if view == nil {
 		return nil
 	}
 
-	curBounds, ok := layout.AbsoluteBounds(rootRO.Fragment(), currentRO)
+	curBounds, ok := view.GetBoundingClientRect(current)
 	if !ok {
 		return nil
 	}
@@ -142,14 +137,11 @@ func bestCandidate(scope *dom.FocusScope, current dom.Element, dir Direction) do
 		if !ok {
 			continue
 		}
-		if !focus.IsFocusable(el, scope) {
+		if !m.IsFocusable(el, scope) {
 			continue
 		}
-		ro := el.RenderObject()
-		if ro == nil {
-			continue
-		}
-		nb, found := layout.AbsoluteBounds(rootRO.Fragment(), ro)
+
+		nb, found := view.GetBoundingClientRect(el)
 		if !found {
 			continue
 		}
@@ -168,21 +160,17 @@ func bestCandidate(scope *dom.FocusScope, current dom.Element, dir Direction) do
 
 // rankedCandidates returns all focusable candidates in dir from current,
 // sorted ascending by score. Ties preserve DOM order.
-func rankedCandidates(scope *dom.FocusScope, current dom.Element, dir Direction) []dom.Element {
+func rankedCandidates(m *focus.Manager, scope *dom.FocusScope, current dom.Element, dir Direction) []dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
 
-	rootRO := scope.Root.RenderObject()
-	if rootRO == nil {
-		return nil
-	}
-	currentRO := current.RenderObject()
-	if currentRO == nil {
+	view := m.Document().View()
+	if view == nil {
 		return nil
 	}
 
-	curBounds, ok := layout.AbsoluteBounds(rootRO.Fragment(), currentRO)
+	curBounds, ok := view.GetBoundingClientRect(current)
 	if !ok {
 		return nil
 	}
@@ -202,14 +190,11 @@ func rankedCandidates(scope *dom.FocusScope, current dom.Element, dir Direction)
 		if !ok {
 			continue
 		}
-		if !focus.IsFocusable(el, scope) {
+		if !m.IsFocusable(el, scope) {
 			continue
 		}
-		ro := el.RenderObject()
-		if ro == nil {
-			continue
-		}
-		nb, found := layout.AbsoluteBounds(rootRO.Fragment(), ro)
+
+		nb, found := view.GetBoundingClientRect(el)
 		if !found {
 			continue
 		}

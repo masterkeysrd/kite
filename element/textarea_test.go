@@ -60,7 +60,7 @@ func TestTextArea_AuthorStyle_OverridesDisplay(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := txa.RenderObject()
+	ro := eng.RenderObject(txa)
 	if ro == nil {
 		t.Fatal("no render object")
 	}
@@ -84,7 +84,7 @@ func TestTextArea_IntrinsicStyle_Wins(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
-	ro := txa.RenderObject()
+	ro := eng.RenderObject(txa)
 	if ro == nil {
 		t.Fatal("no render object")
 	}

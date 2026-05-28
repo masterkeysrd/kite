@@ -19,7 +19,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/editor"
-	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/key"
 )
 
@@ -154,16 +153,16 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	// triggers a repaint to recalculate the cursor position.
 	if b.buf.Version() != b.lastRenderedVersion || b.buf.ByteOffset() != b.lastSyncedOffset {
 		// Update cached coordinates from the live fragment tree.
-		uaDivFrag := b.uaDivFragment()
-		if uaDivFrag != nil {
-			// Use the FromTextFragment helper to find cell coordinates for the
-			// current buffer offset.
-			cx, cy, ok := cursor.FromTextFragment(uaDivFrag, b.buf.ByteOffset())
-			if ok {
-				b.lastKnownCX = cx
-				b.lastKnownCY = cy
-				b.lastSyncedOffset = b.buf.ByteOffset()
-				b.lastRenderedVersion = b.buf.Version()
+		if d := b.host.OwnerDocument(); d != nil {
+			if v := d.View(); v != nil {
+				// Use the View to find cell coordinates for the current buffer offset.
+				pos, ok := v.GetCaretPosition(b.uaDiv, b.buf.ByteOffset())
+				if ok {
+					b.lastKnownCX = pos.X
+					b.lastKnownCY = pos.Y
+					b.lastSyncedOffset = b.buf.ByteOffset()
+					b.lastRenderedVersion = b.buf.Version()
+				}
 			}
 		}
 	}
@@ -175,14 +174,16 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	}
 
 	// Add the host's border and padding insets.
-	ro := b.host.RenderObject()
-	if ro == nil {
-		return cursor.State{Visible: false}
+	var insetLeft, insetTop int
+	if doc := b.host.OwnerDocument(); doc != nil {
+		if v := doc.View(); v != nil {
+			if cs := v.GetComputedStyle(b.host); cs != nil {
+				bw := cs.Border.Widths()
+				insetLeft = bw.Left + cs.Padding.Left
+				insetTop = bw.Top + cs.Padding.Top
+			}
+		}
 	}
-	cs := ro.ComputedStyle()
-	bw := cs.Border.Widths()
-	insetLeft := bw.Left + cs.Padding.Left
-	insetTop := bw.Top + cs.Padding.Top
 
 	// Coordinates are relative to the host's content box origin.
 	return cursor.State{
@@ -209,17 +210,15 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	// selection drag.
 	ev.StopPropagation()
 
-	ro := b.host.RenderObject()
-	if ro == nil || ro.Fragment() == nil {
+	v := b.host.OwnerDocument().View()
+	if v == nil {
 		return
 	}
 
-	uaDivRO := b.uaDiv.RenderObject()
-	if uaDivRO == nil || uaDivRO.Fragment() == nil {
+	cs := v.GetComputedStyle(b.host)
+	if cs == nil {
 		return
 	}
-
-	cs := ro.ComputedStyle()
 	bw := cs.Border.Widths()
 	insetLeft := bw.Left + cs.Padding.Left
 	insetTop := bw.Top + cs.Padding.Top
@@ -229,7 +228,7 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	targetX := me.Local.X - insetLeft + scrollX
 	targetY := me.Local.Y - insetTop + scrollY
 
-	offset := cursor.ByteOffsetAtPoint(uaDivRO.Fragment(), targetX, targetY)
+	offset := v.ByteOffsetAtPoint(b.uaDiv, targetX, targetY)
 
 	// Clamp to buffer length. Multiline controls have a trailing <br> in the
 	// UA tree that can produce an off-by-one offset; single-line controls are
@@ -261,17 +260,15 @@ func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
 		return
 	}
 
-	ro := b.host.RenderObject()
-	if ro == nil || ro.Fragment() == nil {
+	v := b.host.OwnerDocument().View()
+	if v == nil {
 		return
 	}
 
-	uaDivRO := b.uaDiv.RenderObject()
-	if uaDivRO == nil || uaDivRO.Fragment() == nil {
+	cs := v.GetComputedStyle(b.host)
+	if cs == nil {
 		return
 	}
-
-	cs := ro.ComputedStyle()
 	bw := cs.Border.Widths()
 	insetLeft := bw.Left + cs.Padding.Left
 	insetTop := bw.Top + cs.Padding.Top
@@ -288,7 +285,7 @@ func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
 	targetX := me.Screen.X - hostRect.Origin.X - insetLeft + scrollX
 	targetY := me.Screen.Y - hostRect.Origin.Y - insetTop + scrollY
 
-	offset := cursor.ByteOffsetAtPoint(uaDivRO.Fragment(), targetX, targetY)
+	offset := v.ByteOffsetAtPoint(b.uaDiv, targetX, targetY)
 	if maxLen := len(b.buf.Value()); offset > maxLen {
 		offset = maxLen
 	}
@@ -335,14 +332,18 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 	cx, cy := b.lastKnownCX, b.lastKnownCY
 
 	// Host bounds.
-	ro := b.host.RenderObject()
-	if ro == nil {
+	v := b.host.OwnerDocument().View()
+	if v == nil {
 		return
 	}
-	cs := ro.ComputedStyle()
+	size, ok := v.GetSize(b.host)
+	cs := v.GetComputedStyle(b.host)
+	if !ok || cs == nil {
+		return
+	}
 	bw := cs.Border.Widths()
-	width := ro.Fragment().Size.Width - bw.Left - bw.Right - cs.Padding.Left - cs.Padding.Right
-	height := ro.Fragment().Size.Height - bw.Top - bw.Bottom - cs.Padding.Top - cs.Padding.Bottom
+	width := size.Width - bw.Left - bw.Right - cs.Padding.Left - cs.Padding.Right
+	height := size.Height - bw.Top - bw.Bottom - cs.Padding.Top - cs.Padding.Bottom
 
 	// Current scroll.
 	sx, sy := b.host.Scroll()
@@ -363,7 +364,7 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 	}
 
 	// Clamp to max possible scroll to handle shrinking content.
-	maxSX, maxSY := layout.MaxScroll(ro.Fragment())
+	maxSX, maxSY := v.GetMaxScroll(b.host)
 	nsx = max(0, min(nsx, maxSX))
 	nsy = max(0, min(nsy, maxSY))
 
@@ -696,62 +697,27 @@ func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int)
 
 // uaDivFragment returns the fragment for the inner ua-div, whose direct
 // children are IFC line-boxes suitable for cursor.FromTextFragment.
-func (b *textControlBase[T]) uaDivFragment() *layout.Fragment {
-	ro := b.uaDiv.RenderObject()
-	if ro == nil {
-		return nil
-	}
-	return ro.Fragment()
-}
-
 func (b *textControlBase[T]) moveUp() {
-	uaDivFrag := b.uaDivFragment()
-	if uaDivFrag == nil {
+	v := b.host.OwnerDocument().View()
+	if v == nil {
 		return
 	}
 
 	// We need a fresh cursor state calculation to ensure lastKnownCX/Y are up to date.
 	b.CursorState()
-	curX, curY := b.lastKnownCX, b.lastKnownCY
-
-	// Standard IFC fragments: children are line-boxes.
-	// Line 0 is at Y=0.
-	if curY <= 0 {
-		// Already on the first line.
-		return
-	}
-
-	targetY := curY - 1
-	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
+	offset := v.MoveCursorVertically(b.uaDiv, b.buf.ByteOffset(), -1, b.lastKnownCX, b.lastKnownCY)
 	b.buf.SetOffset(offset)
 }
 
 func (b *textControlBase[T]) moveDown() {
-	uaDivFrag := b.uaDivFragment()
-	if uaDivFrag == nil {
+	v := b.host.OwnerDocument().View()
+	if v == nil {
 		return
 	}
 
 	// We need a fresh cursor state calculation to ensure lastKnownCX/Y are up to date.
 	b.CursorState()
-	curX, curY := b.lastKnownCX, b.lastKnownCY
-
-	// Check if target line exists.
-	// IFC produces one fragment per line.
-	lastLineY := 0
-	for _, childLink := range uaDivFrag.Children {
-		if childLink.Offset.Y > lastLineY {
-			lastLineY = childLink.Offset.Y
-		}
-	}
-
-	if curY >= lastLineY {
-		// Already on the last line.
-		return
-	}
-
-	targetY := curY + 1
-	offset := cursor.ByteOffsetAtPoint(uaDivFrag, curX, targetY)
+	offset := v.MoveCursorVertically(b.uaDiv, b.buf.ByteOffset(), 1, b.lastKnownCX, b.lastKnownCY)
 	if maxLen := len(b.buf.Value()); offset > maxLen {
 		offset = maxLen
 	}

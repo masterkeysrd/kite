@@ -50,7 +50,7 @@ func BuildDevToolsSnapshot(eng *engine.Engine) any {
 	counter := 0
 	for container, root := range activeRoots {
 		if root != nil {
-			snap := snapshotVDOMNode(root, container, boundsMap, &counter)
+			snap := snapshotVDOMNode(eng, root, container, boundsMap, &counter)
 			if snap != nil {
 				roots = append(roots, snap)
 			}
@@ -88,7 +88,7 @@ func computeAllBounds(frag *layout.Fragment, origin geom.Point, m map[layout.Nod
 	}
 }
 
-func snapshotVDOMNode(node Node, container dom.Element, boundsMap map[layout.Node]geom.Rect, counter *int) *VDOMSnapshot {
+func snapshotVDOMNode(eng *engine.Engine, node Node, container dom.Element, boundsMap map[layout.Node]geom.Rect, counter *int) *VDOMSnapshot {
 	if node == nil {
 		return nil
 	}
@@ -109,10 +109,12 @@ func snapshotVDOMNode(node Node, container dom.Element, boundsMap map[layout.Nod
 		if el, ok := refNode.(dom.Element); ok {
 			snap.DomID = el.ID()
 		}
-		if ro := refNode.RenderObject(); ro != nil {
-			if r, ok := boundsMap[ro]; ok {
-				snap.Rect = r
-				snap.DomUniqueID = fmt.Sprintf("%s:%s:%s:%d,%d", refNode.Kind().String(), refNode.NodeName(), snap.DomID, r.Origin.X, r.Origin.Y)
+		if eng != nil {
+			if ro := eng.RenderObject(refNode); ro != nil {
+				if r, ok := boundsMap[ro]; ok {
+					snap.Rect = r
+					snap.DomUniqueID = fmt.Sprintf("%s:%s:%s:%d,%d", refNode.Kind().String(), refNode.NodeName(), snap.DomID, r.Origin.X, r.Origin.Y)
+				}
 			}
 		}
 	}
@@ -135,14 +137,14 @@ func snapshotVDOMNode(node Node, container dom.Element, boundsMap map[layout.Nod
 
 		rendered := ci.getRendered()
 		if rendered != nil {
-			childSnap := snapshotVDOMNode(rendered, container, boundsMap, counter)
+			childSnap := snapshotVDOMNode(eng, rendered, container, boundsMap, counter)
 			if childSnap != nil {
 				snap.Children = append(snap.Children, childSnap)
 			}
 		}
 	} else {
 		for _, child := range node.Children() {
-			childSnap := snapshotVDOMNode(child, container, boundsMap, counter)
+			childSnap := snapshotVDOMNode(eng, child, container, boundsMap, counter)
 			if childSnap != nil {
 				snap.Children = append(snap.Children, childSnap)
 			}

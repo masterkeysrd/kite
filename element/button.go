@@ -6,7 +6,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -95,9 +94,7 @@ func (b *ButtonElement) handleMouseDown(e event.Event) {
 	}
 
 	b.active = true
-	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	b.MarkNeedsSync()
 	b.Focus()
 }
 
@@ -111,9 +108,7 @@ func (b *ButtonElement) handleMouseUp(e event.Event) {
 	}
 
 	b.active = false
-	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	b.MarkNeedsSync()
 }
 
 func (b *ButtonElement) handleKeyDown(e event.Event) {
@@ -148,9 +143,7 @@ func (b *ButtonElement) SetActive(active bool) {
 		return
 	}
 	b.active = active
-	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	b.MarkNeedsSync()
 }
 
 func (b *ButtonElement) IsDisabled() bool   { return b.disabled }

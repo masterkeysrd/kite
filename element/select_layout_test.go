@@ -26,7 +26,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	env.Flush()
 
 	sel1 := env.GetNodeByID("select-fixed").(*element.SelectElement)
-	ro1 := sel1.RenderObject()
+	ro1 := env.RenderObject(sel1)
 	if ro1 == nil {
 		t.Fatal("expected render object for select-fixed")
 	}
@@ -40,7 +40,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	if btn1 == nil {
 		t.Fatal("could not find internal button for select-fixed")
 	}
-	if w := btn1.RenderObject().Fragment().Size.Width; w != 25 {
+	if w := env.RenderObject(btn1).Fragment().Size.Width; w != 25 {
 		t.Errorf("expected internal button width 25, got %d", w)
 	}
 
@@ -54,7 +54,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	env.Flush()
 
 	sel2 := env.GetNodeByID("select-auto").(*element.SelectElement)
-	ro2 := sel2.RenderObject()
+	ro2 := env.RenderObject(sel2)
 
 	w2 := ro2.Fragment().Size.Width
 	t.Logf("Auto Select width: %d", w2)
@@ -63,7 +63,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	}
 
 	btn2 := findUAButton(sel2)
-	if btn2Width := btn2.RenderObject().Fragment().Size.Width; btn2Width != w2 {
+	if btn2Width := env.RenderObject(btn2).Fragment().Size.Width; btn2Width != w2 {
 		t.Errorf("expected internal button width %d to match host width %d, got %d", w2, w2, btn2Width)
 	}
 
@@ -75,11 +75,11 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	env.Mount(s3)
 	env.Flush()
 
-	if w := s3.RenderObject().Fragment().Size.Width; w != 10 {
+	if w := env.RenderObject(s3).Fragment().Size.Width; w != 10 {
 		t.Errorf("expected select width 10, got %d", w)
 	}
 	btn3 := findUAButton(s3)
-	if w := btn3.RenderObject().Fragment().Size.Width; w != 10 {
+	if w := env.RenderObject(btn3).Fragment().Size.Width; w != 10 {
 		t.Errorf("expected internal button width 10, got %d", w)
 	}
 }
@@ -104,14 +104,14 @@ func TestSelect_LayoutHeight(t *testing.T) {
 	env.Flush()
 
 	sel := env.GetNodeByID("select").(*element.SelectElement)
-	ro := sel.RenderObject()
+	ro := env.RenderObject(sel)
 
 	if h := ro.Fragment().Size.Height; h > 5 {
 		t.Errorf("expected select to maintain natural height, got %d", h)
 	}
 
 	btn := findUAButton(sel)
-	if h := btn.RenderObject().Fragment().Size.Height; h > 5 {
+	if h := env.RenderObject(btn).Fragment().Size.Height; h > 5 {
 		t.Errorf("expected internal button to maintain natural height, got %d", h)
 	}
 }

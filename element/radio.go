@@ -3,7 +3,6 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -188,9 +187,7 @@ func (r *RadioElement) updateVisual() {
 		glyph = r.checkedGlyph
 	}
 	r.uaText.SetData(glyph)
-	if ro := r.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	r.MarkNeedsSync()
 }
 
 func (r *RadioElement) findGroup() *RadioGroupElement {

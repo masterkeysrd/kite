@@ -6,8 +6,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -155,10 +153,7 @@ func (e *Element) ScrollTo(x, y int) {
 	}
 	e.scroll.X = x
 	e.scroll.Y = y
-
-	if ro := e.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyScroll)
-	}
+	e.MarkNeedsSync()
 
 	// Dispatch event.EventScroll.
 	ev := event.NewScrollEvent(x, y, dx, dy)
@@ -179,15 +174,6 @@ func (e *Element) ScrollTo(x, y int) {
 
 func (e *Element) ScrollBy(dx, dy int) {
 	x, y := e.Scroll()
-
-	// If the element has a render object, we must base the relative scroll
-	// on the current clamped visual position to avoid accumulation at boundaries.
-	if ro := e.RenderObject(); ro != nil {
-		maxSX, maxSY := ro.MaxScroll()
-		x = max(0, min(x, maxSX))
-		y = max(0, min(y, maxSY))
-	}
-
 	e.ScrollTo(x+dx, y+dy)
 }
 
@@ -202,35 +188,12 @@ func (e *Element) ProvidesCursor() bool {
 }
 
 func (e *Element) GetBoundingClientRect() (geom.Rect, bool) {
-	if !e.connected {
-		return geom.Rect{}, false
+	if d := e.ownerDocument; d != nil {
+		if v := d.View(); v != nil {
+			return v.GetBoundingClientRect(e.self)
+		}
 	}
-
-	// Traverse up to find the root node (usually the dom.Document).
-	var root = e.self
-	for p := root.Parent(); p != nil; {
-		root = p
-		p = root.Parent()
-	}
-
-	// Grab the root fragment from its render object.
-	ro := root.RenderObject()
-	if ro == nil {
-		return geom.Rect{}, false
-	}
-	rootFragment := ro.Fragment()
-	if rootFragment == nil {
-		return geom.Rect{}, false
-	}
-
-	// Target the render object of this element.
-	targetRO := e.RenderObject()
-	if targetRO == nil {
-		return geom.Rect{}, false
-	}
-
-	rect, _, found := layout.ScrolledAbsoluteBounds(rootFragment, targetRO)
-	return rect, found
+	return geom.Rect{}, false
 }
 
 // setOuterRecursive walks the subtree rooted at n and sets the self/outer

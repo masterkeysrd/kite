@@ -80,7 +80,7 @@ func TestIntrinsicStyle_Integration_InlineBlockForced(t *testing.T) {
 	eng.Mount(box)
 	eng.Frame()
 
-	ro := el.RenderObject()
+	ro := eng.RenderObject(el)
 	if ro == nil {
 		t.Fatal("render object not created for intrinsicElement")
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // ---------------------------------------------------------------------------
@@ -89,15 +90,44 @@ func (o *testObject) PreviousSibling() dom.Node {
 	}
 	return nil
 }
-func (o *testObject) OwnerDocument() dom.Document   { return nil }
-func (o *testObject) IsConnected() bool             { return true }
-func (o *testObject) RenderObject() render.Object   { return o.render }
-func (o *testObject) SetRenderObject(render.Object) {}
+func (o *testObject) OwnerDocument() dom.Document { return nil }
+func (o *testObject) IsConnected() bool           { return true }
 func (o *testObject) AppendChild(n dom.Node) dom.Node {
 	o.children = append(o.children, n.(*testObject))
 	n.(*testObject).parent = o
 	return n
 }
+func (o *testObject) CreateElement(tag string, self dom.Node) dom.Element    { return nil }
+func (o *testObject) CreateTextNode(data string, self dom.Node) dom.TextNode { return nil }
+func (o *testObject) GetElementByID(id string) dom.Element                   { return nil }
+func (o *testObject) FindAnchor(name string) dom.Element                     { return nil }
+func (o *testObject) RegisterAnchor(name string, el dom.Element)             {}
+func (o *testObject) UnregisterAnchor(name string)                           {}
+func (o *testObject) Body() dom.Element                                      { return nil }
+func (o *testObject) IsFocused(el dom.Element) bool                          { return false }
+func (o *testObject) PushScope(scope *dom.FocusScope)                        {}
+func (o *testObject) PopScope()                                              {}
+func (o *testObject) ActiveScope() *dom.FocusScope                           { return nil }
+func (o *testObject) CurrentFocus() dom.Element                              { return nil }
+func (o *testObject) NextFocus() bool                                        { return false }
+func (o *testObject) PreviousFocus() bool                                    { return false }
+func (o *testObject) QuerySelector(selector string) dom.Element              { return nil }
+func (o *testObject) ShowOverlay(el dom.Element, zIndex int)                 {}
+func (o *testObject) HideOverlay(el dom.Element)                             {}
+func (o *testObject) Overlays() iter.Seq[dom.Element]                        { return nil }
+func (o *testObject) Selection() dom.Selection                               { return nil }
+func (o *testObject) CreateRange() dom.Range                                 { return nil }
+func (o *testObject) SetFocusHandle(handle dom.FocusHandle)                  {}
+func (o *testObject) Clipboard() event.ClipboardProvider                     { return nil }
+func (o *testObject) SetClipboardProvider(p event.ClipboardProvider)         {}
+func (o *testObject) Terminal() terminal.Terminal                            { return nil }
+func (o *testObject) SetTerminal(t terminal.Terminal)                        {}
+func (o *testObject) View() dom.View                                         { return nil }
+func (o *testObject) SetView(v dom.View)                                     {}
+func (o *testObject) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {
+	return nil, 0
+}
+
 func (o *testObject) InsertBefore(n, ref dom.Node) dom.Node             { return nil }
 func (o *testObject) RemoveChild(n dom.Node) dom.Node                   { return nil }
 func (o *testObject) ReplaceChild(newChild, oldChild dom.Node) dom.Node { return nil }
@@ -130,25 +160,6 @@ func (o *testObject) ChildNodes() iter.Seq[dom.Node] {
 			}
 		}
 	}
-}
-
-func (o *testObject) FirstLayoutChild() dom.Node {
-	if len(o.children) == 0 {
-		return nil
-	}
-	return o.children[0]
-}
-
-func (o *testObject) NextLayoutSibling(child dom.Node) dom.Node {
-	for i, c := range o.children {
-		if c == child {
-			if i+1 < len(o.children) {
-				return o.children[i+1]
-			}
-			break
-		}
-	}
-	return nil
 }
 
 func (o *testObject) Unwrap() dom.Node        { return nil }
@@ -211,13 +222,13 @@ func (r *testRender) LastChild() render.Object {
 }
 func (r *testRender) NextSibling() render.Object {
 	if ns := r.node.NextSibling(); ns != nil {
-		return ns.RenderObject()
+		return ns.(*testObject).render
 	}
 	return nil
 }
 func (r *testRender) PreviousSibling() render.Object {
 	if ps := r.node.PreviousSibling(); ps != nil {
-		return ps.RenderObject()
+		return ps.(*testObject).render
 	}
 	return nil
 }
@@ -284,14 +295,49 @@ func (r *testRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 	return layout.MinMaxSizes{}, false
 }
 func (r *testRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
-func (r *testRender) LogicalNode() any                        { return r.node }
+func (r *testRender) LogicalNode() dom.Node                   { return r.node }
 
 func (r *testRender) Offset() geom.Point    { return geom.Point{} }
 func (r *testRender) SetOffset(geom.Point)  {}
 func (r *testRender) IsAnonymous() bool     { return false }
 func (r *testRender) MaxScroll() (int, int) { return 0, 0 }
 
+type testDocument struct {
+	*testObject
+}
+
+func (d *testDocument) Focus(el dom.Element) {}
+func (d *testDocument) IsFocused(el dom.Element) bool {
+	return false
+}
+func (d *testDocument) Unwrap() dom.Node { return d.testObject }
+func (d *testDocument) View() dom.View   { return &testView{} }
+
+type testView struct {
+	dom.View // stub
+}
+
+func (v *testView) GetComputedStyle(n dom.Node) *style.Computed {
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+	if to, ok := curr.(*testObject); ok {
+		return to.render.ComputedStyle()
+	}
+	return nil
+}
+
+func (v *testView) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
+	return geom.Rect{}, false
+}
+
 var _ dom.Element = (*testObject)(nil)
+var _ dom.Document = (*testDocument)(nil)
 var _ render.Object = (*testRender)(nil)
 
 // ---------------------------------------------------------------------------
@@ -302,8 +348,9 @@ var _ render.Object = (*testRender)(nil)
 // root is the default scope root. captured accumulates dispatched focus
 // event types in order.
 func makeManager(root *testObject) (*focus.Manager, *[]event.EventType) {
+	doc := &testDocument{testObject: root}
 	dispatcher := event.NewDispatcher()
-	m := focus.NewManager(root, dispatcher)
+	m := focus.NewManager(doc, dispatcher)
 
 	var captured []event.EventType
 	for _, typ := range []event.EventType{
@@ -338,7 +385,8 @@ func TestManager_SetFocus_EmitsFocusevent(t *testing.T) {
 	link(root, b)
 
 	d := event.NewDispatcher()
-	m := focus.NewManager(root, d)
+	doc := &testDocument{testObject: root}
+	m := focus.NewManager(doc, d)
 
 	var fired []event.EventType
 	for _, typ := range []event.EventType{event.EventFocusIn, event.EventFocusOut} {

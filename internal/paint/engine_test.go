@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/layout/text"
@@ -16,7 +17,7 @@ type mockNode struct {
 }
 
 func (m *mockNode) Style() *style.Computed { return m.s }
-func (m *mockNode) LogicalNode() any       { return nil }
+func (m *mockNode) LogicalNode() dom.Node  { return nil }
 
 func TestPaint_InheritedStyle(t *testing.T) {
 	pe := &PaintEngine{}

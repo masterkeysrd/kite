@@ -199,7 +199,7 @@ func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]geom.Rect
 			s.Text = tn.Data()
 		}
 	}
-	if ro := n.RenderObject(); ro != nil {
+	if ro := i.eng.RenderObject(n); ro != nil {
 		s.Computed = ro.ComputedStyle()
 		s.Default = ro.DefaultStyle()
 		s.Raw = ro.RawStyle()

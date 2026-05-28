@@ -16,7 +16,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	_ "github.com/masterkeysrd/kite/internal/dom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/focus"
 
@@ -198,6 +198,8 @@ type Engine struct {
 	activeAnimations []animation.Animator
 	lastFrameTime    time.Time
 
+	renderMap map[dom.Node]render.Object
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -278,12 +280,13 @@ func New(b backend.Backend, opts Options) *Engine {
 		wheelMap:          make(map[event.EventTarget]*event.WheelEvent),
 		pipeline:          &StandardPipeline{},
 		extensions:        opts.Extensions,
+		renderMap:         make(map[dom.Node]render.Object),
 	}
 
 	e.dispatcher = event.NewDispatcher()
 
 	// Link document to render view
-	e.document.SetRenderObject(e.renderView)
+	e.setRenderObject(e.document, e.renderView)
 	e.renderView.SetLogicalNode(e.document)
 	e.renderView.SetViewportSize(b.Size())
 
@@ -292,6 +295,7 @@ func New(b backend.Backend, opts Options) *Engine {
 
 	e.document.SetFocusHandle(e.focusManager)
 	e.document.SetTerminal(&TerminalProxy{})
+	e.document.SetView(&domViewProxy{e: e})
 	e.synthesizer = internalevent.NewSynthesizer(e, e, internalevent.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})
@@ -497,6 +501,15 @@ func (e *Engine) RequestFrame() {
 func (e *Engine) RegisterAnimation(anim animation.Animator) {
 	e.activeAnimations = append(e.activeAnimations, anim)
 	e.RequestFrame()
+}
+
+// OnAfterLayout registers a one-shot callback that fires once, after the next
+// layout and scroll-into-view phase completes but before the paint phase.
+// This is the correct place to read CursorState() when an accurate, freshly
+// computed position is required (e.g. updating a status bar from a keydown
+// listener). The hook is called exactly once and then discarded.
+func (e *Engine) OnAfterLayout(fn func()) {
+	e.afterLayoutHooks = append(e.afterLayoutHooks, fn)
 }
 
 // OnFrameRendered registers a hook to be called after every frame is committed.
@@ -712,7 +725,7 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 	var ro render.Object
 	if focused != nil {
 		e.logger.Info("engine: determining cursor for focused target")
-		ro = focused.RenderObject()
+		ro = e.RenderObject(focused.(dom.Node))
 		if ro != nil {
 			provider, ok := ro.(cursor.Provider)
 			if !ok {
@@ -847,10 +860,11 @@ func (e *Engine) drainMicroTasks() {
 // its structure.
 func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
 	if n.NeedsSync() {
+		ro.MarkDirty(render.DirtyStyle | render.DirtyLayout | render.DirtyPaint)
 		e.diffChildren(n, ro)
 	} else if n.ChildNeedsSync() {
-		for child := n.FirstLayoutChild(); child != nil; child = n.NextLayoutSibling(child) {
-			if childRO := child.RenderObject(); childRO != nil {
+		for child := range internaldom.LayoutChildren(n) {
+			if childRO := e.RenderObject(child); childRO != nil {
 				e.syncRenderTree(child, childRO)
 			}
 		}
@@ -861,10 +875,10 @@ func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
 func (e *Engine) syncOverlays(d dom.Document) {
 	var overlayROs []render.Object
 	for overlayEl := range d.Overlays() {
-		childRO := overlayEl.RenderObject()
+		childRO := e.RenderObject(overlayEl)
 		if childRO == nil {
 			childRO = e.createRenderObject(overlayEl)
-			overlayEl.SetRenderObject(childRO)
+			e.setRenderObject(overlayEl, childRO)
 		}
 
 		// If the child was already there, it might still need internal sync.
@@ -886,11 +900,11 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 	}
 
 	var lastRO render.Object
-	for child := n.FirstLayoutChild(); child != nil; child = n.NextLayoutSibling(child) {
-		childRO := child.RenderObject()
+	for child := range internaldom.LayoutChildren(n) {
+		childRO := e.RenderObject(child)
 		if childRO == nil {
 			childRO = e.createRenderObject(child)
-			child.SetRenderObject(childRO)
+			e.setRenderObject(child, childRO)
 		}
 
 		delete(existing, childRO)
@@ -918,6 +932,9 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 
 	// Remove orphaned render objects.
 	for orphaned := range existing {
+		if ln := orphaned.LogicalNode(); ln != nil {
+			e.setRenderObject(ln, nil)
+		}
 		render.Unlink(orphaned)
 	}
 }
@@ -928,12 +945,16 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	var ro render.Object
 	target := n.EventTarget()
 
-	if cp := unwrapProvider(n); cp != nil {
+	if n.Kind() == dom.KindText {
+		ro = render.NewText(n, target)
+	} else if cp := unwrapProvider(n); cp != nil {
 		ro = cp.CreateRenderObject()
 	} else {
 		// Fallback for nodes that don't implement CustomObjectProvider.
 		ro = render.NewBox(n, target)
 	}
+
+	e.setRenderObject(n, ro)
 
 	// Notify logical node of creation.
 	if h, ok := n.(render.RenderObjectHook); ok {
@@ -1072,7 +1093,7 @@ func (e *Engine) Dump(path string) error {
 			d.Data = tn.Data()
 		}
 
-		if ro := n.RenderObject(); ro != nil {
+		if ro := e.RenderObject(n); ro != nil {
 			if frag := ro.Fragment(); frag != nil {
 				d.Size = fmt.Sprintf("%dx%d", frag.Size.Width, frag.Size.Height)
 			}
@@ -1430,7 +1451,7 @@ func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
 }
 
 func (e *Engine) setLocalWheelCoords(ev *event.WheelEvent, target dom.Node) {
-	ro := target.RenderObject()
+	ro := e.RenderObject(target)
 	if ro == nil {
 		return
 	}
@@ -1463,7 +1484,7 @@ func (e *Engine) resolveScrollable(target event.EventTarget) event.Scrollable {
 		return nil
 	}
 
-	ro := el.RenderObject()
+	ro := e.RenderObject(el)
 	if ro == nil {
 		return nil
 	}
@@ -1645,7 +1666,7 @@ func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
 			count++
 		}
 
-		for child := n.FirstLayoutChild(); child != nil; child = n.NextLayoutSibling(child) {
+		for child := range internaldom.LayoutChildren(n) {
 			walk(child)
 		}
 
@@ -1713,7 +1734,7 @@ func (e *Engine) handleDefaultKeyAction(ev *event.KeyEvent) {
 }
 
 func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
-	ro := target.RenderObject()
+	ro := e.RenderObject(target)
 	if ro == nil {
 		return
 	}
@@ -1747,4 +1768,159 @@ func unwrapProvider(n dom.Node) render.CustomObjectProvider {
 		return cp
 	}
 	return unwrapProvider(n.Unwrap())
+}
+
+func (e *Engine) RenderObject(n dom.Node) render.Object {
+	if n == nil {
+		return nil
+	}
+
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+	return e.renderMap[curr]
+}
+
+func (e *Engine) setRenderObject(n dom.Node, ro render.Object) {
+	if n == nil {
+		return
+	}
+
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+
+	if ro == nil {
+		delete(e.renderMap, curr)
+	} else {
+		e.renderMap[curr] = ro
+	}
+}
+
+type domViewProxy struct {
+	e *Engine
+}
+
+func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return geom.Rect{}, false
+	}
+	root := p.e.renderView.Fragment()
+	if root == nil {
+		return geom.Rect{}, false
+	}
+	rect, _, found := layout.ScrolledAbsoluteBounds(root, ro)
+	return rect, found
+}
+
+func (p *domViewProxy) GetComputedStyle(n dom.Node) *style.Computed {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return nil
+	}
+	return ro.ComputedStyle()
+}
+
+func (p *domViewProxy) GetSize(n dom.Node) (geom.Size, bool) {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return geom.Size{}, false
+	}
+	frag := ro.Fragment()
+	if frag == nil {
+		return geom.Size{}, false
+	}
+	return frag.Size, true
+}
+
+func (p *domViewProxy) GetFragment(n dom.Node) *layout.Fragment {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return nil
+	}
+	return ro.Fragment()
+}
+
+func (p *domViewProxy) GetMaxScroll(n dom.Node) (x, y int) {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return 0, 0
+	}
+	return ro.MaxScroll()
+}
+
+func (p *domViewProxy) GetCaretPosition(n dom.Node, offset int) (geom.Point, bool) {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return geom.Point{}, false
+	}
+	frag := ro.Fragment()
+	if frag == nil {
+		return geom.Point{}, false
+	}
+	x, y, ok := cursor.FromTextFragment(frag, offset)
+	return geom.Point{X: x, Y: y}, ok
+}
+
+func (p *domViewProxy) MoveCursorVertically(n dom.Node, offset int, delta int, x, y int) int {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return offset
+	}
+	frag := ro.Fragment()
+	if frag == nil {
+		return offset
+	}
+
+	targetY := y + delta
+	if delta < 0 {
+		if y <= 0 {
+			return offset
+		}
+	} else {
+		// Find max Y
+		maxY := 0
+		for _, c := range frag.Children {
+			if c.Offset.Y > maxY {
+				maxY = c.Offset.Y
+			}
+		}
+		if y >= maxY {
+			return offset
+		}
+	}
+
+	return cursor.ByteOffsetAtPoint(frag, x, targetY)
+}
+
+func (p *domViewProxy) ByteOffsetAtPoint(n dom.Node, x, y int) int {
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return 0
+	}
+	frag := ro.Fragment()
+	if frag == nil {
+		return 0
+	}
+	return cursor.ByteOffsetAtPoint(frag, x, y)
+}
+
+func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
+	root := p.e.renderView.Fragment()
+	if root == nil {
+		return nil, 0
+	}
+	byteOffset := cursor.ByteOffsetAtPoint(root, x, y)
+	return p.e.document.FindNodeAtByteOffset(p.e.document, byteOffset)
 }

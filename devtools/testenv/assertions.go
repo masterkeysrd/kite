@@ -7,6 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -112,21 +113,34 @@ func (a *ElementAssertion) ToHaveCursorAt(x, y int, msgs ...any) *ElementAsserti
 	return a
 }
 
+type fragmentProvider interface {
+	GetFragment(dom.Node) *layout.Fragment
+}
+
+func (a *ElementAssertion) getFragment() *layout.Fragment {
+	if a.node == nil {
+		return nil
+	}
+	doc := a.node.OwnerDocument()
+	if doc == nil {
+		return nil
+	}
+	view := doc.View()
+	if view == nil {
+		return nil
+	}
+	if fp, ok := view.(fragmentProvider); ok {
+		return fp.GetFragment(a.node)
+	}
+	return nil
+}
+
 // ToHaveFragmentHeight asserts that the node's render fragment has the
 // expected height in layout units (cells/rows). Useful for verifying
 // that elements respect their configured height and do not overflow.
 func (a *ElementAssertion) ToHaveFragmentHeight(expected int, msgs ...any) *ElementAssertion {
 	a.t.Helper()
-	if a.node == nil {
-		a.t.Fatalf("node is nil")
-	}
-
-	ro := a.node.RenderObject()
-	if ro == nil {
-		a.t.Fatalf("render object is nil for node")
-	}
-
-	frag := ro.Fragment()
+	frag := a.getFragment()
 	if frag == nil {
 		a.t.Fatalf("layout fragment is nil for node")
 	}
@@ -212,14 +226,7 @@ func (a *ElementAssertion) ToNotHaveFocus(env *Environment, msgs ...any) *Elemen
 // same ElementAssertion to allow chaining further table-related checks.
 func (a *ElementAssertion) ToHaveTableStructure(expected []string, msgs ...any) *ElementAssertion {
 	a.t.Helper()
-	if a.node == nil {
-		a.t.Fatalf("node is nil")
-	}
-	ro := a.node.RenderObject()
-	if ro == nil {
-		a.t.Fatalf("render object is nil for node")
-	}
-	frag := ro.Fragment()
+	frag := a.getFragment()
 	if frag == nil {
 		a.t.Fatalf("layout fragment is nil for node")
 	}
@@ -272,14 +279,7 @@ type ColumnAssertion struct {
 func (a *ElementAssertion) CellsInColumn(col int) *ColumnAssertion {
 	a.t.Helper()
 	var widths []int
-	if a.node == nil {
-		a.t.Fatalf("node is nil")
-	}
-	ro := a.node.RenderObject()
-	if ro == nil {
-		a.t.Fatalf("render object is nil for node")
-	}
-	frag := ro.Fragment()
+	frag := a.getFragment()
 	if frag == nil {
 		a.t.Fatalf("layout fragment is nil for node")
 	}

@@ -726,6 +726,10 @@ func TestExampleTextAreaGolden(t *testing.T) {
 		env.Engine.RequestFrame()
 	}
 
+	txa.AddEventListener(event.EventKeyDown, func(e event.Event) {
+		env.Engine.OnAfterLayout(updateStatus)
+	})
+
 	root := element.Box(
 		element.Box(
 			// Title
@@ -775,11 +779,13 @@ func TestExampleTextAreaGolden(t *testing.T) {
 			Display:       style.Some(style.DisplayFlex),
 			FlexDirection: style.Some(style.FlexColumn),
 			AlignItems:    style.Some(style.AlignStart),
+			Height:        style.Some(style.Percent(100)),
 		}),
 	)
 
 	env.Mount(root)
 	updateStatus()
+	env.Flush()
 	env.Flush()
 
 	env.MatchGolden(t, "example_textarea_default")
@@ -788,6 +794,7 @@ func TestExampleTextAreaGolden(t *testing.T) {
 	env.Engine.Document().Focus(txa)
 	env.Type("\nAdding some new content here.")
 	env.Flush()
+	env.Flush()
 	env.MatchGolden(t, "example_textarea_typed")
 
 	// 2. Delete some content (backspace)
@@ -795,10 +802,12 @@ func TestExampleTextAreaGolden(t *testing.T) {
 		env.SendKey(key.Key{Code: key.KeyBackspace})
 	}
 	env.Flush()
+	env.Flush()
 	env.MatchGolden(t, "example_textarea_deleted")
 
 	// 3. Scroll content
 	env.ScrollTo(txa, 0, 5)
+	env.Flush()
 	env.Flush()
 	env.MatchGolden(t, "example_textarea_scrolled")
 }

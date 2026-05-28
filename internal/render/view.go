@@ -3,6 +3,7 @@ package render
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
@@ -23,14 +24,14 @@ type BaseRender struct {
 	cachedMinMax layout.MinMaxSizes
 	minMaxValid  bool
 
-	logicalNode   any
+	logicalNode   dom.Node
 	eventTarget   event.EventTarget
 	computedStyle *style.Computed
 	offset        geom.Point
 }
 
 // Init sets the self-pointer and logical identity for the BaseRender.
-func (b *BaseRender) Init(self Object, logicalNode any, target event.EventTarget) {
+func (b *BaseRender) Init(self Object, logicalNode dom.Node, target event.EventTarget) {
 	b.self = self
 	b.logicalNode = logicalNode
 	b.eventTarget = target
@@ -108,7 +109,7 @@ func (b *BaseRender) PreviousSibling() Object {
 func (b *BaseRender) EventTarget() event.EventTarget { return b.eventTarget }
 
 func (b *BaseRender) IsDetached() bool               { return b.parent == nil }
-func (b *BaseRender) LogicalNode() any               { return b.logicalNode }
+func (b *BaseRender) LogicalNode() dom.Node          { return b.logicalNode }
 func (b *BaseRender) ComputedStyle() *style.Computed { return b.computedStyle }
 func (b *BaseRender) Style() *style.Computed         { return b.computedStyle }
 
@@ -305,7 +306,7 @@ func (b *BaseRender) SetCachedLayout(space layout.ConstraintSpace, frag *layout.
 
 func (b *BaseRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 	// If the layout tree is dirty, the intrinsic sizes may be invalid.
-	if b.flags&DirtyLayout != 0 {
+	if b.flags&(DirtyLayout|ChildNeedsLayout) != 0 {
 		return layout.MinMaxSizes{}, false
 	}
 	return b.cachedMinMax, b.minMaxValid
@@ -366,7 +367,7 @@ func (v *RenderView) IsDetached() bool { return false }
 
 func (v *RenderView) StyleParent() style.StyleNode { return nil }
 
-func (v *RenderView) SetLogicalNode(n any) { v.logicalNode = n }
+func (v *RenderView) SetLogicalNode(n dom.Node) { v.logicalNode = n }
 
 // LayoutPhase runs the layout process for the given subtree using the LayoutNG-inspired architecture.
 func LayoutPhase(ctx *layout.Context, root Object, available geom.Size) {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	internal "github.com/masterkeysrd/kite/internal/event"
@@ -76,7 +77,7 @@ func (s *stubObject) Children() iter.Seq[event.EventTarget] {
 }
 func (s *stubObject) Bounds() geom.Rect                { return s.bounds }
 func (s *stubObject) SetBounds(r geom.Rect)            { s.bounds = r }
-func (s *stubObject) LogicalNode() any                 { return nil }
+func (s *stubObject) LogicalNode() dom.Node            { return nil }
 func (s *stubObject) MarkDetached()                    {}
 func (s *stubObject) IsDetached() bool                 { return false }
 func (s *stubObject) MarkChildrenDirty()               {}

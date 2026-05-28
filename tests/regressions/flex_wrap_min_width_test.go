@@ -61,14 +61,14 @@ func TestFlexWrapMinWidthAuto(t *testing.T) {
 	// Final width: 13 + 2 = 15.
 
 	item1 := env.GetNodeByID("item-1")
-	ro1 := item1.RenderObject()
+	ro1 := env.RenderObject(item1)
 	if ro1.Fragment().Size.Width != 15 {
 		t.Errorf("expected width 15, got %d", ro1.Fragment().Size.Width)
 	}
 
 	// Verify that the last item also grew correctly (checking for rounding leaks)
 	item3 := env.GetNodeByID("item-3")
-	ro3 := item3.RenderObject()
+	ro3 := env.RenderObject(item3)
 	if ro3.Fragment().Size.Width != 15 {
 		t.Errorf("expected item-3 width 15, got %d", ro3.Fragment().Size.Width)
 	}

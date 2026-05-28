@@ -100,6 +100,10 @@ func main() {
 		eng.RequestFrame()
 	}
 
+	txa.AddEventListener(event.EventKeyDown, func(e event.Event) {
+		eng.OnAfterLayout(updateStatus)
+	})
+
 	// ── UI tree ──────────────────────────────────────────────────────────────
 	root := element.Box(
 		element.Box(

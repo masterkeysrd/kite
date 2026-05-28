@@ -53,7 +53,7 @@ func TestOverlay_Positioning(t *testing.T) {
 	// Verify overlay position (Bottom placement)
 	// Expected X: anchor.X = 10
 	// Expected Y: anchor.Y + anchor.Height = 5 + 3 = 8
-	ovlRO := ovl.RenderObject()
+	ovlRO := eng.RenderObject(ovl)
 	if ovlRO == nil {
 		t.Fatal("overlay render object not created")
 	}
@@ -98,7 +98,7 @@ func TestOverlay_Flipping(t *testing.T) {
 	// It overflows bottom, so it should flip to Top.
 	// Expected Top Y: anchor.Y - ovl.Height = 20 - 5 = 15.
 
-	ovlRO := ovl.RenderObject()
+	ovlRO := eng.RenderObject(ovl)
 	ovlOffset := ovlRO.Offset()
 	expectedOvlOffset := geom.Point{X: 10, Y: 15}
 	if ovlOffset != expectedOvlOffset {
@@ -139,7 +139,7 @@ func TestOverlay_BestFit(t *testing.T) {
 	eng.Frame()
 
 	// It should flip to Bottom because it has more space (17 vs 5).
-	ovlRO := ovl.RenderObject()
+	ovlRO := eng.RenderObject(ovl)
 	ovlOffset := ovlRO.Offset()
 	expectedY := 5 + 2 // anchor.Y + anchor.Height
 	if ovlOffset.Y != expectedY {
@@ -177,7 +177,7 @@ func TestOverlay_HorizontalBestFit(t *testing.T) {
 	eng.Document().AppendChild(ovl)
 	eng.Frame()
 
-	ovlRO := ovl.RenderObject()
+	ovlRO := eng.RenderObject(ovl)
 	ovlOffset := ovlRO.Offset()
 	expectedX := 5 + 2 // anchor.X + anchor.Width
 	if ovlOffset.X != expectedX {

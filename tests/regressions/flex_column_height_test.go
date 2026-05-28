@@ -1,19 +1,56 @@
 package regressions
 
 import (
+	"iter"
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/marker"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type mockTextSource struct {
+	marker.NodeMarker
 	data string
 }
 
 func (m *mockTextSource) Data() string { return m.data }
+
+func (m *mockTextSource) Kind() dom.Kind                           { return dom.KindText }
+func (m *mockTextSource) NodeName() string                         { return "#text" }
+func (m *mockTextSource) Parent() dom.Node                         { return nil }
+func (m *mockTextSource) ParentElement() dom.Element               { return nil }
+func (m *mockTextSource) NextSibling() dom.Node                    { return nil }
+func (m *mockTextSource) PreviousSibling() dom.Node                { return nil }
+func (m *mockTextSource) OwnerDocument() dom.Document              { return nil }
+func (m *mockTextSource) IsConnected() bool                        { return false }
+func (m *mockTextSource) AppendChild(dom.Node) dom.Node            { return nil }
+func (m *mockTextSource) InsertBefore(dom.Node, dom.Node) dom.Node { return nil }
+func (m *mockTextSource) RemoveChild(dom.Node) dom.Node            { return nil }
+func (m *mockTextSource) ReplaceChild(dom.Node, dom.Node) dom.Node { return nil }
+func (m *mockTextSource) FirstChild() dom.Node                     { return nil }
+func (m *mockTextSource) LastChild() dom.Node                      { return nil }
+func (m *mockTextSource) HasChildNodes() bool                      { return false }
+func (m *mockTextSource) Contains(dom.Node) bool                   { return false }
+func (m *mockTextSource) ChildNodes() iter.Seq[dom.Node]           { return nil }
+func (m *mockTextSource) Unwrap() dom.Node                         { return nil }
+func (m *mockTextSource) TextContent() string                      { return m.data }
+func (m *mockTextSource) CloneNode(bool) dom.Node                  { return nil }
+func (m *mockTextSource) NeedsSync() bool                          { return false }
+func (m *mockTextSource) ChildNeedsSync() bool                     { return false }
+func (m *mockTextSource) MarkNeedsSync()                           {}
+func (m *mockTextSource) ClearSyncFlags()                          {}
+func (m *mockTextSource) EventTarget() event.EventTarget           { return nil }
+func (m *mockTextSource) AddEventListener(event.EventType, event.Listener, ...event.Option) event.Subscription {
+	return nil
+}
+func (m *mockTextSource) DispatchTo(event.Event)       {}
+func (m *mockTextSource) DispatchToTarget(event.Event) {}
+func (m *mockTextSource) RemoveRegistration(uint64)    {}
 
 func TestFlexColumnGrowingHeightWithWrappingChildren(t *testing.T) {
 	// Container: Width 34, Padding 2. Available content width = 30.

@@ -402,7 +402,7 @@ func TestEngine_ChildDirtyLayout_TriggersParentRelayout(t *testing.T) {
 	b.EndFrameCalls = 0
 
 	// Get child's render object
-	childRO := child.RenderObject()
+	childRO := e.RenderObject(child)
 	if childRO == nil {
 		t.Fatal("child render object not found")
 	}
@@ -455,7 +455,7 @@ func TestEngine_CustomRenderObject(t *testing.T) {
 		t.Error("CustomObjectProvider.CreateRenderObject was not called")
 	}
 
-	if cn.RenderObject() == nil {
+	if e.RenderObject(cn) == nil {
 		t.Error("custom node has no render object")
 	}
 }
@@ -488,7 +488,7 @@ func TestEngine_CustomRenderObject_Wrapped(t *testing.T) {
 		t.Error("CustomObjectProvider.CreateRenderObject was not called on inner node")
 	}
 
-	if wn.RenderObject() == nil {
+	if e.RenderObject(wn) == nil {
 		t.Error("wrapped node has no render object")
 	}
 }

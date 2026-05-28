@@ -21,8 +21,8 @@ func TestRegression_DynamicListStyleUpdate(t *testing.T) {
 
 	// First frame: should be Disc (default)
 	eng.Frame()
-	if li.RenderObject().ComputedStyle().ListStyleType != style.ListStyleDisc {
-		t.Fatalf("expected initial Disc, got %v", li.RenderObject().ComputedStyle().ListStyleType)
+	if eng.RenderObject(li).ComputedStyle().ListStyleType != style.ListStyleDisc {
+		t.Fatalf("expected initial Disc, got %v", eng.RenderObject(li).ComputedStyle().ListStyleType)
 	}
 
 	// Update UL style
@@ -32,7 +32,7 @@ func TestRegression_DynamicListStyleUpdate(t *testing.T) {
 
 	// Second frame: should resolve to Square
 	eng.Frame()
-	if li.RenderObject().ComputedStyle().ListStyleType != style.ListStyleSquare {
-		t.Fatalf("expected updated Square, got %v", li.RenderObject().ComputedStyle().ListStyleType)
+	if eng.RenderObject(li).ComputedStyle().ListStyleType != style.ListStyleSquare {
+		t.Fatalf("expected updated Square, got %v", eng.RenderObject(li).ComputedStyle().ListStyleType)
 	}
 }

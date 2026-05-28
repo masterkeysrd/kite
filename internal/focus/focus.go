@@ -3,7 +3,6 @@ package focus
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -32,6 +31,7 @@ const (
 //
 // A Manager must be constructed with NewManager; the zero value is invalid.
 type Manager struct {
+	doc              dom.Document
 	current          dom.Element
 	reason           Reason
 	scopes           []*dom.FocusScope
@@ -48,10 +48,11 @@ var _ dom.FocusHandle = (*Manager)(nil)
 //
 // dispatcher routes focus / blur event through the logical tree.
 func NewManager(
-	root dom.Node,
+	root dom.Document,
 	dispatcher event.Dispatcher,
 ) *Manager {
 	m := &Manager{
+		doc:        root,
 		dispatcher: dispatcher,
 	}
 	m.PushScope(&dom.FocusScope{Root: root})
@@ -62,6 +63,9 @@ func NewManager(
 
 // Current returns the currently focused logical element, or nil.
 func (m *Manager) Current() dom.Element { return m.current }
+
+// Document returns the logical document root.
+func (m *Manager) Document() dom.Document { return m.doc }
 
 // Reason returns the reason the current focus was acquired.
 func (m *Manager) Reason() Reason { return m.reason }
@@ -104,7 +108,7 @@ func (m *Manager) ActiveScope() *dom.FocusScope {
 // target and focus/focusin are dispatched on el. DirtyPaint is marked on
 // both the old and new nodes so painters can update focus rings.
 func (m *Manager) SetFocus(el dom.Element, reason Reason) bool {
-	if !IsFocusable(el, m.ActiveScopeInternal()) {
+	if !m.IsFocusable(el, m.ActiveScopeInternal()) {
 		return false
 	}
 	m.setFocus(el, reason)
@@ -144,9 +148,7 @@ func (m *Manager) setFocus(next dom.Element, reason Reason) {
 
 	// Dispatch lose-focus event on old node.
 	if old != nil {
-		if ro := old.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyPaint)
-		}
+		old.MarkNeedsSync()
 		path := ancestorPath(old)
 		etNext := event.EventTarget(nil)
 		if next != nil {
@@ -158,9 +160,7 @@ func (m *Manager) setFocus(next dom.Element, reason Reason) {
 
 	// Dispatch gain-focus event on new node.
 	if next != nil {
-		if ro := next.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyPaint)
-		}
+		next.MarkNeedsSync()
 		path := ancestorPath(next)
 		etOld := event.EventTarget(nil)
 		if old != nil {
@@ -181,7 +181,7 @@ func (m *Manager) Next() bool {
 	if scope == nil {
 		return false
 	}
-	candidates := collectFocusable(scope)
+	candidates := m.collectFocusable(scope)
 	if len(candidates) == 0 {
 		return false
 	}
@@ -198,7 +198,7 @@ func (m *Manager) Previous() bool {
 	if scope == nil {
 		return false
 	}
-	candidates := collectFocusable(scope)
+	candidates := m.collectFocusable(scope)
 	if len(candidates) == 0 {
 		return false
 	}
@@ -219,7 +219,7 @@ func (m *Manager) PushScope(s *dom.FocusScope) {
 	s.PreviousFocus = m.current
 	m.scopes = append(m.scopes, s)
 	if s.Autofocus != nil {
-		if IsFocusable(s.Autofocus, s) {
+		if m.IsFocusable(s.Autofocus, s) {
 			m.setFocus(s.Autofocus, ReasonProgrammatic)
 		} else {
 			// If the autofocus target itself is not focusable, walk its descendants
@@ -230,7 +230,7 @@ func (m *Manager) PushScope(s *dom.FocusScope) {
 					return
 				}
 				if el, ok := n.(dom.Element); ok && el != s.Autofocus {
-					if IsFocusable(el, s) {
+					if m.IsFocusable(el, s) {
 						firstFocusable = el
 					}
 				}
@@ -257,7 +257,7 @@ func (m *Manager) PopScope() {
 	m.scopes = m.scopes[:len(m.scopes)-1]
 
 	prev := top.PreviousFocus
-	if prev != nil && IsFocusable(prev, m.ActiveScopeInternal()) {
+	if prev != nil && m.IsFocusable(prev, m.ActiveScopeInternal()) {
 		m.setFocus(prev, ReasonRestore)
 	} else {
 		m.setFocus(nil, ReasonProgrammatic)
@@ -300,7 +300,7 @@ func (m *Manager) SetInitialFocus() {
 //
 // IsFocusable is the single source of truth; all callers (Focus, Next,
 // Previous, PushScope Autofocus) delegate to it.
-func IsFocusable(el dom.Element, scope *dom.FocusScope) bool {
+func (m *Manager) IsFocusable(el dom.Element, scope *dom.FocusScope) bool {
 	if el == nil {
 		return false
 	}
@@ -319,8 +319,8 @@ func IsFocusable(el dom.Element, scope *dom.FocusScope) bool {
 	// If the render object hasn't been created yet (e.g. before the first
 	// frame sync), we allow focus to be set based on logical state alone.
 	// This ensures initial focus can be established at startup.
-	if ro := el.RenderObject(); ro != nil {
-		cs := ro.ComputedStyle()
+	if m.doc != nil && m.doc.View() != nil {
+		cs := m.doc.View().GetComputedStyle(el)
 		if cs != nil && cs.Display == style.DisplayNone {
 			return false
 		}
@@ -339,8 +339,26 @@ func isDescendantOrEqual(n, root dom.Node) bool {
 	if root == nil {
 		return true
 	}
+
+	rootBase := root
+	for {
+		if u := rootBase.Unwrap(); u != nil {
+			rootBase = u
+		} else {
+			break
+		}
+	}
+
 	for cur := n; cur != nil; cur = cur.Parent() {
-		if cur == root {
+		curBase := cur
+		for {
+			if u := curBase.Unwrap(); u != nil {
+				curBase = u
+			} else {
+				break
+			}
+		}
+		if curBase == rootBase {
 			return true
 		}
 	}
@@ -349,14 +367,14 @@ func isDescendantOrEqual(n, root dom.Node) bool {
 
 // collectFocusable returns all focusable elements within scope in DOM tree order
 // (depth-first, left-to-right pre-order walk of the scope's subtree).
-func collectFocusable(scope *dom.FocusScope) []dom.Element {
+func (m *Manager) collectFocusable(scope *dom.FocusScope) []dom.Element {
 	if scope == nil || scope.Root == nil {
 		return nil
 	}
 	var out []dom.Element
 	walkPreOrder(scope.Root, func(n dom.Node) {
 		if el, ok := n.(dom.Element); ok {
-			if IsFocusable(el, scope) && el.TabIndex() >= 0 {
+			if m.IsFocusable(el, scope) && el.TabIndex() >= 0 {
 				out = append(out, el)
 			}
 		}

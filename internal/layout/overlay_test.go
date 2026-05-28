@@ -3,23 +3,25 @@ package layout
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type mockOverlayNode struct {
 	mockNode
-	anchor    any
+	anchor    dom.Node
 	placement geom.Placement
 	flip      bool
 }
 
-func (m *mockOverlayNode) Anchor() any               { return m.anchor }
+func (m *mockOverlayNode) Anchor() dom.Node          { return m.anchor }
 func (m *mockOverlayNode) Placement() geom.Placement { return m.placement }
 func (m *mockOverlayNode) Flip() bool                { return m.flip }
-func (m *mockOverlayNode) LogicalNode() any          { return m }
+func (m *mockOverlayNode) LogicalNode() dom.Node     { return m }
 
 type mockAnchor struct {
+	mockNode
 	rect geom.Rect
 }
 

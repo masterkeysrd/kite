@@ -66,7 +66,7 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 	}
 	ro.SetCachedLayout(layout.ConstraintSpace{}, frag)
 
-	el.SetRenderObject(ro)
+	eng.setRenderObject(el, ro)
 	eng.renderView.InsertChild(ro, nil)
 
 	// Append fe (not el) so that FirstChild() returns fe and the Focusable
@@ -137,7 +137,7 @@ func TestDispatchMouseEvent_NonFocusable_BlursExistingFocus(t *testing.T) {
 	plainRO.SetComputedStyle(&style.Computed{Display: style.DisplayBlock})
 	plainFrag := &layout.Fragment{Node: plainRO, Size: geom.Size{Width: 10, Height: 1}}
 	plainRO.SetCachedLayout(layout.ConstraintSpace{}, plainFrag)
-	plainEl.SetRenderObject(plainRO)
+	eng.setRenderObject(plainEl, plainRO)
 	eng.renderView.InsertChild(plainRO, nil)
 	eng.document.AppendChild(plainEl)
 	prev := eng.renderView.Fragment()

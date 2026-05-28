@@ -101,7 +101,7 @@ func TestUASubtree_Engine_RenderTreeContainsUANodes(t *testing.T) {
 	if uaText == nil {
 		t.Fatal("uaInner has no children")
 	}
-	if uaText.RenderObject() == nil {
+	if eng.RenderObject(uaText) == nil {
 		t.Error("UA-subtree text node has no render object after Frame — sync phase missed it")
 	}
 }

@@ -3,6 +3,7 @@ package render
 import (
 	"iter"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
@@ -18,7 +19,7 @@ type Text struct {
 var _ Object = (*Text)(nil)
 
 // NewText creates a new Text render object.
-func NewText(logicalNode any, target event.EventTarget) *Text {
+func NewText(logicalNode dom.Node, target event.EventTarget) *Text {
 	t := &Text{}
 	t.Init(t, logicalNode, target)
 	// Text nodes inherit styles and typically have inline display

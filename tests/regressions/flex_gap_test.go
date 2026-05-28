@@ -3,6 +3,7 @@ package regressions
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
@@ -37,7 +38,7 @@ func (m *mockNode) NextLayoutSibling(child layout.Node) layout.Node {
 	return nil
 }
 
-func (m *mockNode) LogicalNode() any                                                    { return nil }
+func (m *mockNode) LogicalNode() dom.Node                                               { return nil }
 func (m *mockNode) IsDirtyLayout() bool                                                 { return false }
 func (m *mockNode) ClearDirtyLayout()                                                   {}
 func (m *mockNode) Fragment() *layout.Fragment                                          { return nil }

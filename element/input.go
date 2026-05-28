@@ -5,7 +5,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/editor"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -233,18 +232,11 @@ func (inp *InputElement) syncText() {
 		inp.uaText.SetData(inp.buf.Value())
 		inp.lastSyncedVersion = v
 
-		if ro := inp.uaInputDivEl.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		}
-		if ro := inp.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-			ro.MarkChildrenDirty()
-		}
+		inp.uaInputDivEl.MarkNeedsSync()
+		inp.MarkNeedsSync()
 	} else {
 		// Just cursor move: only need to repaint to update hardware cursor.
-		if ro := inp.RenderObject(); ro != nil {
-			ro.MarkDirty(render.DirtyPaint)
-		}
+		inp.MarkNeedsSync()
 	}
 	inp.UpdateSelectionRange()
 }

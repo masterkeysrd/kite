@@ -3,6 +3,7 @@ package layout
 import (
 	"slices"
 
+	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -43,7 +44,7 @@ func (a *AnonymousBlock) NextLayoutSibling(child Node) Node {
 	return a.nextMap[child]
 }
 
-func (a *AnonymousBlock) LogicalNode() any         { return nil }
+func (a *AnonymousBlock) LogicalNode() dom.Node    { return nil }
 func (a *AnonymousBlock) IsDirtyLayout() bool      { return true }
 func (a *AnonymousBlock) IsDirtyPaint() bool       { return true }
 func (a *AnonymousBlock) HasChildNeedsPaint() bool { return true }

@@ -11,7 +11,8 @@ import (
 // suitable for benchmarks that don't care about event dispatch.
 func newBenchManager(root *testObject) *focus.Manager {
 	d := event.NewDispatcher()
-	return focus.NewManager(root, d)
+	doc := &testDocument{testObject: root}
+	return focus.NewManager(doc, d)
 }
 
 // BenchmarkManager_Next_LargeTree measures Next() over a flat tree with many

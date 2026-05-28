@@ -90,7 +90,6 @@ func TestListLayout_OrdinalCalculation(t *testing.T) {
 			Display:       style.DisplayListItem,
 			ListStyleType: style.ListStyleDecimal,
 		})
-		el.SetRenderObject(ro)
 
 		if i > 0 {
 			domNodes[i-1].Parent().AppendChild(el)
@@ -123,9 +122,48 @@ func TestListLayout_OrdinalCalculation(t *testing.T) {
 	}
 }
 
+type mockListView struct {
+	dom.View
+	doc    dom.Document
+	styles []*style.Computed
+}
+
+func (v *mockListView) GetComputedStyle(n dom.Node) *style.Computed {
+	// Simple lookup based on child index in the <ul>
+	parent := v.doc.Body()
+	if parent == nil {
+		// Try to find the <ul>
+		for child := range v.doc.ChildNodes() {
+			if el, ok := child.(dom.Element); ok && el.TagName() == "ul" {
+				parent = el
+				break
+			}
+		}
+	}
+	if parent == nil {
+		return nil
+	}
+
+	idx := 0
+	for child := range parent.ChildNodes() {
+		if child == n {
+			if idx < len(v.styles) {
+				return v.styles[idx]
+			}
+		}
+		idx++
+	}
+	return nil
+}
+
 func TestListLayout_InterruptedOrdinal(t *testing.T) {
 	doc := dom.NewDocument()
 	parent := doc.CreateElement("ul", nil)
+	doc.AppendChild(parent)
+
+	// Set a mock view so computeOrdinal can check styles.
+	view := &mockListView{doc: doc}
+	doc.SetView(view)
 
 	createItem := func(isListItem bool) (dom.Node, layout.Node) {
 		el := doc.CreateElement("li", nil)
@@ -138,8 +176,8 @@ func TestListLayout_InterruptedOrdinal(t *testing.T) {
 			Display:       display,
 			ListStyleType: style.ListStyleDecimal,
 		})
-		el.SetRenderObject(ro)
 		parent.AppendChild(el)
+		view.styles = append(view.styles, ro.ComputedStyle())
 		return el, ro
 	}
 

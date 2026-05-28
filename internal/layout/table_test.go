@@ -3,6 +3,7 @@ package layout
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -13,9 +14,9 @@ type mockTableCellNode struct {
 	rowSpan int
 }
 
-func (m *mockTableCellNode) ColSpan() int     { return m.colSpan }
-func (m *mockTableCellNode) RowSpan() int     { return m.rowSpan }
-func (m *mockTableCellNode) LogicalNode() any { return m }
+func (m *mockTableCellNode) ColSpan() int          { return m.colSpan }
+func (m *mockTableCellNode) RowSpan() int          { return m.rowSpan }
+func (m *mockTableCellNode) LogicalNode() dom.Node { return m }
 
 func TestTableLayout_UniformGrid(t *testing.T) {
 	cellStyle := &style.Computed{

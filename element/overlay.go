@@ -44,9 +44,7 @@ func Overlay(content dom.Node, config OverlayConfig) *OverlayElement {
 // SetConfig updates the overlay element's configuration.
 func (o *OverlayElement) SetConfig(config OverlayConfig) *OverlayElement {
 	o.config = config
-	if ro := o.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout)
-	}
+	o.MarkNeedsSync()
 	return o
 }
 
@@ -56,7 +54,7 @@ func (o *OverlayElement) CreateRenderObject() render.Object {
 }
 
 // Anchor implements layout.OverlayLever.
-func (o *OverlayElement) Anchor() any {
+func (o *OverlayElement) Anchor() dom.Node {
 	return o.config.Anchor
 }
 

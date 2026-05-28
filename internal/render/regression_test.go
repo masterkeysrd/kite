@@ -2,18 +2,58 @@ package render
 
 import (
 	"image/color"
+	"iter"
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/marker"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type stubNode struct {
+	marker.NodeMarker
 	style style.Style
 }
 
-func (n *stubNode) RawStyle() style.Style { return n.style }
+func (n *stubNode) Kind() dom.Kind                           { return dom.KindElement }
+func (n *stubNode) NodeName() string                         { return "stub" }
+func (n *stubNode) Parent() dom.Node                         { return nil }
+func (n *stubNode) ParentElement() dom.Element               { return nil }
+func (n *stubNode) NextSibling() dom.Node                    { return nil }
+func (n *stubNode) PreviousSibling() dom.Node                { return nil }
+func (n *stubNode) OwnerDocument() dom.Document              { return nil }
+func (n *stubNode) IsConnected() bool                        { return false }
+func (n *stubNode) AppendChild(dom.Node) dom.Node            { return nil }
+func (n *stubNode) InsertBefore(dom.Node, dom.Node) dom.Node { return nil }
+func (n *stubNode) RemoveChild(dom.Node) dom.Node            { return nil }
+func (n *stubNode) ReplaceChild(dom.Node, dom.Node) dom.Node { return nil }
+func (n *stubNode) FirstChild() dom.Node                     { return nil }
+func (n *stubNode) LastChild() dom.Node                      { return nil }
+func (n *stubNode) HasChildNodes() bool                      { return false }
+func (n *stubNode) Contains(dom.Node) bool                   { return false }
+func (n *stubNode) ChildNodes() iter.Seq[dom.Node]           { return nil }
+func (n *stubNode) Unwrap() dom.Node                         { return nil }
+func (n *stubNode) TextContent() string                      { return "" }
+
+func (n *stubNode) CloneNode(bool) dom.Node        { return nil }
+func (n *stubNode) NeedsSync() bool                { return false }
+func (n *stubNode) ChildNeedsSync() bool           { return false }
+func (n *stubNode) MarkNeedsSync()                 {}
+func (n *stubNode) ClearSyncFlags()                {}
+func (n *stubNode) EventTarget() event.EventTarget { return nil }
+func (n *stubNode) AddEventListener(event.EventType, event.Listener, ...event.Option) event.Subscription {
+	return nil
+}
+func (n *stubNode) DispatchTo(event.Event)       {}
+func (n *stubNode) DispatchToTarget(event.Event) {}
+func (n *stubNode) RemoveRegistration(uint64)    {}
+
+func (n *stubNode) RawStyle() style.Style       { return n.style }
+func (n *stubNode) DefaultStyle() style.Style   { return style.Style{} }
+func (n *stubNode) IntrinsicStyle() style.Style { return style.Style{} }
 
 func TestRegression_InheritancePropagation(t *testing.T) {
 	view := NewRenderView()

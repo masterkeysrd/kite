@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -448,7 +449,7 @@ func (a *anonymousTableSection) NextLayoutSibling(child Node) Node {
 	return nil
 }
 
-func (a *anonymousTableSection) LogicalNode() any         { return nil }
+func (a *anonymousTableSection) LogicalNode() dom.Node    { return nil }
 func (a *anonymousTableSection) IsDirtyLayout() bool      { return true }
 func (a *anonymousTableSection) IsDirtyPaint() bool       { return true }
 func (a *anonymousTableSection) HasChildNeedsPaint() bool { return true }
@@ -521,7 +522,7 @@ func (a *anonymousTableRow) NextLayoutSibling(child Node) Node {
 	return nil
 }
 
-func (a *anonymousTableRow) LogicalNode() any         { return nil }
+func (a *anonymousTableRow) LogicalNode() dom.Node    { return nil }
 func (a *anonymousTableRow) IsDirtyLayout() bool      { return true }
 func (a *anonymousTableRow) IsDirtyPaint() bool       { return true }
 func (a *anonymousTableRow) HasChildNeedsPaint() bool { return true }

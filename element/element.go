@@ -5,7 +5,6 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	_ "github.com/masterkeysrd/kite/internal/dom"
 	_ "github.com/masterkeysrd/kite/internal/event"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -105,9 +104,7 @@ func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 // the [style.Style] value level via Style.Merge.
 func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
-	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	b.MarkNeedsSync()
 	return b.self
 }
 
@@ -138,18 +135,14 @@ func (b *elementBase[Self]) Hidden(v bool) *Self {
 // ScrollbarX enables or disables the horizontal scrollbar and returns *Self.
 func (b *elementBase[Self]) ScrollbarX(v bool) *Self {
 	b.rawStyle = b.rawStyle.ScrollbarX(v)
-	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	b.MarkNeedsSync()
 	return b.self
 }
 
 // ScrollbarY enables or disables the vertical scrollbar and returns *Self.
 func (b *elementBase[Self]) ScrollbarY(v bool) *Self {
 	b.rawStyle = b.rawStyle.ScrollbarY(v)
-	if ro := b.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyStyle)
-	}
+	b.MarkNeedsSync()
 	return b.self
 }
 
@@ -195,12 +188,6 @@ func (b *elementBase[Self]) AddChild(child dom.Node) *Self {
 }
 
 // --- Internal helpers --------------------------------------------------------
-
-// OnRenderObjectCreated implements [render.RenderObjectHook].
-func (b *elementBase[Self]) OnRenderObjectCreated(ro render.Object) {
-	// Interactivity is now handled via dom.Focusable and dom.Disableable
-	// interfaces queried by the focus manager.
-}
 
 // initBase initialises b with the given DOM element, self-pointer and default style.
 // Must be called exactly once, at the end of each element's constructor,

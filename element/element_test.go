@@ -57,19 +57,19 @@ func TestInlineTreeConstruction(t *testing.T) {
 	eng.Frame()
 
 	// Verify Render Objects are created
-	boxRO := box.RenderObject()
+	boxRO := eng.RenderObject(box)
 	if boxRO == nil {
 		t.Fatal("Box render object not created")
 	}
 
 	span := box.FirstChild()
-	spanRO := span.RenderObject()
+	spanRO := eng.RenderObject(span)
 	if spanRO == nil {
 		t.Fatal("Span render object not created")
 	}
 
 	text := span.FirstChild()
-	textRO := text.RenderObject()
+	textRO := eng.RenderObject(text)
 	if textRO == nil {
 		t.Fatal("Text render object not created")
 	}
@@ -95,11 +95,11 @@ func TestMixedTreeConstruction(t *testing.T) {
 
 	eng.Frame()
 
-	boxRO := box.RenderObject()
+	boxRO := eng.RenderObject(box)
 	span := box.FirstChild()
-	spanRO := span.RenderObject()
+	spanRO := eng.RenderObject(span)
 	nestedBox := span.NextSibling()
-	nestedBoxRO := nestedBox.RenderObject()
+	nestedBoxRO := eng.RenderObject(nestedBox)
 
 	if boxRO.FirstChild() != spanRO {
 		t.Errorf("expected Span RO as first child")

@@ -2,7 +2,6 @@ package element
 
 import (
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -170,9 +169,7 @@ func (td *TableCellElement) SetColSpan(span int) *TableCellElement {
 		span = 1
 	}
 	td.colSpan = span
-	if ro := td.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout)
-	}
+	td.MarkNeedsSync()
 	return td
 }
 
@@ -187,9 +184,7 @@ func (td *TableCellElement) SetRowSpan(span int) *TableCellElement {
 		span = 1
 	}
 	td.rowSpan = span
-	if ro := td.RenderObject(); ro != nil {
-		ro.MarkDirty(render.DirtyLayout)
-	}
+	td.MarkNeedsSync()
 	return td
 }
 

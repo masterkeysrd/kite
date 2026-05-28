@@ -13,6 +13,7 @@ import (
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // ---------------------------------------------------------------------------
@@ -96,15 +97,44 @@ func (o *spatialObj) PreviousSibling() dom.Node {
 	}
 	return nil
 }
-func (o *spatialObj) OwnerDocument() dom.Document   { return nil }
-func (o *spatialObj) IsConnected() bool             { return true }
-func (o *spatialObj) RenderObject() render.Object   { return o.render }
-func (o *spatialObj) SetRenderObject(render.Object) {}
+func (o *spatialObj) OwnerDocument() dom.Document { return nil }
+func (o *spatialObj) IsConnected() bool           { return true }
 func (o *spatialObj) AppendChild(n dom.Node) dom.Node {
 	o.children = append(o.children, n.(*spatialObj))
 	n.(*spatialObj).parent = o
 	return n
 }
+func (o *spatialObj) CreateElement(tag string, self dom.Node) dom.Element    { return nil }
+func (o *spatialObj) CreateTextNode(data string, self dom.Node) dom.TextNode { return nil }
+func (o *spatialObj) GetElementByID(id string) dom.Element                   { return nil }
+func (o *spatialObj) FindAnchor(name string) dom.Element                     { return nil }
+func (o *spatialObj) RegisterAnchor(name string, el dom.Element)             {}
+func (o *spatialObj) UnregisterAnchor(name string)                           {}
+func (o *spatialObj) Body() dom.Element                                      { return nil }
+func (o *spatialObj) IsFocused(el dom.Element) bool                          { return false }
+func (o *spatialObj) PushScope(scope *dom.FocusScope)                        {}
+func (o *spatialObj) PopScope()                                              {}
+func (o *spatialObj) ActiveScope() *dom.FocusScope                           { return nil }
+func (o *spatialObj) CurrentFocus() dom.Element                              { return nil }
+func (o *spatialObj) NextFocus() bool                                        { return false }
+func (o *spatialObj) PreviousFocus() bool                                    { return false }
+func (o *spatialObj) QuerySelector(selector string) dom.Element              { return nil }
+func (o *spatialObj) ShowOverlay(el dom.Element, zIndex int)                 {}
+func (o *spatialObj) HideOverlay(el dom.Element)                             {}
+func (o *spatialObj) Overlays() iter.Seq[dom.Element]                        { return nil }
+func (o *spatialObj) Selection() dom.Selection                               { return nil }
+func (o *spatialObj) CreateRange() dom.Range                                 { return nil }
+func (o *spatialObj) SetFocusHandle(handle dom.FocusHandle)                  {}
+func (o *spatialObj) Clipboard() event.ClipboardProvider                     { return nil }
+func (o *spatialObj) SetClipboardProvider(p event.ClipboardProvider)         {}
+func (o *spatialObj) Terminal() terminal.Terminal                            { return nil }
+func (o *spatialObj) SetTerminal(t terminal.Terminal)                        {}
+func (o *spatialObj) View() dom.View                                         { return nil }
+func (o *spatialObj) SetView(v dom.View)                                     {}
+func (o *spatialObj) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {
+	return nil, 0
+}
+
 func (o *spatialObj) InsertBefore(n, ref dom.Node) dom.Node             { return nil }
 func (o *spatialObj) RemoveChild(n dom.Node) dom.Node                   { return nil }
 func (o *spatialObj) ReplaceChild(newChild, oldChild dom.Node) dom.Node { return nil }
@@ -137,25 +167,6 @@ func (o *spatialObj) ChildNodes() iter.Seq[dom.Node] {
 			}
 		}
 	}
-}
-
-func (o *spatialObj) FirstLayoutChild() dom.Node {
-	if len(o.children) == 0 {
-		return nil
-	}
-	return o.children[0]
-}
-
-func (o *spatialObj) NextLayoutSibling(child dom.Node) dom.Node {
-	for i, c := range o.children {
-		if c == child {
-			if i+1 < len(o.children) {
-				return o.children[i+1]
-			}
-			break
-		}
-	}
-	return nil
 }
 
 func (o *spatialObj) Unwrap() dom.Node        { return nil }
@@ -218,13 +229,13 @@ func (r *spatialRender) LastChild() render.Object {
 }
 func (r *spatialRender) NextSibling() render.Object {
 	if ns := r.node.NextSibling(); ns != nil {
-		return ns.RenderObject()
+		return ns.(*spatialObj).render
 	}
 	return nil
 }
 func (r *spatialRender) PreviousSibling() render.Object {
 	if ps := r.node.PreviousSibling(); ps != nil {
-		return ps.RenderObject()
+		return ps.(*spatialObj).render
 	}
 	return nil
 }
@@ -318,14 +329,60 @@ func (r *spatialRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 	return layout.MinMaxSizes{}, false
 }
 func (r *spatialRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
-func (r *spatialRender) LogicalNode() any                        { return r.node }
+func (r *spatialRender) LogicalNode() dom.Node                   { return r.node }
 
 func (r *spatialRender) Offset() geom.Point    { return geom.Point{} }
 func (r *spatialRender) SetOffset(geom.Point)  {}
 func (r *spatialRender) IsAnonymous() bool     { return false }
 func (r *spatialRender) MaxScroll() (int, int) { return 0, 0 }
 
+type testDocument struct {
+	*spatialObj
+}
+
+func (d *testDocument) Focus(el dom.Element) {}
+func (d *testDocument) IsFocused(el dom.Element) bool {
+	return false
+}
+func (d *testDocument) Unwrap() dom.Node { return d.spatialObj }
+func (d *testDocument) View() dom.View   { return &testView{} }
+
+type testView struct {
+	dom.View // stub
+}
+
+func (v *testView) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+	if to, ok := curr.(*spatialObj); ok {
+		return to.bounds, true
+	}
+	return geom.Rect{}, false
+}
+
+func (v *testView) GetComputedStyle(n dom.Node) *style.Computed {
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+	if to, ok := curr.(*spatialObj); ok {
+		return to.render.ComputedStyle()
+	}
+	return nil
+}
+
 var _ dom.Element = (*spatialObj)(nil)
+var _ dom.Document = (*testDocument)(nil)
 var _ render.Object = (*spatialRender)(nil)
 
 // ---------------------------------------------------------------------------
@@ -334,8 +391,9 @@ var _ render.Object = (*spatialRender)(nil)
 
 // makeManager returns a focus.Manager with a no-op event dispatcher.
 func makeManager(root *spatialObj) *focus.Manager {
+	doc := &testDocument{spatialObj: root}
 	d := event.NewDispatcher()
-	return focus.NewManager(root, d)
+	return focus.NewManager(doc, d)
 }
 
 // rect is a convenience constructor for geom.Rect.

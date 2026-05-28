@@ -8,7 +8,6 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/marker"
-	"github.com/masterkeysrd/kite/internal/render"
 )
 
 var _ dom.Node = (*BaseNode)(nil)
@@ -27,7 +26,6 @@ type BaseNode struct {
 	firstChild     dom.Node
 	lastChild      dom.Node
 	ownerDocument  dom.Document
-	renderObject   render.Object
 	connected      bool
 	needsSync      bool
 	childNeedsSync bool
@@ -88,12 +86,10 @@ func (b *BaseNode) ParentElement() dom.Element {
 	return nil
 }
 
-func (b *BaseNode) NextSibling() dom.Node            { return b.next }
-func (b *BaseNode) PreviousSibling() dom.Node        { return b.prev }
-func (b *BaseNode) OwnerDocument() dom.Document      { return b.ownerDocument }
-func (b *BaseNode) IsConnected() bool                { return b.connected }
-func (b *BaseNode) RenderObject() render.Object      { return b.renderObject }
-func (b *BaseNode) SetRenderObject(ro render.Object) { b.renderObject = ro }
+func (b *BaseNode) NextSibling() dom.Node       { return b.next }
+func (b *BaseNode) PreviousSibling() dom.Node   { return b.prev }
+func (b *BaseNode) OwnerDocument() dom.Document { return b.ownerDocument }
+func (b *BaseNode) IsConnected() bool           { return b.connected }
 
 func (b *BaseNode) NeedsSync() bool      { return b.needsSync }
 func (b *BaseNode) ChildNeedsSync() bool { return b.childNeedsSync }
@@ -132,33 +128,6 @@ func (b *BaseNode) EventTarget() event.EventTarget {
 }
 
 func (b *BaseNode) Unwrap() dom.Node { return nil }
-
-func (b *BaseNode) FirstLayoutChild() dom.Node {
-	if b.firstChild != nil {
-		return b.firstChild
-	}
-	if el, ok := b.self.(dom.Element); ok {
-		if ua := UARoot(el); ua != nil {
-			return ua.FirstChild()
-		}
-	}
-	return nil
-}
-
-func (b *BaseNode) NextLayoutSibling(child dom.Node) dom.Node {
-	if next := child.NextSibling(); next != nil {
-		return next
-	}
-	// If child is the last public child, jump to first UA child.
-	if child.Parent() == b.self {
-		if el, ok := b.self.(dom.Element); ok {
-			if ua := UARoot(el); ua != nil {
-				return ua.FirstChild()
-			}
-		}
-	}
-	return nil
-}
 
 func (b *BaseNode) FirstChild() dom.Node { return b.firstChild }
 func (b *BaseNode) LastChild() dom.Node  { return b.lastChild }

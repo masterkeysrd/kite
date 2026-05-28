@@ -24,7 +24,6 @@ func BenchmarkListAlgorithm_Ordinal(b *testing.B) {
 			Display:       style.DisplayListItem,
 			ListStyleType: style.ListStyleDecimal,
 		})
-		el.SetRenderObject(ro)
 		parent.AppendChild(el)
 		nodes = append(nodes, ro)
 	}
@@ -58,7 +57,6 @@ func BenchmarkListAlgorithm_FullList(b *testing.B) {
 			Display:       style.DisplayListItem,
 			ListStyleType: style.ListStyleDecimal,
 		})
-		el.SetRenderObject(ro)
 		parent.AppendChild(el)
 		nodes = append(nodes, ro)
 	}

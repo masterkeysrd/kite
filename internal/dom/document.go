@@ -5,7 +5,6 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
@@ -38,6 +37,7 @@ type Document struct {
 	focusHandle dom.FocusHandle
 	clipboard   event.ClipboardProvider
 	terminal    terminal.Terminal
+	view        dom.View
 
 	selection *Selection
 
@@ -236,6 +236,9 @@ func (d *Document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard
 func (d *Document) Terminal() terminal.Terminal     { return d.terminal }
 func (d *Document) SetTerminal(t terminal.Terminal) { d.terminal = t }
 
+func (d *Document) View() dom.View     { return d.view }
+func (d *Document) SetView(v dom.View) { d.view = v }
+
 func (d *Document) CreateRange() dom.Range {
 	return &Range{doc: d}
 }
@@ -257,17 +260,11 @@ func (d *Document) handleMouseDown(ev event.Event) {
 		return
 	}
 
-	rootRO := d.RenderObject()
-	if rootRO == nil {
-		return
-	}
-	rootFrag := rootRO.Fragment()
-	if rootFrag == nil {
+	if d.view == nil {
 		return
 	}
 
-	byteOffset := cursor.ByteOffsetAtPoint(rootFrag, mev.Screen.X, mev.Screen.Y)
-	node, runeOffset := d.findNodeAtByteOffset(d, byteOffset)
+	node, runeOffset := d.view.NodeAtPoint(mev.Screen.X, mev.Screen.Y)
 	if node == nil {
 		return
 	}
@@ -294,17 +291,11 @@ func (d *Document) handleMouseMove(ev event.Event) {
 		return
 	}
 
-	rootRO := d.RenderObject()
-	if rootRO == nil {
-		return
-	}
-	rootFrag := rootRO.Fragment()
-	if rootFrag == nil {
+	if d.view == nil {
 		return
 	}
 
-	byteOffset := cursor.ByteOffsetAtPoint(rootFrag, mev.Screen.X, mev.Screen.Y)
-	currNode, currRuneOffset := d.findNodeAtByteOffset(d, byteOffset)
+	currNode, currRuneOffset := d.view.NodeAtPoint(mev.Screen.X, mev.Screen.Y)
 	if currNode == nil {
 		return
 	}
@@ -340,11 +331,14 @@ func (d *Document) handleMouseUp(ev event.Event) {
 func (d *Document) findBlockAncestor(n dom.Node) dom.Element {
 	for curr := n; curr != nil; curr = curr.Parent() {
 		if el, ok := curr.(dom.Element); ok {
-			ro := el.RenderObject()
-			if ro == nil {
+			if d.view == nil {
 				continue
 			}
-			display := ro.ComputedStyle().Display
+			cs := d.view.GetComputedStyle(el)
+			if cs == nil {
+				continue
+			}
+			display := cs.Display
 			if display == style.DisplayBlock || display == style.DisplayFlex ||
 				display == style.DisplayListItem || display == style.DisplayTableCell {
 				return el
@@ -354,7 +348,7 @@ func (d *Document) findBlockAncestor(n dom.Node) dom.Element {
 	return nil
 }
 
-func (d *Document) findNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {
+func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {
 	currOffset := 0
 	var walk func(dom.Node) (dom.Node, int, bool)
 	walk = func(n dom.Node) (dom.Node, int, bool) {
