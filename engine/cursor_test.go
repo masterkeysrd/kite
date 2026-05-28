@@ -33,6 +33,7 @@ func (f *focusableElement) IsFocusable() bool { return true }
 func (f *focusableElement) Focus()            {}
 func (f *focusableElement) Blur()             {}
 func (f *focusableElement) TabIndex() int     { return 0 }
+func (f *focusableElement) Unwrap() dom.Node  { return f.Element }
 
 func TestEngineCursorIntegration(t *testing.T) {
 	b := mock.New(80, 24)
@@ -43,11 +44,7 @@ func TestEngineCursorIntegration(t *testing.T) {
 	fe := &focusableElement{}
 	el := doc.CreateElement("input", fe)
 	fe.Element = el
-	doc.AppendChild(el)
-
-	if el.Parent() != doc {
-		t.Fatalf("el parent is not doc: %v", el.Parent())
-	}
+	doc.AppendChild(fe)
 
 	myRO := &cursorProvidingRenderObject{
 		state: cursor.State{
@@ -58,27 +55,30 @@ func TestEngineCursorIntegration(t *testing.T) {
 		},
 	}
 	// Initialize BaseRender
-	myRO.Init(myRO, el, el)
+	myRO.Init(myRO, fe, fe)
 	myRO.SetComputedStyle(&style.Computed{})
 
 	// Manually attach it to the element
 	e.setRenderObject(fe, myRO)
 
-	// In kite, AbsoluteBounds traverses the fragment tree.
-	// We need myRO to have a fragment and be in the tree.
+	// Focus the element
+	if ok := e.focusManager.SetFocus(fe, focus.ReasonProgrammatic); !ok {
+		t.Fatalf("failed to focus element")
+	}
 
-	// We need a fragment for AbsoluteBounds to work
+	// STABILIZE: Run EnsureFreshLayout now to clear all dirty flags from setup.
+	// This will create real (but empty/zero) fragments.
+	e.EnsureFreshLayout()
+
+	// MOCK: Now overwrite with our manual fragments. Since the tree is now clean,
+	// subsequent EnsureFreshLayout calls (e.g. in updateHardwareCursor) will
+	// see it's clean and return early, preserving our mocks.
 	frag := &layout.Fragment{
 		Node: myRO,
 		Size: geom.Size{Width: 10, Height: 1},
 	}
 	myRO.SetCachedLayout(layout.ConstraintSpace{}, frag)
 
-	// Attach to renderView
-	e.renderView.InsertChild(myRO, nil)
-
-	// We also need to manually construct the fragment tree for the renderView
-	// because AbsoluteBounds walks from root.Fragment().
 	viewFrag := &layout.Fragment{
 		Node: e.renderView,
 		Size: geom.Size{Width: 80, Height: 24},
@@ -91,12 +91,8 @@ func TestEngineCursorIntegration(t *testing.T) {
 	}
 	e.renderView.SetCachedLayout(layout.ConstraintSpace{}, viewFrag)
 
-	// Focus the element
-	if ok := e.focusManager.SetFocus(fe, focus.ReasonProgrammatic); !ok {
-		t.Fatalf("failed to focus element")
-	}
-
-	// Run updateHardwareCursor
+	// Run updateHardwareCursor. It will call EnsureFreshLayout, which should
+	// be a no-op because we just stabilized.
 	e.updateHardwareCursor(true)
 
 	// Verify mock backend received the cursor state.

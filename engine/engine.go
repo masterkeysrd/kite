@@ -163,12 +163,6 @@ type Engine struct {
 	// lastHardwareFocus tracks the focused element from the previous frame.
 	lastHardwareFocus event.EventTarget
 
-	// afterLayoutHooks are called once, after every layout+scroll phase, before
-	// paint. Each call to OnAfterLayout appends one hook; all hooks fire in
-	// registration order and are cleared after they fire (one-shot semantics).
-	// Use this to read freshly-computed cursor positions from CursorState().
-	afterLayoutHooks []func()
-
 	// onFrameRenderedHooks are called after every frame is committed.
 	onFrameRenderedHooks []func()
 
@@ -198,7 +192,8 @@ type Engine struct {
 	activeAnimations []animation.Animator
 	lastFrameTime    time.Time
 
-	renderMap map[dom.Node]render.Object
+	renderMap      map[dom.Node]render.Object
+	isLayoutActive bool // Prevents infinite recursion during synchronous reflow
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
@@ -418,6 +413,7 @@ func (e *Engine) FocusManager() *focus.Manager { return e.focusManager }
 // event target at that position. It tests overlays (topmost-first) before
 // falling through to the main tree. Returns nil when no target is hit.
 func (e *Engine) HitTest(x, y int) event.EventTarget {
+	e.EnsureFreshLayout()
 	p := geom.Point{X: x, Y: y}
 
 	// Walk overlays from the end (topmost) to start.
@@ -501,15 +497,6 @@ func (e *Engine) RequestFrame() {
 func (e *Engine) RegisterAnimation(anim animation.Animator) {
 	e.activeAnimations = append(e.activeAnimations, anim)
 	e.RequestFrame()
-}
-
-// OnAfterLayout registers a one-shot callback that fires once, after the next
-// layout and scroll-into-view phase completes but before the paint phase.
-// This is the correct place to read CursorState() when an accurate, freshly
-// computed position is required (e.g. updating a status bar from a keydown
-// listener). The hook is called exactly once and then discarded.
-func (e *Engine) OnAfterLayout(fn func()) {
-	e.afterLayoutHooks = append(e.afterLayoutHooks, fn)
 }
 
 // OnFrameRendered registers a hook to be called after every frame is committed.
@@ -683,10 +670,13 @@ func (e *Engine) Frame() {
 
 	e.drainWorkerResults()
 
+	e.isLayoutActive = true
 	pipe.Sync(e)
 	pipe.Tasks(e)
 	pipe.Style(e)
 	layoutRan := pipe.Layout(e)
+	e.isLayoutActive = false
+
 	pipe.Paint(e, layoutRan)
 
 	e.nextFrameAt = time.Time{}
@@ -710,6 +700,7 @@ type cursorRecord struct {
 }
 
 func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
+	e.EnsureFreshLayout()
 	focused := e.focusManager.Current()
 
 	// Short-circuit: if focus hasn't changed and the tree is clean, the cursor
@@ -1256,6 +1247,7 @@ func (e *Engine) Run(ctx context.Context) error {
 // and dispatches them through the tree. It is used primarily for testing
 // and for custom event-loop implementations.
 func (e *Engine) ProcessRawEvent(raw backend.RawEvent) {
+	e.EnsureFreshLayout()
 	e.processRawEvent(raw)
 }
 
@@ -1807,11 +1799,41 @@ func (e *Engine) setRenderObject(n dom.Node, ro render.Object) {
 	}
 }
 
+// EnsureFreshLayout forces an immediate Sync and Layout pass if the DOM or
+// Render tree is dirty. This guarantees that subsequent reads of layout data
+// (like element bounds or cursor positions) are accurate. This is analogous to
+// forced synchronous layout in web browsers.
+func (e *Engine) EnsureFreshLayout() {
+	if e.isLayoutActive {
+		return
+	}
+
+	needsSync := e.document.NeedsSync() || e.document.ChildNeedsSync()
+	needsLayout := e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+
+	if !needsSync && !needsLayout {
+		return
+	}
+
+	e.isLayoutActive = true
+	defer func() { e.isLayoutActive = false }()
+
+	if needsSync {
+		e.syncRenderTree(e.document, e.renderView)
+		e.syncOverlays(e.document)
+	}
+	if needsLayout || e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+		e.pipeline.Style(e)
+		e.pipeline.Layout(e)
+	}
+}
+
 type domViewProxy struct {
 	e *Engine
 }
 
 func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return geom.Rect{}, false
@@ -1825,6 +1847,7 @@ func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
 }
 
 func (p *domViewProxy) GetComputedStyle(n dom.Node) *style.Computed {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return nil
@@ -1833,6 +1856,7 @@ func (p *domViewProxy) GetComputedStyle(n dom.Node) *style.Computed {
 }
 
 func (p *domViewProxy) GetSize(n dom.Node) (geom.Size, bool) {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return geom.Size{}, false
@@ -1845,6 +1869,7 @@ func (p *domViewProxy) GetSize(n dom.Node) (geom.Size, bool) {
 }
 
 func (p *domViewProxy) GetFragment(n dom.Node) *layout.Fragment {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return nil
@@ -1853,6 +1878,7 @@ func (p *domViewProxy) GetFragment(n dom.Node) *layout.Fragment {
 }
 
 func (p *domViewProxy) GetMaxScroll(n dom.Node) (x, y int) {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return 0, 0
@@ -1861,6 +1887,7 @@ func (p *domViewProxy) GetMaxScroll(n dom.Node) (x, y int) {
 }
 
 func (p *domViewProxy) GetCaretPosition(n dom.Node, offset int) (geom.Point, bool) {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return geom.Point{}, false
@@ -1874,6 +1901,7 @@ func (p *domViewProxy) GetCaretPosition(n dom.Node, offset int) (geom.Point, boo
 }
 
 func (p *domViewProxy) MoveCursorVertically(n dom.Node, offset int, delta int, x, y int) int {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return offset

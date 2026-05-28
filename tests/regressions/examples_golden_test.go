@@ -727,7 +727,7 @@ func TestExampleTextAreaGolden(t *testing.T) {
 	}
 
 	txa.AddEventListener(event.EventKeyDown, func(e event.Event) {
-		env.Engine.OnAfterLayout(updateStatus)
+		updateStatus()
 	})
 
 	root := element.Box(
@@ -786,14 +786,12 @@ func TestExampleTextAreaGolden(t *testing.T) {
 	env.Mount(root)
 	updateStatus()
 	env.Flush()
-	env.Flush()
 
 	env.MatchGolden(t, "example_textarea_default")
 
 	// 1. Type at the end
 	env.Engine.Document().Focus(txa)
 	env.Type("\nAdding some new content here.")
-	env.Flush()
 	env.Flush()
 	env.MatchGolden(t, "example_textarea_typed")
 
@@ -802,12 +800,10 @@ func TestExampleTextAreaGolden(t *testing.T) {
 		env.SendKey(key.Key{Code: key.KeyBackspace})
 	}
 	env.Flush()
-	env.Flush()
 	env.MatchGolden(t, "example_textarea_deleted")
 
 	// 3. Scroll content
 	env.ScrollTo(txa, 0, 5)
-	env.Flush()
 	env.Flush()
 	env.MatchGolden(t, "example_textarea_scrolled")
 }

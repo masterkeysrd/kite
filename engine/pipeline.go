@@ -80,14 +80,6 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 		}
 	}
 
-	if len(e.afterLayoutHooks) > 0 {
-		hooks := e.afterLayoutHooks
-		e.afterLayoutHooks = nil
-		for _, fn := range hooks {
-			fn()
-		}
-	}
-
 	return layoutRan
 }
 

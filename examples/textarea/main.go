@@ -101,7 +101,7 @@ func main() {
 	}
 
 	txa.AddEventListener(event.EventKeyDown, func(e event.Event) {
-		eng.OnAfterLayout(updateStatus)
+		updateStatus()
 	})
 
 	// ── UI tree ──────────────────────────────────────────────────────────────

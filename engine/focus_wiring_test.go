@@ -66,7 +66,7 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 	}
 	ro.SetCachedLayout(layout.ConstraintSpace{}, frag)
 
-	eng.setRenderObject(el, ro)
+	eng.setRenderObject(fe, ro)
 	eng.renderView.InsertChild(ro, nil)
 
 	// Append fe (not el) so that FirstChild() returns fe and the Focusable
@@ -89,7 +89,42 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 		Children: newChildren,
 	})
 
+	// CLEAN DIRTY SOLUTION: Clear all flags so EnsureFreshLayout doesn't overwrite our manual mocks.
+	eng.renderView.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout | render.DirtyStyle | render.ChildNeedsStyle | render.DirtyPaint | render.ChildNeedsPaint)
+	clearSyncFlags(eng.document)
+
 	return fe, ro
+}
+
+func clearSyncFlags(n dom.Node) {
+	n.ClearSyncFlags()
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		clearSyncFlags(c)
+	}
+}
+
+func mockLayout(eng *Engine, yOffset int, ro *render.Box) {
+	frag := &layout.Fragment{
+		Node: ro,
+		Size: geom.Size{Width: 10, Height: 1},
+	}
+	ro.SetCachedLayout(layout.ConstraintSpace{}, frag)
+
+	// Extend the renderView's cached fragment to include this child.
+	prev := eng.renderView.Fragment()
+	var prevChildren []layout.FragmentLink
+	if prev != nil {
+		prevChildren = prev.Children
+	}
+	newChildren := append(prevChildren, layout.FragmentLink{
+		Offset:   geom.Point{X: 0, Y: yOffset},
+		Fragment: frag,
+	})
+	eng.renderView.SetCachedLayout(layout.ConstraintSpace{}, &layout.Fragment{
+		Node:     eng.renderView,
+		Size:     geom.Size{Width: 80, Height: 24},
+		Children: newChildren,
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +145,7 @@ func TestDispatchMouseEvent_Mousedown_FocusesHitTarget(t *testing.T) {
 		t.Fatal("precondition: nothing should be focused before the mousedown")
 	}
 
-	// A mousedown at (0,0) hits the element planted at y=0.
+	// Mousedown on the planted element at (0,0).
 	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 0, Button: event.ButtonLeft, Up: false})
 
 	if eng.focusManager.Current() != fe {
@@ -150,10 +185,17 @@ func TestDispatchMouseEvent_NonFocusable_BlursExistingFocus(t *testing.T) {
 		}),
 	})
 
+	// CLEAN DIRTY SOLUTION: Clear all flags so EnsureFreshLayout doesn't overwrite our manual mocks.
+	eng.renderView.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout | render.DirtyStyle | render.ChildNeedsStyle | render.DirtyPaint | render.ChildNeedsPaint)
+	clearSyncFlags(eng.document)
+
 	// Focus the input first.
 	if !eng.focusManager.SetFocus(feInput, focus.ReasonProgrammatic) {
 		t.Fatal("precondition: could not focus input element")
 	}
+	// Clear again because SetFocus dirties the tree.
+	eng.renderView.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout | render.DirtyStyle | render.ChildNeedsStyle | render.DirtyPaint | render.ChildNeedsPaint)
+	clearSyncFlags(eng.document)
 
 	// Mousedown on the plain div at y=2.
 	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
@@ -210,13 +252,16 @@ func TestDispatchMouseEvent_SwitchesFocus_BetweenTwoInputs(t *testing.T) {
 	if eng.focusManager.Current() != first {
 		t.Fatalf("precondition: could not focus first element, got %v", eng.focusManager.Current())
 	}
+	// Clear flags after focus change.
+	eng.renderView.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout | render.DirtyStyle | render.ChildNeedsStyle | render.DirtyPaint | render.ChildNeedsPaint)
+	clearSyncFlags(eng.document)
 
 	// Now press the second element (at y=2).
 	eng.processRawEvent(&backend.RawMouseEvent{X: 0, Y: 2, Button: event.ButtonLeft, Up: false})
 
 	if eng.focusManager.Current() != second {
-		t.Errorf("after pressing second element: focused = %v, want second element",
-			eng.focusManager.Current())
+		t.Errorf("after pressing second element: focused = %p (%v), want %p (%v)",
+			eng.focusManager.Current(), eng.focusManager.Current(), second, second)
 	}
 }
 
