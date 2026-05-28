@@ -48,18 +48,6 @@ type Object interface {
 
 	IsDetached() bool
 
-	// StyleNode implementation (Task 06)
-	RawStyle() style.Style
-	DefaultStyle() style.Style
-	IntrinsicStyle() style.Style
-	IsDirtyStyle() bool
-	HasDirtyStyleChild() bool
-	ClearDirtyStyle()
-	ClearChildNeedsStyle()
-	StyleParent() style.StyleNode
-	StyleFirstChild() style.StyleNode
-	StyleNextSibling() style.StyleNode
-
 	// layout.Node implementation (Task 05)
 	Style() *style.Computed
 	FirstLayoutChild() layout.Node

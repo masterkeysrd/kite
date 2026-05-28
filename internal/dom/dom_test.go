@@ -304,28 +304,29 @@ func TestElement_NeedsSync_OnMutation(t *testing.T) {
 	doc := NewDocument()
 	parent := doc.CreateElement("div", nil)
 	doc.AppendChild(parent)
-	doc.ClearSyncFlags()
-	parent.ClearSyncFlags()
+	AsDirty(parent).ClearSyncFlags()
+	AsDirty(doc).ClearSyncFlags()
 
 	child := doc.CreateElement("span", nil)
 	parent.AppendChild(child)
 
-	if !parent.NeedsSync() {
+	if !AsDirty(parent).NeedsSync() {
 		t.Errorf("NeedsSync should be true on AppendChild")
 	}
-	if !doc.ChildNeedsSync() {
+	if !AsDirty(doc).ChildNeedsSync() {
 		t.Errorf("ChildNeedsSync should be true on document after child mutation")
 	}
 
-	parent.ClearSyncFlags()
-	doc.ClearSyncFlags()
+	AsDirty(parent).ClearSyncFlags()
+	AsDirty(doc).ClearSyncFlags()
 
 	parent.RemoveChild(child)
 
-	if !parent.NeedsSync() {
+	if !AsDirty(parent).NeedsSync() {
 		t.Errorf("NeedsSync should be true on RemoveChild")
 	}
-	if !doc.ChildNeedsSync() {
+	if !AsDirty(doc).ChildNeedsSync() {
 		t.Errorf("ChildNeedsSync should be true on document after child removal")
 	}
+
 }

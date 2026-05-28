@@ -1,10 +1,10 @@
 package engine
 
 import (
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
-	"github.com/masterkeysrd/kite/style"
 )
 
 // Pipeline defines the core phases of the Kite rendering engine.
@@ -22,7 +22,8 @@ type Pipeline interface {
 type StandardPipeline struct{}
 
 func (p *StandardPipeline) Sync(e *Engine) {
-	if e.document.NeedsSync() || e.document.ChildNeedsSync() {
+	dn := internaldom.AsDirty(e.document)
+	if dn.NeedsSync() || dn.ChildNeedsSync() {
 		e.syncRenderTree(e.document, e.renderView)
 		e.syncOverlays(e.document)
 	}
@@ -41,16 +42,19 @@ func (p *StandardPipeline) Tasks(e *Engine) {
 }
 
 func (p *StandardPipeline) Style(e *Engine) {
-	root := e.renderView
-	overlays := root.Overlays()
-	rootFlags := root.Flags()
-
-	if rootFlags&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
-		style.ResolveTree(e.resolver, root)
+	dn := internaldom.AsDirty(e.document)
+	// View is KindDocument, so resolveStyle handles it.
+	// Elements (including overlays) that have DirtyStyle or ChildNeedsStyle set
+	// will be processed.
+	if dn.HasDirtyStyleChild() {
+		e.resolveStyle(e.document, nil, false)
 	}
-	for _, overlay := range overlays {
-		if overlay.Flags()&(render.DirtyStyle|render.ChildNeedsStyle) != 0 {
-			style.ResolveTree(e.resolver, overlay)
+
+	for overlayEl := range e.document.Overlays() {
+		if de := internaldom.AsDirtyElement(overlayEl); de != nil {
+			if de.IsDirtyStyle() || de.HasDirtyStyleChild() {
+				e.resolveStyle(overlayEl, nil, false)
+			}
 		}
 	}
 }
@@ -61,7 +65,15 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 	rootFlags := root.Flags()
 	layoutRan := false
 
-	if rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+	anyOverlayDirty := false
+	for _, o := range overlays {
+		if o.Flags()&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+			anyOverlayDirty = true
+			break
+		}
+	}
+
+	if anyOverlayDirty || rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
 		layoutRan = true
 		viewport := root.ViewportSize()
 		ctx := &layout.Context{Tracer: e.Tracer()}

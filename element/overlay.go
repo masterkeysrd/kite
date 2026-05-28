@@ -3,6 +3,7 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -44,7 +45,9 @@ func Overlay(content dom.Node, config OverlayConfig) *OverlayElement {
 // SetConfig updates the overlay element's configuration.
 func (o *OverlayElement) SetConfig(config OverlayConfig) *OverlayElement {
 	o.config = config
-	o.MarkNeedsSync()
+	if d := internaldom.AsDirty(o); d != nil {
+		d.MarkNeedsSync()
+	}
 	return o
 }
 

@@ -4,6 +4,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/editor"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -24,9 +25,18 @@ func (d *uaInputDiv) Unwrap() dom.Node { return d.Element }
 // text content rather than stretching to the host's available width.
 func (d *uaInputDiv) DefaultStyle() style.Style {
 	return style.Style{
-		MinWidth: style.Some(style.Cells(20)), // ensure the div is always at least 1 cell wide, even when empty
+		MinWidth: style.Some(style.Cells(1)), // ensure the div is always at least 1 cell wide, even when empty
 		Width:    style.Some(style.MaxContent),
 	}
+}
+
+func (d *uaInputDiv) RawStyle() style.Style       { return style.Style{} }
+func (d *uaInputDiv) IntrinsicStyle() style.Style { return style.Style{} }
+func (d *uaInputDiv) IsDirtyStyle() bool {
+	if de := internaldom.AsDirtyElement(d.Element); de != nil {
+		return de.IsDirtyStyle()
+	}
+	return false
 }
 
 // InputElement is a single-line text-input widget implemented as a UA shadow
@@ -232,11 +242,17 @@ func (inp *InputElement) syncText() {
 		inp.uaText.SetData(inp.buf.Value())
 		inp.lastSyncedVersion = v
 
-		inp.uaInputDivEl.MarkNeedsSync()
-		inp.MarkNeedsSync()
+		if d := internaldom.AsDirty(inp.uaInputDivEl); d != nil {
+			d.MarkNeedsSync()
+		}
+		if d := internaldom.AsDirty(inp); d != nil {
+			d.MarkNeedsSync()
+		}
 	} else {
 		// Just cursor move: only need to repaint to update hardware cursor.
-		inp.MarkNeedsSync()
+		if d := internaldom.AsDirty(inp); d != nil {
+			d.MarkNeedsSync()
+		}
 	}
 	inp.UpdateSelectionRange()
 }

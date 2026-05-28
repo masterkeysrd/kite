@@ -44,6 +44,7 @@ func (e *intrinsicElement) RawStyle() style.Style       { return e.rawStyle }
 func (e *intrinsicElement) DefaultStyle() style.Style   { return style.Style{} }
 func (e *intrinsicElement) IntrinsicStyle() style.Style { return e.intrinsicStyle }
 func (e *intrinsicElement) Unwrap() dom.Node            { return e.Element }
+func (e *intrinsicElement) IsDirtyStyle() bool          { return false }
 
 var _ render.CustomObjectProvider = (*intrinsicElement)(nil)
 

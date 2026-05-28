@@ -282,7 +282,10 @@ func (s *Selection) changed() {
 	if s.doc == nil {
 		return
 	}
-	s.doc.MarkNeedsSync()
+	if d := AsDirty(s.doc); d != nil {
+		d.MarkNeedsSync()
+	}
+
 	s.doc.DispatchToTarget(event.NewBaseEvent(event.EventSelectionChange, s.doc, false))
 }
 

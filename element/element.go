@@ -3,7 +3,7 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	_ "github.com/masterkeysrd/kite/internal/dom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	_ "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -94,6 +94,14 @@ func (b *elementBase[Self]) DefaultStyle() style.Style { return b.defaultStyle }
 // (e.g. Display:InlineBlock, OverflowX:Clip). See ADR-010.
 func (b *elementBase[Self]) IntrinsicStyle() style.Style { return b.intrinsicStyle }
 
+// IsDirtyStyle implements style.StyleNode by delegating to the internal flag.
+func (b *elementBase[Self]) IsDirtyStyle() bool {
+	if d := internaldom.AsDirtyElement(b.Element); d != nil {
+		return d.IsDirtyStyle()
+	}
+	return false
+}
+
 // IsHidden reports whether the element is hidden.
 func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 
@@ -104,7 +112,9 @@ func (b *elementBase[Self]) IsHidden() bool { return b.hidden }
 // the [style.Style] value level via Style.Merge.
 func (b *elementBase[Self]) Style(s style.Style) *Self {
 	b.rawStyle = s
-	b.MarkNeedsSync()
+	if d := internaldom.AsDirtyElement(b.Element); d != nil {
+		d.MarkStyleDirty()
+	}
 	return b.self
 }
 
@@ -129,20 +139,27 @@ func (b *elementBase[Self]) WithTabIndex(index int) *Self {
 // Hidden sets or clears the hidden state and returns *Self.
 func (b *elementBase[Self]) Hidden(v bool) *Self {
 	b.hidden = v
+	if d := internaldom.AsDirtyElement(b.Element); d != nil {
+		d.MarkStyleDirty()
+	}
 	return b.self
 }
 
 // ScrollbarX enables or disables the horizontal scrollbar and returns *Self.
 func (b *elementBase[Self]) ScrollbarX(v bool) *Self {
 	b.rawStyle = b.rawStyle.ScrollbarX(v)
-	b.MarkNeedsSync()
+	if d := internaldom.AsDirtyElement(b.Element); d != nil {
+		d.MarkStyleDirty()
+	}
 	return b.self
 }
 
 // ScrollbarY enables or disables the vertical scrollbar and returns *Self.
 func (b *elementBase[Self]) ScrollbarY(v bool) *Self {
 	b.rawStyle = b.rawStyle.ScrollbarY(v)
-	b.MarkNeedsSync()
+	if d := internaldom.AsDirtyElement(b.Element); d != nil {
+		d.MarkStyleDirty()
+	}
 	return b.self
 }
 

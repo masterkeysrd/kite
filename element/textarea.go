@@ -23,6 +23,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/editor"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -46,6 +47,14 @@ type uaTextAreaDiv struct {
 func (d *uaTextAreaDiv) Unwrap() dom.Node { return d.Element }
 func (d *uaTextAreaDiv) DefaultStyle() style.Style {
 	return style.Style{Width: style.Some(style.Content)}
+}
+func (d *uaTextAreaDiv) RawStyle() style.Style       { return style.Style{} }
+func (d *uaTextAreaDiv) IntrinsicStyle() style.Style { return style.Style{} }
+func (d *uaTextAreaDiv) IsDirtyStyle() bool {
+	if de := internaldom.AsDirtyElement(d.Element); de != nil {
+		return de.IsDirtyStyle()
+	}
+	return false
 }
 
 // Compile-time interface assertions.
@@ -175,11 +184,17 @@ func (txa *TextAreaElement) syncText() {
 		txa.rebuildUASubtree()
 		txa.lastSyncedVersion = v
 
-		txa.uaDiv.MarkNeedsSync()
-		txa.MarkNeedsSync()
+		if d := internaldom.AsDirty(txa.uaDiv); d != nil {
+			d.MarkNeedsSync()
+		}
+		if d := internaldom.AsDirty(txa); d != nil {
+			d.MarkNeedsSync()
+		}
 	} else {
 		// Just cursor move: only need to repaint to update hardware cursor.
-		txa.MarkNeedsSync()
+		if d := internaldom.AsDirty(txa); d != nil {
+			d.MarkNeedsSync()
+		}
 	}
 	txa.UpdateSelectionRange()
 }

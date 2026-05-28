@@ -6,6 +6,7 @@ import (
 
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
@@ -395,7 +396,7 @@ func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
 	txa.Buffer().Insert("y")
 	txa.SyncBuffer() // This calls rebuildUASubtree and MarkNeedsSync on a UA node
 
-	if !txa.NeedsSync() {
+	if !internaldom.AsDirty(txa).NeedsSync() {
 		t.Error("Host TextArea should need sync after UA subtree modification")
 	}
 }

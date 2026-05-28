@@ -1,9 +1,10 @@
-package style_test
+package styler_test
 
 import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -23,7 +24,7 @@ func newBenchNode() *fakeNode {
 // ---------------------------------------------------------------------------
 
 func BenchmarkResolver_CacheHit(b *testing.B) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	parent := &style.Computed{Foreground: color.RGBA{R: 100, A: 255}, Background: color.Transparent}
 	node := &fakeNode{dirtyStyle: true}
@@ -49,7 +50,7 @@ func BenchmarkResolver_CacheHit(b *testing.B) {
 
 func BenchmarkResolver_FullResolve(b *testing.B) {
 	const n = 1000
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	nodes := make([]*fakeNode, n)
 	for i := range nodes {
@@ -77,7 +78,7 @@ func BenchmarkResolver_FullResolve(b *testing.B) {
 func BenchmarkResolveTree_OneDirtyLeaf_10kNodes(b *testing.B) {
 	const depth = 10000 // linear chain
 
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// Build a linear chain: root → n1 → n2 → ... → nDepth
 	root := &fakeNode{}
@@ -89,16 +90,25 @@ func BenchmarkResolveTree_OneDirtyLeaf_10kNodes(b *testing.B) {
 	}
 
 	// Pre-warm: resolve whole tree once so cache is populated.
-	leaf := nodes[depth-1]
-	leaf.markDirty()
-	style.ResolveTree(r, root)
+	parent := (*fakeNode)(nil)
+	for _, n := range nodes {
+		res := r.Resolve(n, r.Cache[parent].Result)
+		parent = n
+		_ = res
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
+	leaf := nodes[depth-1]
 	for b.Loop() {
 		// Mark only the deepest leaf dirty.
 		leaf.markDirty()
-		style.ResolveTree(r, root)
+		parent := (*fakeNode)(nil)
+		for _, n := range nodes {
+			res := r.Resolve(n, r.Cache[parent].Result)
+			parent = n
+			_ = res
+		}
 	}
 }
 
@@ -112,7 +122,7 @@ func BenchmarkResolveTree_OneDirtyLeaf_10kNodes(b *testing.B) {
 
 func BenchmarkResolver_NoIntrinsic(b *testing.B) {
 	const n = 1000
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	nodes := make([]*fakeNode, n)
 	for i := range nodes {
@@ -141,7 +151,7 @@ func BenchmarkResolver_NoIntrinsic(b *testing.B) {
 
 func BenchmarkResolver_WithIntrinsic(b *testing.B) {
 	const n = 1000
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// 3-5 forced properties modelling a replaced element (e.g. <input>).
 	intrinsic := style.Style{

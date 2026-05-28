@@ -3,6 +3,7 @@ package focus
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -148,7 +149,9 @@ func (m *Manager) setFocus(next dom.Element, reason Reason) {
 
 	// Dispatch lose-focus event on old node.
 	if old != nil {
-		old.MarkNeedsSync()
+		if d := internaldom.AsDirty(old); d != nil {
+			d.MarkNeedsSync()
+		}
 		path := ancestorPath(old)
 		etNext := event.EventTarget(nil)
 		if next != nil {
@@ -160,7 +163,9 @@ func (m *Manager) setFocus(next dom.Element, reason Reason) {
 
 	// Dispatch gain-focus event on new node.
 	if next != nil {
-		next.MarkNeedsSync()
+		if d := internaldom.AsDirty(next); d != nil {
+			d.MarkNeedsSync()
+		}
 		path := ancestorPath(next)
 		etOld := event.EventTarget(nil)
 		if old != nil {

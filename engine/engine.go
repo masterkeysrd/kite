@@ -25,6 +25,7 @@ import (
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
+	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/trace"
 )
@@ -80,7 +81,7 @@ type Engine struct {
 	renderView *render.RenderView
 
 	// resolver drives the Style phase.
-	resolver *style.Resolver
+	resolver *styler.Resolver
 
 	// layoutEngine was removed in favor of LayoutNG.
 	// layoutEngine render.LayoutMeasurer
@@ -256,7 +257,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	e := &Engine{
 		renderView:        render.NewRenderView(),
 		document:          dom.NewDocument(),
-		resolver:          style.NewResolver(),
+		resolver:          styler.NewResolver(),
 		paintEngine:       paint.NewPaintEngine(),
 		backend:           b,
 		workerResults:     make(chan workerResult, numWorkers*2),
@@ -285,7 +286,9 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.renderView.SetLogicalNode(e.document)
 	e.renderView.SetViewportSize(b.Size())
 
-	e.document.MarkNeedsSync()
+	if d := internaldom.AsDirty(e.document); d != nil {
+		d.MarkNeedsSync()
+	}
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
 
 	e.document.SetFocusHandle(e.focusManager)
@@ -850,17 +853,21 @@ func (e *Engine) drainMicroTasks() {
 // syncRenderTree walks the logical DOM and ensures the render tree matches
 // its structure.
 func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
-	if n.NeedsSync() {
-		ro.MarkDirty(render.DirtyStyle | render.DirtyLayout | render.DirtyPaint)
+	dn := internaldom.AsDirty(n)
+	if dn.NeedsSync() {
+		if de := internaldom.AsDirtyElement(n); de != nil {
+			de.MarkStyleDirty()
+		}
+		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
 		e.diffChildren(n, ro)
-	} else if n.ChildNeedsSync() {
-		for child := range internaldom.LayoutChildren(n) {
+	} else if dn.ChildNeedsSync() {
+		for child := range dom.LayoutChildren(n) {
 			if childRO := e.RenderObject(child); childRO != nil {
 				e.syncRenderTree(child, childRO)
 			}
 		}
 	}
-	n.ClearSyncFlags()
+	dn.ClearSyncFlags()
 }
 
 func (e *Engine) syncOverlays(d dom.Document) {
@@ -873,13 +880,72 @@ func (e *Engine) syncOverlays(d dom.Document) {
 		}
 
 		// If the child was already there, it might still need internal sync.
-		if overlayEl.NeedsSync() || overlayEl.ChildNeedsSync() {
+		dn := internaldom.AsDirty(overlayEl)
+		if dn.NeedsSync() || dn.ChildNeedsSync() {
 			e.syncRenderTree(overlayEl, childRO)
 		}
 
 		overlayROs = append(overlayROs, childRO)
 	}
 	e.renderView.SetOverlays(overlayROs)
+}
+
+func (e *Engine) resolveStyle(n dom.Node, parent *style.Computed, force bool) {
+	dn := internaldom.AsDirty(n)
+	if n == nil {
+		return
+	}
+
+	ro := e.RenderObject(n)
+	if ro == nil {
+		// View doesn't have a logical node but might be a root.
+		if n == e.document {
+			ro = e.renderView
+		} else {
+			return
+		}
+	}
+
+	computed := parent
+	styleChanged := false
+
+	if n.Kind() == dom.KindElement {
+		de := internaldom.AsDirtyElement(n)
+		if force || de.IsDirtyStyle() {
+			oldComputed := ro.ComputedStyle()
+
+			// Ensure we use the wrapper (which implements StyleNode) to get correct styles.
+			sn, ok := n.(style.StyleNode)
+			if !ok {
+				sn = de
+			}
+			computed = e.resolver.Resolve(sn, parent)
+			if computed != oldComputed {
+				ro.SetComputedStyle(computed)
+				styleChanged = true
+			}
+			de.ClearDirtyStyle()
+		} else {
+			computed = ro.ComputedStyle()
+		}
+	} else if n.Kind() == dom.KindText {
+		// Text nodes just inherit parent style.
+		if force || ro.ComputedStyle() != parent {
+			ro.SetComputedStyle(parent)
+			styleChanged = true
+		}
+	} else if n.Kind() == dom.KindDocument {
+		// Document root (View) uses DisplayBlock.
+		computed = &style.Computed{Display: style.DisplayBlock}
+	}
+
+	// Recurse.
+	if force || styleChanged || dn.HasDirtyStyleChild() {
+		for child := range dom.LayoutChildren(n) {
+			e.resolveStyle(child, computed, force || styleChanged)
+		}
+	}
+	dn.ClearStyleFlags()
 }
 
 // diffChildren synchronizes the children of n into the render object ro.
@@ -914,7 +980,8 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 
 		// If the child was already there, it might still need internal sync.
 		// If it was just created, createRenderObject already synced its children.
-		if child.NeedsSync() || child.ChildNeedsSync() {
+		dn := internaldom.AsDirty(child)
+		if dn.NeedsSync() || dn.ChildNeedsSync() {
 			e.syncRenderTree(child, childRO)
 		}
 
@@ -946,6 +1013,11 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	}
 
 	e.setRenderObject(n, ro)
+
+	// Mark elements style-dirty so they get resolved in the next phase.
+	if de := internaldom.AsDirtyElement(n); de != nil {
+		de.MarkStyleDirty()
+	}
 
 	// Notify logical node of creation.
 	if h, ok := n.(render.RenderObjectHook); ok {
@@ -1749,7 +1821,8 @@ func (e *Engine) shouldRunFrame() bool {
 		return true
 	}
 	// Check for dirty DOM or render tree.
-	return e.document.NeedsSync() || e.document.ChildNeedsSync() || e.renderView.Flags() != 0
+	dn := internaldom.AsDirty(e.document)
+	return dn.NeedsSync() || dn.ChildNeedsSync() || e.renderView.Flags() != 0
 }
 
 func unwrapProvider(n dom.Node) render.CustomObjectProvider {
@@ -1808,7 +1881,8 @@ func (e *Engine) EnsureFreshLayout() {
 		return
 	}
 
-	needsSync := e.document.NeedsSync() || e.document.ChildNeedsSync()
+	dn := internaldom.AsDirty(e.document)
+	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
 	needsLayout := e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
 
 	if !needsSync && !needsLayout {

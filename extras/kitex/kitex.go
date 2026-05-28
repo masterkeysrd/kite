@@ -176,7 +176,6 @@ func (n *elementNode[P]) Update(el dom.Node, old Node) {
 		}
 	}
 	n.update(n.ref, oldProps, &n.props)
-	n.ref.MarkNeedsSync()
 	if setter := getRefSetter(&n.props); setter != nil {
 		setter.set(n.ref)
 	}
@@ -232,7 +231,6 @@ func (t *textNode) Update(el dom.Node, old Node) {
 	}
 	if oldContent != t.content {
 		txt.SetData(t.content)
-		t.ref.MarkNeedsSync()
 	}
 }
 

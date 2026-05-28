@@ -18,6 +18,8 @@ type Element struct {
 	uaRoot  dom.Node // closed UA shadow subtree root; nil by default (ADR-009)
 	scroll  *ScrollState
 
+	dirtyStyle bool
+
 	tabIndex    int
 	hasTabIndex bool
 }
@@ -113,6 +115,36 @@ func (e *Element) Children() iter.Seq[dom.Node] {
 // method to enforce UA-mandatory properties (ADR-010).
 func (e *Element) IntrinsicStyle() style.Style { return style.Style{} }
 
+func (e *Element) RawStyle() style.Style     { return style.Style{} } // Overridden by wrappers
+func (e *Element) DefaultStyle() style.Style { return style.Style{} } // Overridden by wrappers
+
+func (e *Element) IsDirtyStyle() bool { return e.dirtyStyle }
+
+func (e *Element) MarkStyleDirty() {
+	if e.dirtyStyle {
+		return
+	}
+	e.dirtyStyle = true
+	// Propagate ChildNeedsStyle up.
+	if p := e.parent; p != nil {
+		asBase(p).MarkStyleChildDirty()
+	}
+
+	// ADR-009: Propagate to host.
+	if e.inUASubtree && e.outer != nil {
+		asBase(e.outer).MarkStyleChildDirty()
+	}
+}
+
+func (e *Element) ClearDirtyStyle() {
+	e.dirtyStyle = false
+}
+
+func (e *Element) ClearStyleFlags() {
+	e.dirtyStyle = false
+	e.childNeedsStyle = false
+}
+
 // AttachUARoot attaches root as the closed UA shadow subtree for this host.
 // See dom.Element.AttachUARoot for the full contract.
 func (e *Element) AttachUARoot(root dom.Node) {
@@ -129,7 +161,7 @@ func (e *Element) AttachUARoot(root dom.Node) {
 	host := e.outer
 	setOuterRecursive(root, host)
 	// Mark the host so the engine syncs the new subtree on the next frame.
-	e.self.MarkNeedsSync()
+	e.MarkNeedsSync()
 }
 
 // UARoot returns the closed UA shadow subtree root, or nil.

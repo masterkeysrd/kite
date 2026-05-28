@@ -69,8 +69,8 @@ func main() {
 	// Install devtools (Inspector + X-Ray)
 	devtools.Install(eng, devtools.Options{})
 
-	// Create the overlay element (a centered dialog)
-	overlayDialog := element.Box(
+	// Create the overlay content
+	overlayContent := element.Box(
 		element.Box("I am an Overlay!").Style(style.Style{
 			TextAlign: style.Some(style.TextAlignCenter),
 			Margin:    style.Some(style.Edges(0, 0, 1, 0)),
@@ -88,8 +88,16 @@ func main() {
 		Background: style.Some[color.Color](color.RGBA{R: 80, G: 40, B: 40, A: 255}),
 		Border:     style.DoubleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255}).Some(),
 		Padding:    style.Some(style.Edges(1, 2)),
-		// Centering the overlay
-		Margin: style.Some(style.Edges(6, 20)), // Simple centering for 80x24
+	})
+
+	// Create a full-screen container to center the overlay content.
+	// This is the robust way to center overlays regardless of terminal size.
+	overlayDialog := element.Box(overlayContent).Style(style.Style{
+		Width:          style.Some(style.Percent(100)),
+		Height:         style.Some(style.Percent(100)),
+		Display:        style.Some(style.DisplayFlex),
+		JustifyContent: style.Some(style.JustifyCenter),
+		AlignItems:     style.Some(style.AlignCenter),
 	})
 
 	overlayVisible := false

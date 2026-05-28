@@ -263,16 +263,6 @@ func (r *spatialRender) ClearDirty(_ render.DirtyFlag)          {}
 func (r *spatialRender) MarkChildrenDirty()                     {}
 func (r *spatialRender) ClearDirtyRecursive(_ render.DirtyFlag) {}
 func (r *spatialRender) IsDetached() bool                       { return false }
-func (r *spatialRender) RawStyle() style.Style                  { return style.Style{} }
-func (r *spatialRender) DefaultStyle() style.Style              { return style.Style{} }
-func (r *spatialRender) IntrinsicStyle() style.Style            { return style.Style{} }
-func (r *spatialRender) IsDirtyStyle() bool                     { return false }
-func (r *spatialRender) HasDirtyStyleChild() bool               { return false }
-func (r *spatialRender) ClearDirtyStyle()                       {}
-func (r *spatialRender) ClearChildNeedsStyle()                  {}
-func (r *spatialRender) StyleParent() style.StyleNode           { return r.Parent() }
-func (r *spatialRender) StyleFirstChild() style.StyleNode       { return r.FirstChild() }
-func (r *spatialRender) StyleNextSibling() style.StyleNode      { return r.NextSibling() }
 
 // layout.Node implementation
 func (r *spatialRender) Style() *style.Computed { return r.ComputedStyle() }

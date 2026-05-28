@@ -201,9 +201,18 @@ func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]geom.Rect
 	}
 	if ro := i.eng.RenderObject(n); ro != nil {
 		s.Computed = ro.ComputedStyle()
-		s.Default = ro.DefaultStyle()
-		s.Raw = ro.RawStyle()
-		s.Intrinsic = ro.IntrinsicStyle()
+
+		if sn, ok := n.(style.StyleNode); ok {
+			s.Default = sn.DefaultStyle()
+			s.Raw = sn.RawStyle()
+			s.Intrinsic = sn.IntrinsicStyle()
+		} else if un := n.Unwrap(); un != nil {
+			if sn, ok := un.(style.StyleNode); ok {
+				s.Default = sn.DefaultStyle()
+				s.Raw = sn.RawStyle()
+				s.Intrinsic = sn.IntrinsicStyle()
+			}
+		}
 		if rect, ok := boundsMap[ro]; ok {
 			s.Rect = rect
 		}

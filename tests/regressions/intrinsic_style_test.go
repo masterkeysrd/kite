@@ -44,7 +44,8 @@ func (e *intrinsicClipElement) IntrinsicStyle() style.Style {
 		OverflowX: style.Some(style.OverflowClip),
 	}
 }
-func (e *intrinsicClipElement) Unwrap() dom.Node { return e.Element }
+func (e *intrinsicClipElement) Unwrap() dom.Node   { return e.Element }
+func (e *intrinsicClipElement) IsDirtyStyle() bool { return false }
 
 var _ render.CustomObjectProvider = (*intrinsicClipElement)(nil)
 

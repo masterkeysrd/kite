@@ -10,6 +10,7 @@ import (
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/marker"
+	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -39,10 +40,6 @@ func (n *stubNode) Unwrap() dom.Node                         { return nil }
 func (n *stubNode) TextContent() string                      { return "" }
 
 func (n *stubNode) CloneNode(bool) dom.Node        { return nil }
-func (n *stubNode) NeedsSync() bool                { return false }
-func (n *stubNode) ChildNeedsSync() bool           { return false }
-func (n *stubNode) MarkNeedsSync()                 {}
-func (n *stubNode) ClearSyncFlags()                {}
 func (n *stubNode) EventTarget() event.EventTarget { return nil }
 func (n *stubNode) AddEventListener(event.EventType, event.Listener, ...event.Option) event.Subscription {
 	return nil
@@ -51,9 +48,33 @@ func (n *stubNode) DispatchTo(event.Event)       {}
 func (n *stubNode) DispatchToTarget(event.Event) {}
 func (n *stubNode) RemoveRegistration(uint64)    {}
 
+func (n *stubNode) TagName() string                          { return "stub" }
+func (n *stubNode) ID() string                               { return "" }
+func (n *stubNode) SetID(string)                             {}
+func (n *stubNode) Class() string                            { return "" }
+func (n *stubNode) SetClass(string)                          {}
+func (n *stubNode) QuerySelector(string) dom.Element         { return nil }
+func (n *stubNode) ReplaceWith(...dom.Node) dom.Element      { return n }
+func (n *stubNode) AttachUARoot(dom.Node)                    {}
+func (n *stubNode) Scroll() (int, int)                       { return 0, 0 }
+func (n *stubNode) ScrollTo(int, int)                        {}
+func (n *stubNode) ScrollBy(int, int)                        {}
+func (n *stubNode) ScrollCursorIntoView()                    {}
+func (n *stubNode) ProvidesCursor() bool                     { return false }
+func (n *stubNode) GetBoundingClientRect() (geom.Rect, bool) { return geom.Rect{}, false }
+func (n *stubNode) TabIndex() int                            { return -1 }
+func (n *stubNode) SetTabIndex(int)                          {}
+func (n *stubNode) Focus()                                   {}
+func (n *stubNode) Blur()                                    {}
+func (n *stubNode) IsFocusable() bool                        { return false }
+
 func (n *stubNode) RawStyle() style.Style       { return n.style }
 func (n *stubNode) DefaultStyle() style.Style   { return style.Style{} }
 func (n *stubNode) IntrinsicStyle() style.Style { return style.Style{} }
+func (n *stubNode) IsDirtyStyle() bool          { return true }
+
+var _ style.StyleNode = (*stubNode)(nil)
+var _ dom.Element = (*stubNode)(nil)
 
 func TestRegression_InheritancePropagation(t *testing.T) {
 	view := NewRenderView()
@@ -65,12 +86,17 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 	parent := NewBlock(pNode, nil)
 	view.InsertChild(parent, nil)
 
-	child := NewBlock(nil, nil)
+	cNode := &stubNode{style: style.Style{}}
+	child := NewBlock(cNode, nil)
 	// child does not set foreground, should inherit
 	parent.InsertChild(child, nil)
 
-	resolver := style.NewResolver()
-	style.ResolveTree(resolver, view)
+	// Manual resolve for test
+	resolver := styler.NewResolver()
+	computed := resolver.Resolve(pNode, nil)
+	parent.SetComputedStyle(computed)
+	computedChild := resolver.Resolve(cNode, computed)
+	child.SetComputedStyle(computedChild)
 
 	if child.ComputedStyle().Foreground != color.White {
 		t.Fatalf("Child should inherit white, got %v", child.ComputedStyle().Foreground)
@@ -84,7 +110,10 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 	parent.MarkDirty(DirtyStyle)
 
 	// Resolve again
-	style.ResolveTree(resolver, view)
+	computed = resolver.Resolve(pNode, nil)
+	parent.SetComputedStyle(computed)
+	computedChild = resolver.Resolve(cNode, computed)
+	child.SetComputedStyle(computedChild)
 
 	if child.ComputedStyle().Foreground != red {
 		t.Fatalf("Child should inherit red, got %v", child.ComputedStyle().Foreground)
@@ -115,8 +144,14 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	child2 := NewBlock(c2Node, nil)
 	flex.InsertChild(child2, nil)
 
-	resolver := style.NewResolver()
-	style.ResolveTree(resolver, view)
+	// Manual resolve for test
+	resolver := styler.NewResolver()
+	computed := resolver.Resolve(fNode, nil)
+	flex.SetComputedStyle(computed)
+	computedChild1 := resolver.Resolve(c1Node, computed)
+	child1.SetComputedStyle(computedChild1)
+	computedChild2 := resolver.Resolve(c2Node, computed)
+	child2.SetComputedStyle(computedChild2)
 
 	viewport := view.ViewportSize()
 	LayoutPhase(nil, view, viewport)
@@ -149,7 +184,8 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 	view := NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
-	block := NewBlock(nil, nil)
+	bNode := &stubNode{style: style.Style{Display: style.Some(style.DisplayBlock)}}
+	block := NewBlock(bNode, nil)
 	view.InsertChild(block, nil)
 
 	c1Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
@@ -160,7 +196,12 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 	child2 := NewBlock(c2Node, nil)
 	block.InsertChild(child2, nil)
 
-	style.ResolveTree(style.NewResolver(), view)
+	resolver := styler.NewResolver()
+	computed := resolver.Resolve(bNode, nil)
+	block.SetComputedStyle(computed)
+	child1.SetComputedStyle(resolver.Resolve(c1Node, computed))
+	child2.SetComputedStyle(resolver.Resolve(c2Node, computed))
+
 	LayoutPhase(nil, view, view.ViewportSize())
 
 	if len(block.Fragment().Children) != 2 {

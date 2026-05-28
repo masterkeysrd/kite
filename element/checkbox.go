@@ -3,6 +3,7 @@ package element
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -136,7 +137,9 @@ func (c *CheckboxElement) emitChange() {
 		val = "true"
 	}
 	c.DispatchEvent(event.NewChange(val))
-	c.MarkNeedsSync()
+	if d := internaldom.AsDirty(c); d != nil {
+		d.MarkNeedsSync()
+	}
 }
 
 func (c *CheckboxElement) IsDisabled() bool   { return c.disabled }

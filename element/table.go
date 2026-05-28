@@ -2,6 +2,7 @@ package element
 
 import (
 	"github.com/masterkeysrd/kite/dom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -169,7 +170,9 @@ func (td *TableCellElement) SetColSpan(span int) *TableCellElement {
 		span = 1
 	}
 	td.colSpan = span
-	td.MarkNeedsSync()
+	if d := internaldom.AsDirty(td); d != nil {
+		d.MarkNeedsSync()
+	}
 	return td
 }
 
@@ -184,7 +187,9 @@ func (td *TableCellElement) SetRowSpan(span int) *TableCellElement {
 		span = 1
 	}
 	td.rowSpan = span
-	td.MarkNeedsSync()
+	if d := internaldom.AsDirty(td); d != nil {
+		d.MarkNeedsSync()
+	}
 	return td
 }
 

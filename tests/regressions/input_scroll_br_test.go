@@ -32,6 +32,9 @@ func TestInput_Regression_ScrollWhenTextOverflows(t *testing.T) {
 	eng.Mount(root)
 	eng.Frame()
 
+	inp.Focus()
+	eng.Frame()
+
 	// Type 8 characters — more than the 5-cell visible area.
 	for _, ch := range "12345678" {
 		dispatchKeyToInput(inp, key.Key{Code: ch, Text: string(ch)})

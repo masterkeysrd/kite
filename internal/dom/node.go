@@ -16,20 +16,21 @@ type BaseNode struct {
 	internalevent.Target
 	marker.NodeMarker
 
-	name           string
-	kind           dom.Kind
-	self           dom.Node
-	outer          dom.Node // identity wrapper set by setOuterRecursive for UA subtrees (ADR-0036)
-	parent         dom.Node
-	next           dom.Node
-	prev           dom.Node
-	firstChild     dom.Node
-	lastChild      dom.Node
-	ownerDocument  dom.Document
-	connected      bool
-	needsSync      bool
-	childNeedsSync bool
-	inUASubtree    bool // true when this node is part of a UA shadow subtree (ADR-009)
+	name            string
+	kind            dom.Kind
+	self            dom.Node
+	outer           dom.Node // identity wrapper set by setOuterRecursive for UA subtrees (ADR-0036)
+	parent          dom.Node
+	next            dom.Node
+	prev            dom.Node
+	firstChild      dom.Node
+	lastChild       dom.Node
+	ownerDocument   dom.Document
+	connected       bool
+	needsSync       bool
+	childNeedsSync  bool
+	childNeedsStyle bool
+	inUASubtree     bool // true when this node is part of a UA shadow subtree (ADR-009)
 }
 
 // asBase returns the underlying *BaseNode for any dom.Node produced by this package.
@@ -50,27 +51,30 @@ func asBase(n dom.Node) *BaseNode {
 	return nil
 }
 
-func (b *BaseNode) adopt(newDoc dom.Document) {
-	if b.ownerDocument == newDoc {
+func (b *BaseNode) MarkStyleChildDirty() {
+	if b.childNeedsStyle {
 		return
 	}
-	b.ownerDocument = newDoc
-
-	// Standard children.
-	for n := b.firstChild; n != nil; n = n.NextSibling() {
-		asBase(n).adopt(newDoc)
-	}
-
-	// ADR-009: If this is an element with a UA shadow subtree, adopt it too.
-	if b.kind == dom.KindElement {
-		// Use a type assertion to check for element-specific uaRoot.
-		// We use the same pattern as asBase() to pierce wrappers.
-		if el, ok := b.self.(interface{ UARoot() dom.Node }); ok {
-			if uaRoot := el.UARoot(); uaRoot != nil {
-				asBase(uaRoot).adopt(newDoc)
-			}
+	b.childNeedsStyle = true
+	// Propagate up.
+	for p := b.parent; p != nil; p = p.Parent() {
+		pb := asBase(p)
+		if pb.childNeedsStyle {
+			break
 		}
+		pb.childNeedsStyle = true
 	}
+
+	// ADR-009: Propagate to host.
+	if b.inUASubtree && b.outer != nil {
+		asBase(b.outer).MarkStyleChildDirty()
+	}
+}
+
+func (b *BaseNode) HasDirtyStyleChild() bool { return b.childNeedsStyle }
+
+func (b *BaseNode) ClearStyleFlags() {
+	b.childNeedsStyle = false
 }
 
 func (b *BaseNode) Kind() dom.Kind { return b.kind }
@@ -90,9 +94,6 @@ func (b *BaseNode) NextSibling() dom.Node       { return b.next }
 func (b *BaseNode) PreviousSibling() dom.Node   { return b.prev }
 func (b *BaseNode) OwnerDocument() dom.Document { return b.ownerDocument }
 func (b *BaseNode) IsConnected() bool           { return b.connected }
-
-func (b *BaseNode) NeedsSync() bool      { return b.needsSync }
-func (b *BaseNode) ChildNeedsSync() bool { return b.childNeedsSync }
 
 func (b *BaseNode) MarkNeedsSync() {
 	if b.needsSync {
@@ -114,6 +115,9 @@ func (b *BaseNode) MarkNeedsSync() {
 		asBase(b.outer).MarkNeedsSync()
 	}
 }
+
+func (b *BaseNode) NeedsSync() bool      { return b.needsSync }
+func (b *BaseNode) ChildNeedsSync() bool { return b.childNeedsSync }
 
 func (b *BaseNode) ClearSyncFlags() {
 	b.needsSync = false
@@ -214,6 +218,13 @@ func (b *BaseNode) InsertBefore(newChild, ref dom.Node) dom.Node {
 		}
 	}
 
+	// Propagate style dirty state to the new parent.
+	if de := AsDirtyElement(newChild); de != nil && de.IsDirtyStyle() {
+		b.MarkStyleChildDirty()
+	} else if dn := AsDirty(newChild); dn != nil && dn.HasDirtyStyleChild() {
+		b.MarkStyleChildDirty()
+	}
+
 	b.notifyStructureChange()
 	return newChild
 }
@@ -311,5 +322,28 @@ func (b *BaseNode) CloneNode(deep bool) dom.Node {
 }
 
 func (b *BaseNode) notifyStructureChange() {
-	b.self.MarkNeedsSync()
+	b.MarkNeedsSync()
+}
+
+func (b *BaseNode) adopt(newDoc dom.Document) {
+	if b.ownerDocument == newDoc {
+		return
+	}
+	b.ownerDocument = newDoc
+
+	// Standard children.
+	for n := b.firstChild; n != nil; n = n.NextSibling() {
+		asBase(n).adopt(newDoc)
+	}
+
+	// ADR-009: If this is an element with a UA shadow subtree, adopt it too.
+	if b.kind == dom.KindElement {
+		// Use a type assertion to check for element-specific uaRoot.
+		// We use the same pattern as asBase() to pierce wrappers.
+		if el, ok := b.self.(interface{ UARoot() dom.Node }); ok {
+			if uaRoot := el.UARoot(); uaRoot != nil {
+				asBase(uaRoot).adopt(newDoc)
+			}
+		}
+	}
 }

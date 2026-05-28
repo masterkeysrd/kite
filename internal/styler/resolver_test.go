@@ -1,9 +1,10 @@
-package style_test
+package styler_test
 
 import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -77,6 +78,30 @@ func (n *fakeNode) appendChild(child *fakeNode) {
 	}
 }
 
+func resolveTree(r *styler.Resolver, root *fakeNode, parent *style.Computed) {
+	if root == nil {
+		return
+	}
+	if !root.IsDirtyStyle() && !root.HasDirtyStyleChild() && parent == nil {
+		return // mimic PhaseGated skip at the very root if clean
+	}
+
+	oldComputed := root.computedStyle
+	computed := r.Resolve(root, parent)
+	root.computedStyle = computed
+	root.dirtyStyle = false
+	root.visited = true
+
+	force := (oldComputed != computed)
+
+	for c := root.firstChild; c != nil; c = c.nextSibling {
+		if force || c.dirtyStyle || c.dirtyChild {
+			resolveTree(r, c, computed)
+		}
+	}
+	root.dirtyChild = false
+}
+
 var _ style.StyleNode = (*fakeNode)(nil)
 
 // ---------------------------------------------------------------------------
@@ -86,7 +111,7 @@ var _ style.StyleNode = (*fakeNode)(nil)
 // TestResolver_DefaultsApplied verifies that an element with no author style
 // receives the DefaultStyle baseline.
 func TestResolver_DefaultsApplied(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 	node := &fakeNode{dirtyStyle: true}
 
 	got := r.Resolve(node, nil)
@@ -114,7 +139,7 @@ func TestResolver_DefaultsApplied(t *testing.T) {
 // property) flows from the parent Computed to the child when the child does
 // not set it explicitly.
 func TestResolver_InheritsColor(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	parentFG := color.RGBA{R: 100, G: 200, B: 50, A: 255}
 	parentComputed := &style.Computed{
@@ -138,7 +163,7 @@ func TestResolver_InheritsColor(t *testing.T) {
 // TestResolver_DoesNotInheritWidth verifies that Width (a non-inheritable
 // property) is not carried from parent to child; the child gets the default.
 func TestResolver_DoesNotInheritWidth(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	parentWidth := style.Cells(80)
 	parentComputed := &style.Computed{
@@ -163,7 +188,7 @@ func TestResolver_DoesNotInheritWidth(t *testing.T) {
 // TestResolver_OverlayWins verifies that an element's explicit style wins
 // over the inherited value from the parent.
 func TestResolver_OverlayWins(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	parentFG := color.RGBA{R: 100, G: 200, B: 50, A: 255}
 	parentComputed := &style.Computed{
@@ -191,7 +216,7 @@ func TestResolver_OverlayWins(t *testing.T) {
 // sentinel color passes through the resolver unchanged (symbolic colors are
 // not resolved at style time; that happens at paint time in the backend).
 func TestResolver_TerminalDefaultPreserved(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	node := &fakeNode{
 		dirtyStyle: true,
@@ -211,7 +236,7 @@ func TestResolver_TerminalDefaultPreserved(t *testing.T) {
 // TestResolveTree_PhaseGated verifies that a completely clean subtree is not
 // visited during ResolveTree.
 func TestResolveTree_PhaseGated(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// Tree:  root (dirty) → dirty child + clean child
 	root := &fakeNode{}
@@ -223,13 +248,13 @@ func TestResolveTree_PhaseGated(t *testing.T) {
 	dirty.markDirty() // propagates dirtyChild to root
 
 	// Prime the tree first so everyone has a computed style
-	style.ResolveTree(r, root)
+	resolveTree(r, root, nil)
 	dirty.visited = false
 	clean.visited = false
 
 	// Now mark dirty again and verify gating
 	dirty.markDirty()
-	style.ResolveTree(r, root)
+	resolveTree(r, root, nil)
 
 	if !dirty.visited {
 		t.Error("dirty child should have been visited")
@@ -246,14 +271,14 @@ func TestResolveTree_PhaseGated(t *testing.T) {
 // TestResolveTree_ClearsDirtyStyle verifies that ResolveTree clears the
 // DirtyStyle flag on every visited node.
 func TestResolveTree_ClearsDirtyStyle(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	root := &fakeNode{}
 	child := &fakeNode{}
 	root.appendChild(child)
 	child.markDirty()
 
-	style.ResolveTree(r, root)
+	resolveTree(r, root, nil)
 
 	if child.IsDirtyStyle() {
 		t.Error("DirtyStyle should be cleared after ResolveTree")
@@ -270,7 +295,7 @@ func TestResolveTree_ClearsDirtyStyle(t *testing.T) {
 // TestResolveTree_SkipsAfterClean verifies that a second call to ResolveTree
 // with no dirty marks set is a complete no-op (no nodes visited).
 func TestResolveTree_SkipsAfterClean(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	root := &fakeNode{}
 	child := &fakeNode{}
@@ -278,11 +303,11 @@ func TestResolveTree_SkipsAfterClean(t *testing.T) {
 	child.markDirty()
 
 	// First pass: resolves and clears dirty flags.
-	style.ResolveTree(r, root)
+	resolveTree(r, root, nil)
 	child.visited = false // reset tracker
 
 	// Second pass: nothing should be dirty, so nothing visited.
-	style.ResolveTree(r, root)
+	resolveTree(r, root, nil)
 
 	if child.visited {
 		t.Error("second ResolveTree with no dirty marks should be a no-op")
@@ -294,7 +319,7 @@ func TestResolveTree_SkipsAfterClean(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResolver_FlexAndOrder(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// 1. Default values
 	node1 := &fakeNode{dirtyStyle: true}
@@ -335,7 +360,7 @@ func TestResolver_FlexAndOrder(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResolver_BackgroundNotInherited(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	parentBG := color.RGBA{R: 100, G: 100, B: 100, A: 255}
 	parentComputed := &style.Computed{
@@ -358,7 +383,7 @@ func TestResolver_BackgroundNotInherited(t *testing.T) {
 // IntrinsicStyle() overrides the same property set by the author's RawStyle.
 // (intrinsic wins — test 4.1 bullet 1)
 func TestIntrinsicStyle_WinsOverAuthor(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// Author wants Block; UA forces InlineBlock.
 	node := &fakeNode{
@@ -377,7 +402,7 @@ func TestIntrinsicStyle_WinsOverAuthor(t *testing.T) {
 // IntrinsicStyle() does not nullify a property set by the author.
 // (test 4.1 bullet 2)
 func TestIntrinsicStyle_EmptyDoesNotNullifyAuthor(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	red := style.TerminalDefault // any non-zero color marker
 	node := &fakeNode{
@@ -397,7 +422,7 @@ func TestIntrinsicStyle_EmptyDoesNotNullifyAuthor(t *testing.T) {
 // child that has no explicit value for it.
 // (test 4.1 bullet 3)
 func TestIntrinsicStyle_InheritablePropertyCascadesToChild(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// Parent forces WhiteSpace:PreWrap via intrinsic style.
 	parent := &fakeNode{
@@ -419,7 +444,7 @@ func TestIntrinsicStyle_InheritablePropertyCascadesToChild(t *testing.T) {
 // DefaultStyle < RawStyle < IntrinsicStyle, each winning over the layer below.
 // (test 4.1 bullet 4)
 func TestIntrinsicStyle_LayerOrder(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// DefaultStyle provides FlexRow; RawStyle overrides to FlexColumn;
 	// IntrinsicStyle overrides to FlexRow again (UA forces it).
@@ -452,7 +477,7 @@ func TestIntrinsicStyle_LayerOrder(t *testing.T) {
 // not implement IntrinsicStyle (return empty Style{}) see no behavioral change.
 // (test 4.1 bullet 5)
 func TestIntrinsicStyle_NoIntrinsicRegressionGuard(t *testing.T) {
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// Plain node with no intrinsic style — behaviour must be identical to
 	// before the intrinsic layer was introduced.

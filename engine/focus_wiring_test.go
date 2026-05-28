@@ -21,6 +21,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
@@ -97,7 +98,7 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 }
 
 func clearSyncFlags(n dom.Node) {
-	n.ClearSyncFlags()
+	internaldom.AsDirty(n).ClearSyncFlags()
 	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 		clearSyncFlags(c)
 	}

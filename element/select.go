@@ -7,6 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -442,7 +443,9 @@ func (s *SelectElement) emitChange() {
 		s.onChange(s.value)
 	}
 	s.DispatchEvent(event.NewChange(s.value))
-	s.MarkNeedsSync()
+	if d := internaldom.AsDirty(s); d != nil {
+		d.MarkNeedsSync()
+	}
 }
 
 func (s *SelectElement) SetData(data string) {

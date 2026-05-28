@@ -254,19 +254,10 @@ func (r *testRender) MarkChildrenDirty()                   {}
 func (r *testRender) ClearDirtyRecursive(render.DirtyFlag) {}
 func (r *testRender) IsDetached() bool                     { return false }
 
-func (r *testRender) RawStyle() style.Style             { return style.Style{} }
-func (r *testRender) DefaultStyle() style.Style         { return style.Style{} }
-func (r *testRender) IntrinsicStyle() style.Style       { return style.Style{} }
-func (r *testRender) IsDirtyStyle() bool                { return false }
-func (r *testRender) HasDirtyStyleChild() bool          { return false }
-func (r *testRender) ClearDirtyStyle()                  {}
-func (r *testRender) ClearChildNeedsStyle()             {}
-func (r *testRender) StyleParent() style.StyleNode      { return r.Parent() }
-func (r *testRender) StyleFirstChild() style.StyleNode  { return r.FirstChild() }
-func (r *testRender) StyleNextSibling() style.StyleNode { return r.NextSibling() }
-
 // layout.Node implementation
-func (r *testRender) Style() *style.Computed { return r.ComputedStyle() }
+func (r *testRender) Style() *style.Computed {
+	return r.ComputedStyle()
+}
 func (r *testRender) FirstLayoutChild() layout.Node {
 	if len(r.node.children) == 0 {
 		return nil

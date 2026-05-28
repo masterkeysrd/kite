@@ -385,10 +385,9 @@ func BenchmarkLayoutWithContainerSpace(b *testing.B) {
 		root.cachedFragment = nil
 		// Invalidate children caches too.
 		for n := root.firstChild; n != nil; {
-			type sibling interface{ NextSibling() Node }
 			mn := n.(*mockNode)
 			mn.cachedFragment = nil
-			n = n.(sibling).NextSibling()
+			n = mn.nextSibling
 		}
 		_ = blockAlgo.Layout(nil, root, space)
 	}

@@ -1,9 +1,10 @@
-package style_test
+package styler_test
 
 import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -19,7 +20,7 @@ import (
 
 func TestResolver_ElementDefaults_AppliedBeforeInheritance(t *testing.T) {
 	t.Parallel()
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	// Simulate an element type whose default is Display:Inline.
 	// No parent, so we only verify the element default surfaces.
@@ -42,7 +43,7 @@ func TestResolver_ElementDefaults_InheritanceOverridesElementDefault(t *testing.
 	// An element-default sets Foreground to red. The parent's Foreground is
 	// blue. Because inheritance (layer 3) sits above element-defaults (layer 2),
 	// the parent's value must win.
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	parentFG := color.RGBA{R: 0, G: 0, B: 255, A: 255}
 	parentComputed := &style.Computed{
@@ -70,7 +71,7 @@ func TestResolver_ElementDefaults_InheritanceOverridesElementDefault(t *testing.
 func TestResolver_ElementDefaults_OverriddenByExplicitStyle(t *testing.T) {
 	t.Parallel()
 	// The author's own style (layer 4) wins over element defaults (layer 2).
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	node := &fakeNode{
 		dirtyStyle: true,
@@ -92,7 +93,7 @@ func TestResolver_ElementDefaults_OverriddenByExplicitStyle(t *testing.T) {
 func TestResolver_ElementDefaults_ZeroStyleIsNoop(t *testing.T) {
 	t.Parallel()
 	// A zero DefaultStyle must not change any property from the baseline.
-	r := style.NewResolver()
+	r := styler.NewResolver()
 
 	want := style.DefaultStyle()
 	node := &fakeNode{

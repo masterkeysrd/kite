@@ -1,10 +1,10 @@
-package style
+package styler
 
 // CascadeOrigin identifies the layer of the style cascade that a value comes
 // from. Origins are listed from weakest to strongest; a higher origin wins
 // when both provide a value for the same property.
 //
-// The enum is internal to the style package (ADR-010). It must not leak into
+// The enum is internal to the styler package (ADR-010). It must not leak into
 // dom, render, layout, or paint.
 type CascadeOrigin uint8
 

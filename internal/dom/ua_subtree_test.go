@@ -210,12 +210,12 @@ func TestAttachUARoot_MarksNeedsSync(t *testing.T) {
 	doc := NewDocument()
 	host := doc.CreateElement("input", nil)
 	// Clear flags that may be set from document insertion.
-	host.ClearSyncFlags()
+	AsDirty(host).ClearSyncFlags()
 
 	uaBox := doc.CreateElement("div", nil)
 	host.AttachUARoot(uaBox)
 
-	if !host.NeedsSync() {
+	if !AsDirty(host).NeedsSync() {
 		t.Error("host.NeedsSync() should be true after AttachUARoot")
 	}
 }

@@ -115,19 +115,6 @@ type Node interface {
 	// node is detached (no parent).
 	CloneNode(deep bool) Node
 
-	// NeedsSync reports whether this node's children need to be synchronized with the render tree.
-	NeedsSync() bool
-
-	// ChildNeedsSync reports whether one of this node's descendants needs synchronization.
-	ChildNeedsSync() bool
-
-	// MarkNeedsSync marks this node as needing synchronization and propagates the
-	// ChildNeedsSync flag up to the document root.
-	MarkNeedsSync()
-
-	// ClearSyncFlags clears both NeedsSync and ChildNeedsSync flags on this node.
-	ClearSyncFlags()
-
 	// EventTarget returns the user-visible event target for this node. For
 	// nodes in a UA shadow subtree, this returns the host element; otherwise
 	// it returns the node itself (ADR-0036).
@@ -161,16 +148,6 @@ type Element interface {
 	// element. The new nodes are appended in the order they are given. If this
 	// element has no parent, the call is a no-op and this element is returned.
 	ReplaceWith(nodes ...Node) Element
-
-	// IntrinsicStyle returns the UA-mandated sparse style for this element.
-	// Properties set here have the highest cascade precedence and cannot be
-	// overridden by author styles (RawStyle). The default implementation on
-	// the base element returns an empty style.Style{}, meaning no properties
-	// are forced. Replaced and compound elements override this to enforce
-	// UA-mandatory properties (e.g. display:inline-block, overflow:clip).
-	//
-	// See ADR-010 for the cascade-origin model.
-	IntrinsicStyle() style.Style
 
 	// AttachUARoot attaches root as the host element's closed UA shadow subtree.
 	// The UA subtree is invisible to all public traversal APIs (Children(),

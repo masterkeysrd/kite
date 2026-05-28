@@ -84,7 +84,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-069 | Implement Low-Level DOM Form Mechanics | Done | `tasks/TSK-069-dom-form-mechanics.md` |
 | TSK-070 | Implement `extras/form` High-Level API | Pending | `tasks/TSK-070-kitex-form-api.md` |
 | TSK-071 | DOM and Render Decoupling | Done | `tasks/TSK-071-dom-render-decoupling.md` |
-| TSK-072 | Segregate and Simplify `render.Object` | Pending | `tasks/TSK-072-render-object-segregation.md` |
+| TSK-072 | Segregate and Simplify `render.Object` | Done | `tasks/TSK-072-render-object-segregation.md` |
 | TSK-073 | Implement DOM View for Layout Queries | Pending | `tasks/TSK-073-dom-view.md` |
 | TSK-074 | Implement Terminal Capabilities Context | Pending | `tasks/TSK-074-terminal-capabilities.md` |
 | TSK-075 | Implement Hybrid Terminal Cursor Management | Pending | `tasks/TSK-075-cursor-management.md` |

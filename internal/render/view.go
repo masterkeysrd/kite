@@ -127,36 +127,8 @@ func (b *BaseRender) SetComputedStyle(c *style.Computed) {
 	b.computedStyle = c
 }
 
-func (b *BaseRender) RawStyle() style.Style {
-	if s, ok := b.logicalNode.(interface{ RawStyle() style.Style }); ok {
-		return s.RawStyle()
-	}
-	return style.Style{}
-}
-
-func (b *BaseRender) DefaultStyle() style.Style {
-	if s, ok := b.logicalNode.(interface{ DefaultStyle() style.Style }); ok {
-		return s.DefaultStyle()
-	}
-	return style.Style{}
-}
-
-func (b *BaseRender) IntrinsicStyle() style.Style {
-	if s, ok := b.logicalNode.(interface{ IntrinsicStyle() style.Style }); ok {
-		return s.IntrinsicStyle()
-	}
-	return style.Style{}
-}
-
-func (b *BaseRender) IsDirtyStyle() bool                { return b.Flags()&DirtyStyle != 0 }
-func (b *BaseRender) HasDirtyStyleChild() bool          { return b.Flags()&ChildNeedsStyle != 0 }
-func (b *BaseRender) IsDirtyPaint() bool                { return b.Flags()&(DirtyPaint|DirtyScroll) != 0 }
-func (b *BaseRender) HasChildNeedsPaint() bool          { return b.Flags()&ChildNeedsPaint != 0 }
-func (b *BaseRender) ClearDirtyStyle()                  { b.ClearDirty(DirtyStyle) }
-func (b *BaseRender) ClearChildNeedsStyle()             { b.ClearDirty(ChildNeedsStyle) }
-func (b *BaseRender) StyleParent() style.StyleNode      { return b.parent }
-func (b *BaseRender) StyleFirstChild() style.StyleNode  { return b.firstChild }
-func (b *BaseRender) StyleNextSibling() style.StyleNode { return b.next }
+func (b *BaseRender) IsDirtyPaint() bool       { return b.Flags()&(DirtyPaint|DirtyScroll) != 0 }
+func (b *BaseRender) HasChildNeedsPaint() bool { return b.Flags()&ChildNeedsPaint != 0 }
 
 func (b *BaseRender) Offset() geom.Point {
 	return b.offset
@@ -364,8 +336,6 @@ func (v *RenderView) ComputedStyle() *style.Computed {
 func (v *RenderView) SetComputedStyle(*style.Computed) {}
 
 func (v *RenderView) IsDetached() bool { return false }
-
-func (v *RenderView) StyleParent() style.StyleNode { return nil }
 
 func (v *RenderView) SetLogicalNode(n dom.Node) { v.logicalNode = n }
 
