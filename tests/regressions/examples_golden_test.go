@@ -726,10 +726,6 @@ func TestExampleTextAreaGolden(t *testing.T) {
 		env.Engine.RequestFrame()
 	}
 
-	txa.AddEventListener(event.EventKeyDown, func(e event.Event) {
-		env.Engine.OnAfterLayout(updateStatus)
-	})
-
 	root := element.Box(
 		element.Box(
 			// Title

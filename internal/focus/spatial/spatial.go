@@ -193,7 +193,7 @@ func rankedCandidates(scope *dom.FocusScope, current dom.Element, dir Direction)
 	}
 	var entries []entry
 
-	var n dom.Node = scope.Root
+	var n = scope.Root
 	for ; n != nil; n = nextPreOrder(n, scope.Root) {
 		if n == current {
 			continue

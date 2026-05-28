@@ -499,15 +499,6 @@ func (e *Engine) RegisterAnimation(anim animation.Animator) {
 	e.RequestFrame()
 }
 
-// OnAfterLayout registers a one-shot callback that fires once, after the next
-// layout and scroll-into-view phase completes but before the paint phase.
-// This is the correct place to read CursorState() when an accurate, freshly
-// computed position is required (e.g. updating a status bar from a keydown
-// listener). The hook is called exactly once and then discarded.
-func (e *Engine) OnAfterLayout(fn func()) {
-	e.afterLayoutHooks = append(e.afterLayoutHooks, fn)
-}
-
 // OnFrameRendered registers a hook to be called after every frame is committed.
 func (e *Engine) OnFrameRendered(fn func()) {
 	e.onFrameRenderedHooks = append(e.onFrameRenderedHooks, fn)

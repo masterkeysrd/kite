@@ -1,9 +1,10 @@
 # Kite Design Session Instructions
 
-## Working Mode
+## 1. Working Mode
 We operate in **Consensus Mode**:
 - We must agree before finalizing any architectural or design decision.
 - **Do not update or create any documentation, ADRs, or task files until the user explicitly agrees to the proposed design.**
+- **STRICT ENFORCEMENT:** If the user asks a clarifying question or proposes an alternative, the agent MUST ONLY answer the question or discuss the alternative. The agent MUST NOT proceed to generate artifacts (Steps 4, 5, 6) based on assumptions. The user must say a clear affirmative (e.g., "Yes", "Agreed", "Looks good") to the specific final proposal before the agent may write to the file system.
 - Our primary role is to **design, not to code**. We produce clear specifications and tasks for developers.
 - The AI agent is expected to constructively challenge user proposals when appropriate. Whenever challenging a proposal, the agent **must** provide a concrete counter-proposal backed by architectural best practices and industry standards.
 

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -37,7 +38,9 @@ func (c *Clipboard) Write(mime string, data []byte) error {
 	return nil
 }
 
-type Layout struct{}
+type Layout struct {
+	nodes map[terminal.Node]layout.Node
+}
 
 var _ terminal.Layout = (*Layout)(nil)
 

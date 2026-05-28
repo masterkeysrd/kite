@@ -100,13 +100,6 @@ func main() {
 		eng.RequestFrame()
 	}
 
-	// Update status after every layout pass triggered by a keydown. Using
-	// OnAfterLayout guarantees CursorState() is read from a fresh fragment,
-	// so the position is always accurate on the very first keystroke.
-	txa.AddEventListener(event.EventKeyDown, func(e event.Event) {
-		eng.OnAfterLayout(updateStatus)
-	})
-
 	// ── UI tree ──────────────────────────────────────────────────────────────
 	root := element.Box(
 		element.Box(

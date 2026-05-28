@@ -6,25 +6,27 @@ This document serves as the high-level architectural overview for Kite (v2) base
 - **Terminal UI Framework:** A modern, DOM-like terminal UI framework for Go. It brings web-like development paradigms to the terminal environment.
 - **In-memory operation:** No external database/storage requirements.
 - **Clear Separation of Concerns:** Strict package isolation between DOM, Style, Layout, Paint, and Render layers to maintain an efficient rendering pipeline.
-- **Performance-Oriented:** The pipeline targets 60FPS on the main thread, with expensive or asynchronous operations handled in a concurrent worker pool (Jobs) that dispatch results back to the main thread.
+- **Performance-Oriented:** The pipeline targets 60FPS on the main thread, with expensive or asynchronous operations handled in a concurrent worker pool managed by a global `terminal.Scheduler`. Promises seamlessly bridge background work back to the main thread via microtasks.
 
 ## 2. Rendering Pipeline Overview
 
-The framework operates via a central nervous system called the **Engine (`/engine`)**. The engine runs a continuous frame loop that orchestrates a unified pipeline:
+The framework operates via a central nervous system called the **Engine (`/engine`)**. The engine acts purely as a coordinator, running a continuous frame loop that orchestrates a unified pipeline:
 
 1. **Input Buffering & Coalescing:** Collect raw input events from the backend into a buffer. Just before the frame renders, drain the buffer and coalesce high-frequency events (e.g., aggregate wheel deltas, squash mouse moves) into semantic events, dispatching them through the DOM.
-2. **Job Sync:** Collect completed job results from the concurrent worker pool into the microtask queue.
-3. **Synchronize Phase (Pre-Layout):** Walk the logical DOM and project structural changes into the render tree. It flags dirty layout and style nodes.
-4. **Task Draining:** Drain macrotasks (budget-capped) and microtasks (drained completely) to execute user events or lifecycle hooks.
-5. **Style Phase:** Traverse the render tree to resolve inherited and explicit styles into `Computed` values.
-6. **Layout Phase:** Traverse the dirty nodes, executing LayoutNG-inspired algorithms (Block, Flex, Inline) to produce immutable physical `Fragment` trees.
-7. **Paint Phase:** Draw the resulting `Fragment` trees onto the framebuffer via absolute coordinates and clipping.
-8. **Commit:** Push the framebuffer surface to the terminal via the decoupling backend (`/backend`).
+2. **Task Draining:** The engine coordinates with the `terminal.Scheduler` to drain macrotasks (budget-capped) and microtasks (drained completely) on the main thread. This executes user events, effect hooks, and resolved Promise callbacks.
+3. **Synchronize Phase (Pre-Layout):** Walk the logical DOM and project structural changes into the render tree. The Engine uses an internal map (`map[dom.Node]render.Object`) to link the independent logical and physical trees. It flags dirty layout and style nodes.
+4. **Style Phase:** Traverse the render tree to resolve inherited and explicit styles into `Computed` values.
+5. **Layout Phase:** Traverse the dirty nodes, executing LayoutNG-inspired algorithms (Block, Flex, Inline) to produce immutable physical `Fragment` trees.
+6. **Paint Phase:** Draw the resulting `Fragment` trees onto the framebuffer via absolute coordinates and clipping.
+7. **Commit:** Push the framebuffer surface to the terminal via the decoupling backend (`/backend`).
 
 ## 3. Subsystems
 
 ### 3.1. DOM (Logical Tree)
-- **Hardware Cursor:** The logical DOM does not handle physical terminal cursor calculations. The engine queries the `cursor.Provider` interface on the render object of the currently focused node to set the terminal cursor position automatically.
+- **Strict Isolation:** The logical DOM has zero knowledge of the physical rendering pipeline. It does not contain any references to `render.Object`.
+- **View Proxy:** To query physical properties like `GetBoundingClientRect` or `ComputedStyle` without coupling, the DOM defines a `dom.View` interface. The `engine.Engine` implements this interface and injects itself into the `dom.Document`. Elements proxy layout queries up to this View.
+- **Terminal Context:** The DOM has no knowledge of OS clipboards or render loops. It exposes a `Terminal()` accessor that returns a `terminal.Terminal` interface, which is implemented by the Engine to bridge OS capabilities (Clipboard, Window frames, Hardware Cursor, Scheduler).
+- **Hardware Cursor:** The hardware cursor is managed via a hybrid model. By default, the Engine automatically translates a collapsed `dom.Selection` into physical coordinates. Custom components can bypass this and manipulate the hardware cursor directly via `Terminal().Cursor()`. The legacy `cursor.Provider` interface has been removed.
 - **Responsibility:** Maintains the structural tree and interactivity states (`Focusable`, `Disabled`).
 - **Core Entities:** `Document`, `Element`, `TextNode`.
 - **Adoption & Identity:** Uses a self back-pointer (`outer`) set during the attach walk. Ensures `event.Target()` and `GetElementByID()` return the outermost user-visible wrapper (useful for custom widgets).
@@ -55,10 +57,11 @@ The framework operates via a central nervous system called the **Engine (`/engin
   - **Inline Formatting Context (IFC):** Lays out text and atomic inlines horizontally, wrapping them into line boxes. Uses a flat representation of `InlineItem`s.
 
 ### 3.4. Render Pipeline (`/render`)
+- **Engine Mapping:** The physical Render Tree is completely detached from the logical DOM Tree. The `engine.Engine` maintains the mapping between them using a dictionary structure. `render.Object` maintains a strongly-typed back-pointer to its source `dom.Node`.
 - **Replaced & Compound Elements:** Form controls and other compound widgets compose their visuals as a closed UA Shadow Subtree on the logical element (ADR-009). They get a plain `render.Box` and rely on standard formatting contexts — no per-widget render object or layout algorithm. Text-based form controls (`<input>`, `<textarea>`) share a common `textControlBase`. Toggle controls (`<checkbox>`, `<radio>`) manage hidden text nodes for their glyphs. Buttons (`<button>`) handle click semantics and provide visual feedback for active/pressed states. Complex composites like `<select>` combine a shadow trigger button with dynamic, out-of-flow `element.Overlay` popups and temporary `focus.Scope` trapping.
 - **Selection Resolution:** Implements a decoupled "Push Model" for text selection. The active `dom.Selection` is resolved against the layout fragment tree to produce an independent list of physical `paint.Rect`s *before* the paint phase begins. This avoids $O(N)$ DOM lookups during text rasterization and ensures immutable layout fragments remain perfectly cacheable.
 - **Responsibility:** The visual bridge between the logical DOM and physical layout.
-- **Stateless Styling:** Render objects act as pure proxies for the three element-contributed style layers — `DefaultStyle()`, `RawStyle()`, and `IntrinsicStyle()` (ADR-010) — querying their underlying logical DOM node directly. They do not store sparse styles, avoiding state duplication.
+- **Stateless Styling:** The Render Engine stores the resolved `style.Computed` state, but delegates the reading of declarative input styles (`RawStyle`, `DefaultStyle`, `IntrinsicStyle`) directly to the associated `dom.Node`.
 - **Node Mirroring:** It strictly mirrors the DOM structure using a unified `render.Box` or `render.Text` (no explicit block/flex types here; the engine delegates algorithms at layout time based on `ComputedStyle.Display`).
 - **Dirty Tracking:** Carries lifecycle synchronization flags (`NeedsSync`, `DirtyStyle`, `DirtyLayout`) without doing actual math calculations itself.
 
