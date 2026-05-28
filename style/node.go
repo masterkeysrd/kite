@@ -1,3 +1,4 @@
+// Package style defines the Style and Computed value types.
 package style
 
 import "image/color"
@@ -67,26 +68,4 @@ func DefaultStyle() Computed {
 		SelectionForeground: nil, // fallback to inversion
 		SelectionBackground: nil, // fallback to inversion
 	}
-}
-
-// ---------------------------------------------------------------------------
-// StyleNode — interface the resolver requires from any tree node
-// ---------------------------------------------------------------------------
-
-// StyleNode is the interface Resolver.Resolve requires from any tree node.
-//
-// Native elements in the DOM implement this interface internally to allow the
-// resolver to access their author-set and UA-intrinsic properties.
-type StyleNode interface {
-	// RawStyle returns the author-set sparse style for this node.
-	RawStyle() Style
-
-	// DefaultStyle returns the element-type default style.
-	DefaultStyle() Style
-
-	// IntrinsicStyle returns the UA-mandated sparse style for this node.
-	IntrinsicStyle() Style
-
-	// IsDirtyStyle reports whether this node's style needs re-resolution.
-	IsDirtyStyle() bool
 }

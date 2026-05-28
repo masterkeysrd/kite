@@ -290,7 +290,7 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 			}
 
 			thumbGlyph := string(sb.ThumbGlyph.UnwrapOr(style.DefaultScrollbarThumbVertical))
-			for i := 0; i < thumbHeight; i++ {
+			for i := range thumbHeight {
 				p.setCell(trackX, trackYStart+thumbPos+i, Cell{
 					Content: thumbGlyph,
 					Width:   1,
@@ -334,7 +334,7 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 			}
 
 			thumbGlyph := string(sb.ThumbGlyph.UnwrapOr(style.DefaultScrollbarThumbHorizontal))
-			for i := 0; i < thumbWidth; i++ {
+			for i := range thumbWidth {
 				p.setCell(trackXStart+thumbPos+i, trackY, Cell{
 					Content: thumbGlyph,
 					Width:   1,
@@ -607,7 +607,7 @@ func (p *PaintEngine) getJunctionGlyph(style BorderStyle, mask int) string {
 		return borderDuble[mask]
 	case BorderThick:
 		return borderThick[mask]
-	case BorderAscii:
+	case BorderASCII:
 		return borderASCII[mask]
 	case BorderRounded:
 		// Rounded uses single-line junctions for non-corners
@@ -684,7 +684,7 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		case style.BorderThick:
 			return BorderThick
 		case style.BorderASCII:
-			return BorderAscii
+			return BorderASCII
 		default:
 			return BorderSingle
 		}

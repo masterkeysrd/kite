@@ -1,10 +1,5 @@
 package terminal
 
-import (
-	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/marker"
-)
-
 // Terminal provides access to terminal-specific features like the
 // clipboard and layout engine.
 //
@@ -12,7 +7,6 @@ import (
 // dom via el.Document().Terminal().
 type Terminal interface {
 	Clipboard() Clipboard
-	Layout() Layout
 }
 
 type Clipboard interface {
@@ -37,13 +31,4 @@ type Clipboard interface {
 
 	// Write writes the given data to the clipboard with the specified MIME type. If the clipboard is unavailable or access is denied, it returns an error.
 	Write(mime string, data []byte) error
-}
-
-type Layout interface {
-	GetSizeOf(node Node) (geom.Size, bool)
-	GetAbsoluteBoundsOf(node Node) (geom.Rect, bool)
-}
-
-type Node interface {
-	marker.Node
 }

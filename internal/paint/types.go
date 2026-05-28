@@ -51,8 +51,8 @@ type BorderStyle uint8
 const (
 	// BorderNone draws no border.
 	BorderNone BorderStyle = 0
-	// BorderAscii draws an ASCII border.
-	BorderAscii BorderStyle = 1
+	// BorderASCII draws an ASCII border.
+	BorderASCII BorderStyle = 1
 	// BorderRounded draws a rounded border.
 	BorderRounded BorderStyle = 2
 	// BorderSingle draws a single-line border.

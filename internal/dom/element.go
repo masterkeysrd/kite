@@ -22,6 +22,10 @@ type Element struct {
 
 	tabIndex    int
 	hasTabIndex bool
+
+	inDefaultStyle   bool
+	inRawStyle       bool
+	inIntrinsicStyle bool
 }
 
 type ScrollState struct {
@@ -110,13 +114,63 @@ func (e *Element) Children() iter.Seq[dom.Node] {
 }
 
 // IntrinsicStyle returns the UA-mandated sparse style for this element.
-// The base element implementation returns an empty style.Style{}, meaning no
-// UA properties are forced. Replaced and compound elements override this
-// method to enforce UA-mandatory properties (ADR-010).
-func (e *Element) IntrinsicStyle() style.Style { return style.Style{} }
+// It delegates to the user-visible wrapper (outer) if it's a specialized implementation.
+func (e *Element) IntrinsicStyle() style.Style {
+	if e.inIntrinsicStyle {
+		return style.Style{}
+	}
+	e.inIntrinsicStyle = true
 
-func (e *Element) RawStyle() style.Style     { return style.Style{} } // Overridden by wrappers
-func (e *Element) DefaultStyle() style.Style { return style.Style{} } // Overridden by wrappers
+	var res style.Style
+	if e.outer != nil && e.outer != e {
+		type intrinsicProvider interface {
+			IntrinsicStyle() style.Style
+		}
+		if p, ok := e.outer.(intrinsicProvider); ok {
+			res = p.IntrinsicStyle()
+		}
+	}
+	e.inIntrinsicStyle = false
+	return res
+}
+
+func (e *Element) RawStyle() style.Style {
+	if e.inRawStyle {
+		return style.Style{}
+	}
+	e.inRawStyle = true
+
+	var res style.Style
+	if e.outer != nil && e.outer != e {
+		type rawProvider interface {
+			RawStyle() style.Style
+		}
+		if p, ok := e.outer.(rawProvider); ok {
+			res = p.RawStyle()
+		}
+	}
+	e.inRawStyle = false
+	return res
+}
+
+func (e *Element) DefaultStyle() style.Style {
+	if e.inDefaultStyle {
+		return style.Style{}
+	}
+	e.inDefaultStyle = true
+
+	var res style.Style
+	if e.outer != nil && e.outer != e {
+		type defaultProvider interface {
+			DefaultStyle() style.Style
+		}
+		if p, ok := e.outer.(defaultProvider); ok {
+			res = p.DefaultStyle()
+		}
+	}
+	e.inDefaultStyle = false
+	return res
+}
 
 func (e *Element) IsDirtyStyle() bool { return e.dirtyStyle }
 

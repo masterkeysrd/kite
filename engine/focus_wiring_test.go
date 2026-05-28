@@ -104,30 +104,6 @@ func clearSyncFlags(n dom.Node) {
 	}
 }
 
-func mockLayout(eng *Engine, yOffset int, ro *render.Box) {
-	frag := &layout.Fragment{
-		Node: ro,
-		Size: geom.Size{Width: 10, Height: 1},
-	}
-	ro.SetCachedLayout(layout.ConstraintSpace{}, frag)
-
-	// Extend the renderView's cached fragment to include this child.
-	prev := eng.renderView.Fragment()
-	var prevChildren []layout.FragmentLink
-	if prev != nil {
-		prevChildren = prev.Children
-	}
-	newChildren := append(prevChildren, layout.FragmentLink{
-		Offset:   geom.Point{X: 0, Y: yOffset},
-		Fragment: frag,
-	})
-	eng.renderView.SetCachedLayout(layout.ConstraintSpace{}, &layout.Fragment{
-		Node:     eng.renderView,
-		Size:     geom.Size{Width: 80, Height: 24},
-		Children: newChildren,
-	})
-}
-
 // ---------------------------------------------------------------------------
 // Bug 1 — Mousedown-to-focus
 // ---------------------------------------------------------------------------

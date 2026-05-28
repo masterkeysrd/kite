@@ -94,7 +94,7 @@ func (b *elementBase[Self]) DefaultStyle() style.Style { return b.defaultStyle }
 // (e.g. Display:InlineBlock, OverflowX:Clip). See ADR-010.
 func (b *elementBase[Self]) IntrinsicStyle() style.Style { return b.intrinsicStyle }
 
-// IsDirtyStyle implements style.StyleNode by delegating to the internal flag.
+// IsDirtyStyle reports whether this element's style needs re-resolution.
 func (b *elementBase[Self]) IsDirtyStyle() bool {
 	if d := internaldom.AsDirtyElement(b.Element); d != nil {
 		return d.IsDirtyStyle()

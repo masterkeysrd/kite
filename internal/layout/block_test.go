@@ -7,12 +7,10 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	geometry "github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/marker"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type mockNode struct {
-	marker.NodeMarker
 	style          *style.Computed
 	firstChild     Node
 	nextSibling    Node

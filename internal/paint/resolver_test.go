@@ -18,12 +18,12 @@ func TestResolveBorders(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Create a horizontal line at y=2
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 
 	// Create a vertical line at x=2
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle})
 	}
 
@@ -42,12 +42,12 @@ func TestResolveBorders_Styles(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Double horizontal line
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 2, Cell{Content: "═", BorderStyle: BorderDouble})
 	}
 
 	// Double vertical line
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		setCell(pe, fb, 2, y, Cell{Content: "║", BorderStyle: BorderDouble})
 	}
 
@@ -65,12 +65,12 @@ func TestResolveBorders_MixedStyles(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Thick horizontal line
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 2, Cell{Content: "━", BorderStyle: BorderThick})
 	}
 
 	// Single vertical line
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle})
 	}
 
@@ -149,18 +149,18 @@ func TestResolveBorders_ParallelNoMerge(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Line 1: y=1
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 1, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 	// Line 2: y=2
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 
 	pe.resolveBorders(fb)
 
 	// They should remain "─" and not become "┬" or "┴" or "┼"
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 1).Content != "─" {
 			t.Errorf("Expected (x=%d, y=1) to remain ─, got %q", x, fb.CellAt(x, 1).Content)
 		}
@@ -179,12 +179,12 @@ func TestResolveBorders_SameBackgroundOnly(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Horizontal line: y=2, Blue background
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle, BG: blue})
 	}
 
 	// Vertical line: x=2, Red background
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle, BG: red})
 	}
 
@@ -203,12 +203,12 @@ func TestResolveBorders_SameTypeOnly(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Horizontal line: Single
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
 	}
 
 	// Vertical line: Double
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		setCell(pe, fb, 2, y, Cell{Content: "║", BorderStyle: BorderDouble})
 	}
 
@@ -227,12 +227,12 @@ func TestResolveBorders_SameColorOnly(t *testing.T) {
 	red := color.RGBA{255, 0, 0, 255}
 
 	// Horizontal line: y=2, Blue foreground
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		fb.Set(x, 2, Cell{Content: "─", BorderStyle: BorderSingle, FG: blue})
 	}
 
 	// Vertical line: x=2, Red foreground
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		fb.Set(2, y, Cell{Content: "│", BorderStyle: BorderSingle, FG: red})
 	}
 

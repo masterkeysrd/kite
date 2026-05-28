@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -31,11 +32,14 @@ func TestStyle_ScrollbarCascade(t *testing.T) {
 
 func TestStyle_ResolverScrollbarDefaults(t *testing.T) {
 	resolver := styler.NewResolver()
-	node := &mockStyleNode{
-		raw: style.Style{}.ScrollbarY(true),
+	node := &fakeNode{
+		kind:     1,
+		rawStyle: style.Style{}.ScrollbarY(true),
 	}
+	ro := render.NewBox(node, nil)
+	ro.MarkDirty(render.DirtyStyle)
 
-	computed := resolver.Resolve(node, nil)
+	computed := resolver.Resolve(ro, nil)
 	sb := computed.Scrollbar
 
 	if !sb.Y.UnwrapOr(false) {
@@ -48,21 +52,3 @@ func TestStyle_ResolverScrollbarDefaults(t *testing.T) {
 		t.Errorf("expected default vertical thumb glyph, got %c", sb.ThumbGlyph.Value())
 	}
 }
-
-type mockStyleNode struct {
-	raw      style.Style
-	computed *style.Computed
-}
-
-func (m *mockStyleNode) RawStyle() style.Style              { return m.raw }
-func (m *mockStyleNode) DefaultStyle() style.Style          { return style.Style{} }
-func (m *mockStyleNode) IntrinsicStyle() style.Style        { return style.Style{} }
-func (m *mockStyleNode) ComputedStyle() *style.Computed     { return m.computed }
-func (m *mockStyleNode) SetComputedStyle(c *style.Computed) { m.computed = c }
-func (m *mockStyleNode) IsDirtyStyle() bool                 { return true }
-func (m *mockStyleNode) HasDirtyStyleChild() bool           { return false }
-func (m *mockStyleNode) ClearDirtyStyle()                   {}
-func (m *mockStyleNode) ClearChildNeedsStyle()              {}
-func (m *mockStyleNode) StyleParent() style.StyleNode       { return nil }
-func (m *mockStyleNode) StyleFirstChild() style.StyleNode   { return nil }
-func (m *mockStyleNode) StyleNextSibling() style.StyleNode  { return nil }

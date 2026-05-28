@@ -4,43 +4,30 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
 
-type mockNode struct {
-	raw      style.Style
-	defaults style.Style
-	computed *style.Computed
-	parent   *mockNode
-}
-
-func (n *mockNode) RawStyle() style.Style       { return n.raw }
-func (n *mockNode) DefaultStyle() style.Style   { return n.defaults }
-func (n *mockNode) IntrinsicStyle() style.Style { return style.Style{} }
-func (n *mockNode) IsDirtyStyle() bool          { return true }
-func (n *mockNode) StyleParent() style.StyleNode {
-	if n.parent == nil {
-		return nil
-	}
-	return n.parent
-}
-func (n *mockNode) StyleFirstChild() style.StyleNode  { return nil }
-func (n *mockNode) StyleNextSibling() style.StyleNode { return nil }
-
 func TestCursorInheritance(t *testing.T) {
 	resolver := styler.NewResolver()
 
-	parent := &mockNode{
-		raw: style.Style{
+	parent := &fakeNode{
+		kind: 1, // Element
+		rawStyle: style.Style{
 			CursorShape: style.Some(style.CursorShapeBarSteady),
 			CursorColor: style.Some[color.Color](color.RGBA{R: 255, G: 0, B: 0, A: 255}),
 		},
 	}
-	child := &mockNode{parent: parent}
+	parentRO := render.NewBox(parent, nil)
+	parentRO.MarkDirty(render.DirtyStyle)
 
-	parentComputed := resolver.Resolve(parent, nil)
-	childComputed := resolver.Resolve(child, parentComputed)
+	child := &fakeNode{kind: 1}
+	childRO := render.NewBox(child, nil)
+	childRO.MarkDirty(render.DirtyStyle)
+
+	parentComputed := resolver.Resolve(parentRO, nil)
+	childComputed := resolver.Resolve(childRO, parentComputed)
 
 	if childComputed.CursorShape != style.CursorShapeBarSteady {
 		t.Errorf("child: expected inherited BarSteady shape, got %v", childComputed.CursorShape)
@@ -53,20 +40,26 @@ func TestCursorInheritance(t *testing.T) {
 func TestCursorOverride(t *testing.T) {
 	resolver := styler.NewResolver()
 
-	parent := &mockNode{
-		raw: style.Style{
+	parent := &fakeNode{
+		kind: 1,
+		rawStyle: style.Style{
 			CursorShape: style.Some(style.CursorShapeBarSteady),
 		},
 	}
-	child := &mockNode{
-		parent: parent,
-		raw: style.Style{
+	parentRO := render.NewBox(parent, nil)
+	parentRO.MarkDirty(render.DirtyStyle)
+
+	child := &fakeNode{
+		kind: 1,
+		rawStyle: style.Style{
 			CursorShape: style.Some(style.CursorShapeBlockSteady),
 		},
 	}
+	childRO := render.NewBox(child, nil)
+	childRO.MarkDirty(render.DirtyStyle)
 
-	parentComputed := resolver.Resolve(parent, nil)
-	childComputed := resolver.Resolve(child, parentComputed)
+	parentComputed := resolver.Resolve(parentRO, nil)
+	childComputed := resolver.Resolve(childRO, parentComputed)
 
 	if childComputed.CursorShape != style.CursorShapeBlockSteady {
 		t.Errorf("child: expected overridden BlockSteady shape, got %v", childComputed.CursorShape)

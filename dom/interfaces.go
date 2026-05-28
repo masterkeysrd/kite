@@ -5,7 +5,6 @@ import (
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/marker"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/terminal"
 )
@@ -41,7 +40,6 @@ func (k Kind) String() string {
 // live on render.Object.
 type Node interface {
 	event.EventTarget
-	marker.Node
 
 	// Kind returns the kind of this node (Document, Element, or Text).
 	Kind() Kind
@@ -199,6 +197,13 @@ type Element interface {
 	Blur()
 	// IsFocusable reports whether this element is currently focusable.
 	IsFocusable() bool
+
+	// RawStyle returns the author-set sparse style for this element.
+	RawStyle() style.Style
+	// DefaultStyle returns the element-type default style.
+	DefaultStyle() style.Style
+	// IntrinsicStyle returns the UA-mandated sparse style for this element.
+	IntrinsicStyle() style.Style
 }
 
 // TextNode is a leaf node that carries character data. It has no children.

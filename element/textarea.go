@@ -167,7 +167,7 @@ func (txa *TextAreaElement) Focus() {
 }
 func (txa *TextAreaElement) Blur() {}
 
-// --- style.StyleNode overrides -----------------------------------------------
+// --- Style resolution overrides ----------------------------------------------
 
 func (txa *TextAreaElement) IntrinsicStyle() style.Style {
 	return intrinsicTextAreaStyle

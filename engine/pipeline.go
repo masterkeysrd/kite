@@ -41,20 +41,50 @@ func (p *StandardPipeline) Tasks(e *Engine) {
 	e.drainMicroTasks()
 }
 
+func propagateStyleDirty(ro render.Object) {
+	if ro == nil {
+		return
+	}
+	n := ro.LogicalNode()
+	if n != nil {
+		if de := internaldom.AsDirtyElement(n); de != nil {
+			if de.IsDirtyStyle() {
+				ro.MarkDirty(render.DirtyStyle)
+				de.ClearDirtyStyle()
+			}
+			de.ClearStyleFlags()
+		} else if dn := internaldom.AsDirty(n); dn != nil {
+			dn.ClearStyleFlags()
+		}
+	}
+	for child := range ro.Children() {
+		propagateStyleDirty(child)
+	}
+}
+
 func (p *StandardPipeline) Style(e *Engine) {
-	dn := internaldom.AsDirty(e.document)
-	// View is KindDocument, so resolveStyle handles it.
-	// Elements (including overlays) that have DirtyStyle or ChildNeedsStyle set
-	// will be processed.
-	if dn.HasDirtyStyleChild() {
-		e.resolveStyle(e.document, nil, false)
+	propagateStyleDirty(e.renderView)
+	for _, overlay := range e.renderView.Overlays() {
+		propagateStyleDirty(overlay)
 	}
 
+	e.resolver.ResolveTree(e.renderView, nil, false)
+
+	for _, overlay := range e.renderView.Overlays() {
+		e.resolver.ResolveTree(overlay, nil, false)
+	}
+
+	// Clean logical node style flags after resolution.
+	// Since ResolveTree clears DirtyStyle on render objects, we still need to clear
+	// the logical flags that triggered it.
+	// TODO: Maybe ResolveTree should also clear logical flags?
+	// For now, let's keep it consistent with how it was.
+	dn := internaldom.AsDirty(e.document)
+	dn.ClearStyleFlags()
 	for overlayEl := range e.document.Overlays() {
 		if de := internaldom.AsDirtyElement(overlayEl); de != nil {
-			if de.IsDirtyStyle() || de.HasDirtyStyleChild() {
-				e.resolveStyle(overlayEl, nil, false)
-			}
+			de.ClearDirtyStyle()
+			de.ClearStyleFlags()
 		}
 	}
 }

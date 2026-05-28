@@ -27,8 +27,6 @@ func NewText(logicalNode dom.Node, target event.EventTarget) *Text {
 	return t
 }
 
-func (t *Text) StyleFirstChild() style.StyleNode { return nil }
-
 // Data returns the text content from the logical node.
 func (t *Text) Data() string {
 	if ts, ok := t.logicalNode.(interface{ Data() string }); ok {

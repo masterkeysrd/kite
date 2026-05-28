@@ -1,6 +1,9 @@
 package styler
 
 import (
+	"github.com/masterkeysrd/kite/dom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -15,13 +18,13 @@ type CacheEntry struct {
 // resolution for a kitex style tree.
 //
 // Cache policy: Resolve returns the same *Computed pointer when the node does
-// not have IsDirtyStyle set and the parent *Computed pointer is unchanged.
+// not have DirtyStyle set and the parent *Computed pointer is unchanged.
 // The cache-hit path performs zero heap allocations.
 //
 // Single-threaded contract: Resolver is not safe for concurrent use.
 type Resolver struct {
 	defaults *style.Computed
-	Cache    map[style.StyleNode]CacheEntry
+	cache    map[dom.Node]CacheEntry
 }
 
 // NewResolver creates a Resolver seeded with style.DefaultStyle as the baseline.
@@ -29,19 +32,103 @@ func NewResolver() *Resolver {
 	d := style.DefaultStyle()
 	return &Resolver{
 		defaults: &d,
-		Cache:    make(map[style.StyleNode]CacheEntry),
+		cache:    make(map[dom.Node]CacheEntry),
 	}
 }
 
-// Resolve returns the Computed style for elem, inheriting from parent where
-// appropriate and overlaying elem's own style on top.
+// ResolveTree recursively resolves styles for the given render subtree.
+func (r *Resolver) ResolveTree(ro render.Object, parent *style.Computed, force bool) {
+	flags := ro.Flags()
+	if !force && flags&(render.DirtyStyle|render.ChildNeedsStyle) == 0 {
+		return
+	}
+
+	computed := parent
+	styleChanged := false
+	n := ro.LogicalNode()
+
+	if n == nil || n.Kind() == dom.KindDocument {
+		// Document root or View uses DisplayBlock baseline.
+		computed = &style.Computed{Display: style.DisplayBlock}
+	} else if n.Kind() == dom.KindElement {
+		if force || ro.Flags()&render.DirtyStyle != 0 {
+			oldComputed := ro.ComputedStyle()
+
+			computed = r.Resolve(ro, parent)
+			if computed != oldComputed {
+				ro.SetComputedStyle(computed)
+				styleChanged = true
+			}
+			ro.ClearDirty(render.DirtyStyle)
+		} else {
+			computed = ro.ComputedStyle()
+		}
+	} else if n.Kind() == dom.KindText {
+		// Text nodes just inherit parent style.
+		if force || ro.ComputedStyle() != parent {
+			ro.SetComputedStyle(parent)
+			styleChanged = true
+		}
+	}
+
+	// Recurse.
+	if force || styleChanged || flags&render.ChildNeedsStyle != 0 {
+		for child := ro.FirstChild(); child != nil; child = child.NextSibling() {
+			r.ResolveTree(child, computed, force || styleChanged)
+		}
+	}
+	ro.ClearDirty(render.ChildNeedsStyle)
+}
+
+// Resolve returns the Computed style for ro, inheriting from parent where
+// appropriate and overlaying the logical node's own style on top.
 //
-// When the cache is warm (IsDirtyStyle is false and the parent pointer is
+// When the cache is warm (DirtyStyle is false and the parent pointer is
 // unchanged), Resolve returns the cached pointer with zero allocations.
-func (r *Resolver) Resolve(elem style.StyleNode, parent *style.Computed) *style.Computed {
+func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Computed {
+	n := ro.LogicalNode()
+	if n == nil {
+		return &style.Computed{Display: style.DisplayBlock}
+	}
+
+	de := internaldom.AsDirtyElement(n)
+
+	var el *internaldom.Element
+	var isEl bool
+
+	type styleProvider interface {
+		RawStyle() style.Style
+		DefaultStyle() style.Style
+		IntrinsicStyle() style.Style
+	}
+
+	var sp styleProvider
+
+	if el, isEl = n.(*internaldom.Element); !isEl {
+		if p, ok := n.(styleProvider); ok {
+			sp = p
+		} else if de != nil {
+			sp = de
+		} else if un := n.Unwrap(); un != nil {
+			if p, ok := un.(styleProvider); ok {
+				sp = p
+			}
+		}
+
+		if sp == nil {
+			// Fallback for nodes that don't provide styles (e.g. text nodes if
+			// Resolve was called on them directly, though ResolveTree handles it).
+			if parent != nil {
+				return parent
+			}
+			return r.defaults
+		}
+	}
+
 	// Cache hit: no dirty flag and same parent pointer → return cached result.
-	if entry, ok := r.Cache[elem]; ok {
-		if !elem.IsDirtyStyle() && entry.Parent == parent {
+	if entry, ok := r.cache[n]; ok {
+		// We check DirtyStyle from the render object as it's the primary driver now.
+		if ro.Flags()&render.DirtyStyle == 0 && entry.Parent == parent {
 			return entry.Result
 		}
 	}
@@ -58,7 +145,11 @@ func (r *Resolver) Resolve(elem style.StyleNode, parent *style.Computed) *style.
 
 	// Layer 2: element-type defaults (applied before inheritance so that
 	// parent colours can still override a Span's display default).
-	c = elem.DefaultStyle().Apply(c)
+	if isEl {
+		c = el.DefaultStyle().Apply(c)
+	} else {
+		c = sp.DefaultStyle().Apply(c)
+	}
 
 	// Layer 3: overlay inheritable fields from parent (mirrors Inheritable()).
 	if parent != nil {
@@ -82,12 +173,22 @@ func (r *Resolver) Resolve(elem style.StyleNode, parent *style.Computed) *style.
 	}
 
 	// Layer 4: element's own author-set style — Optional fields only when IsSet.
-	c = elem.RawStyle().Apply(c)
+	if isEl {
+		c = el.RawStyle().Apply(c)
+	} else {
+		c = sp.RawStyle().Apply(c)
+	}
 
 	// Layer 5: UA-mandated intrinsic style — highest precedence; authors cannot
 	// override. Only applied when the element has intrinsic properties set
 	// (sparse: most elements return an empty Style{} and Apply is a no-op).
-	c = elem.IntrinsicStyle().Apply(c)
+	var intrinsic style.Style
+	if isEl {
+		intrinsic = el.IntrinsicStyle()
+	} else {
+		intrinsic = sp.IntrinsicStyle()
+	}
+	c = intrinsic.Apply(c)
 
 	// Apply sensible TUI defaults for glyphs if explicitly set to true but missing glyphs.
 	if c.Scrollbar.X.UnwrapOr(false) || c.Scrollbar.Y.UnwrapOr(false) {
@@ -109,10 +210,10 @@ func (r *Resolver) Resolve(elem style.StyleNode, parent *style.Computed) *style.
 
 	result := new(style.Computed)
 	*result = c
-	r.Cache[elem] = CacheEntry{Parent: parent, Result: result}
+	r.cache[n] = CacheEntry{Parent: parent, Result: result}
 	return result
 }
 
-// Invalidate removes the cached entry for elem, forcing a full re-resolve on
+// Invalidate removes the cached entry for node, forcing a full re-resolve on
 // the next Resolve call regardless of the DirtyStyle flag.
-func (r *Resolver) Invalidate(elem style.StyleNode) { delete(r.Cache, elem) }
+func (r *Resolver) Invalidate(n dom.Node) { delete(r.cache, n) }

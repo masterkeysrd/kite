@@ -7,7 +7,6 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -326,26 +325,6 @@ func (d *Document) handleMouseUp(ev event.Event) {
 			d.selection.RemoveAllRanges()
 		}
 	}
-}
-
-func (d *Document) findBlockAncestor(n dom.Node) dom.Element {
-	for curr := n; curr != nil; curr = curr.Parent() {
-		if el, ok := curr.(dom.Element); ok {
-			if d.view == nil {
-				continue
-			}
-			cs := d.view.GetComputedStyle(el)
-			if cs == nil {
-				continue
-			}
-			display := cs.Display
-			if display == style.DisplayBlock || display == style.DisplayFlex ||
-				display == style.DisplayListItem || display == style.DisplayTableCell {
-				return el
-			}
-		}
-	}
-	return nil
 }
 
 func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {

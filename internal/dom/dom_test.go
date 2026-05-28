@@ -43,18 +43,6 @@ func (f *fakeRO) Node() dom.Node                          { return nil }
 func (f *fakeRO) InsertChild(child, before render.Object) {}
 func (f *fakeRO) RemoveChild(child render.Object)         {}
 
-// StyleNode implementation
-func (f *fakeRO) RawStyle() style.Style             { return style.Style{} }
-func (f *fakeRO) DefaultStyle() style.Style         { return style.Style{} }
-func (f *fakeRO) IntrinsicStyle() style.Style       { return style.Style{} }
-func (f *fakeRO) IsDirtyStyle() bool                { return false }
-func (f *fakeRO) HasDirtyStyleChild() bool          { return false }
-func (f *fakeRO) ClearDirtyStyle()                  {}
-func (f *fakeRO) ClearChildNeedsStyle()             {}
-func (f *fakeRO) StyleParent() style.StyleNode      { return nil }
-func (f *fakeRO) StyleFirstChild() style.StyleNode  { return nil }
-func (f *fakeRO) StyleNextSibling() style.StyleNode { return nil }
-
 // layout.Node implementation
 func (f *fakeRO) FirstLayoutChild() layout.Node                            { return nil }
 func (f *fakeRO) NextLayoutSibling(layout.Node) layout.Node                { return nil }

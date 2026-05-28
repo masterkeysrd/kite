@@ -221,16 +221,6 @@ func (inp *InputElement) Focus() {
 // Blur is a no-op placeholder (focus management is handled by focus.Manager).
 func (inp *InputElement) Blur() {}
 
-// --- style.StyleNode overrides -----------------------------------------------
-
-// IntrinsicStyle returns the UA-mandated forced styles for this element.
-// These properties cannot be overridden by author styles (RawStyle). See ADR-010.
-func (inp *InputElement) IntrinsicStyle() style.Style {
-	return intrinsicInputStyle
-}
-
-// --- internal helpers --------------------------------------------------------
-
 // syncText updates the UA text node to mirror the current buffer value and
 // marks the render object dirty for layout and paint.
 func (inp *InputElement) syncText() {

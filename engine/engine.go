@@ -731,12 +731,10 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 					rootFrag := root.Fragment()
 					if bounds, clip, found := layout.ScrolledAbsoluteBounds(rootFrag, ro); found {
 						scrollX, scrollY := 0, 0
-						if el, ok := focused.(dom.Element); ok {
-							rawX, rawY := el.Scroll()
-							maxSX, maxSY := layout.MaxScroll(ro.Fragment())
-							scrollX = max(0, min(rawX, maxSX))
-							scrollY = max(0, min(rawY, maxSY))
-						}
+						rawX, rawY := focused.Scroll()
+						maxSX, maxSY := layout.MaxScroll(ro.Fragment())
+						scrollX = max(0, min(rawX, maxSX))
+						scrollY = max(0, min(rawY, maxSY))
 						cursorPos := geom.Point{
 							X: bounds.Origin.X + state.X - scrollX,
 							Y: bounds.Origin.Y + state.Y - scrollY,
@@ -890,64 +888,6 @@ func (e *Engine) syncOverlays(d dom.Document) {
 	e.renderView.SetOverlays(overlayROs)
 }
 
-func (e *Engine) resolveStyle(n dom.Node, parent *style.Computed, force bool) {
-	dn := internaldom.AsDirty(n)
-	if n == nil {
-		return
-	}
-
-	ro := e.RenderObject(n)
-	if ro == nil {
-		// View doesn't have a logical node but might be a root.
-		if n == e.document {
-			ro = e.renderView
-		} else {
-			return
-		}
-	}
-
-	computed := parent
-	styleChanged := false
-
-	if n.Kind() == dom.KindElement {
-		de := internaldom.AsDirtyElement(n)
-		if force || de.IsDirtyStyle() {
-			oldComputed := ro.ComputedStyle()
-
-			// Ensure we use the wrapper (which implements StyleNode) to get correct styles.
-			sn, ok := n.(style.StyleNode)
-			if !ok {
-				sn = de
-			}
-			computed = e.resolver.Resolve(sn, parent)
-			if computed != oldComputed {
-				ro.SetComputedStyle(computed)
-				styleChanged = true
-			}
-			de.ClearDirtyStyle()
-		} else {
-			computed = ro.ComputedStyle()
-		}
-	} else if n.Kind() == dom.KindText {
-		// Text nodes just inherit parent style.
-		if force || ro.ComputedStyle() != parent {
-			ro.SetComputedStyle(parent)
-			styleChanged = true
-		}
-	} else if n.Kind() == dom.KindDocument {
-		// Document root (View) uses DisplayBlock.
-		computed = &style.Computed{Display: style.DisplayBlock}
-	}
-
-	// Recurse.
-	if force || styleChanged || dn.HasDirtyStyleChild() {
-		for child := range dom.LayoutChildren(n) {
-			e.resolveStyle(child, computed, force || styleChanged)
-		}
-	}
-	dn.ClearStyleFlags()
-}
-
 // diffChildren synchronizes the children of n into the render object ro.
 func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 	// Map existing render children.
@@ -1073,7 +1013,7 @@ func (e *Engine) executeJob(ctx context.Context, j Job, workerID int) {
 		result any
 		jobErr error
 	)
-	var endRun func() = noop
+	var endRun = noop
 	if v, ok := e.jobIDs.LoadAndDelete(j); ok {
 		if tracer := e.Tracer(); tracer != nil {
 			jobID := v.(string)

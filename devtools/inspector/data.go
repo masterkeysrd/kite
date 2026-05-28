@@ -202,15 +202,21 @@ func (i *Inspector) snapshotNode(n dom.Node, boundsMap map[layout.Node]geom.Rect
 	if ro := i.eng.RenderObject(n); ro != nil {
 		s.Computed = ro.ComputedStyle()
 
-		if sn, ok := n.(style.StyleNode); ok {
-			s.Default = sn.DefaultStyle()
-			s.Raw = sn.RawStyle()
-			s.Intrinsic = sn.IntrinsicStyle()
+		type styleProvider interface {
+			RawStyle() style.Style
+			DefaultStyle() style.Style
+			IntrinsicStyle() style.Style
+		}
+
+		if sp, ok := n.(styleProvider); ok {
+			s.Default = sp.DefaultStyle()
+			s.Raw = sp.RawStyle()
+			s.Intrinsic = sp.IntrinsicStyle()
 		} else if un := n.Unwrap(); un != nil {
-			if sn, ok := un.(style.StyleNode); ok {
-				s.Default = sn.DefaultStyle()
-				s.Raw = sn.RawStyle()
-				s.Intrinsic = sn.IntrinsicStyle()
+			if sp, ok := un.(styleProvider); ok {
+				s.Default = sp.DefaultStyle()
+				s.Raw = sp.RawStyle()
+				s.Intrinsic = sp.IntrinsicStyle()
 			}
 		}
 		if rect, ok := boundsMap[ro]; ok {

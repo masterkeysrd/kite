@@ -7,14 +7,12 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
-	"github.com/masterkeysrd/kite/internal/marker"
 )
 
 var _ dom.Node = (*BaseNode)(nil)
 
 type BaseNode struct {
 	internalevent.Target
-	marker.NodeMarker
 
 	name            string
 	kind            dom.Kind

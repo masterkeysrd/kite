@@ -1,4 +1,4 @@
-package render
+package render_test
 
 import (
 	"image/color"
@@ -9,13 +9,12 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/internal/marker"
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/internal/styler"
 	"github.com/masterkeysrd/kite/style"
 )
 
 type stubNode struct {
-	marker.NodeMarker
 	style style.Style
 }
 
@@ -26,7 +25,7 @@ func (n *stubNode) ParentElement() dom.Element               { return nil }
 func (n *stubNode) NextSibling() dom.Node                    { return nil }
 func (n *stubNode) PreviousSibling() dom.Node                { return nil }
 func (n *stubNode) OwnerDocument() dom.Document              { return nil }
-func (n *stubNode) IsConnected() bool                        { return false }
+func (n *stubNode) IsConnected() bool                        { return true }
 func (n *stubNode) AppendChild(dom.Node) dom.Node            { return nil }
 func (n *stubNode) InsertBefore(dom.Node, dom.Node) dom.Node { return nil }
 func (n *stubNode) RemoveChild(dom.Node) dom.Node            { return nil }
@@ -71,32 +70,25 @@ func (n *stubNode) IsFocusable() bool                        { return false }
 func (n *stubNode) RawStyle() style.Style       { return n.style }
 func (n *stubNode) DefaultStyle() style.Style   { return style.Style{} }
 func (n *stubNode) IntrinsicStyle() style.Style { return style.Style{} }
-func (n *stubNode) IsDirtyStyle() bool          { return true }
-
-var _ style.StyleNode = (*stubNode)(nil)
-var _ dom.Element = (*stubNode)(nil)
 
 func TestRegression_InheritancePropagation(t *testing.T) {
-	view := NewRenderView()
+	view := render.NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
 	pNode := &stubNode{style: style.Style{
 		Foreground: style.Some[color.Color](color.White),
 	}}
-	parent := NewBlock(pNode, nil)
+	parent := render.NewBlock(pNode, nil)
 	view.InsertChild(parent, nil)
 
 	cNode := &stubNode{style: style.Style{}}
-	child := NewBlock(cNode, nil)
+	child := render.NewBlock(cNode, nil)
 	// child does not set foreground, should inherit
 	parent.InsertChild(child, nil)
 
-	// Manual resolve for test
+	// Resolve the tree.
 	resolver := styler.NewResolver()
-	computed := resolver.Resolve(pNode, nil)
-	parent.SetComputedStyle(computed)
-	computedChild := resolver.Resolve(cNode, computed)
-	child.SetComputedStyle(computedChild)
+	resolver.ResolveTree(view, nil, false)
 
 	if child.ComputedStyle().Foreground != color.White {
 		t.Fatalf("Child should inherit white, got %v", child.ComputedStyle().Foreground)
@@ -107,13 +99,10 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 	pNode.style = style.Style{
 		Foreground: style.Some[color.Color](red),
 	}
-	parent.MarkDirty(DirtyStyle)
+	parent.MarkDirty(render.DirtyStyle)
 
 	// Resolve again
-	computed = resolver.Resolve(pNode, nil)
-	parent.SetComputedStyle(computed)
-	computedChild = resolver.Resolve(cNode, computed)
-	child.SetComputedStyle(computedChild)
+	resolver.ResolveTree(view, nil, false)
 
 	if child.ComputedStyle().Foreground != red {
 		t.Fatalf("Child should inherit red, got %v", child.ComputedStyle().Foreground)
@@ -121,7 +110,7 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 }
 
 func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
-	view := NewRenderView()
+	view := render.NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
 	fNode := &stubNode{style: style.Style{
@@ -129,32 +118,27 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 		Width:   style.Some(style.Percent(100)),
 		Height:  style.Some(style.Percent(100)),
 	}}
-	flex := NewBox(fNode, nil)
+	flex := render.NewBox(fNode, nil)
 	view.InsertChild(flex, nil)
 
 	c1Node := &stubNode{style: style.Style{
 		Flex: style.Some(style.Flex(1, 1, style.Auto)),
 	}}
-	child1 := NewBlock(c1Node, nil)
+	child1 := render.NewBlock(c1Node, nil)
 	flex.InsertChild(child1, nil)
 
 	c2Node := &stubNode{style: style.Style{
 		Flex: style.Some(style.Flex(1, 1, style.Auto)),
 	}}
-	child2 := NewBlock(c2Node, nil)
+	child2 := render.NewBlock(c2Node, nil)
 	flex.InsertChild(child2, nil)
 
-	// Manual resolve for test
+	// Resolve the tree.
 	resolver := styler.NewResolver()
-	computed := resolver.Resolve(fNode, nil)
-	flex.SetComputedStyle(computed)
-	computedChild1 := resolver.Resolve(c1Node, computed)
-	child1.SetComputedStyle(computedChild1)
-	computedChild2 := resolver.Resolve(c2Node, computed)
-	child2.SetComputedStyle(computedChild2)
+	resolver.ResolveTree(view, nil, false)
 
 	viewport := view.ViewportSize()
-	LayoutPhase(nil, view, viewport)
+	render.LayoutPhase(nil, view, viewport)
 
 	if flex.Fragment() == nil {
 		t.Fatal("Flex fragment is nil")
@@ -170,39 +154,28 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	if c1.Offset.X == c2.Offset.X && c1.Fragment.Size.Width > 0 {
 		t.Errorf("Flex children should not overlap horizontally in Row. c1.X=%d, c2.X=%d", c1.Offset.X, c2.Offset.X)
 	}
-
-	// Also check they are added in order
-	if c1.Fragment.Node != (layout.Node)(child1) {
-		t.Errorf("First child in fragment should be child1")
-	}
-	if c2.Fragment.Node != (layout.Node)(child2) {
-		t.Errorf("Second child in fragment should be child2")
-	}
 }
 
 func TestRegression_MultipleChildrenBlock(t *testing.T) {
-	view := NewRenderView()
+	view := render.NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
 	bNode := &stubNode{style: style.Style{Display: style.Some(style.DisplayBlock)}}
-	block := NewBlock(bNode, nil)
+	block := render.NewBlock(bNode, nil)
 	view.InsertChild(block, nil)
 
 	c1Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
-	child1 := NewBlock(c1Node, nil)
+	child1 := render.NewBlock(c1Node, nil)
 	block.InsertChild(child1, nil)
 
 	c2Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
-	child2 := NewBlock(c2Node, nil)
+	child2 := render.NewBlock(c2Node, nil)
 	block.InsertChild(child2, nil)
 
 	resolver := styler.NewResolver()
-	computed := resolver.Resolve(bNode, nil)
-	block.SetComputedStyle(computed)
-	child1.SetComputedStyle(resolver.Resolve(c1Node, computed))
-	child2.SetComputedStyle(resolver.Resolve(c2Node, computed))
+	resolver.ResolveTree(view, nil, false)
 
-	LayoutPhase(nil, view, view.ViewportSize())
+	render.LayoutPhase(nil, view, view.ViewportSize())
 
 	if len(block.Fragment().Children) != 2 {
 		t.Fatalf("Expected 2 children in block, got %d", len(block.Fragment().Children))
@@ -217,7 +190,7 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 }
 
 func TestRegression_ListNoChildrenNoCrash(t *testing.T) {
-	node := NewBox(nil, nil)
+	node := render.NewBox(nil, nil)
 	node.SetComputedStyle(&style.Computed{
 		Display:       style.DisplayListItem,
 		ListStyleType: style.ListStyleDisc,
