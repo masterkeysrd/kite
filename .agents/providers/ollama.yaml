@@ -6,17 +6,11 @@ metadata:
 spec:
   type: ollama
   endpoint: http://localhost:11434
-  defaultModel: ollama/qwen3.6
+  defaultModel: ollama/qwen3.6:35b-a3b-coding-mxfp8
   models:
-    - id: qwen3.6
+    - id: qwen3.6:35b-a3b-coding-mxfp8
       name: qwen3.6
       label: Qwen3.6
-      limits:
-        context: 32768
-        output: 8192
-    - id: qwen3-coder:30b
-      name: qwen3-coder:30b
-      label: Qwen3 Coder 30B
       limits:
         context: 32768
         output: 8192
