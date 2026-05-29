@@ -9,7 +9,7 @@ Depends on: TSK-018, TSK-022, TSK-023, TSK-027, TSK-028.
 
 ### 2.1 Feature Design
 - `TextAreaElement` becomes a thin host:
-  - Embeds `*editor.Buffer` (TSK-017) for 1D logical text editing.
+  - Embeds `*text.Buffer` (TSK-017) for 1D logical text editing.
   - In its constructor, creates a UA subtree consisting of a single internal text node whose content is bound to `Buffer.Value()`, attached via `Element.AttachUARoot()`.
   - On every mutation, propagates the new value to the UA text node and marks the render object dirty.
 - UA-mandated styles via `IntrinsicStyle()`:

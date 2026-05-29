@@ -98,7 +98,9 @@ func (b *Buffer) Backspace(graphemeCount int) {
 		return
 	}
 
-	windowRunes := 128
+	// For a small number of graphemes, we can use a windowed scan to avoid
+	// scanning the entire buffer from the start.
+	windowRunes := 64
 	if graphemeCount > 10 {
 		windowRunes = graphemeCount * 4
 	}
@@ -126,7 +128,7 @@ func (b *Buffer) Backspace(graphemeCount int) {
 	if graphemeCount <= 64 {
 		offsets = stackOffsets[:0]
 	} else {
-		offsets = make([]int, 0, graphemeCount)
+		offsets = make([]int, 0, 128)
 	}
 
 	state := -1
@@ -159,9 +161,14 @@ func (b *Buffer) Delete(graphemeCount int) {
 	defer putByteBuf(pBuf)
 	byteBuf := *pBuf
 
-	// Only scan enough to find the end of graphemeCount clusters.
-	// Most graphemes are small, so scan 4x graphemeCount runes initially.
-	scanLimit := graphemeCount * 4
+	// For correctness with complex emojis, we MUST scan enough runes to see
+	// the full grapheme clusters.
+	// Let's scan everything for now if it's within a reasonable limit (e.g. 1000 runes),
+	// otherwise use a larger heuristic.
+	scanLimit := 1024
+	if graphemeCount > 200 {
+		scanLimit = graphemeCount * 8
+	}
 	if scanLimit > len(runes) {
 		scanLimit = len(runes)
 	}
@@ -181,44 +188,6 @@ func (b *Buffer) Delete(graphemeCount int) {
 		cluster, remaining, _, state = uniseg.Step(remaining, state)
 		runesToDelete += utf8.RuneCount(cluster)
 		count++
-
-		// If we exhausted our scanLimit but still need more graphemes, expand.
-		if len(remaining) == 0 && count < graphemeCount && scanLimit < len(runes) {
-			oldLimit := scanLimit
-			scanLimit *= 2
-			if scanLimit > len(runes) {
-				scanLimit = len(runes)
-			}
-			for j := oldLimit; j < scanLimit; j++ {
-				var tmp [4]byte
-				n := utf8.EncodeRune(tmp[:], runes[j])
-				byteBuf = append(byteBuf, tmp[:n]...)
-			}
-			// Resume from current remaining (which was empty)
-			remaining = byteBuf[len(byteBuf)-(len(byteBuf)-len(remaining)):] // This is wrong, need to re-index
-			// Easier to just restart or keep a separate counter.
-			// Let's just scan everything after gap if scanLimit is small.
-		}
-	}
-
-	// Simplified fallback for large deletions
-	if count < graphemeCount && scanLimit < len(runes) {
-		byteBuf = byteBuf[:0]
-		for _, r := range runes {
-			var tmp [4]byte
-			n := utf8.EncodeRune(tmp[:], r)
-			byteBuf = append(byteBuf, tmp[:n]...)
-		}
-		remaining = byteBuf
-		state = -1
-		runesToDelete = 0
-		count = 0
-		for count < graphemeCount && len(remaining) > 0 {
-			var cluster []byte
-			cluster, remaining, _, state = uniseg.Step(remaining, state)
-			runesToDelete += utf8.RuneCount(cluster)
-			count++
-		}
 	}
 
 	b.gapEnd += runesToDelete
@@ -454,6 +423,31 @@ func (b *Buffer) DeleteWordNext() {
 
 	b.gapStart = oldGapStart
 	b.version++
+}
+
+// SetOffset is an alias for SetByteOffset for compatibility.
+func (b *Buffer) SetOffset(offset int) {
+	b.SetByteOffset(offset)
+}
+
+// MoveToStart is an alias for MoveStart for compatibility.
+func (b *Buffer) MoveToStart() {
+	b.MoveStart()
+}
+
+// MoveToEnd is an alias for MoveEnd for compatibility.
+func (b *Buffer) MoveToEnd() {
+	b.MoveEnd()
+}
+
+// DeletePrevious is an alias for Backspace(1) for compatibility.
+func (b *Buffer) DeletePrevious() {
+	b.Backspace(1)
+}
+
+// DeleteNext is an alias for Delete(1) for compatibility.
+func (b *Buffer) DeleteNext() {
+	b.Delete(1)
 }
 
 // moveGap moves the gap to a new start position.

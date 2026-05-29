@@ -9,7 +9,7 @@ Depends on: TSK-018, TSK-022, TSK-023, TSK-027, TSK-028.
 
 ### 2.1 Feature Design
 - `InputElement` becomes a thin host:
-  - Embeds `*editor.Buffer` (TSK-017) for 1D logical text editing.
+  - Embeds `*text.Buffer` (TSK-017) for 1D logical text editing.
   - In its constructor, creates a UA subtree consisting of a single internal text node whose content is bound to `Buffer.Value()`, and attaches it via `Element.AttachUARoot()`.
   - On every keystroke handler, after mutating the buffer, updates the UA text node's value and calls `MarkDirty(DirtyLayout | DirtyPaint)`.
 - The input no longer implements `render.CustomObjectProvider`. The engine creates a plain `render.Box` for it. The IFC produces a single line box containing the shaped text.

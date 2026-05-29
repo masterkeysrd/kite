@@ -18,14 +18,14 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/internal/editor"
+	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/key"
 )
 
 type textControlBase[T Element] struct {
 	host         T
 	uaDiv        dom.Element
-	buf          *editor.Buffer
+	buf          *text.Buffer
 	isMultiline  bool
 	syncCallback func()
 
@@ -73,7 +73,7 @@ type textControlBase[T Element] struct {
 func (b *textControlBase[T]) initTextControlBase(
 	host T,
 	uaDiv dom.Element,
-	buf *editor.Buffer,
+	buf *text.Buffer,
 	isMultiline bool,
 	sync func(),
 ) {
@@ -351,10 +351,15 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 	// New scroll.
 	nsx, nsy := sx, sy
 
-	if cx < sx {
-		nsx = cx
-	} else if cx >= sx+width {
-		nsx = cx - width + 1
+	if !b.isMultiline {
+		if cx < sx {
+			nsx = cx
+		} else if cx >= sx+width {
+			nsx = cx - width + 1
+		}
+	} else {
+		// Multiline (TextArea) should not scroll horizontally as it wraps.
+		nsx = 0
 	}
 
 	if cy < sy {

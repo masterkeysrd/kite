@@ -761,7 +761,11 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 						}
 
 						// Hardware cursor should only be visible if it's within the clip region.
-						if clip.Contains(cursorPos) {
+						// We use inclusive checks for the right/bottom edges because a
+						// text cursor sits between characters and can logically sit
+						// on the trailing boundary of its container.
+						if cursorPos.X >= clip.Origin.X && cursorPos.X <= clip.Origin.X+clip.Size.Width &&
+							cursorPos.Y >= clip.Origin.Y && cursorPos.Y <= clip.Origin.Y+clip.Size.Height {
 							next.Visible = true
 							next.X = cursorPos.X
 							next.Y = cursorPos.Y

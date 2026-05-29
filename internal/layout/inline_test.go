@@ -960,8 +960,9 @@ func TestInlineLayout_EmergencyBreak(t *testing.T) {
 	textNode := &mockTextNode{
 		mockNode: mockNode{
 			style: &style.Computed{
-				Display:    style.DisplayInline,
-				WhiteSpace: style.WhiteSpacePreWrap,
+				Display:      style.DisplayInline,
+				WhiteSpace:   style.WhiteSpacePreWrap,
+				OverflowWrap: style.OverflowWrapBreakWord, // MUST enable for emergency break
 			},
 		},
 		data: "123456789012345",

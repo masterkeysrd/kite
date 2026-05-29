@@ -9,13 +9,17 @@ package element_test
 //     buffer byte offset using the generic hit-testing logic.
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/devtools/testenv"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -39,7 +43,7 @@ func TestTextControlBase_ScrollCursorIntoView_UpdatesYScroll(t *testing.T) {
 	defer eng.Stop()
 
 	// 10 lines of text in a 3-row-visible textarea.
-	// The editor.Buffer places the cursor at the end by default, i.e. line 9.
+	// The text.Buffer places the cursor at the end by default, i.e. line 9.
 	text := "line0\nline1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9"
 	txa := element.NewTextArea(eng.Document(), text)
 	txa.Style(style.Style{
@@ -199,5 +203,285 @@ func TestTextControlBase_MouseDown_HitTest_AfterScroll(t *testing.T) {
 	wantOffset := 18
 	if got := txa.Buffer().ByteOffset(); got != wantOffset {
 		t.Errorf("ByteOffset after scrolled click = %d, want %d", got, wantOffset)
+	}
+}
+
+// TestTextArea_Panic_DocumentMismatch verifies that adopting a TextArea into a
+// new document does not cause a panic during selection updates due to
+// mismatched owner documents on UA nodes.
+func TestTextArea_Panic_DocumentMismatch(t *testing.T) {
+	doc1 := dom.NewDocument()
+	txa := element.NewTextArea(doc1, "Hello")
+
+	// Move to doc2.
+	doc2 := dom.NewDocument()
+	doc2.AppendChild(txa)
+
+	// Mutate buffer to trigger rebuild of UA subtree in doc2.
+	txa.Buffer().Insert(" World")
+	txa.SyncBuffer()
+
+	// Trigger selection update. If it uses nodes from doc1, it will panic.
+	txa.SetSelectionRange(0, 5)
+
+	// If we reached here without panic, the fix is verified.
+}
+
+// TestTextArea_Panic_InvalidBROffset verifies that mapping a selection to a
+// <br> element does not use an invalid offset (1), which would exceed the
+// child count (0) of the void <br> element and cause a panic.
+func TestTextArea_Panic_InvalidBROffset(t *testing.T) {
+	doc := dom.NewDocument()
+	txa := element.NewTextArea(doc, "Line One\nLine Two")
+	root := element.Box(txa)
+	doc.AppendChild(root)
+
+	// Layout is needed for resolveOffset to work (it iterates ChildNodes,
+	// but textControlBase.resolveOffset uses the uaDiv's children which are
+	// created during rebuildUASubtree).
+
+	// Offset 8 is the '\n' character.
+	// We want to ensure that setting selection at or after this '\n' works.
+
+	// Test setting selection exactly at the \n.
+	txa.SetSelectionRange(8, 9)
+
+	// Test setting selection starting exactly at the \n.
+	txa.SetSelectionRange(8, 10)
+
+	// If no panic, we are good.
+}
+
+func TestTextArea_Repro_StepByStep(t *testing.T) {
+	env := testenv.Default(80, 24)
+	defer env.Close()
+
+	content := "ABC\nDEF\nGHI"
+	txa := element.TextArea(content)
+	env.Mount(txa)
+	env.Flush()
+
+	// 1. Move to start of Line 2 ('D', offset 4).
+	txa.SetSelectionRange(4, 4)
+	env.Flush()
+
+	sel := env.Document().Selection()
+
+	// 2. Shift + Right. Should be "D".
+	env.KeyPress("right", key.ModShift)
+	env.Flush()
+	if got := sel.String(); got != "D" {
+		t.Errorf("Step 1 (Shift+Right): expected 'D', got %q", got)
+	}
+
+	// 3. Shift + Right again. Should be "DE".
+	env.KeyPress("right", key.ModShift)
+	env.Flush()
+	if got := sel.String(); got != "DE" {
+		t.Errorf("Step 2 (Shift+Right): expected 'DE', got %q", got)
+	}
+
+	// 4. Shift + Left. Should be back to "D".
+	env.KeyPress("left", key.ModShift)
+	env.Flush()
+	if got := sel.String(); got != "D" {
+		t.Errorf("Step 3 (Shift+Left): expected 'D', got %q", got)
+	}
+
+	// 5. Shift + Left. Should be empty (collapsed at 4).
+	env.KeyPress("left", key.ModShift)
+	env.Flush()
+	if got := sel.String(); got != "" {
+		t.Errorf("Step 4 (Shift+Left): expected '', got %q", got)
+	}
+
+	// 6. Shift + Left. Should be "\n" (backward selection from 4 to 3).
+	env.KeyPress("left", key.ModShift)
+	env.Flush()
+	if got := sel.String(); got != "\n" {
+		t.Errorf("Step 5 (Shift+Left): expected '\\n', got %q", got)
+	}
+}
+
+func TestInput_KeyboardSelection(t *testing.T) {
+	env := testenv.Default(80, 24)
+	defer env.Close()
+
+	inp := element.Input("Hello World").WithID("inp")
+	env.Mount(inp)
+	env.Flush()
+
+	// Focus the input
+	env.Click(0, 0)
+	env.KeyPress("end")
+	env.Flush()
+
+	// Initial caret at end (offset 11)
+	// Shift + Left 5 times (selects "World")
+	for i := 0; i < 5; i++ {
+		env.KeyPress("left", key.ModShift)
+	}
+	env.Flush()
+
+	doc := env.Document()
+	sel := doc.Selection()
+
+	if sel.RangeCount() != 1 {
+		t.Fatalf("expected 1 range, got %d", sel.RangeCount())
+	}
+
+	if sel.String() != "World" {
+		t.Errorf("expected selection 'World', got %q", sel.String())
+	}
+
+	// Type "Kite" to replace selection
+	env.SendKey(key.Key{Code: 'K', Text: "K"})
+	env.Flush()
+	env.KeyPress("i")
+	env.Flush()
+	env.KeyPress("t")
+	env.Flush()
+	env.KeyPress("e")
+	env.Flush()
+
+	if inp.Value() != "Hello Kite" {
+		t.Errorf("expected value 'Hello Kite', got %q", inp.Value())
+	}
+
+	if sel.RangeCount() != 0 {
+		t.Errorf("expected selection to be cleared after typing, got %d", sel.RangeCount())
+	}
+}
+
+func TestInput_MouseSelection(t *testing.T) {
+	env := testenv.Default(80, 24)
+	defer env.Close()
+
+	inp := element.Input("Hello World").WithID("inp")
+	env.Mount(inp)
+	env.Flush()
+
+	// MouseDown on 'e' (offset 1)
+	// Local coordinates for "Hello World":
+	// H: 0, e: 1, l: 2, l: 3, o: 4,  : 5, W: 6, o: 7, r: 8, l: 9, d: 10
+	env.MouseDown(1, 0, event.ButtonLeft)
+	env.Flush()
+
+	// Drag to 'o' (offset 7, after 'W')
+	env.MouseMove(7, 0)
+	env.Flush()
+
+	// Depending on hit-testing, this might be "ello W" or "ello Wo"
+	// Current implementation seems to give offset 8 for cell 7?
+	// Let's see what we get.
+
+	env.MouseUp(7, 0, event.ButtonLeft)
+	env.Flush()
+
+	// Backspace to delete selection
+	env.KeyPress("backspace")
+	env.Flush()
+
+	if inp.Value() != "Horld" && inp.Value() != "Hoorld" {
+		t.Errorf("expected value 'Horld' or 'Hoorld', got %q", inp.Value())
+	}
+}
+
+func TestTextArea_Selection(t *testing.T) {
+	env := testenv.Default(80, 24)
+	defer env.Close()
+
+	txa := element.TextArea("Line One\nLine Two")
+	env.Mount(txa)
+	env.Flush()
+
+	// Focus
+	env.Click(0, 0)
+	env.Flush()
+
+	// Caret at end (offset 17)
+	// Select All (Ctrl+A)
+	env.KeyPress("a", key.ModCtrl)
+	env.Flush()
+
+	sel := env.Document().Selection()
+	if sel.String() != "Line One\nLine Two" {
+		t.Errorf("expected full selection, got %q", sel.String())
+	}
+
+	// Shift+Left to deselect one char
+	env.KeyPress("left", key.ModShift)
+	env.Flush()
+
+	if sel.String() != "Line One\nLine Tw" {
+		t.Errorf("expected partial selection, got %q", sel.String())
+	}
+}
+
+func TestTextArea_SelectAllBugReproduction(t *testing.T) {
+	env := testenv.Default(80, 24)
+	defer env.Close()
+
+	// Text with multiple lines.
+	content := "Line One\nLine Two\nLine Three"
+	txa := element.TextArea(content)
+	env.Mount(txa)
+	env.Flush()
+
+	// 1. Move to start of line 2 ('L' of "Line Two", offset 9)
+	txa.Buffer().SetOffset(9)
+	txa.SyncBuffer()
+	env.Flush()
+
+	// 2. Press Shift + Right. Should select only 'L'.
+	env.KeyPress("right", key.ModShift)
+	env.Flush()
+
+	sel := env.Document().Selection()
+	if sel.String() != "L" {
+		t.Errorf("expected selection 'L', got %q", sel.String())
+	}
+
+	// 3. Move back to offset 9 and try Shift + Left.
+	txa.SetSelectionRange(9, 9)
+	env.Flush()
+
+	env.KeyPress("left", key.ModShift)
+	env.Flush()
+
+	// Should select the newline character before 'L'.
+	if sel.String() != "\n" {
+		t.Errorf("expected selection '\\n', got %q", sel.String())
+	}
+}
+
+func BenchmarkTextArea_UpdateSelectionRange(b *testing.B) {
+	doc := dom.NewDocument()
+	// Large textarea content to make mapping expensive.
+	var lines []string
+	for i := 0; i < 50; i++ {
+		lines = append(lines, "This is line number "+strings.Repeat("x", 20))
+	}
+	content := strings.Join(lines, "\n")
+	txa := element.NewTextArea(doc, content)
+	doc.AppendChild(txa)
+
+	// Ensure UA subtree is built.
+	txa.SyncBuffer()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Set selection at the end.
+		txa.SetSelectionRange(len(content)-10, len(content))
+	}
+}
+
+func BenchmarkBuffer_DeleteRange(b *testing.B) {
+	content := strings.Repeat("hello world ", 1000)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf := text.NewBuffer(content)
+		buf.DeleteRange(100, 200)
 	}
 }

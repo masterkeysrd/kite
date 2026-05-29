@@ -135,7 +135,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Hardware cursor state & Provider** | `cursor/cursor.go` |
 | **Cursor from IFC fragment** | `cursor/from_text_fragment.go` |
 | **Cursor byte-offset hit-test** | `cursor/offset_at_point.go` |
-| **Editor buffer (text model)** | `editor/buffer.go` |
+| **Editor buffer (text model)** | `text/buffer.go` |
 | **Overlay system & algorithms** | `element/overlay.go`, `layout/overlay.go` (ADR-008) |
 | **Modal Dialogs** | `element/dialog.go` |
 | **Engine frame loop** | `engine/engine.go` |
@@ -236,69 +236,9 @@ This source map summarises the repository packages, their responsibilities, and 
     - Description: Logical DOM node tree, lifecycle, adoption, UA shadow subtree, and scroll semantics. (See `dom/doc.go`)
     - Key files: `dom/doc.go`, `document.go`, `node.go`, `element.go`, `text_node.go`, `outer.go`, `scroll_controller.go`
 
-- **editor** — Path: `editor/`
-    - Description: Text editing and `Buffer` utilities; Unicode-safe mutations and navigation. (See `editor/doc.go`)
-    - Key files: `editor/doc.go`, `buffer.go`, tests
-
-- **element** — Path: `element/`
-    - Description: High-level UI components (Box, Span, Input, TextArea, Table, List, Overlay, Dialog, Button, Form) and declarative builders. (See `element/doc.go`)
-    - Key files: `element/doc.go`, `element.go`, `input.go`, `textarea.go`, `list.go`, `table.go`, `overlay.go`, `dialog.go`, `button.go`, `form.go`, tests
-
-- **engine** — Path: `engine/`
-    - Description: Main event loop, frame pipeline (Tasks → Style → Layout → Paint → Sync), task queues, and worker pool. Coordinates other packages. (See `engine/doc.go`)
-    - Key files: `engine/doc.go`, `engine.go`, `clock.go`, `cursor.go`, `job.go`, tests
-
-- **event** — Path: `event/`
-    - Description: Event types, Dispatcher, Synthesizer and key/wheel/scroll semantics. (See `event/doc.go`)
-    - Key files: `event/doc.go`, `dispatcher.go`, `events.go`, `synthesizer.go`, tests
-
-- **examples** — Path: `examples/`
-    - Description: Example applications and usage demos. Subpackages: `app1`, `button`, `flex`, `input`, `list`, `table`, `textarea`, `form_demo`.
-
-- **extras/kitex** — Path: `extras/kitex/`
-    - Description: Lightweight, fully-typed Virtual DOM (VDOM) primitive wrappers that map 1:1 to real element package instances. (See `extras/kitex/doc.go`)
-    - Key files: `extras/kitex/doc.go`, `kitex.go`, `hooks.go`, `form.go`, tests
-
-- **extras/kites** — Path: `extras/kites/`
-    - Description: Lightweight, thread-safe external state store and kitex integration hook for global state management. (See `extras/kites/doc.go`)
-    - Key files: `extras/kites/doc.go`, `store.go`, `hooks.go`, tests
-
-- **extras/flight** — Path: `extras/flight/`
-    - Description: Stack-based type-safe navigation and hooks (push/pop) with automated focus isolation. (See `extras/flight/doc.go`)
-    - Key files: `extras/flight/doc.go`, `flight.go`, `hooks.go`, `stack.go`, tests
-
-- **extras/wind** — Path: `extras/wind/`
-    - Description: Async data fetching, caching, query invalidation, and mutation state management. (See `extras/wind/doc.go`)
-    - Key files: `extras/wind/doc.go`, `client.go`, `query.go`, `mutation.go`, tests
-
-
-- **focus** — Path: `focus/`
-    - Description: Focus management, `focus.Manager`, reasons, scope stack, and spatial navigation. (See `focus/doc.go`)
-    - Key files: `focus/doc.go`, `focus.go`, `spatial/`, tests
-
-- **key** — Path: `key/`
-    - Description: Key event representation and helpers (Key struct, matching helpers). (See `key/key.go`)
-    - Key files: `key/key.go`, `mod.go`
-
-- **layout** — Path: `layout/`
-    - Description: Layout algorithms and formatting contexts (Block, Flex, Inline/IFC, List, Table, Overlay). Produces fragment trees consumed by paint. (See `layout/doc.go`)
-    - Key files: `layout/doc.go`, `flex.go`, `block.go`, `inline.go`, `table.go`, `overlay.go`, `builders.go`, tests
-
-- **paint** — Path: `paint/`
-    - Description: Paint phase: rasterises layout fragments into terminal cells, clipping and border resolution invariants. (See `paint/doc.go`)
-    - Key files: `paint/doc.go`, `framebuffer.go`, `engine.go` (tests reference), `resolver_test.go`
-
-- **render** — Path: `render/`
-    - Description: Render-object layer bridging DOM with layout/style/paint, tracking dirty state and computed styles. (See `render/doc.go`)
-    - Key files: `render/doc.go`
-
-- **style** — Path: `style/`
-    - Description: Style value types, computed resolution, four-layer cascade and fluent helpers. (See `style/doc.go`)
-    - Key files: `style/doc.go`, resolver and sheet implementations, tests
-
 - **text** — Path: `text/`
-    - Description: Grapheme cluster segmentation, shaping, cell-width measurement, and line-break classification. (See `text/cluster.go`)
-    - Key files: `text/cluster.go`, `text/shaper.go`, `shape.go`, tests
+    - Description: High-performance gap buffer, grapheme cluster segmentation, shaping, cell-width measurement, and line-break classification. (See `text/doc.go`)
+    - Key files: `text/buffer.go`, `text/cluster.go`, `text/shaper.go`, `shape.go`, tests
 
 
 ### Docs and Project Files

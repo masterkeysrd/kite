@@ -331,7 +331,8 @@ func TestSelectLastCharOfWrappedLine(t *testing.T) {
 	doc := env.Document()
 	// Force wrap after 3 cells
 	box := element.Box(element.Text("ABCDE")).Style(style.Style{
-		Width: style.Some(style.Cells(3)),
+		Width:        style.Some(style.Cells(3)),
+		OverflowWrap: style.Some(style.OverflowWrapBreakWord), // Enable breaking
 	})
 	doc.AppendChild(box)
 

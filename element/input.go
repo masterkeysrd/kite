@@ -5,7 +5,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
-	"github.com/masterkeysrd/kite/internal/editor"
+	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -107,7 +107,7 @@ var defaultInputStyle = style.Style{
 // NewInput creates a new InputElement owned by doc with an optional initial
 // value.
 func NewInput(doc dom.Document, initialValue string) *InputElement {
-	buf := editor.NewBuffer(initialValue)
+	buf := text.NewBuffer(initialValue)
 
 	// Create the UA text node with the initial buffer value.
 	uaText := doc.CreateTextNode(buf.Value(), nil)
@@ -190,15 +190,15 @@ func (inp *InputElement) TextContent() string {
 // SetValue replaces the buffer content with v, repositioning the cursor to
 // the end of the new value.
 func (inp *InputElement) SetValue(v string) *InputElement {
-	inp.buf = editor.NewBuffer(v)
+	inp.buf = text.NewBuffer(v)
 	inp.syncText()
 	return inp
 }
 
-// Buffer returns the underlying editor.Buffer for direct manipulation.
+// Buffer returns the underlying text.Buffer for direct manipulation.
 // After any direct mutation, callers must call SyncBuffer() to propagate the
 // change to the UA text node and the render tree.
-func (inp *InputElement) Buffer() *editor.Buffer {
+func (inp *InputElement) Buffer() *text.Buffer {
 	return inp.buf
 }
 

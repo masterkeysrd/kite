@@ -24,7 +24,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
-	"github.com/masterkeysrd/kite/internal/editor"
+	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -46,7 +46,7 @@ type uaTextAreaDiv struct {
 
 func (d *uaTextAreaDiv) Unwrap() dom.Node { return d.Element }
 func (d *uaTextAreaDiv) DefaultStyle() style.Style {
-	return style.Style{Width: style.Some(style.Content)}
+	return style.Style{Width: style.Some(style.Auto)}
 }
 func (d *uaTextAreaDiv) RawStyle() style.Style       { return style.Style{} }
 func (d *uaTextAreaDiv) IntrinsicStyle() style.Style { return style.Style{} }
@@ -65,12 +65,11 @@ var (
 )
 
 // intrinsicTextAreaStyle is the UA-mandated style for TextAreaElement.
-// Note: WhiteSpace is NOT pre-wrap here because the <br> model handles line
-// breaks via BrElement rather than \n characters in text nodes.
 var intrinsicTextAreaStyle = style.Style{
 	OverflowX:    style.Some(style.OverflowClip),
 	OverflowY:    style.Some(style.OverflowAuto),
 	OverflowWrap: style.Some(style.OverflowWrapBreakWord),
+	WhiteSpace:   style.Some(style.WhiteSpacePreWrap),
 }
 
 // defaultTextAreaStyle holds the author-overridable defaults for a textarea.
@@ -85,7 +84,7 @@ var defaultTextAreaStyle = style.Style{
 // NewTextArea creates a new TextAreaElement owned by doc with an optional
 // initial value.
 func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
-	buf := editor.NewBuffer(initialValue)
+	buf := text.NewBuffer(initialValue)
 
 	txa := &TextAreaElement{}
 
@@ -144,13 +143,13 @@ func (txa *TextAreaElement) TextContent() string {
 
 // SetValue replaces the buffer content.
 func (txa *TextAreaElement) SetValue(v string) *TextAreaElement {
-	txa.buf = editor.NewBuffer(v)
+	txa.buf = text.NewBuffer(v)
 	txa.syncText()
 	return txa
 }
 
-// Buffer returns the underlying editor.Buffer.
-func (txa *TextAreaElement) Buffer() *editor.Buffer {
+// Buffer returns the underlying text.Buffer.
+func (txa *TextAreaElement) Buffer() *text.Buffer {
 	return txa.buf
 }
 

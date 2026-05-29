@@ -781,6 +781,7 @@ func TestFlexLayout_ColumnItemsWrapAndGrow(t *testing.T) {
 
 	textStyle := style.DefaultStyle()
 	textStyle.Display = style.DisplayInline
+	textStyle.OverflowWrap = style.OverflowWrapBreakWord // Enable breaking
 	textNode := &mockTextNode{
 		mockNode: mockNode{style: &textStyle},
 		data:     "123456789012345",
@@ -836,6 +837,7 @@ func TestFlexLayout_ColumnItemsAlignEndWrap(t *testing.T) {
 
 	textStyle := style.DefaultStyle()
 	textStyle.Display = style.DisplayInline
+	textStyle.OverflowWrap = style.OverflowWrapBreakWord // Enable breaking
 	textNode := &mockTextNode{
 		mockNode: mockNode{style: &textStyle},
 		data:     "123456789012345", // 15 chars

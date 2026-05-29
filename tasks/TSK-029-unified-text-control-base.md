@@ -6,7 +6,7 @@ Extract the duplicated scrolling, caret positioning, and core event handling log
 ## 2. Design & Requirements
 
 ### 2.1 Context
-Currently, `element/input.go` contains both `InputElement` and `TextAreaElement`. Both elements manage their own internal `editor.Buffer`, their own internal UA `uaDiv` block, and their own nearly identical copies of:
+Currently, `element/input.go` contains both `InputElement` and `TextAreaElement`. Both elements manage their own internal `text.Buffer`, their own internal UA `uaDiv` block, and their own nearly identical copies of:
 - `CursorState()` (calculating `insetLeft + cx` math)
 - `ScrollCursorIntoView()` (calculating scroll containment boxes and updating `ScrollTo()`)
 - `handleMouseDown()` (calculating hit-test offsets with `scrollX/Y` offsets)
@@ -22,7 +22,7 @@ Create a new generic struct in `element/text_control.go` to serve as the unified
 type textControlBase[T dom.Element] struct {
     elementBase[T] // inherits base DOM Element capabilities
     
-    buf *editor.Buffer
+    buf *text.Buffer
     uaDiv dom.Element // The internal block wrapper containing the text nodes
     doc dom.Document
     

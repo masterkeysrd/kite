@@ -33,7 +33,7 @@
 // TSK-029). This generic base struct centralises the three mechanical
 // concerns shared by every text field:
 //
-//  1. CursorState() — translates the editor.Buffer's byte offset into a
+//  1. CursorState() — translates the text.Buffer's byte offset into a
 //     terminal-cell (X, Y) position relative to the host's border-box,
 //     using cursor.FromTextFragment on the inner uaDiv's IFC fragment.
 //
@@ -46,7 +46,7 @@
 //  3. handleMouseDown / handleKeyDown — generic event handlers that
 //     translate screen-space mouse clicks to buffer byte offsets (accounting
 //     for host inset and current scroll offset) and route keyboard input to
-//     editor.Buffer operations. The isMultiline flag gates Up/Down/Enter.
+//     text.Buffer operations. The isMultiline flag gates Up/Down/Enter.
 //
 // Concrete elements (InputElement, TextAreaElement) embed textControlBase and
 // only need to:

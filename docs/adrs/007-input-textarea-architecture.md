@@ -25,7 +25,7 @@ We will implement `input` and `textarea` as **Replaced Elements**, mimicking the
    - The engine will query the *Render Object* of the currently focused node (via a `cursor.Provider` interface) to obtain the absolute screen coordinates for the hardware cursor.
 
 4. **Logical Text Controller:**
-   - To safely navigate strings via keyboard events (handling grapheme clusters, words, and boundaries), we will build a 1D `editor.Buffer` utility.
+   - To safely navigate strings via keyboard events (handling grapheme clusters, words, and boundaries), we will build a 1D `text.Buffer` utility.
    - 2D geometric navigation (e.g., `Up`/`Down` in wrapped textareas) will be facilitated by the render object querying its layout fragments and returning the target index to the logical DOM.
 
 ## Consequences

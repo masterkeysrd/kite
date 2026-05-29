@@ -216,7 +216,12 @@ func TestListLayout_MultiLineWrapping(t *testing.T) {
 
 	// Add a text child
 	textNode := dom.NewDocument().CreateTextNode("this is a long text that should wrap", nil)
-	node.InsertChild(render.NewText(textNode, nil), nil)
+	renderText := render.NewText(textNode, nil)
+	renderText.SetComputedStyle(&style.Computed{
+		Display:      style.DisplayInline,
+		OverflowWrap: style.OverflowWrapBreakWord, // Enable breaking
+	})
+	node.InsertChild(renderText, nil)
 
 	// Available width 10. Marker is 2. Content width is 8.
 	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 10, Height: 100}).ToConstraintSpace()

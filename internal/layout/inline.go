@@ -470,7 +470,14 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 				if currentX > 0 {
 					goto lineEnded
 				} else {
-					if len(remainingClusters) > 0 {
+					// Even the first cluster doesn't fit in l.width.
+					// If OverflowWrap allows it, take one cluster anyway to ensure forward progress.
+					ow := style.OverflowWrapNormal
+					if item.Node.Style() != nil {
+						ow = item.Node.Style().OverflowWrap
+					}
+
+					if len(remainingClusters) > 0 && (ow == style.OverflowWrapBreakWord || ow == style.OverflowWrapAnywhere) {
 						cWidth := remainingClusters[0].CellWidth
 						lineItems = append(lineItems, lineItem{
 							node:   item.Node,
@@ -485,10 +492,24 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 							l.currentIndex++
 							l.clusterIndex = 0
 						}
-					} else {
-						l.currentIndex++
-						l.clusterIndex = 0
+						goto lineEnded
 					}
+
+					// OverflowWrapNormal or no clusters: take everything and overflow.
+					tookWidth := 0
+					for _, c := range remainingClusters {
+						tookWidth += c.CellWidth
+					}
+					lineItems = append(lineItems, lineItem{
+						node:   item.Node,
+						parent: item.ParentNode,
+						text:   remainingClusters,
+						width:  tookWidth,
+						height: 1,
+					})
+					currentX += tookWidth
+					l.currentIndex++
+					l.clusterIndex = 0
 					goto lineEnded
 				}
 			}
@@ -577,17 +598,36 @@ func (l *LineBreaker) findFittingClusters(item InlineItem, clusters []text.Clust
 		}
 
 		if canWrap && currentWidth+c.CellWidth > availableWidth {
-			if lastBreakOp != -1 {
+			if lastBreakOp > 0 || (lastBreakOp == 0 && availableWidth < l.width) {
 				return lastBreakOp, lastBreakWidth, false
 			}
-			// No break opportunity found, we must overflow or break-word.
-			// If we've already taken some clusters, break here (emergency break).
-			if i > 0 {
-				return i, currentWidth, false
+
+			// No break opportunity found, check OverflowWrap.
+			ow := style.OverflowWrapNormal
+			if comp != nil {
+				ow = comp.OverflowWrap
 			}
-			// Even the first cluster doesn't fit — return 0 to trigger
-			// at-least-one-cluster break in caller.
-			return 0, 0, false
+
+			if ow == style.OverflowWrapBreakWord || ow == style.OverflowWrapAnywhere {
+				// Emergency break: if we've already taken some clusters, break here.
+				if i > 0 {
+					return i, currentWidth, false
+				}
+
+				// Even the first cluster doesn't fit in availableWidth.
+				// If we are at the START of the line, we MUST take one cluster
+				// to make progress.
+				if availableWidth >= l.width {
+					return 1, c.CellWidth, false
+				}
+
+				// Not at start of line: return 0 to trigger line-end and retry
+				// at start of next line.
+				return 0, 0, false
+			}
+
+			// OverflowWrapNormal: never emergency-break. Continue until next
+			// break opportunity (mandatory or end of run).
 		}
 
 		currentWidth += c.CellWidth

@@ -41,7 +41,7 @@ We adopt a **closed UA Shadow Subtree** model for replaced and compound elements
 - Because `focus.Manager` walks the logical DOM via the public `Children()` iterator, UA nodes are naturally excluded from focus order. No focus-engine changes are required.
 
 ### 5. Composition Pattern
-- `<input>` host owns a UA subtree containing a single internal text node bound to the element's `editor.Buffer.Value()`. Standard IFC layout produces line boxes; the host queries those to position the hardware cursor.
+- `<input>` host owns a UA subtree containing a single internal text node bound to the element's `text.Buffer.Value()`. Standard IFC layout produces line boxes; the host queries those to position the hardware cursor.
 - `<textarea>` host owns the same single internal text node, with intrinsic style `white-space: pre-wrap; overflow-wrap: break-word` (see ADR-010). The IFC produces one line box per visual line; 2D navigation is solved by querying the line-box tree, not by re-shaping text.
 - Future compound widgets (`<checkbox>`, `<radio>`, `<select>`, `<slider>`, `<progress>`) compose their visuals declaratively inside the UA subtree using existing primitives (`element.Box`, `element.Text`, `element.Flex`).
 
