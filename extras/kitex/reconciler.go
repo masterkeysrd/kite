@@ -150,6 +150,10 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNode dom.Node) dom
 		return nil
 	}
 
+	if oldNode == newNode {
+		return realNode
+	}
+
 	// 1. Mount
 	if oldNode == nil && newNode != nil {
 		newReal := newNode.Instantiate(parent.OwnerDocument())

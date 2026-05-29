@@ -1961,8 +1961,6 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	// pathological component.
 	if c.shouldMemo && !oldComp.IsDirty() && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
 		c.rendered = oldComp.rendered
-		oldComp.rendered = nil // Prevent Release() from destroying the reused tree
-		oldComp.Release()
 		return
 	}
 
