@@ -293,7 +293,9 @@ func New(b backend.Backend, opts Options) *Engine {
 
 	e.document.SetFocusHandle(e.focusManager)
 	e.document.SetTerminal(&TerminalProxy{})
-	e.document.SetView(&domViewProxy{e: e})
+	if d, ok := e.document.(*internaldom.Document); ok {
+		d.SetDefaultView(&domViewProxy{e: e})
+	}
 	e.synthesizer = internalevent.NewSynthesizer(e, e, internalevent.SynthesizerOptions{
 		ScrollableResolver: e.resolveScrollable,
 	})

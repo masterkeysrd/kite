@@ -282,7 +282,7 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 	// Calculate width from Select element
 	width := style.Cells(25)
 	if d := s.OwnerDocument(); d != nil {
-		if v := d.View(); v != nil {
+		if v := d.DefaultView(); v != nil {
 			if rect, ok := v.GetBoundingClientRect(s); ok {
 				width = style.Cells(max(25, rect.Size.Width))
 			}

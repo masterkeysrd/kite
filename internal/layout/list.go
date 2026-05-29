@@ -238,7 +238,7 @@ func (a *ListAlgorithm) computeOrdinal(node Node) int {
 	if doc == nil {
 		return 1
 	}
-	view := doc.View()
+	view := doc.DefaultView()
 
 	curr := logical
 	for {

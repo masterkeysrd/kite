@@ -114,7 +114,7 @@ func bestCandidate(m *focus.Manager, scope *dom.FocusScope, current dom.Element,
 		return nil
 	}
 
-	view := m.Document().View()
+	view := m.Document().DefaultView()
 	if view == nil {
 		return nil
 	}
@@ -165,7 +165,7 @@ func rankedCandidates(m *focus.Manager, scope *dom.FocusScope, current dom.Eleme
 		return nil
 	}
 
-	view := m.Document().View()
+	view := m.Document().DefaultView()
 	if view == nil {
 		return nil
 	}

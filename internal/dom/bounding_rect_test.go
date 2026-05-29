@@ -38,7 +38,7 @@ func TestGetBoundingClientRect(t *testing.T) {
 		Size:   geom.Size{Width: 10, Height: 5},
 	}
 
-	doc.SetView(&mockView{
+	doc.SetDefaultView(&mockView{
 		rects: map[dom.Node]geom.Rect{
 			div: expected,
 		},

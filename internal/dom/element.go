@@ -274,9 +274,9 @@ func (e *Element) ProvidesCursor() bool {
 }
 
 func (e *Element) GetBoundingClientRect() (geom.Rect, bool) {
-	if d := e.ownerDocument; d != nil {
-		if v := d.View(); v != nil {
-			return v.GetBoundingClientRect(e.self)
+	if doc := e.OwnerDocument(); doc != nil {
+		if view := doc.DefaultView(); view != nil {
+			return view.GetBoundingClientRect(e.self)
 		}
 	}
 	return geom.Rect{}, false

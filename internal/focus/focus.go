@@ -324,8 +324,8 @@ func (m *Manager) IsFocusable(el dom.Element, scope *dom.FocusScope) bool {
 	// If the render object hasn't been created yet (e.g. before the first
 	// frame sync), we allow focus to be set based on logical state alone.
 	// This ensures initial focus can be established at startup.
-	if m.doc != nil && m.doc.View() != nil {
-		cs := m.doc.View().GetComputedStyle(el)
+	if m.doc != nil && m.doc.DefaultView() != nil {
+		cs := m.doc.DefaultView().GetComputedStyle(el)
 		if cs != nil && cs.Display == style.DisplayNone {
 			return false
 		}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
-	_ "github.com/masterkeysrd/kite/internal/dom"
+	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -163,7 +163,7 @@ func TestListLayout_InterruptedOrdinal(t *testing.T) {
 
 	// Set a mock view so computeOrdinal can check styles.
 	view := &mockListView{doc: doc}
-	doc.SetView(view)
+	doc.(*internaldom.Document).SetDefaultView(view)
 
 	createItem := func(isListItem bool) (dom.Node, layout.Node) {
 		el := doc.CreateElement("li", nil)

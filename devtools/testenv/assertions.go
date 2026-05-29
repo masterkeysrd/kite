@@ -125,7 +125,7 @@ func (a *ElementAssertion) getFragment() *layout.Fragment {
 	if doc == nil {
 		return nil
 	}
-	view := doc.View()
+	view := doc.DefaultView()
 	if view == nil {
 		return nil
 	}

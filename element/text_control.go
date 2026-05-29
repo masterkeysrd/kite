@@ -154,7 +154,7 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	if b.buf.Version() != b.lastRenderedVersion || b.buf.ByteOffset() != b.lastSyncedOffset {
 		// Update cached coordinates from the live fragment tree.
 		if d := b.host.OwnerDocument(); d != nil {
-			if v := d.View(); v != nil {
+			if v := d.DefaultView(); v != nil {
 				// Use the View to find cell coordinates for the current buffer offset.
 				pos, ok := v.GetCaretPosition(b.uaDiv, b.buf.ByteOffset())
 				if ok {
@@ -176,7 +176,7 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 	// Add the host's border and padding insets.
 	var insetLeft, insetTop int
 	if doc := b.host.OwnerDocument(); doc != nil {
-		if v := doc.View(); v != nil {
+		if v := doc.DefaultView(); v != nil {
 			if cs := v.GetComputedStyle(b.host); cs != nil {
 				bw := cs.Border.Widths()
 				insetLeft = bw.Left + cs.Padding.Left
@@ -210,7 +210,7 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	// selection drag.
 	ev.StopPropagation()
 
-	v := b.host.OwnerDocument().View()
+	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
 	}
@@ -260,7 +260,7 @@ func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
 		return
 	}
 
-	v := b.host.OwnerDocument().View()
+	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
 	}
@@ -332,7 +332,7 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 	cx, cy := b.lastKnownCX, b.lastKnownCY
 
 	// Host bounds.
-	v := b.host.OwnerDocument().View()
+	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
 	}
@@ -698,7 +698,7 @@ func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int)
 // uaDivFragment returns the fragment for the inner ua-div, whose direct
 // children are IFC line-boxes suitable for cursor.FromTextFragment.
 func (b *textControlBase[T]) moveUp() {
-	v := b.host.OwnerDocument().View()
+	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
 	}
@@ -710,7 +710,7 @@ func (b *textControlBase[T]) moveUp() {
 }
 
 func (b *textControlBase[T]) moveDown() {
-	v := b.host.OwnerDocument().View()
+	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
 	}

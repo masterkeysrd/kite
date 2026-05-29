@@ -335,7 +335,7 @@ func (d *testDocument) IsFocused(el dom.Element) bool {
 	return false
 }
 func (d *testDocument) Unwrap() dom.Node { return d.spatialObj }
-func (d *testDocument) View() dom.View   { return &testView{} }
+func (d *testDocument) DefaultView() dom.View   { return &testView{} }
 
 type testView struct {
 	dom.View // stub

@@ -36,7 +36,7 @@ type Document struct {
 	focusHandle dom.FocusHandle
 	clipboard   event.ClipboardProvider
 	terminal    terminal.Terminal
-	view        dom.View
+	defaultView dom.View
 
 	selection *Selection
 
@@ -235,8 +235,8 @@ func (d *Document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard
 func (d *Document) Terminal() terminal.Terminal     { return d.terminal }
 func (d *Document) SetTerminal(t terminal.Terminal) { d.terminal = t }
 
-func (d *Document) View() dom.View     { return d.view }
-func (d *Document) SetView(v dom.View) { d.view = v }
+func (d *Document) DefaultView() dom.View     { return d.defaultView }
+func (d *Document) SetDefaultView(v dom.View) { d.defaultView = v }
 
 func (d *Document) CreateRange() dom.Range {
 	return &Range{doc: d}
@@ -259,11 +259,11 @@ func (d *Document) handleMouseDown(ev event.Event) {
 		return
 	}
 
-	if d.view == nil {
+	if d.defaultView == nil {
 		return
 	}
 
-	node, runeOffset := d.view.NodeAtPoint(mev.Screen.X, mev.Screen.Y)
+	node, runeOffset := d.defaultView.NodeAtPoint(mev.Screen.X, mev.Screen.Y)
 	if node == nil {
 		return
 	}
@@ -290,11 +290,11 @@ func (d *Document) handleMouseMove(ev event.Event) {
 		return
 	}
 
-	if d.view == nil {
+	if d.defaultView == nil {
 		return
 	}
 
-	currNode, currRuneOffset := d.view.NodeAtPoint(mev.Screen.X, mev.Screen.Y)
+	currNode, currRuneOffset := d.defaultView.NodeAtPoint(mev.Screen.X, mev.Screen.Y)
 	if currNode == nil {
 		return
 	}

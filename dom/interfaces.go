@@ -368,10 +368,8 @@ type Document interface {
 	// SetTerminal sets the terminal object for this document.
 	SetTerminal(t terminal.Terminal)
 
-	// View returns the layout/style view for this document.
-	View() View
-	// SetView sets the layout/style view for this document.
-	SetView(v View)
+	// DefaultView returns the layout/style view for this document.
+	DefaultView() View
 
 	// FindNodeAtByteOffset performs a structural walk to find the text node
 	// and rune offset corresponding to a flat byte offset in the document.
