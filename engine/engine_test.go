@@ -301,47 +301,40 @@ func TestEngine_PostMacro_RespectsBudget(t *testing.T) {
 // Worker pool tests
 // ---------------------------------------------------------------------------
 
-type countingJob struct {
-	runs      atomic.Int32
-	completes atomic.Int32
-}
-
-func (j *countingJob) Run(ctx context.Context) error {
-	j.runs.Add(1)
-	return nil
-}
-
-func (j *countingJob) OnComplete(result any, err error) {
-	j.completes.Add(1)
-}
-
-func TestEngine_Submit_RunsOnWorker(t *testing.T) {
+func TestEngine_Scheduler_RunBackground(t *testing.T) {
 	t.Parallel()
 
 	e, _ := newTestEngine(t)
 	defer e.Stop()
 
-	job := &countingJob{}
-	e.Submit(job)
+	var runs atomic.Int32
+	var completes atomic.Int32
+
+	e.Scheduler().RunBackground(func() {
+		runs.Add(1)
+		e.Scheduler().QueueMicrotask(func() {
+			completes.Add(1)
+		})
+	})
 
 	// Wait for job to run and result to be posted.
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
-		if job.runs.Load() > 0 {
+		if runs.Load() > 0 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	if job.runs.Load() == 0 {
-		t.Fatal("job did not run on worker")
+	if runs.Load() == 0 {
+		t.Fatal("task did not run on worker")
 	}
 
-	// Result is posted as a microtask; must run a frame to execute OnComplete.
+	// Result is posted as a microtask; must run a frame to execute completion.
 	e.Frame()
 
-	if job.completes.Load() == 0 {
-		t.Error("OnComplete was not called")
+	if completes.Load() == 0 {
+		t.Error("completion microtask was not called")
 	}
 }
 

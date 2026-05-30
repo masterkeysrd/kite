@@ -37,8 +37,8 @@ func (p *StandardPipeline) Sync(e *Engine) {
 }
 
 func (p *StandardPipeline) Tasks(e *Engine) {
-	e.drainMacroTasks()
-	e.drainMicroTasks()
+	e.scheduler.drainMacrotasks(e.macroTaskBudget)
+	e.scheduler.drainMicrotasks()
 }
 
 func propagateStyleDirty(ro render.Object) {

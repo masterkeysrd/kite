@@ -19,6 +19,7 @@ import (
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/focus"
+	"github.com/masterkeysrd/kite/terminal"
 
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/focus/spatial"
@@ -63,28 +64,18 @@ const (
 	MouseModeTrack
 )
 
-// workerResult is the value carried from a worker goroutine back to the
-// microtask queue after a job completes.
-type workerResult struct {
-	job Job
-	err error
-}
-
 // Engine orchestrates the five-phase frame pipeline (Tasks → Style → Layout →
 // Paint → Sync), the worker pool, and the macrotask / microtask queues.
 //
 // Engine must be used from a single main goroutine for all render-tree
 // operations; the worker pool runs concurrent goroutines for user-submitted
-// Job.Run methods only.
+// task only.
 type Engine struct {
 	document   dom.Document
 	renderView *render.RenderView
 
 	// resolver drives the Style phase.
 	resolver *styler.Resolver
-
-	// layoutEngine was removed in favor of LayoutNG.
-	// layoutEngine render.LayoutMeasurer
 
 	// paintEngine drives the Paint pipeline.
 	paintEngine *paint.PaintEngine
@@ -101,26 +92,8 @@ type Engine struct {
 	// backend is the output target.
 	backend backend.Backend
 
-	taskMu sync.Mutex
-	// macroQueue holds pending macrotasks.
-	macroQueue []func()
-	// microQueue holds pending microtasks.
-	microQueue []func()
-
-	// workerResults receives completed job results from worker goroutines.
-	workerResults chan workerResult
-
-	// workerCtx / workerCancel control the lifetime of worker goroutines.
-	workerCtx    context.Context
-	workerCancel context.CancelFunc
-	workerWG     sync.WaitGroup
-	workerSem    chan struct{} // capacity = number of workers
-
-	// jobQueue feeds work to available workers.
-	jobQueue chan Job
-
-	// numWorkers is the size of the worker pool.
-	numWorkers int
+	// scheduler manages background tasks and task queues.
+	scheduler *defaultScheduler
 
 	// clock provides injectable time.
 	clock Clock
@@ -152,8 +125,6 @@ type Engine struct {
 
 	// macroTaskBudget caps macrotasks per frame (count).
 	macroTaskBudget int
-	// macroTaskDuration caps macrotasks per frame (wall clock).
-	macroTaskDuration time.Duration
 
 	// shutdownTimeout bounds how long Stop waits for pending jobs.
 	shutdownTimeout time.Duration
@@ -183,8 +154,6 @@ type Engine struct {
 	wheelMap        map[event.EventTarget]*event.WheelEvent
 
 	profilerMu sync.RWMutex
-	jobIDs     sync.Map
-	jobCounter uint64
 
 	pipeline Pipeline
 
@@ -252,31 +221,28 @@ func New(b backend.Backend, opts Options) *Engine {
 		shutdownTimeout = 5 * time.Second
 	}
 
-	workerCtx, workerCancel := context.WithCancel(context.Background())
-
 	e := &Engine{
-		renderView:        render.NewRenderView(),
-		document:          dom.NewDocument(),
-		resolver:          styler.NewResolver(),
-		paintEngine:       paint.NewPaintEngine(),
-		backend:           b,
-		workerResults:     make(chan workerResult, numWorkers*2),
-		workerCtx:         workerCtx,
-		workerCancel:      workerCancel,
-		workerSem:         make(chan struct{}, numWorkers),
-		jobQueue:          make(chan Job, numWorkers*4),
-		numWorkers:        numWorkers,
-		clock:             clk,
-		logger:            logger,
-		macroTaskBudget:   macroTaskBudget,
-		macroTaskDuration: macroTaskDuration,
-		shutdownTimeout:   shutdownTimeout,
-		mouseMode:         MouseModeClick,
-		closeCh:           make(chan struct{}),
-		wheelMap:          make(map[event.EventTarget]*event.WheelEvent),
-		pipeline:          &StandardPipeline{},
-		extensions:        opts.Extensions,
-		renderMap:         make(map[dom.Node]render.Object),
+		renderView:      render.NewRenderView(),
+		document:        dom.NewDocument(),
+		resolver:        styler.NewResolver(),
+		paintEngine:     paint.NewPaintEngine(),
+		backend:         b,
+		clock:           clk,
+		logger:          logger,
+		macroTaskBudget: macroTaskBudget,
+		shutdownTimeout: shutdownTimeout,
+		mouseMode:       MouseModeClick,
+		closeCh:         make(chan struct{}),
+		wheelMap:        make(map[event.EventTarget]*event.WheelEvent),
+		pipeline:        &StandardPipeline{},
+		extensions:      opts.Extensions,
+		renderMap:       make(map[dom.Node]render.Object),
+	}
+
+	e.scheduler = newDefaultScheduler(numWorkers, clk, logger, macroTaskDuration, e.RequestFrame)
+
+	if opts.Profiler {
+		e.StartProfiling()
 	}
 
 	e.dispatcher = event.NewDispatcher()
@@ -292,7 +258,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	e.focusManager = focus.NewManager(e.document, e.dispatcher)
 
 	e.document.SetFocusHandle(e.focusManager)
-	e.document.SetTerminal(&TerminalProxy{})
+	e.document.SetTerminal(&TerminalProxy{e: e})
 	if d, ok := e.document.(*internaldom.Document); ok {
 		d.SetDefaultView(&domViewProxy{e: e})
 	}
@@ -300,19 +266,8 @@ func New(b backend.Backend, opts Options) *Engine {
 		ScrollableResolver: e.resolveScrollable,
 	})
 
-	if opts.Profiler {
-		e.tracer = trace.NewTracer()
-		e.pipeline = &ProfilingPipeline{wrapped: e.pipeline}
-	}
-
 	// Probe capabilities from the backend.
 	e.caps = b.Caps()
-
-	// Start worker goroutines.
-	for i := range numWorkers {
-		e.workerWG.Add(1)
-		go e.runWorker(workerCtx, i+1)
-	}
 
 	return e
 }
@@ -391,6 +346,25 @@ func (e *Engine) StartProfiling() {
 	if _, ok := e.pipeline.(*ProfilingPipeline); !ok {
 		e.pipeline = &ProfilingPipeline{wrapped: e.pipeline}
 	}
+
+	e.scheduler.onJobSubmit = func(name string) func() {
+		e.profilerMu.RLock()
+		tracer := e.tracer
+		e.profilerMu.RUnlock()
+		if tracer == nil {
+			return noop
+		}
+		return tracer.BeginThread("JobSubmit:"+name, 1)
+	}
+	e.scheduler.onJobRun = func(name string, workerID int) func() {
+		e.profilerMu.RLock()
+		tracer := e.tracer
+		e.profilerMu.RUnlock()
+		if tracer == nil {
+			return noop
+		}
+		return tracer.BeginThread("JobRun:"+name, workerID+1)
+	}
 }
 
 // StopProfiling dynamically disables profiling by reverting the engine's active
@@ -406,6 +380,10 @@ func (e *Engine) StopProfiling() *trace.Tracer {
 	if pp, ok := e.pipeline.(*ProfilingPipeline); ok {
 		e.pipeline = pp.wrapped
 	}
+
+	e.scheduler.onJobSubmit = nil
+	e.scheduler.onJobRun = nil
+
 	return t
 }
 
@@ -444,8 +422,10 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 // Caps returns the terminal capability snapshot probed at startup.
 func (e *Engine) Caps() backend.Caps { return e.caps }
 
+// Scheduler returns the engine's task scheduler.
+func (e *Engine) Scheduler() terminal.Scheduler { return e.scheduler }
+
 // Cursor returns the CursorController that widgets use to drive cursor state.
-// Changes take effect at the next Sync phase.
 func (e *Engine) Cursor() *CursorController {
 	return &CursorController{state: &e.cursor}
 }
@@ -525,38 +505,13 @@ func (e *Engine) RequestFrameAt(t time.Time) {
 	}
 }
 
-// Submit enqueues job onto the worker pool. The job's Run method executes on
-// a worker goroutine; its OnComplete method is dispatched onto the main thread
-// via the microtask queue so it observes a consistent main-thread state.
-//
-// Submit must be called from the main goroutine.
-func (e *Engine) Submit(j Job) {
-	if tracer := e.Tracer(); tracer != nil {
-		e.profilerMu.Lock()
-		e.jobCounter++
-		jobNum := e.jobCounter
-		e.profilerMu.Unlock()
-
-		jobID := fmt.Sprintf("job-%d", jobNum)
-		e.jobIDs.Store(j, jobID)
-
-		name := jobName(j)
-		end := tracer.BeginThread("JobSubmit:"+name+":"+jobID, 1)
-		end()
-	}
-	e.jobQueue <- j
-}
-
 // Post schedules fn as a microtask. Microtasks run on the main thread and are
 // drained (until the queue is empty) during each frame, between macrotask
 // iterations and at the end of the task phase.
 //
 // Post is safe to call from any goroutine.
 func (e *Engine) Post(fn func()) {
-	e.taskMu.Lock()
-	e.microQueue = append(e.microQueue, fn)
-	e.taskMu.Unlock()
-	e.RequestFrame()
+	e.scheduler.QueueMicrotask(fn)
 }
 
 // PostMacro schedules fn as a macrotask. Macrotasks are drained once per
@@ -564,10 +519,7 @@ func (e *Engine) Post(fn func()) {
 //
 // PostMacro is safe to call from any goroutine.
 func (e *Engine) PostMacro(fn func()) {
-	e.taskMu.Lock()
-	e.macroQueue = append(e.macroQueue, fn)
-	e.taskMu.Unlock()
-	e.RequestFrame()
+	e.scheduler.QueueMacrotask(fn)
 }
 
 // hitTestFragment walks the immutable layout Fragment tree and returns the deepest
@@ -615,13 +567,12 @@ func hitTestFragment(frag *layout.Fragment, p geom.Point) render.Object {
 }
 
 // Frame executes one complete frame pipeline:
-//  1. Drain worker results (onto microtask queue).
-//  2. Sync Phase.
-//  3. Task Phase (macrotasks + microtasks).
-//  4. Style phase.
-//  5. Layout phase.
-//  6. Paint phase.
-//  7. Commit.
+//  1. Sync Phase.
+//  2. Task Phase (macrotasks + microtasks).
+//  3. Style phase.
+//  4. Layout phase.
+//  5. Paint phase.
+//  6. Commit.
 //
 // Frame must be called from the main goroutine.
 func (e *Engine) Frame() {
@@ -672,8 +623,6 @@ func (e *Engine) Frame() {
 	} else {
 		e.lastFrameTime = time.Time{}
 	}
-
-	e.drainWorkerResults()
 
 	e.isLayoutActive = true
 	pipe.Sync(e)
@@ -797,63 +746,6 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 	return false
 }
 
-// drainWorkerResults drains all available completed job callbacks from the
-// worker results channel and posts each as a microtask.
-func (e *Engine) drainWorkerResults() {
-	for {
-		select {
-		case r := <-e.workerResults:
-			job := r.job
-			err := r.err
-			e.taskMu.Lock()
-			e.microQueue = append(e.microQueue, func() {
-				job.OnComplete(nil, err)
-			})
-			e.taskMu.Unlock()
-		default:
-			return
-		}
-	}
-}
-
-// drainMacroTasks drains the macrotask queue subject to count and wall-clock
-// budgets, flushing microtasks between each macrotask.
-func (e *Engine) drainMacroTasks() {
-	deadline := e.clock.Now().Add(e.macroTaskDuration)
-	drained := 0
-	for {
-		e.taskMu.Lock()
-		if len(e.macroQueue) == 0 || drained >= e.macroTaskBudget || e.clock.Now().After(deadline) {
-			e.taskMu.Unlock()
-			break
-		}
-		task := e.macroQueue[0]
-		e.macroQueue = e.macroQueue[1:]
-		e.taskMu.Unlock()
-
-		task()
-		drained++
-		e.drainMicroTasks()
-	}
-}
-
-// drainMicroTasks empties the microtask queue. Any microtasks posted by a
-// microtask callback are processed in the same drain call.
-func (e *Engine) drainMicroTasks() {
-	for {
-		e.taskMu.Lock()
-		if len(e.microQueue) == 0 {
-			e.taskMu.Unlock()
-			break
-		}
-		task := e.microQueue[0]
-		e.microQueue = e.microQueue[1:]
-		e.taskMu.Unlock()
-
-		task()
-	}
-}
-
 // syncRenderTree walks the logical DOM and ensures the render tree matches
 // its structure.
 func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
@@ -947,15 +839,14 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 // It also recursively creates render objects for any existing children.
 func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	var ro render.Object
-	target := n.EventTarget()
 
 	if n.Kind() == dom.KindText {
-		ro = render.NewText(n, target)
+		ro = render.NewText(n, n.EventTarget())
 	} else if cp := unwrapProvider(n); cp != nil {
 		ro = cp.CreateRenderObject()
 	} else {
 		// Fallback for nodes that don't implement CustomObjectProvider.
-		ro = render.NewBox(n, target)
+		ro = render.NewBox(n, n.EventTarget())
 	}
 
 	e.setRenderObject(n, ro)
@@ -977,8 +868,6 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	return ro
 }
 
-// reapDetached was removed in favor of the Sync phase.
-
 // recoverFrame is a deferred function that catches panics in the frame loop.
 // It restores the terminal, logs the panic and stack trace, and re-panics so
 // the process exits with a usable terminal.
@@ -995,66 +884,7 @@ func (e *Engine) recoverFrame() {
 	panic(v)
 }
 
-// runWorker is the goroutine function for each worker. It reads jobs from
-// jobQueue, executes them, and posts results back to the main thread via
-// workerResults.
-//
-// runWorker exits when workerCtx is cancelled (i.e., when Stop() is called).
-func (e *Engine) runWorker(ctx context.Context, workerID int) {
-	defer e.workerWG.Done()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case j := <-e.jobQueue:
-			e.executeJob(ctx, j, workerID)
-		}
-	}
-}
-
-// executeJob runs j on the calling goroutine (a worker), catching panics and
-// posting the result back to the microtask queue.
-func (e *Engine) executeJob(ctx context.Context, j Job, workerID int) {
-	var (
-		result any
-		jobErr error
-	)
-	var endRun = noop
-	if v, ok := e.jobIDs.LoadAndDelete(j); ok {
-		if tracer := e.Tracer(); tracer != nil {
-			jobID := v.(string)
-			endRun = tracer.BeginThread("JobRun:"+jobName(j)+":"+jobID, workerID+1)
-		}
-	}
-
-	func() {
-		defer func() {
-			if v := recover(); v != nil {
-				stack := string(debug.Stack())
-				e.logger.Error("engine: panic in job",
-					slog.Any("panic", v),
-					slog.String("stack", stack),
-				)
-				jobErr = fmt.Errorf("job panic: %v", v)
-			}
-		}()
-		jobErr = j.Run(ctx)
-	}()
-	_ = result
-
-	endRun()
-
-	e.workerResults <- workerResult{job: j, err: jobErr}
-}
-
 func noop() {}
-
-func jobName(j Job) string {
-	if j == nil {
-		return "nil"
-	}
-	return fmt.Sprintf("%T", j)
-}
 
 func (e *Engine) Dump(path string) error {
 	size := e.backend.Size()
@@ -1161,19 +991,7 @@ func (e *Engine) Stop() {
 			fn()
 		}
 		close(e.closeCh)
-		e.workerCancel()
-
-		done := make(chan struct{})
-		go func() {
-			e.workerWG.Wait()
-			close(done)
-		}()
-
-		select {
-		case <-done:
-		case <-time.After(e.shutdownTimeout):
-			e.logger.Warn("engine: stop timed out waiting for workers")
-		}
+		e.scheduler.stop()
 		e.backend.Restore()
 	})
 }
@@ -1228,8 +1046,6 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	// 2. Setup high-level services for the Document.
 	e.document.SetClipboardProvider(&systemClipboard{backend: e.backend})
-
-	// ... rest of Run ...
 
 	// Restore terminal state when leaving run loop
 	defer e.backend.Restore()
@@ -1768,7 +1584,7 @@ func (e *Engine) shouldRunFrame() bool {
 	}
 	// Check for dirty DOM or render tree.
 	dn := internaldom.AsDirty(e.document)
-	return dn.NeedsSync() || dn.ChildNeedsSync() || e.renderView.Flags() != 0
+	return dn.NeedsSync() || dn.ChildNeedsSync() || e.renderView.Flags() != 0 || e.scheduler.hasPendingTasks()
 }
 
 func unwrapProvider(n dom.Node) render.CustomObjectProvider {

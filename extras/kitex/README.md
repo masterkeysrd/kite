@@ -73,11 +73,8 @@ func main() {
     // ... setup engine ...
     eng := engine.New(b, engine.Options{})
 
-    // Bridge Kitex effects to the engine's macrotask queue.
-    kitex.SetPostMacroFn(eng.PostMacro)
-
     // Render the component into a container element
-    container := element.NewBox(eng.Document())
+    container := eng.Document().Body() // or any other element
     // ...
     kitex.Render(ui, container)
 }
@@ -105,23 +102,6 @@ Kitex includes terminal-specific hooks built on the core primitives:
 - **`UseKeyboard(handler func(event.KeyEvent), deps []any)`**: Registers a global keyboard listener on the document. Automatically cleans up when the component is unmounted or when `deps` change.
 - **`UseDocument() func() dom.Document`**: Returns a lazy getter for the component's owner document. Useful for building custom hooks that need document-level event subscriptions.
 - **`UseElement() func() dom.Node`**: Returns a lazy getter for the underlying raw DOM node associated with the current component. Useful for retrieving the component's element inside side effects (e.g., to focus or measure it).
-
-## ⚙️ Engine Wiring
-
-For `UseEffect` and state-driven updates to function correctly within the engine's render loop, you must bridge the Kitex macrotask queue to the `engine.PostMacro` function:
-
-```go
-func main() {
-    // ... setup engine ...
-    eng := engine.New(b, engine.Options{})
-
-    // Bridge Kitex effects to the engine's macrotask queue.
-    // This is required for UseEffect and reactive state updates.
-    kitex.SetPostMacroFn(eng.PostMacro)
-    
-    // ... rest of setup ...
-}
-```
 
 ## 🌐 Context System
 
@@ -178,6 +158,32 @@ var UserForm = kitex.SimpleFC("UserForm", func() kitex.Node {
         kitex.Button(kitex.ButtonProps{
             Type: "submit",
         }, kitex.Text("Submit")),
+    )
+})
+```
+
+## 🧰 Utilities
+
+Kitex provides several ergonomic helpers to make VDOM construction cleaner, especially for declarative rendering:
+
+- **`kitex.Map(items []D, fn func(D, int) Node) []Node`**: Transforms a slice of data into a slice of VDOM nodes. Excellent for rendering keyed lists.
+- **`kitex.Nodes(groups ...[]Node) []Node`**: Merges multiple slices of nodes or individual nodes into a single flat slice. Filters out `nil` values.
+- **`kitex.If(cond bool, node Node) Node`**: Conditionally renders a node if `cond` is true; otherwise, returns `nil` (which is safely ignored by Kitex).
+- **`kitex.IfElse(cond bool, thenNode Node, elseNode Node) Node`**: Returns `thenNode` if true, or `elseNode` if false. Both branches are evaluated eagerly.
+- **`kitex.Fragment(children ...Node) []Node`**: Returns the provided children as a flat slice, filtering out `nil`. Useful for returning multiple sibling nodes from a helper function without wrapping them in an extra DOM element.
+
+### Example Utilities Usage
+
+```go
+var ItemList = kitex.FC("ItemList", func(props struct{ Items []string }) kitex.Node {
+    return kitex.Box(kitex.BoxProps{},
+        kitex.If(len(props.Items) == 0, kitex.Text("No items found.")),
+        
+        kitex.Box(kitex.BoxProps{}, 
+            kitex.Map(props.Items, func(item string, idx int) kitex.Node {
+                return kitex.Text(fmt.Sprintf("%d: %s", idx, item))
+            })...
+        ),
     )
 })
 ```

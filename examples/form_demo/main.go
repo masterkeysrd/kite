@@ -332,7 +332,6 @@ func main() {
 
 	// Create and start engine
 	eng := engine.New(b, engine.Options{Logger: logger})
-	kitex.SetPostMacroFn(eng.PostMacro)
 
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())

@@ -117,6 +117,12 @@ func Render(root Node, container dom.Element) {
 		return
 	}
 
+	if doc := container.OwnerDocument(); doc != nil {
+		if term := doc.Terminal(); term != nil {
+			setInternalScheduler(term.Scheduler())
+		}
+	}
+
 	oldRoot := activeRoots[container]
 	if root == nil {
 		delete(activeRoots, container)

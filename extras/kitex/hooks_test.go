@@ -590,13 +590,11 @@ func BenchmarkContextFlatReconcile(b *testing.B) {
 }
 
 var (
-	scheduledMacros []func()
+	testScheduler = &mockScheduler{}
 )
 
 func init() {
-	SetPostMacroFn(func(fn func()) {
-		scheduledMacros = append(scheduledMacros, fn)
-	})
+	setInternalScheduler(testScheduler)
 }
 
 func TestUseEffect_RunsAfterFlush(t *testing.T) {
@@ -611,14 +609,13 @@ func TestUseEffect_RunsAfterFlush(t *testing.T) {
 		return Box(BoxProps{})
 	})
 
-	scheduledMacros = nil
 	Render(comp(), container)
 
 	if effectCalled {
 		t.Error("expected effect to not have run immediately after render")
 	}
 
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 
 	if !effectCalled {
 		t.Error("expected effect to have run after flushing")
@@ -641,19 +638,19 @@ func TestUseEffect_DepsNil_RunsEveryRender(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 1 {
 		t.Errorf("expected 1 run on mount, got %d", runCount)
 	}
 
 	setTrigger(1) // Trigger re-render
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 2 {
 		t.Errorf("expected 2 runs after first re-render, got %d", runCount)
 	}
 
 	setTrigger(2) // Trigger another re-render
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 3 {
 		t.Errorf("expected 3 runs after second re-render, got %d", runCount)
 	}
@@ -675,13 +672,13 @@ func TestUseEffect_DepsEmpty_RunsOnce(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 1 {
 		t.Errorf("expected 1 run on mount, got %d", runCount)
 	}
 
 	setTrigger(1) // Trigger re-render
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 1 {
 		t.Errorf("expected still 1 run after re-render, got %d", runCount)
 	}
@@ -703,19 +700,19 @@ func TestUseEffect_DepsChanged_Reruns(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 1 {
 		t.Errorf("expected 1 run on mount, got %d", runCount)
 	}
 
 	setVal(0) // No change
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 1 {
 		t.Errorf("expected 1 run when deps do not change, got %d", runCount)
 	}
 
 	setVal(1) // Change
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 	if runCount != 2 {
 		t.Errorf("expected 2 runs after deps change, got %d", runCount)
 	}
@@ -741,10 +738,10 @@ func TestUseEffectCleanup_CleansUpBeforeRerun(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 
 	setVal(1) // Change
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 
 	expected := []string{"effect-0", "cleanup-0", "effect-1"}
 	if !reflect.DeepEqual(order, expected) {
@@ -767,7 +764,7 @@ func TestUseEffectCleanup_CleansUpOnUnmount(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 
 	if cleanupCalled {
 		t.Error("cleanup should not run before unmount")
@@ -877,7 +874,7 @@ func TestDestroy_RunsAllCleanups(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 
 	Render(nil, container) // Destroy/unmount
 
@@ -906,7 +903,7 @@ func TestDestroy_RecursiveChildren(t *testing.T) {
 	})
 
 	Render(parentComp(), container)
-	flushPendingEffects()
+	testScheduler.flushMacrotasks()
 
 	Render(nil, container) // Destroy/unmount
 
@@ -942,7 +939,7 @@ func TestFlushBeforeRender_Guarantee(t *testing.T) {
 	})
 
 	Render(comp(), container)
-	// Do NOT call flushPendingEffects().
+	// Do NOT call testScheduler.flushMacrotasks().
 	// Trigger state update
 	setTrigger(1)
 
@@ -968,7 +965,7 @@ func BenchmarkUseEffect(b *testing.B) {
 
 	for b.Loop() {
 		Render(comp(), container)
-		flushPendingEffects()
+		testScheduler.flushMacrotasks()
 	}
 }
 
@@ -992,7 +989,7 @@ func BenchmarkDestroy(b *testing.B) {
 	for b.Loop() {
 		container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
 		Render(buildTree(5), container)
-		flushPendingEffects()
+		testScheduler.flushMacrotasks()
 		Render(nil, container) // Destroy
 	}
 }
@@ -1030,7 +1027,7 @@ func BenchmarkFlushBeforeRender(b *testing.B) {
 			pendingEffects = append(pendingEffects, mockState)
 		}
 		effectsMutex.Unlock()
-		flushPendingEffects()
+		testScheduler.flushMacrotasks()
 	}
 }
 
@@ -1073,18 +1070,10 @@ func TestUseFocus(t *testing.T) {
 
 	container := doc.CreateElement("container", nil)
 	Render(FocusApp(), container)
-
-	// Flush effects
-	var pendingFn func()
-	SetPostMacroFn(func(fn func()) {
-		pendingFn = fn
-	})
+	testScheduler.flushMacrotasks()
 
 	Render(FocusApp(), container)
-
-	if pendingFn != nil {
-		pendingFn()
-	}
+	testScheduler.flushMacrotasks()
 
 	// TestUseFocus_InitiallyFalse
 	if state.isFocused != false {
@@ -1150,17 +1139,9 @@ func TestUseKeyboard(t *testing.T) {
 
 	// TestUseKeyboard_HandlerCalled
 	// We need to simulate the macro/micro loop to flush the UseEffect
-	var pendingFn func()
-	SetPostMacroFn(func(fn func()) {
-		pendingFn = fn
-	})
-
 	container := doc.CreateElement("container", nil)
 	Render(KeyboardApp(), container)
-
-	if pendingFn != nil {
-		pendingFn() // Flush effect to register listener
-	}
+	testScheduler.flushMacrotasks()
 
 	// Dispatch key press to document
 	keyEv := event.NewKeyEvent(event.EventKeyDown, key.Key{Text: "A", Code: 'A'})
@@ -1173,10 +1154,7 @@ func TestUseKeyboard(t *testing.T) {
 	// TestUseKeyboard_Cleanup
 	// Unmount the component to trigger cleanup
 	Render(nil, container)
-
-	if pendingFn != nil {
-		pendingFn() // Flush cleanup effect
-	}
+	testScheduler.flushMacrotasks()
 
 	// Dispatch another key press
 	keyEv2 := event.NewKeyEvent(event.EventKeyDown, key.Key{Text: "B", Code: 'B'})

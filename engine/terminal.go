@@ -4,12 +4,18 @@ import (
 	"github.com/masterkeysrd/kite/terminal"
 )
 
-type TerminalProxy struct{}
+type TerminalProxy struct {
+	e *Engine
+}
 
 var _ terminal.Terminal = (*TerminalProxy)(nil)
 
 func (tp *TerminalProxy) Clipboard() terminal.Clipboard {
 	return &Clipboard{}
+}
+
+func (tp *TerminalProxy) Scheduler() terminal.Scheduler {
+	return tp.e.scheduler
 }
 
 type Clipboard struct{}

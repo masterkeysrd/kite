@@ -7,6 +7,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 type hookState[T any] struct {
@@ -213,18 +214,17 @@ var (
 	pendingEffects       []*effectHookState
 	effectsBuffer        []*effectHookState
 	effectsMutex         sync.Mutex
-	postMacroFn          func(func())
+	scheduler            terminal.Scheduler
 )
 
-// SetPostMacroFn sets the post-macro enqueuing function used by kitex.
-func SetPostMacroFn(fn func(func())) {
-	postMacroFn = fn
+func setInternalScheduler(s terminal.Scheduler) {
+	scheduler = s
 }
 
-// PostMacro schedules a function to run as a macrotask on the main thread via the registered postMacroFn.
+// PostMacro schedules a function to run as a macrotask on the main thread.
 func PostMacro(fn func()) {
-	if postMacroFn != nil {
-		postMacroFn(fn)
+	if scheduler != nil {
+		scheduler.QueueMacrotask(fn)
 	} else {
 		// Fallback or run directly if not registered (e.g. in tests)
 		go fn()
@@ -232,8 +232,8 @@ func PostMacro(fn func()) {
 }
 
 func scheduleEffectFlush() {
-	if postMacroFn != nil {
-		postMacroFn(flushPendingEffects)
+	if scheduler != nil {
+		scheduler.QueueMacrotask(flushPendingEffects)
 	}
 }
 

@@ -1,7 +1,6 @@
 package devtools_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -15,18 +14,6 @@ import (
 	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/engine"
 )
-
-type dummyJob struct {
-	done chan struct{}
-}
-
-func (d *dummyJob) Run(ctx context.Context) error {
-	time.Sleep(10 * time.Millisecond)
-	close(d.done)
-	return nil
-}
-
-func (d *dummyJob) OnComplete(result any, err error) {}
 
 func TestDevToolsServer_Profiling(t *testing.T) {
 	// Initialize Engine with a mock backend.
@@ -66,10 +53,12 @@ func TestDevToolsServer_Profiling(t *testing.T) {
 		t.Errorf("expected status 'started', got %s", startStatus["status"])
 	}
 
-	// 2. Submit a background job and run some frames.
+	// 2. Submit a background task and run some frames.
 	doneChan := make(chan struct{})
-	job := &dummyJob{done: doneChan}
-	eng.Submit(job)
+	eng.Scheduler().RunBackground(func() {
+		time.Sleep(10 * time.Millisecond)
+		close(doneChan)
+	})
 
 	// Run multiple frames to ensure we capture Sync, Tasks, Style, Layout, Paint.
 	eng.Frame()

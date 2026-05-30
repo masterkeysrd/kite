@@ -141,7 +141,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Engine frame loop** | `engine/engine.go` |
 | **Animation system & Tweens** | `animation/animation.go` |
 | **Engine cursor wiring** | `engine/cursor.go` |
-| **Engine job / microtask queue** | `engine/job.go` |
+| **Scheduler (Background & Tasks)** | `engine/scheduler.go` |
 | **Backend interface** | `backend/backend.go` |
 | **Mock backend (for tests)** | `backend/mock/mock.go` |
 | **Element base & fluent API** | `element/element.go` |

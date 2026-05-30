@@ -96,11 +96,6 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 	env := testenv.Default(80, 24)
 	defer env.Close()
 
-	// Register PostMacro in kitex
-	kitex.SetPostMacroFn(func(fn func()) {
-		env.Engine.Post(fn)
-	})
-
 	container := element.NewBox(env.Document())
 	env.Mount(container)
 

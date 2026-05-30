@@ -105,9 +105,6 @@ func main() {
 
 	eng := engine.New(b, engine.Options{Logger: logger})
 
-	// Bridge Kitex effects to the engine macrotask queue.
-	kitex.SetPostMacroFn(eng.PostMacro)
-
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())
 	container.Style(style.Style{

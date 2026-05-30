@@ -265,9 +265,6 @@ func main() {
 
 	kitex.EnableDevMode = true
 
-	// Wire engine PostMacro to kitex PostMacroFn
-	kitex.SetPostMacroFn(eng.PostMacro)
-
 	// Mount VDOM into host container
 	kitex.Render(App(), container)
 
