@@ -1,6 +1,7 @@
 package event
 
 import (
+	"encoding/base64"
 	"strings"
 
 	"github.com/masterkeysrd/kite/backend"
@@ -88,6 +89,30 @@ func (s *Synthesizer) Process(raw backend.RawEvent) []pub.Event {
 		return s.processBracketedPaste(e)
 	case *backend.RawClipboardEvent:
 		return s.processClipboard(e)
+	case *backend.RawOscEvent:
+		if e.Code == 52 {
+			return s.processOsc52(e)
+		}
+	}
+	return nil
+}
+
+func (s *Synthesizer) processOsc52(e *backend.RawOscEvent) []pub.Event {
+	// Data format is "c;<base64>" or "p;<base64>" etc.
+	parts := strings.SplitN(e.Data, ";", 2)
+	if len(parts) == 2 {
+		b64 := parts[1]
+		decoded, err := base64.StdEncoding.DecodeString(b64)
+		if err == nil {
+			ce := pub.NewClipboardEvent(pub.EventPaste, pub.ClipboardPaste)
+			ce.SetText(string(decoded))
+			if s.focus != nil {
+				if ie, ok := any(ce).(pub.InternalEvent); ok {
+					ie.SetTarget(s.focus.FocusedTarget())
+				}
+			}
+			return []pub.Event{ce}
+		}
 	}
 	return nil
 }

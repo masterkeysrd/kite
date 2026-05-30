@@ -50,8 +50,6 @@ type Backend struct {
 	Output bytes.Buffer
 
 	current *backend.Buffer
-
-	extensions []backend.TerminalExtension
 }
 
 // CursorRecord captures one call to the cursor-management methods.
@@ -127,12 +125,13 @@ func (b *Backend) Size() geom.Size { return geom.Size{Width: b.width, Height: b.
 // Writer returns the mock output buffer.
 func (b *Backend) Writer() io.Writer { return &b.Output }
 
-func (b *Backend) Extensions() []backend.TerminalExtension {
-	return b.extensions
-}
+type mockClipboard struct{}
 
-func (b *Backend) SetExtensions(exts []backend.TerminalExtension) {
-	b.extensions = exts
+func (m *mockClipboard) Set(mime string, data []byte) {}
+func (m *mockClipboard) Request(mime string)          {}
+
+func (b *Backend) Clipboard() backend.Clipboard {
+	return &mockClipboard{}
 }
 
 func (b *Backend) ShowCursor(v bool)                    { b.Cursor.Visible = v }

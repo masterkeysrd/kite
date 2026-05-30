@@ -26,6 +26,7 @@ func probeCapabilities(environ []string) backend.Caps {
 		KittyGraphics:  probeKittyGraphics(env),
 		Title:          probeTitle(env),
 		Bell:           true, // BEL is universally supported
+		Clipboard:      []backend.ClipboardKind{backend.ClipboardOSC52},
 	}
 }
 

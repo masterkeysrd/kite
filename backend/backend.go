@@ -4,7 +4,6 @@ import (
 	"image/color"
 	"io"
 
-	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 )
 
@@ -69,8 +68,18 @@ type Backend interface {
 	// DumpState writes a debug dump of the backend state to a file.
 	DumpState()
 
-	// Extensions returns the list of terminal extensions active on this backend.
-	Extensions() []TerminalExtension
+	// Clipboard returns the clipboard provider for this backend.
+	Clipboard() Clipboard
+}
+
+// Clipboard is implemented by objects that provide system clipboard access.
+type Clipboard interface {
+	// Set stores data into the system clipboard with the given MIME type.
+	Set(mime string, data []byte)
+	// Request asks the terminal to send the current system clipboard
+	// content for the given MIME type. The response is typically
+	// delivered asynchronously as a RawEvent.
+	Request(mime string)
 }
 
 type CursorShape uint8
@@ -157,19 +166,6 @@ const (
 	CellStrikethrough
 )
 
-// TerminalExtension is implemented by terminal-specific protocol handlers
-// (e.g. Kitty advanced paste, graphics protocols).
-type TerminalExtension interface {
-	// Init is called once at backend startup. It should write any necessary
-	// initialization sequences (e.g. enabling DEC modes) to out.
-	Init(out io.Writer)
-
-	// HandleEvent intercepts a raw backend event. If the extension recognizes
-	// the event, it returns handled=true and an optional structured event
-	// to be dispatched.
-	HandleEvent(raw RawEvent) (handled bool, ev event.Event)
-}
-
 // MouseSupport describes the level of mouse event support available from the
 // terminal.
 type MouseSupport uint8
@@ -188,6 +184,15 @@ const (
 	// MouseSupportTrack means the terminal supports full motion tracking
 	// (mouse-move events even without a button pressed).
 	MouseSupportTrack
+)
+
+// ClipboardKind identifies a supported clipboard protocol.
+type ClipboardKind string
+
+const (
+	ClipboardOSC52  ClipboardKind = "osc52"
+	ClipboardKitty  ClipboardKind = "kitty"
+	ClipboardSystem ClipboardKind = "system"
 )
 
 // Caps is a snapshot of the terminal capabilities detected at startup by the
@@ -225,4 +230,7 @@ type Caps struct {
 	// Bell reports whether the terminal should respond to the BEL character.
 	// engine.Bell is a no-op when this is false.
 	Bell bool
+
+	// Clipboard is the list of supported clipboard protocols.
+	Clipboard []ClipboardKind
 }

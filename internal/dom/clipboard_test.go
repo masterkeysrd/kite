@@ -4,19 +4,38 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/promise"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 type mockClipboard struct {
 	data string
 }
 
-func (m *mockClipboard) Name() string { return "mock" }
+var _ terminal.Clipboard = (*mockClipboard)(nil)
 
-func (m *mockClipboard) SetClipboard(text string) {
-	m.data = text
+func (m *mockClipboard) ReadText() *promise.Promise[string] {
+	return promise.Resolved(m.data)
 }
 
-func (m *mockClipboard) RequestClipboard() {}
+func (m *mockClipboard) WriteText(text string) *promise.Promise[struct{}] {
+	m.data = text
+	return promise.Resolved(struct{}{})
+}
+
+func (m *mockClipboard) Read(mime string) *promise.Promise[[]byte] {
+	if mime == "text/plain" {
+		return promise.Resolved([]byte(m.data))
+	}
+	return promise.Resolved([]byte(nil))
+}
+
+func (m *mockClipboard) Write(mime string, data []byte) *promise.Promise[struct{}] {
+	if mime == "text/plain" {
+		m.data = string(data)
+	}
+	return promise.Resolved(struct{}{})
+}
 
 func TestDocument_ClipboardCopy(t *testing.T) {
 	doc := NewDocument()

@@ -118,8 +118,8 @@ func (o *testObject) Overlays() iter.Seq[dom.Element]                        { r
 func (o *testObject) Selection() dom.Selection                               { return nil }
 func (o *testObject) CreateRange() dom.Range                                 { return nil }
 func (o *testObject) SetFocusHandle(handle dom.FocusHandle)                  {}
-func (o *testObject) Clipboard() event.ClipboardProvider                     { return nil }
-func (o *testObject) SetClipboardProvider(p event.ClipboardProvider)         {}
+func (o *testObject) Clipboard() terminal.Clipboard                          { return nil }
+func (o *testObject) SetClipboardProvider(p terminal.Clipboard)              {}
 func (o *testObject) Terminal() terminal.Terminal                            { return nil }
 func (o *testObject) SetTerminal(t terminal.Terminal)                        {}
 func (o *testObject) View() dom.View                                         { return nil }

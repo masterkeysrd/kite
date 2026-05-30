@@ -34,7 +34,7 @@ type Document struct {
 	nextOrder int
 
 	focusHandle dom.FocusHandle
-	clipboard   event.ClipboardProvider
+	clipboard   terminal.Clipboard
 	terminal    terminal.Terminal
 	defaultView dom.View
 
@@ -229,8 +229,8 @@ func (d *Document) Selection() dom.Selection {
 	return d.selection
 }
 
-func (d *Document) Clipboard() event.ClipboardProvider             { return d.clipboard }
-func (d *Document) SetClipboardProvider(p event.ClipboardProvider) { d.clipboard = p }
+func (d *Document) Clipboard() terminal.Clipboard             { return d.clipboard }
+func (d *Document) SetClipboardProvider(p terminal.Clipboard) { d.clipboard = p }
 
 func (d *Document) Terminal() terminal.Terminal     { return d.terminal }
 func (d *Document) SetTerminal(t terminal.Terminal) { d.terminal = t }
@@ -522,7 +522,7 @@ func (d *Document) handleCopy(ev event.Event) {
 	// Synchronize to the system clipboard if a provider is available.
 	if d.clipboard != nil {
 		if text := ce.Text(); text != "" {
-			d.clipboard.SetClipboard(text)
+			d.clipboard.WriteText(text)
 		}
 	}
 }
@@ -536,6 +536,16 @@ func (d *Document) handlePaste(ev event.Event) {
 	// If the items map is empty (e.g. a raw Ctrl+V that hasn't been handled
 	// by a terminal extension), populate from system clipboard provider.
 	if len(ce.Items) == 0 && d.clipboard != nil {
-		d.clipboard.RequestClipboard()
+		d.clipboard.ReadText().Then(func(text string) {
+			if text != "" {
+				// Re-dispatch a new paste event with the retrieved text.
+				// This ensures that listeners get the data they were expecting.
+				newEv := event.NewClipboardEvent(event.EventPaste, event.ClipboardPaste)
+				newEv.SetText(text)
+				d.DispatchToTarget(newEv)
+			}
+		}, func(err error) {
+			// Ignore errors for now.
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package uv
 
 import (
+	"encoding/base64"
 	"fmt"
 	"image/color"
 	"io"
@@ -73,8 +74,6 @@ type Backend struct {
 	block sync.Mutex
 
 	bufferPool sync.Pool
-
-	extensions []backend.TerminalExtension
 }
 
 const (
@@ -223,12 +222,28 @@ func (b *Backend) Size() geom.Size { return geom.Size{Width: b.width, Height: b.
 
 // Writer returns the terminal output writer (the backend itself).
 func (b *Backend) Writer() io.Writer { return b }
-func (b *Backend) Extensions() []backend.TerminalExtension {
-	return b.extensions
+
+type osc52Clipboard struct {
+	b *Backend
 }
 
-func (b *Backend) SetExtensions(exts []backend.TerminalExtension) {
-	b.extensions = exts
+func (c *osc52Clipboard) Set(mime string, data []byte) {
+	if mime != "text/plain" {
+		return
+	}
+	b64 := base64.StdEncoding.EncodeToString(data)
+	c.b.writeRaw(fmt.Sprintf("\x1b]52;c;%s\x1b\\", b64))
+}
+
+func (c *osc52Clipboard) Request(mime string) {
+	if mime != "text/plain" {
+		return
+	}
+	c.b.writeRaw("\x1b]52;c;?\x1b\\")
+}
+
+func (b *Backend) Clipboard() backend.Clipboard {
+	return &osc52Clipboard{b: b}
 }
 
 func (b *Backend) writeRaw(s string) {

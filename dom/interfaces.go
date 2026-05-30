@@ -359,9 +359,9 @@ type Document interface {
 	SetFocusHandle(handle FocusHandle)
 
 	// Clipboard returns the high-level clipboard provider for this document.
-	Clipboard() event.ClipboardProvider
+	Clipboard() terminal.Clipboard
 	// SetClipboardProvider sets the high-level clipboard provider for this document.
-	SetClipboardProvider(p event.ClipboardProvider)
+	SetClipboardProvider(p terminal.Clipboard)
 
 	// Terminal returns the terminal object for this document.
 	Terminal() terminal.Terminal

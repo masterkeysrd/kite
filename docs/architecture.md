@@ -152,9 +152,4 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Multi-MIME Data:** The `event.ClipboardEvent` follows a `DataTransfer`-like model, carrying a map of payloads keyed by MIME type (e.g., `text/plain`, `image/png`). This allows components to negotiate their preferred data format during a paste.
 - **Global Integration:** The `dom.Document` acts as a central coordinator. If a focused element does not handle a copy/paste event, the Document falls back to the global `dom.Selection` to ensure seamless system-wide synchronization.
 - **System Sync:** Uses the **OSC 52** escape sequence in supported backends to securely read from and write to the system clipboard across local and remote (SSH) sessions without external dependencies.
-
-### 3.13. Terminal Extensions (`/backend` & `/internal/term`)
-- **Responsibility:** Providing a pluggable architecture for terminal-specific protocols (e.g., advanced graphics, secure transfers).
-- **Architecture:** The `backend.TerminalExtension` interface allows packages to intercept raw terminal sequences before they reach the main event loop. Extensions can perform multi-step handshakes (like Kitty's OSC 5522) and emit high-level framework events.
-- **Initialization:** The `Engine` initializes registered extensions immediately after the backend starts, providing them direct access to the terminal's raw output writer for protocol negotiation.
-- **Kitty Integration:** Includes a first-class extension for the **Kitty Secure Clipboard Transfer** protocol, enabling rich image and multi-format text pasting through a secure password-protected handshake.
+- **Backend Architecture:** The backend provides native support for terminal-specific protocols (like OSC 52 or Kitty) through a dedicated `Clipboard()` interface.

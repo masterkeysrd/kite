@@ -18,13 +18,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/uv"
 	"github.com/masterkeysrd/kite/devtools"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/internal/term/osc52"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -68,9 +66,6 @@ func main() {
 	eng := engine.New(b, engine.Options{
 		Logger:   logger,
 		Profiler: true,
-		Extensions: []backend.TerminalExtension{
-			osc52.NewExtension(),
-		},
 	})
 
 	// ── textarea ─────────────────────────────────────────────────────────────

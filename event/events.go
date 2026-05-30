@@ -388,17 +388,6 @@ type ClipboardEvent struct {
 	Items map[string][]byte
 }
 
-// ClipboardProvider is implemented by objects that provide system clipboard access.
-type ClipboardProvider interface {
-	// Name returns a unique name for the provider (e.g. "osc52", "kitty").
-	Name() string
-	// SetClipboard stores text into the system clipboard.
-	SetClipboard(text string)
-	// RequestClipboard asks the terminal to send the current system clipboard
-	// content. The response is typically delivered asynchronously as a RawEvent.
-	RequestClipboard()
-}
-
 // NewClipboardEvent creates a ClipboardEvent.
 func NewClipboardEvent(typ EventType, ct ClipboardType) *ClipboardEvent {
 	return &ClipboardEvent{

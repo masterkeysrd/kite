@@ -125,8 +125,8 @@ func (o *spatialObj) Overlays() iter.Seq[dom.Element]                        { r
 func (o *spatialObj) Selection() dom.Selection                               { return nil }
 func (o *spatialObj) CreateRange() dom.Range                                 { return nil }
 func (o *spatialObj) SetFocusHandle(handle dom.FocusHandle)                  {}
-func (o *spatialObj) Clipboard() event.ClipboardProvider                     { return nil }
-func (o *spatialObj) SetClipboardProvider(p event.ClipboardProvider)         {}
+func (o *spatialObj) Clipboard() terminal.Clipboard                          { return nil }
+func (o *spatialObj) SetClipboardProvider(p terminal.Clipboard)              {}
 func (o *spatialObj) Terminal() terminal.Terminal                            { return nil }
 func (o *spatialObj) SetTerminal(t terminal.Terminal)                        {}
 func (o *spatialObj) View() dom.View                                         { return nil }

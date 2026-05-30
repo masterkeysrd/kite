@@ -3,7 +3,6 @@ package terminal
 import (
 	"context"
 
-	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/promise"
 )
 
@@ -54,30 +53,4 @@ type Clipboard interface {
 
 	// Write writes the given data to the clipboard with the specified MIME type. If the clipboard is unavailable or access is denied, it returns an error.
 	Write(mime string, data []byte) *promise.Promise[struct{}]
-}
-
-// InteractiveClipboard represents clipboards that require terminal interactions for read/write
-// operations, such as OSC 52, OSC 5522 (kitty) for clipboard access in terminal emulators.
-// It extends the Clipboard interface with additional methods to manage the interactive
-// nature of these clipboards.
-type InteractiveClipboard interface {
-	Clipboard
-
-	// Sequences returns a channel that emits byte slices of scape sequences to be sent to
-	// the terminal for clipboard interactions (init, read, write, list formats).
-	Sequences() <-chan []byte
-
-	// IsWaiting returns true if the clipboard is currently waiting for a response
-	// from the terminal.
-	IsWaiting() bool
-
-	// HandleEvent processes incoming data from the terminal that is part of an
-	// interactive clipboard operation.
-	//
-	// Clipboard, and Keyboard events are emitted to the clipboard when is flags
-	// that is started an read operation, or a write operation is in progress.
-	//
-	// If the event is handled by the clipboard, the clipboard normally return
-	// nil or transform the event to a different type.
-	HandleEvent(event backend.RawEvent) backend.RawEvent
 }

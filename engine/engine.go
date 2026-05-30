@@ -107,6 +107,9 @@ type Engine struct {
 	// cursor holds the engine-side cursor model.
 	cursor cursorState
 
+	// clipboard manages pending asynchronous clipboard operations.
+	clipboard clipboardState
+
 	// mouseMode is the active mouse-event level.
 	mouseMode MouseMode
 
@@ -146,9 +149,6 @@ type Engine struct {
 
 	// onStopHooks are called when the engine is stopping.
 	onStopHooks []func()
-
-	// extensions are terminal-specific protocol handlers.
-	extensions []backend.TerminalExtension
 
 	// eventBuffer holds raw events to be processed before the next frame.
 	eventBuffer []backend.RawEvent
@@ -193,8 +193,6 @@ type Options struct {
 	ShutdownTimeout time.Duration
 	// Profiler enables the high-level phase profiling and deep-tree tracing.
 	Profiler bool
-	// Extensions are terminal-specific protocol handlers.
-	Extensions []backend.TerminalExtension
 }
 
 // New creates an Engine configured with the given backend and options.
@@ -241,7 +239,6 @@ func New(b backend.Backend, opts Options) *Engine {
 		closeCh:         make(chan struct{}),
 		wheelMap:        make(map[event.EventTarget]*event.WheelEvent),
 		pipeline:        &StandardPipeline{},
-		extensions:      opts.Extensions,
 		renderMap:       make(map[dom.Node]render.Object),
 	}
 
@@ -1031,30 +1028,6 @@ func (e *Engine) Stop() {
 	})
 }
 
-type systemClipboard struct {
-	backend backend.Backend
-}
-
-var _ event.ClipboardProvider = (*systemClipboard)(nil)
-
-func (s *systemClipboard) Name() string { return "system" }
-
-func (s *systemClipboard) SetClipboard(text string) {
-	for _, ext := range s.backend.Extensions() {
-		if cp, ok := ext.(event.ClipboardProvider); ok {
-			cp.SetClipboard(text)
-		}
-	}
-}
-
-func (s *systemClipboard) RequestClipboard() {
-	for _, ext := range s.backend.Extensions() {
-		if cp, ok := ext.(event.ClipboardProvider); ok {
-			cp.RequestClipboard()
-		}
-	}
-}
-
 // Run starts the engine's main event loop. It blocks until Stop is called or
 // the backend signals exit.
 func (e *Engine) Run(ctx context.Context) error {
@@ -1062,25 +1035,8 @@ func (e *Engine) Run(ctx context.Context) error {
 		return err
 	}
 
-	// 1. Initialize terminal extensions.
-	writer := e.backend.Writer()
-	// Sync engine extensions to backend if they were provided to Engine.Options
-	if len(e.extensions) > 0 {
-		if uvb, ok := e.backend.(interface {
-			SetExtensions([]backend.TerminalExtension)
-		}); ok {
-			uvb.SetExtensions(e.extensions)
-		}
-	}
-
-	slog.Info("engine: initializing terminal extensions", "count", len(e.extensions))
-	for i, ext := range e.extensions {
-		slog.Info("engine: initializing extension", "index", i, "type", fmt.Sprintf("%T", ext))
-		ext.Init(writer)
-	}
-
-	// 2. Setup high-level services for the Document.
-	e.document.SetClipboardProvider(&systemClipboard{backend: e.backend})
+	// 1. Setup high-level services for the Document.
+	e.document.SetClipboardProvider(e.document.Terminal().Clipboard())
 
 	// Restore terminal state when leaving run loop
 	defer e.backend.Restore()
@@ -1134,21 +1090,7 @@ func (e *Engine) drainEvents() {
 	// 2. Synthesize coalesced raw events into structured events.
 	e.structuredBuf = e.structuredBuf[:0]
 	for _, raw := range rawCoalesced {
-		handledByExt := false
-		for _, ext := range e.extensions {
-			if handled, ev := ext.HandleEvent(raw); handled {
-				slog.Debug("engine: event handled by extension", "event_type", fmt.Sprintf("%T", raw), "ext_type", fmt.Sprintf("%T", ext))
-				if ev != nil {
-					e.structuredBuf = append(e.structuredBuf, ev)
-				}
-				handledByExt = true
-				break
-			}
-		}
-
-		if !handledByExt {
-			e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
-		}
+		e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
 	}
 
 	// 3. Coalesce structured events (handles wheel aggregation per target).
@@ -1276,18 +1218,27 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 		e.dispatchKeyEvent(evt)
 	case *event.ResizeEvent:
 		e.handleResize(evt)
+	case *event.ClipboardEvent:
+		if evt.Type() == event.EventPaste {
+			e.clipboard.resolvePending(evt.Items)
+		}
+		e.dispatchGenericEvent(evt)
 	default:
-		// For generic events (paste, etc), dispatch to focused element.
-		var target dom.Node = e.focusManager.Current()
-		if target == nil {
-			// Fallback to document for global events.
-			target = e.document
-		}
+		e.dispatchGenericEvent(ev)
+	}
+}
 
-		if target != nil {
-			path := nodeAncestorPath(target)
-			e.dispatcher.Dispatch(ev, path)
-		}
+func (e *Engine) dispatchGenericEvent(ev event.Event) {
+	// For generic events (paste, etc), dispatch to focused element.
+	var target dom.Node = e.focusManager.Current()
+	if target == nil {
+		// Fallback to document for global events.
+		target = e.document
+	}
+
+	if target != nil {
+		path := nodeAncestorPath(target)
+		e.dispatcher.Dispatch(ev, path)
 	}
 }
 
