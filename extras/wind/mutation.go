@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/promise"
 )
 
 type MutationContext struct {
@@ -47,35 +48,33 @@ func UseMutation[V any, R any](
 			err:       nil,
 		})
 
-		go func() {
-			res, err := mutationFn(context.Background(), variables)
-
-			if err != nil {
-				setMutState(mutationState{
-					isPending: false,
-					isError:   true,
-					err:       err,
-				})
-				mCtx := MutationContext{Client: client}
-				for _, opt := range opts {
-					if opt.OnError != nil {
-						opt.OnError(err, variables, mCtx)
-					}
-				}
-			} else {
-				setMutState(mutationState{
-					isPending: false,
-					isError:   false,
-					err:       nil,
-				})
-				mCtx := MutationContext{Client: client}
-				for _, opt := range opts {
-					if opt.OnSuccess != nil {
-						opt.OnSuccess(res, variables, mCtx)
-					}
+		promise.New(context.Background(), func(ctx context.Context) (R, error) {
+			return mutationFn(ctx, variables)
+		}).Then(func(res R) {
+			setMutState(mutationState{
+				isPending: false,
+				isError:   false,
+				err:       nil,
+			})
+			mCtx := MutationContext{Client: client}
+			for _, opt := range opts {
+				if opt.OnSuccess != nil {
+					opt.OnSuccess(res, variables, mCtx)
 				}
 			}
-		}()
+		}, func(err error) {
+			setMutState(mutationState{
+				isPending: false,
+				isError:   true,
+				err:       err,
+			})
+			mCtx := MutationContext{Client: client}
+			for _, opt := range opts {
+				if opt.OnError != nil {
+					opt.OnError(err, variables, mCtx)
+				}
+			}
+		})
 	}
 
 	s := getMutState()

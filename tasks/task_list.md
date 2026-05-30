@@ -89,4 +89,4 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-074 | Implement Terminal Capabilities Context | Pending | `tasks/TSK-074-terminal-capabilities.md` |
 | TSK-075 | Implement Hybrid Terminal Cursor Management | Pending | `tasks/TSK-075-cursor-management.md` |
 | TSK-076 | Refactor Engine and Implement Scheduler | Done | `tasks/TSK-076-engine-scheduler.md` |
-| TSK-077 | Implement Idiomatic Promises | Pending | `tasks/TSK-077-promise-implementation.md` |
+| TSK-077 | Implement Idiomatic Promises | Done | `tasks/TSK-077-promise-implementation.md` |

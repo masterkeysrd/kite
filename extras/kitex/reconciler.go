@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/extras/promise"
 )
 
 var (
@@ -119,7 +120,9 @@ func Render(root Node, container dom.Element) {
 
 	if doc := container.OwnerDocument(); doc != nil {
 		if term := doc.Terminal(); term != nil {
-			setInternalScheduler(term.Scheduler())
+			sched := term.Scheduler()
+			setInternalScheduler(sched)
+			promise.SetScheduler(sched)
 		}
 	}
 

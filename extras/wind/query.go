@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/promise"
 )
 
 type Result[T any] struct {
@@ -132,30 +133,36 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) (
 	// Notify observers that fetching has started
 	entry.notifySubscribers()
 
-	go func() {
-		data, err := fetcher(ctx)
+	promise.New(ctx, fetcher).
+		Then(func(data any) {
+			entry.mu.Lock()
+			if ctx.Err() != nil {
+				entry.mu.Unlock()
+				return
+			}
 
-		entry.mu.Lock()
-		defer entry.mu.Unlock()
-
-		if ctx.Err() != nil {
-			// Context was cancelled, ignore result
-			return
-		}
-
-		entry.state.isFetching = false
-		entry.cancel = nil
-		if err != nil {
-			entry.state.err = err
-			entry.state.status = "error"
-		} else {
+			entry.state.isFetching = false
+			entry.cancel = nil
 			entry.state.data = data
 			entry.state.err = nil
 			entry.state.status = "success"
 			entry.state.updatedAt = time.Now()
-		}
+			entry.mu.Unlock()
 
-		// Notify observers of completion
-		go entry.notifySubscribers()
-	}()
+			entry.notifySubscribers()
+		}, func(err error) {
+			entry.mu.Lock()
+			if ctx.Err() != nil {
+				entry.mu.Unlock()
+				return
+			}
+
+			entry.state.isFetching = false
+			entry.cancel = nil
+			entry.state.err = err
+			entry.state.status = "error"
+			entry.mu.Unlock()
+
+			entry.notifySubscribers()
+		})
 }

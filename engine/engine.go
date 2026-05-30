@@ -16,6 +16,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/promise"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/focus"
@@ -240,6 +241,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	}
 
 	e.scheduler = newDefaultScheduler(numWorkers, clk, logger, macroTaskDuration, e.RequestFrame)
+	promise.SetScheduler(e.scheduler)
 
 	if opts.Profiler {
 		e.StartProfiling()
