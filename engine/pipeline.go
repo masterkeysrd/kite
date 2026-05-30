@@ -170,8 +170,7 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		}
 
 		if err := e.backend.EndFrame(); err != nil {
-			// error logging is handled in Engine.Frame if we wanted,
-			// but for now we'll keep it here or pass it back.
+			e.logger.Warn("failed to end frame", "error", err)
 		}
 		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
 		for _, overlay := range overlays {

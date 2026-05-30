@@ -46,9 +46,10 @@ func newDefaultScheduler(numWorkers int, clk Clock, logger *slog.Logger, macroTa
 		onRequestFrame:    onRequestFrame,
 	}
 
-	for i := 0; i < numWorkers; i++ {
-		s.workerWG.Add(1)
-		go s.runWorker(workerCtx, i+1)
+	for i := range numWorkers {
+		s.workerWG.Go(func() {
+			s.runWorker(workerCtx, i+1)
+		})
 	}
 
 	return s
