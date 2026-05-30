@@ -22,7 +22,7 @@ type Options struct {
 	StaleTime time.Duration
 }
 
-func Use[K comparable, T any](key K, fetcher func(context.Context) (T, error), opts ...Options) Result[T] {
+func Use[K comparable, T any](key K, fetcher func(context.Context) *promise.Promise[T], opts ...Options) Result[T] {
 	client := UseClient()
 	if client == nil {
 		panic("wind.Use must be used inside a wind.Provider")
@@ -57,8 +57,13 @@ func Use[K comparable, T any](key K, fetcher func(context.Context) (T, error), o
 
 	// Register refetch implementation
 	entry.mu.Lock()
-	typeEraser := func(ctx context.Context) (any, error) {
-		return fetcher(ctx)
+	typeEraser := func(ctx context.Context) *promise.Promise[any] {
+		p := fetcher(ctx)
+		// Wrap to erase type
+		res := promise.New(ctx, func(ctx context.Context) (any, error) {
+			return p.Await(ctx)
+		})
+		return res
 	}
 	entry.refetch = func() {
 		client.executeFetch(entry, typeEraser)
@@ -118,7 +123,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context) (T, error), o
 	}
 }
 
-func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) (any, error)) {
+func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *promise.Promise[any]) {
 	entry.mu.Lock()
 	if entry.state.isFetching {
 		entry.mu.Unlock()
@@ -133,7 +138,7 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) (
 	// Notify observers that fetching has started
 	entry.notifySubscribers()
 
-	promise.New(ctx, fetcher).
+	fetcher(ctx).
 		Then(func(data any) {
 			entry.mu.Lock()
 			if ctx.Err() != nil {

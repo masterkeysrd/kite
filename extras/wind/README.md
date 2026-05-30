@@ -10,6 +10,7 @@ Wind is an async data fetching, caching, and state management library for Kitex 
 - 🛑 **Automatic Unmount Cancellation**: Instantly cancels the fetcher's `context.Context` when the number of subscribing components for a key drops to zero.
 - ⚡ **Cache Invalidation**: Force active queries to refetch in the background via `Client.InvalidateQueries`.
 - 🪓 **Ergonomic Mutations**: Execute mutations with state tracking (`IsPending`, `Error`) and context-based invalidation callbacks.
+- 🔗 **Bounded Async**: Leverages the `extras/promise` package and the engine's background worker pool for all async operations, ensuring thread safety and main-thread callback routing.
 
 ## 🚀 Getting Started
 

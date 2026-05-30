@@ -142,6 +142,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Animation system & Tweens** | `animation/animation.go` |
 | **Engine cursor wiring** | `engine/cursor.go` |
 | **Scheduler (Background & Tasks)** | `engine/scheduler.go` |
+| **Promise async primitive** | `extras/promise/promise.go` |
 | **Backend interface** | `backend/backend.go` |
 | **Mock backend (for tests)** | `backend/mock/mock.go` |
 | **Element base & fluent API** | `element/element.go` |

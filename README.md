@@ -16,6 +16,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 📦 **Global State Management**: Lightweight, thread-safe external state store with selector-based re-rendering (via [`extras/kites`](extras/kites/)).
 - ✈️ **Stack Navigation**: Type-safe stack-based navigation (push/pop) with automated focus isolation (via [`extras/flight`](extras/flight/)).
 - 🌀 **Async Fetching & Cache**: Ergonomic data fetching and caching with background refetches and mutations (via [`extras/wind`](extras/wind/)).
+- 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`extras/promise`](extras/promise/)).
 
 ## 🏗 Architecture Overview
 
@@ -26,7 +27,7 @@ Kite is built with a clean separation of concerns, divided into specialized pack
 - **`layout`**: The high-performance engine responsible for computing geometry, returning immutable fragment trees.
 - **`paint` & `backend`**: The drawing layer and terminal decoupling, allowing for varied output backends.
 - **`render`**: The visual bridge mirroring the DOM to the layout engine, carrying lifecycle dirty-flags.
-- **`engine`**: The central nervous system orchestrating the pipeline at 60FPS while managing concurrent jobs.
+- **`engine`**: The central nervous system orchestrating the pipeline at 60FPS while managing the task scheduler.
 - **`event`**: Advanced event dispatcher supporting capture, target, and bubble phases.
 - **`animation`**: Imperative property interpolation and tweening system for smooth transitions.
 

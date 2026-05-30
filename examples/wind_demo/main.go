@@ -13,6 +13,7 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/promise"
 	"github.com/masterkeysrd/kite/extras/wind"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -31,21 +32,25 @@ func fetchPodStatus(ctx context.Context, key PodKey) (string, error) {
 	}
 }
 
-func restartPod(ctx context.Context, key PodKey) (string, error) {
-	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case <-time.After(800 * time.Millisecond):
-		return "Restarted", nil
-	}
+func restartPod(ctx context.Context, key PodKey) *promise.Promise[string] {
+	return promise.New(ctx, func(ctx context.Context) (string, error) {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(800 * time.Millisecond):
+			return "Restarted", nil
+		}
+	})
 }
 
 var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 	key := PodKey{Namespace: "prod", ID: "nginx-web-app"}
 
 	// Use wind query hook
-	query := wind.Use(key, func(ctx context.Context) (string, error) {
-		return fetchPodStatus(ctx, key)
+	query := wind.Use(key, func(ctx context.Context) *promise.Promise[string] {
+		return promise.New(ctx, func(ctx context.Context) (string, error) {
+			return fetchPodStatus(ctx, key)
+		})
 	})
 
 	// Use wind mutation hook

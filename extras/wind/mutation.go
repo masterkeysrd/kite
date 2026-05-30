@@ -30,7 +30,7 @@ type mutationState struct {
 }
 
 func UseMutation[V any, R any](
-	mutationFn func(context.Context, V) (R, error),
+	mutationFn func(context.Context, V) *promise.Promise[R],
 	opts ...MutationOptions[V, R],
 ) MutationResult[V] {
 	client := UseClient()
@@ -48,33 +48,32 @@ func UseMutation[V any, R any](
 			err:       nil,
 		})
 
-		promise.New(context.Background(), func(ctx context.Context) (R, error) {
-			return mutationFn(ctx, variables)
-		}).Then(func(res R) {
-			setMutState(mutationState{
-				isPending: false,
-				isError:   false,
-				err:       nil,
-			})
-			mCtx := MutationContext{Client: client}
-			for _, opt := range opts {
-				if opt.OnSuccess != nil {
-					opt.OnSuccess(res, variables, mCtx)
+		mutationFn(context.Background(), variables).
+			Then(func(res R) {
+				setMutState(mutationState{
+					isPending: false,
+					isError:   false,
+					err:       nil,
+				})
+				mCtx := MutationContext{Client: client}
+				for _, opt := range opts {
+					if opt.OnSuccess != nil {
+						opt.OnSuccess(res, variables, mCtx)
+					}
 				}
-			}
-		}, func(err error) {
-			setMutState(mutationState{
-				isPending: false,
-				isError:   true,
-				err:       err,
-			})
-			mCtx := MutationContext{Client: client}
-			for _, opt := range opts {
-				if opt.OnError != nil {
-					opt.OnError(err, variables, mCtx)
+			}, func(err error) {
+				setMutState(mutationState{
+					isPending: false,
+					isError:   true,
+					err:       err,
+				})
+				mCtx := MutationContext{Client: client}
+				for _, opt := range opts {
+					if opt.OnError != nil {
+						opt.OnError(err, variables, mCtx)
+					}
 				}
-			}
-		})
+			})
 	}
 
 	s := getMutState()

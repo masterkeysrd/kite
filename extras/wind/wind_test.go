@@ -9,6 +9,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/promise"
 )
 
 func TestContextCancellationOnUnmount(t *testing.T) {
@@ -19,14 +20,16 @@ func TestContextCancellationOnUnmount(t *testing.T) {
 	client := NewClient()
 
 	ctxCancelled := make(chan struct{})
-	fetcher := func(ctx context.Context) (string, error) {
-		select {
-		case <-ctx.Done():
-			close(ctxCancelled)
-			return "", ctx.Err()
-		case <-time.After(2 * time.Second):
-			return "done", nil
-		}
+	fetcher := func(ctx context.Context) *promise.Promise[string] {
+		return promise.New(ctx, func(ctx context.Context) (string, error) {
+			select {
+			case <-ctx.Done():
+				close(ctxCancelled)
+				return "", ctx.Err()
+			case <-time.After(2 * time.Second):
+				return "done", nil
+			}
+		})
 	}
 
 	app := kitex.SimpleFC("App", func() kitex.Node {
@@ -54,7 +57,7 @@ func TestContextCancellationOnUnmount(t *testing.T) {
 
 type ChildProps struct {
 	Key     string
-	Fetcher func(context.Context) (string, error)
+	Fetcher func(context.Context) *promise.Promise[string]
 }
 
 var ChildQueryComp = kitex.FC("ChildQueryComp", func(props ChildProps) kitex.Node {
@@ -73,12 +76,14 @@ func TestRequestDeduping(t *testing.T) {
 	var fetchCount int
 	var mu sync.Mutex
 
-	fetcher := func(ctx context.Context) (string, error) {
+	fetcher := func(ctx context.Context) *promise.Promise[string] {
 		mu.Lock()
 		fetchCount++
 		mu.Unlock()
-		time.Sleep(50 * time.Millisecond)
-		return "data", nil
+		return promise.New(ctx, func(ctx context.Context) (string, error) {
+			time.Sleep(50 * time.Millisecond)
+			return "data", nil
+		})
 	}
 
 	app := kitex.SimpleFC("App", func() kitex.Node {
@@ -113,12 +118,14 @@ func TestQueryInvalidation(t *testing.T) {
 	var fetchCount int
 	var mu sync.Mutex
 
-	fetcher := func(ctx context.Context) (string, error) {
+	fetcher := func(ctx context.Context) *promise.Promise[string] {
 		mu.Lock()
 		fetchCount++
 		currentCount := fetchCount
 		mu.Unlock()
-		return "value_" + string(rune('0'+currentCount)), nil
+		return promise.New(ctx, func(ctx context.Context) (string, error) {
+			return "value_" + string(rune('0'+currentCount)), nil
+		})
 	}
 
 	var result Result[string]
@@ -181,8 +188,10 @@ func TestMutation(t *testing.T) {
 
 	var mutation MutationResult[int]
 	app := kitex.SimpleFC("App", func() kitex.Node {
-		mutation = UseMutation(func(ctx context.Context, vars int) (string, error) {
-			return "mut_res", nil
+		mutation = UseMutation(func(ctx context.Context, vars int) *promise.Promise[string] {
+			return promise.New(ctx, func(ctx context.Context) (string, error) {
+				return "mut_res", nil
+			})
 		}, mutOpts)
 		return kitex.Box(kitex.BoxProps{})
 	})
@@ -251,8 +260,10 @@ func BenchmarkUseQuery(b *testing.B) {
 	defer kitex.Render(nil, container)
 
 	client := NewClient()
-	fetcher := func(ctx context.Context) (string, error) {
-		return "data", nil
+	fetcher := func(ctx context.Context) *promise.Promise[string] {
+		return promise.New(ctx, func(ctx context.Context) (string, error) {
+			return "data", nil
+		})
 	}
 
 	comp := kitex.SimpleFC("Comp", func() kitex.Node {
@@ -272,8 +283,10 @@ func BenchmarkUseMutation(b *testing.B) {
 	defer kitex.Render(nil, container)
 
 	client := NewClient()
-	mutationFn := func(ctx context.Context, val int) (string, error) {
-		return "ok", nil
+	mutationFn := func(ctx context.Context, val int) *promise.Promise[string] {
+		return promise.New(ctx, func(ctx context.Context) (string, error) {
+			return "ok", nil
+		})
 	}
 
 	comp := kitex.SimpleFC("Comp", func() kitex.Node {
