@@ -14,9 +14,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masterkeysrd/kite/backend"
-	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // Compile-time assertion: Backend implements backend.Backend.
@@ -26,19 +24,18 @@ var _ backend.Backend = (*Backend)(nil)
 type cursorRecord struct {
 	Visible bool
 	X, Y    int
-	Shape   cursor.Shape
+	Shape   backend.CursorShape
 	Color   color.Color
 }
 
 type renderRequest struct {
-	fb      *paint.FrameBuffer
-	version uint64
-	cursor  cursorRecord
+	buffer *backend.Buffer
+	cursor cursorRecord
 }
 
 // Backend is the ultraviolet terminal backend for kite/x. It owns a uv.Terminal
 // for input and a uv.TerminalScreen for output. EndFrame copies the painted
-// FrameBuffer to the TerminalScreen and signals the render goroutine to diff
+// Buffer to the TerminalScreen and signals the render goroutine to diff
 // and flush.
 type Backend struct {
 	terminal *uv.Terminal
@@ -48,20 +45,15 @@ type Backend struct {
 	wg      sync.WaitGroup
 	eventCh chan backend.RawEvent
 
-	// current is the FrameBuffer prepared by BeginFrame and drawn into by the
+	// current is the Buffer prepared by BeginFrame and drawn into by the
 	// paint engine. It is handed to the render goroutine in EndFrame.
-	current *paint.FrameBuffer
+	current *backend.Buffer
 
 	// width and height of the terminal at last resize.
 	width, height int
 
 	// renderCh carries frames from the main thread to the render goroutine.
 	renderCh chan renderRequest
-
-	// syncCursorCh is needed to keep the cursor up-to-date in the render goroutine, since the
-	// cursor state is buffered in the main thread and only sent to the render goroutine in
-	// EndFrame. This channel allows cursor updates to be sent immediately, without waiting
-	// for the next EndFrame.
 
 	// renderWG lets Stop wait for the render goroutine to finish.
 	renderWG sync.WaitGroup
@@ -80,7 +72,7 @@ type Backend struct {
 	// concurrent modifications from the render loop.
 	block sync.Mutex
 
-	fbPool sync.Pool
+	bufferPool sync.Pool
 
 	extensions []backend.TerminalExtension
 }
@@ -127,8 +119,8 @@ func New() (*Backend, error) {
 		eventCh:  make(chan backend.RawEvent),
 		renderCh: make(chan renderRequest, 2),
 	}
-	b.fbPool.New = func() any {
-		return paint.NewFrameBuffer(0, 0, b.width, b.height)
+	b.bufferPool.New = func() any {
+		return backend.NewBuffer(b.width, b.height)
 	}
 	b.caps = probeCapabilities(os.Environ())
 	return b, nil
@@ -166,28 +158,26 @@ func (b *Backend) Start() error {
 	return nil
 }
 
-// BeginFrame allocates a fresh FrameBuffer for the current terminal size.
-func (b *Backend) BeginFrame() paint.Surface {
-	fb := b.fbPool.Get().(*paint.FrameBuffer)
-	if fb.Bounds().Size.Width != b.width || fb.Bounds().Size.Height != b.height {
-		fb = paint.NewFrameBuffer(0, 0, b.width, b.height)
+// BeginFrame allocates a fresh Buffer for the current terminal size.
+func (b *Backend) BeginFrame() backend.Surface {
+	buf := b.bufferPool.Get().(*backend.Buffer)
+	if buf.Width != b.width || buf.Height != b.height {
+		buf = backend.NewBuffer(b.width, b.height)
 	} else {
-		fb.Reset()
+		buf.Reset()
 	}
-	b.current = fb
-	b.current.BumpVersion()
+	b.current = buf
 	return b.current
 }
 
-// EndFrame hands the current FrameBuffer to the render goroutine.
+// EndFrame hands the current Buffer to the render goroutine.
 func (b *Backend) EndFrame() error {
 	if b.current == nil {
 		panic("uv.Backend.EndFrame called without a preceding BeginFrame")
 	}
 	req := renderRequest{
-		fb:      b.current,
-		version: b.current.Version(),
-		cursor:  b.cursorState,
+		buffer: b.current,
+		cursor: b.cursorState,
 	}
 	b.current = nil
 	b.renderCh <- req
@@ -264,7 +254,7 @@ func (b *Backend) SetCursorColor(c color.Color) {
 	b.cursorState.Color = c
 }
 
-func (b *Backend) SetCursorShape(s cursor.Shape) {
+func (b *Backend) SetCursorShape(s backend.CursorShape) {
 	b.cursorState.Shape = s
 }
 
@@ -276,11 +266,11 @@ func (b *Backend) DumpState() {
 	sb.WriteString("=== Backend State Dump ===\n")
 	fmt.Fprintf(&sb, "Terminal Size: %dx%d\n", b.width, b.height)
 
-	sb.WriteString("Current FrameBuffer:\n")
+	sb.WriteString("Current Buffer:\n")
 	if b.current != nil {
-		for y := 0; y < b.current.Bounds().Size.Height; y++ {
-			for x := 0; x < b.current.Bounds().Size.Width; x++ {
-				c := b.current.CellAt(b.current.Bounds().Origin.X+x, b.current.Bounds().Origin.Y+y)
+		for y := 0; y < b.current.Height; y++ {
+			for x := 0; x < b.current.Width; x++ {
+				c := b.current.CellAt(x, y)
 				sb.WriteString(c.Content)
 			}
 			sb.WriteString("\n")
@@ -351,20 +341,19 @@ func (b *Backend) loopEvents() {
 func (b *Backend) renderFrame(req renderRequest) {
 	b.block.Lock()
 	defer b.block.Unlock()
-	defer b.fbPool.Put(req.fb)
+	defer b.bufferPool.Put(req.buffer)
 
-	fb := req.fb
-	bounds := fb.Bounds()
-	if bounds.Size.Width <= 0 || bounds.Size.Height <= 0 {
-		slog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", bounds.Size.Width, "height", bounds.Size.Height)
+	buf := req.buffer
+	if buf.Width <= 0 || buf.Height <= 0 {
+		slog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", buf.Width, "height", buf.Height)
 		return
 	}
 
 	// Reuse a single uv.Cell object to avoid thousands of allocations per frame.
 	var uvCell uv.Cell
-	for y := 0; y < bounds.Size.Height; y++ {
-		for x := 0; x < bounds.Size.Width; {
-			c := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
+	for y := 0; y < buf.Height; y++ {
+		for x := 0; x < buf.Width; {
+			c := buf.CellAt(x, y)
 			populateUVCell(&uvCell, c)
 			b.screen.SetCell(x, y, &uvCell)
 			x += max(1, uvCell.Width)
@@ -424,26 +413,20 @@ func (b *Backend) renderFrame(req renderRequest) {
 	}
 }
 
-func translateCursorShape(s cursor.Shape) (uv.CursorShape, bool) {
+func translateCursorShape(s backend.CursorShape) (uv.CursorShape, bool) {
 	switch s {
-	case cursor.ShapeBlockBlink:
+	case backend.CursorBlock:
 		return uv.CursorBlock, true
-	case cursor.ShapeBlockSteady:
-		return uv.CursorBlock, false
-	case cursor.ShapeBarBlink:
-		return uv.CursorBar, true
-	case cursor.ShapeBarSteady:
-		return uv.CursorBar, false
-	case cursor.ShapeUnderlineBlink:
+	case backend.CursorUnderline:
 		return uv.CursorUnderline, true
-	case cursor.ShapeUnderlineSteady:
-		return uv.CursorUnderline, false
+	case backend.CursorBar:
+		return uv.CursorBar, true
 	default:
 		return uv.CursorBlock, true
 	}
 }
 
-func populateUVCell(cell *uv.Cell, c paint.Cell) {
+func populateUVCell(cell *uv.Cell, c backend.Cell) {
 	content := c.Content
 	if content == "" || content == "\x00" {
 		content = " "
@@ -452,11 +435,11 @@ func populateUVCell(cell *uv.Cell, c paint.Cell) {
 	cell.Content = content
 	cell.Width = max(1, c.Width)
 
-	cell.Style.Fg = c.FG
-	if c.BG != nil {
-		_, _, _, a := c.BG.RGBA()
+	cell.Style.Fg = c.Fg
+	if c.Bg != nil {
+		_, _, _, a := c.Bg.RGBA()
 		if a > 0 {
-			cell.Style.Bg = c.BG
+			cell.Style.Bg = c.Bg
 		} else {
 			cell.Style.Bg = nil
 		}
@@ -464,20 +447,26 @@ func populateUVCell(cell *uv.Cell, c paint.Cell) {
 		cell.Style.Bg = nil
 	}
 
-	cell.Style.Attrs = 0
-	if c.Attrs&paint.AttrBold != 0 {
+	if c.Style&backend.CellBold != 0 {
 		cell.Style.Attrs |= uv.AttrBold
 	}
-	if c.Attrs&paint.AttrItalic != 0 {
+	if c.Style&backend.CellFaint != 0 {
+		cell.Style.Attrs |= uv.AttrFaint
+	}
+	if c.Style&backend.CellItalic != 0 {
 		cell.Style.Attrs |= uv.AttrItalic
 	}
-	if c.Attrs&paint.AttrUnderline != 0 {
-		cell.Style.Underline = uv.UnderlineSingle
-	} else {
-		cell.Style.Underline = uv.UnderlineNone
+	if c.Style&backend.CellBlink != 0 {
+		cell.Style.Attrs |= uv.AttrBlink
 	}
-	if c.Attrs&paint.AttrInverse != 0 {
+	if c.Style&backend.CellReverse != 0 {
 		cell.Style.Attrs |= uv.AttrReverse
+	}
+	if c.Style&backend.CellConceal != 0 {
+		cell.Style.Attrs |= uv.AttrConceal
+	}
+	if c.Style&backend.CellStrikethrough != 0 {
+		cell.Style.Attrs |= uv.AttrStrikethrough
 	}
 }
 

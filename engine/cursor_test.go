@@ -3,6 +3,7 @@ package engine
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
@@ -51,7 +52,10 @@ func TestEngineCursorIntegration(t *testing.T) {
 			Visible: true,
 			X:       2,
 			Y:       1,
-			Shape:   cursor.ShapeBarBlink,
+			Style: style.Cursor{
+				Shape: style.Some(style.CursorBar),
+				Blink: style.Some(true),
+			},
 		},
 	}
 	// Initialize BaseRender
@@ -103,7 +107,7 @@ func TestEngineCursorIntegration(t *testing.T) {
 	if b.Cursor.X != 7 || b.Cursor.Y != 11 {
 		t.Errorf("expected cursor pos (7, 11), got (%d, %d)", b.Cursor.X, b.Cursor.Y)
 	}
-	if b.Cursor.Shape != cursor.ShapeBarBlink {
-		t.Errorf("expected ShapeBarBlink, got %v", b.Cursor.Shape)
+	if b.Cursor.Shape != backend.CursorBar {
+		t.Errorf("expected CursorBar, got %v", b.Cursor.Shape)
 	}
 }

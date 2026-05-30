@@ -3,23 +3,31 @@ package promise
 import (
 	"context"
 	"sync"
-
-	"github.com/masterkeysrd/kite/terminal"
 )
 
 var (
-	globalScheduler terminal.Scheduler
+	globalScheduler Scheduler
 	schedMu         sync.RWMutex
 )
 
+type Scheduler interface {
+	// RunBackground executes a task on a background worker pool.
+	// The provided context is managed by the scheduler.
+	RunBackground(task func(ctx context.Context))
+	// QueueMicrotask schedules a task to run as a microtask on the main thread.
+	QueueMicrotask(task func())
+	// QueueMacrotask schedules a task to run as a macrotask on the main thread.
+	QueueMacrotask(task func())
+}
+
 // SetScheduler sets the global scheduler used by all promises.
-func SetScheduler(s terminal.Scheduler) {
+func SetScheduler(s Scheduler) {
 	schedMu.Lock()
 	defer schedMu.Unlock()
 	globalScheduler = s
 }
 
-func getScheduler() terminal.Scheduler {
+func getScheduler() Scheduler {
 	schedMu.RLock()
 	defer schedMu.RUnlock()
 	return globalScheduler
@@ -112,11 +120,12 @@ func (p *Promise[T]) dispatchSync() {
 	p.onFinally = nil
 	p.mu.Unlock()
 
-	if state == Fulfilled {
+	switch state {
+	case Fulfilled:
 		for _, fn := range onFulfilled {
 			fn(val)
 		}
-	} else if state == Rejected {
+	case Rejected:
 		for _, fn := range onRejected {
 			fn(err)
 		}
@@ -209,4 +218,26 @@ func (p *Promise[T]) Await(ctx context.Context) (T, error) {
 		defer p.mu.Unlock()
 		return p.value, p.err
 	}
+}
+
+// Resolved returns a new Promise that is already fulfilled with the given value.
+func Resolved[T any](val T) *Promise[T] {
+	p := &Promise[T]{
+		state: Fulfilled,
+		value: val,
+		done:  make(chan struct{}),
+	}
+	close(p.done)
+	return p
+}
+
+// Rejected returns a new Promise that is already rejected with the given error.
+func RejectedPromise[T any](err error) *Promise[T] {
+	p := &Promise[T]{
+		state: Rejected,
+		err:   err,
+		done:  make(chan struct{}),
+	}
+	close(p.done)
+	return p
 }

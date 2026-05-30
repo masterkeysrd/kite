@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/masterkeysrd/kite/terminal"
 )
 
 type mockScheduler struct {
@@ -46,7 +44,7 @@ func (m *mockScheduler) flushMicrotasks() {
 	}
 }
 
-var _ terminal.Scheduler = (*mockScheduler)(nil)
+var _ Scheduler = (*mockScheduler)(nil)
 
 func TestPromise_Fulfill(t *testing.T) {
 	sched := &mockScheduler{}

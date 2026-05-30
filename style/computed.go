@@ -78,8 +78,7 @@ type Computed struct {
 
 	// --- Cursor ---------------------------------------------------------------
 
-	CursorShape CursorShape `json:"cursorShape"`
-	CursorColor color.Color `json:"cursorColor"`
+	Cursor Cursor `json:"cursor"`
 }
 
 // AffectsLayout returns true if the change between c and other requires a re-layout.
@@ -126,8 +125,9 @@ func (c *Computed) AffectsLayout(other *Computed) bool {
 		c.OverflowY != other.OverflowY ||
 		c.Scrollbar.X != other.Scrollbar.X ||
 		c.Scrollbar.Y != other.Scrollbar.Y ||
-		c.CursorShape != other.CursorShape ||
-		c.CursorColor != other.CursorColor
+		c.Cursor.Shape != other.Cursor.Shape ||
+		c.Cursor.Blink != other.Cursor.Blink ||
+		c.Cursor.Color != other.Cursor.Color
 }
 
 // AffectsPaint returns true if the change between c and other requires a repaint
@@ -151,5 +151,6 @@ func (c *Computed) AffectsPaint(other *Computed) bool {
 		c.Scrollbar.TrackGlyph != other.Scrollbar.TrackGlyph ||
 		c.Scrollbar.TrackColor != other.Scrollbar.TrackColor ||
 		c.Scrollbar.ThumbGlyph != other.Scrollbar.ThumbGlyph ||
-		c.Scrollbar.ThumbColor != other.Scrollbar.ThumbColor
+		c.Scrollbar.ThumbColor != other.Scrollbar.ThumbColor ||
+		c.Cursor.Color != other.Cursor.Color
 }

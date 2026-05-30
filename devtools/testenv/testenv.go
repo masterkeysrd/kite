@@ -17,7 +17,6 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/key"
 )
@@ -330,7 +329,7 @@ func (e *Environment) matchGolden(filename string) (actual, expected []byte, gol
 		Content string `json:"c"`
 		FG      string `json:"fg,omitempty"`
 		BG      string `json:"bg,omitempty"`
-		Attrs   uint8  `json:"a,omitempty"`
+		Attrs   uint16 `json:"a,omitempty"`
 	}
 
 	type goldenFrame struct {
@@ -351,9 +350,9 @@ func (e *Environment) matchGolden(filename string) (actual, expected []byte, gol
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
 			gf.Cells[y][x] = goldenCell{
 				Content: cell.Content,
-				FG:      colorToHex(cell.FG),
-				BG:      colorToHex(cell.BG),
-				Attrs:   uint8(cell.Attrs),
+				FG:      colorToHex(cell.Fg),
+				BG:      colorToHex(cell.Bg),
+				Attrs:   uint16(cell.Style),
 			}
 		}
 	}
@@ -414,24 +413,24 @@ func (e *Environment) DumpANSI() string {
 		for x := 0; x < bounds.Size.Width; x++ {
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
 			// ANSI Escape codes
-			if cell.FG != nil {
-				r, g, b, _ := cell.FG.RGBA()
+			if cell.Fg != nil {
+				r, g, b, _ := cell.Fg.RGBA()
 				fmt.Fprintf(&sb, "\x1b[38;2;%d;%d;%dm", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 			}
-			if cell.BG != nil {
-				r, g, b, _ := cell.BG.RGBA()
+			if cell.Bg != nil {
+				r, g, b, _ := cell.Bg.RGBA()
 				fmt.Fprintf(&sb, "\x1b[48;2;%d;%d;%dm", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 			}
-			if cell.Attrs&paint.AttrBold != 0 {
+			if cell.Style&backend.CellBold != 0 {
 				sb.WriteString("\x1b[1m")
 			}
-			if cell.Attrs&paint.AttrItalic != 0 {
+			if cell.Style&backend.CellItalic != 0 {
 				sb.WriteString("\x1b[3m")
 			}
-			if cell.Attrs&paint.AttrUnderline != 0 {
+			if cell.Style&backend.CellUnderline != 0 {
 				sb.WriteString("\x1b[4m")
 			}
-			if cell.Attrs&paint.AttrInverse != 0 {
+			if cell.Style&backend.CellReverse != 0 {
 				sb.WriteString("\x1b[7m")
 			}
 
@@ -468,23 +467,23 @@ func (e *Environment) DumpHTML() string {
 		for x := 0; x < bounds.Size.Width; x++ {
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
 			style := ""
-			if cell.FG != nil {
-				style += fmt.Sprintf("color: %s; ", colorToHex(cell.FG))
+			if cell.Fg != nil {
+				style += fmt.Sprintf("color: %s; ", colorToHex(cell.Fg))
 			}
-			if cell.BG != nil {
-				style += fmt.Sprintf("background-color: %s; ", colorToHex(cell.BG))
+			if cell.Bg != nil {
+				style += fmt.Sprintf("background-color: %s; ", colorToHex(cell.Bg))
 			}
-			if cell.Attrs&paint.AttrBold != 0 {
+			if cell.Style&backend.CellBold != 0 {
 				style += "font-weight: bold; "
 			}
-			if cell.Attrs&paint.AttrItalic != 0 {
+			if cell.Style&backend.CellItalic != 0 {
 				style += "font-style: italic; "
 			}
-			if cell.Attrs&paint.AttrUnderline != 0 {
+			if cell.Style&backend.CellUnderline != 0 {
 				style += "text-decoration: underline; "
 			}
 			// Inverse is hard in HTML without knowing original colors, but we can swap them if both are set
-			if cell.Attrs&paint.AttrInverse != 0 {
+			if cell.Style&backend.CellReverse != 0 {
 				// Simplified inverse
 				style += "filter: invert(100%); "
 			}

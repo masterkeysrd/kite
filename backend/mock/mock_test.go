@@ -3,8 +3,8 @@ package mock_test
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
-	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // TestBackend_Mock_RecordsBeginEndFrame verifies that the mock backend
@@ -30,8 +30,8 @@ func TestBackend_Mock_RecordsBeginEndFrame(t *testing.T) {
 		t.Errorf("BeginFrameCalls = %d, want 1", b.BeginFrameCalls)
 	}
 
-	// Write a cell to confirm the surface is a usable FrameBuffer.
-	surface.Set(5, 3, paint.Cell{Content: "X", Width: 1})
+	// Write a cell to confirm the surface is a usable Buffer.
+	surface.Set(5, 3, backend.Cell{Content: "X", Width: 1})
 
 	if err := b.EndFrame(); err != nil {
 		t.Fatalf("EndFrame returned error: %v", err)

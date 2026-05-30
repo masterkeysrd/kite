@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/masterkeysrd/kite/promise"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -22,18 +23,18 @@ type Clipboard struct{}
 
 var _ terminal.Clipboard = (*Clipboard)(nil)
 
-func (c *Clipboard) ReadText() (string, error) {
-	return "", nil
+func (c *Clipboard) ReadText() *promise.Promise[string] {
+	return promise.Resolved("")
 }
 
-func (c *Clipboard) WriteText(text string) error {
-	return nil
+func (c *Clipboard) WriteText(text string) *promise.Promise[struct{}] {
+	return promise.Resolved(struct{}{})
 }
 
-func (c *Clipboard) Read(mime string) ([]byte, error) {
-	return nil, nil
+func (c *Clipboard) Read(mime string) *promise.Promise[[]byte] {
+	return promise.Resolved([]byte(nil))
 }
 
-func (c *Clipboard) Write(mime string, data []byte) error {
-	return nil
+func (c *Clipboard) Write(mime string, data []byte) *promise.Promise[struct{}] {
+	return promise.Resolved(struct{}{})
 }

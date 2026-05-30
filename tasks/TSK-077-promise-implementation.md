@@ -1,11 +1,11 @@
 # Task: Implement Idiomatic Promises
 
 ## Objective
-Introduce the `extras/promise` package to replace ad-hoc `go func()` calls and the deprecated `engine.Job` interface with a Go-idiomatic, chainable async primitive.
+Introduce the `promise` package to replace ad-hoc `go func()` calls and the deprecated `engine.Job` interface with a Go-idiomatic, chainable async primitive.
 
 ## Requirements
-1. **Create `extras/promise` Package:**
-   - Create `extras/promise/promise.go`.
+1. **Create `promise` Package:**
+   - Create `promise/promise.go`.
    - Define the global state:
      ```go
      var globalScheduler terminal.Scheduler
@@ -32,4 +32,4 @@ Introduce the `extras/promise` package to replace ad-hoc `go func()` calls and t
 - Run `go test ./extras/wind/...` to ensure data fetching still works over the new bounded pool.
 
 ## Documentation Updates
-- Create a `README.md` or `doc.go` in `extras/promise` explaining the `(T, error)` executor pattern and the main-thread safety guarantees of `.Then()`.
+- Create a `README.md` or `doc.go` in `promise` explaining the `(T, error)` executor pattern and the main-thread safety guarantees of `.Then()`.

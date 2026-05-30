@@ -3,6 +3,8 @@ package paint
 import (
 	"image/color"
 	"testing"
+
+	"github.com/masterkeysrd/kite/backend"
 )
 
 func setCell(pe *PaintEngine, fb Surface, x, y int, c Cell) {
@@ -19,12 +21,12 @@ func TestResolveBorders(t *testing.T) {
 
 	// Create a horizontal line at y=2
 	for x := range 5 {
-		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 2, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
 	}
 
 	// Create a vertical line at x=2
 	for y := range 5 {
-		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle})
+		setCell(pe, fb, 2, y, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
 	}
 
 	pe.resolveBorders(fb)
@@ -43,12 +45,12 @@ func TestResolveBorders_Styles(t *testing.T) {
 
 	// Double horizontal line
 	for x := range 5 {
-		setCell(pe, fb, x, 2, Cell{Content: "═", BorderStyle: BorderDouble})
+		setCell(pe, fb, x, 2, Cell{Cell: backend.Cell{Content: "═"}, BorderStyle: BorderDouble})
 	}
 
 	// Double vertical line
 	for y := range 5 {
-		setCell(pe, fb, 2, y, Cell{Content: "║", BorderStyle: BorderDouble})
+		setCell(pe, fb, 2, y, Cell{Cell: backend.Cell{Content: "║"}, BorderStyle: BorderDouble})
 	}
 
 	pe.resolveBorders(fb)
@@ -66,12 +68,12 @@ func TestResolveBorders_MixedStyles(t *testing.T) {
 
 	// Thick horizontal line
 	for x := range 5 {
-		setCell(pe, fb, x, 2, Cell{Content: "━", BorderStyle: BorderThick})
+		setCell(pe, fb, x, 2, Cell{Cell: backend.Cell{Content: "━"}, BorderStyle: BorderThick})
 	}
 
 	// Single vertical line
 	for y := range 5 {
-		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle})
+		setCell(pe, fb, 2, y, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
 	}
 
 	pe.resolveBorders(fb)
@@ -91,17 +93,17 @@ func TestResolveBorders_RoundedTee(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Rounded horizontal line (top edge of a box)
-	setCell(pe, fb, 1, 1, Cell{Content: "╭", BorderStyle: BorderRounded})
-	setCell(pe, fb, 2, 1, Cell{Content: "─", BorderStyle: BorderRounded})
-	setCell(pe, fb, 3, 1, Cell{Content: "╮", BorderStyle: BorderRounded})
+	setCell(pe, fb, 1, 1, Cell{Cell: backend.Cell{Content: "╭"}, BorderStyle: BorderRounded})
+	setCell(pe, fb, 2, 1, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderRounded})
+	setCell(pe, fb, 3, 1, Cell{Cell: backend.Cell{Content: "╮"}, BorderStyle: BorderRounded})
 
 	// Vertical lines to make them actual corners
-	setCell(pe, fb, 1, 2, Cell{Content: "│", BorderStyle: BorderRounded})
-	setCell(pe, fb, 3, 2, Cell{Content: "│", BorderStyle: BorderRounded})
+	setCell(pe, fb, 1, 2, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderRounded})
+	setCell(pe, fb, 3, 2, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderRounded})
 
 	// Vertical line hitting the middle of the rounded horizontal line
 	// Note: this is BorderSingle, while horizontal is BorderRounded.
-	setCell(pe, fb, 2, 2, Cell{Content: "│", BorderStyle: BorderSingle})
+	setCell(pe, fb, 2, 2, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
 
 	pe.resolveBorders(fb)
 
@@ -126,13 +128,13 @@ func TestResolveBorders_NoMangleText(t *testing.T) {
 	pe := NewPaintEngine()
 
 	// Border horizontal line at y=1
-	setCell(pe, fb, 0, 1, Cell{Content: "─", BorderStyle: BorderSingle})
-	setCell(pe, fb, 1, 1, Cell{Content: "─", BorderStyle: BorderSingle})
-	setCell(pe, fb, 2, 1, Cell{Content: "─", BorderStyle: BorderSingle})
+	setCell(pe, fb, 0, 1, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
+	setCell(pe, fb, 1, 1, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
+	setCell(pe, fb, 2, 1, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
 
 	// User text "|" at (1, 0) and (1, 2) - NO BorderStyle
-	setCell(pe, fb, 1, 0, Cell{Content: "|"})
-	setCell(pe, fb, 1, 2, Cell{Content: "|"})
+	setCell(pe, fb, 1, 0, Cell{Cell: backend.Cell{Content: "|"}})
+	setCell(pe, fb, 1, 2, Cell{Cell: backend.Cell{Content: "|"}})
 
 	pe.resolveBorders(fb)
 
@@ -150,11 +152,11 @@ func TestResolveBorders_ParallelNoMerge(t *testing.T) {
 
 	// Line 1: y=1
 	for x := range 5 {
-		setCell(pe, fb, x, 1, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 1, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
 	}
 	// Line 2: y=2
 	for x := range 5 {
-		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 2, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
 	}
 
 	pe.resolveBorders(fb)
@@ -180,12 +182,12 @@ func TestResolveBorders_SameBackgroundOnly(t *testing.T) {
 
 	// Horizontal line: y=2, Blue background
 	for x := range 5 {
-		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle, BG: blue})
+		setCell(pe, fb, x, 2, Cell{Cell: backend.Cell{Content: "─", Bg: blue}, BorderStyle: BorderSingle})
 	}
 
 	// Vertical line: x=2, Red background
 	for y := range 5 {
-		setCell(pe, fb, 2, y, Cell{Content: "│", BorderStyle: BorderSingle, BG: red})
+		setCell(pe, fb, 2, y, Cell{Cell: backend.Cell{Content: "│", Bg: red}, BorderStyle: BorderSingle})
 	}
 
 	pe.resolveBorders(fb)
@@ -204,12 +206,12 @@ func TestResolveBorders_SameTypeOnly(t *testing.T) {
 
 	// Horizontal line: Single
 	for x := range 5 {
-		setCell(pe, fb, x, 2, Cell{Content: "─", BorderStyle: BorderSingle})
+		setCell(pe, fb, x, 2, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
 	}
 
 	// Vertical line: Double
 	for y := range 5 {
-		setCell(pe, fb, 2, y, Cell{Content: "║", BorderStyle: BorderDouble})
+		setCell(pe, fb, 2, y, Cell{Cell: backend.Cell{Content: "║"}, BorderStyle: BorderDouble})
 	}
 
 	pe.resolveBorders(fb)
@@ -228,12 +230,12 @@ func TestResolveBorders_SameColorOnly(t *testing.T) {
 
 	// Horizontal line: y=2, Blue foreground
 	for x := range 5 {
-		fb.Set(x, 2, Cell{Content: "─", BorderStyle: BorderSingle, FG: blue})
+		fb.Set(x, 2, Cell{Cell: backend.Cell{Content: "─", Fg: blue}, BorderStyle: BorderSingle})
 	}
 
 	// Vertical line: x=2, Red foreground
 	for y := range 5 {
-		fb.Set(2, y, Cell{Content: "│", BorderStyle: BorderSingle, FG: red})
+		fb.Set(2, y, Cell{Cell: backend.Cell{Content: "│", Fg: red}, BorderStyle: BorderSingle})
 	}
 
 	pe := NewPaintEngine()

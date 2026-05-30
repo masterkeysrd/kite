@@ -13,8 +13,8 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/extras/promise"
 	"github.com/masterkeysrd/kite/extras/wind"
+	"github.com/masterkeysrd/kite/promise"
 	"github.com/masterkeysrd/kite/style"
 )
 

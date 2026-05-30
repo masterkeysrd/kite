@@ -63,8 +63,11 @@ func DefaultStyle() Computed {
 		Scrollbar: Scrollbar{},
 
 		// Cursor ---------------------------------------------------------------
-		CursorShape:         CursorShapeBlockBlink,
-		CursorColor:         TerminalDefault,
+		Cursor: Cursor{
+			Shape: Some(CursorBlock),
+			Blink: Some(true),
+			Color: Some(TerminalDefault),
+		},
 		SelectionForeground: nil, // fallback to inversion
 		SelectionBackground: nil, // fallback to inversion
 	}

@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"unsafe"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
@@ -90,18 +91,18 @@ func (p *PaintEngine) applySelection(surface Surface, selection []SelectionRect)
 		for y := rect.Origin.Y; y < rect.Origin.Y+rect.Size.Height; y++ {
 			for x := rect.Origin.X; x < rect.Origin.X+rect.Size.Width; x++ {
 				cell := surface.CellAt(x, y)
-				fgSet := sr.FG != nil && !style.IsTerminalDefault(sr.FG)
-				bgSet := sr.BG != nil && !style.IsTerminalDefault(sr.BG)
+				fgSet := sr.Fg != nil && !style.IsTerminalDefault(sr.Fg)
+				bgSet := sr.Bg != nil && !style.IsTerminalDefault(sr.Bg)
 
 				if fgSet || bgSet {
 					if fgSet {
-						cell.FG = sr.FG
+						cell.Fg = sr.Fg
 					}
 					if bgSet {
-						cell.BG = sr.BG
+						cell.Bg = sr.Bg
 					}
 				} else {
-					cell.Attrs |= AttrInverse
+					cell.Style |= AttrInverse
 				}
 				surface.Set(x, y, cell)
 			}
@@ -175,10 +176,12 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			// Use unsafe to avoid allocation for string conversion.
 			content := unsafe.String(unsafe.SliceData(cluster.Bytes), len(cluster.Bytes))
 			p.setCell(currentX, origin.Y, Cell{
-				Content: content,
-				Width:   cluster.CellWidth,
-				FG:      fg,
-				BG:      bg,
+				Cell: backend.Cell{
+					Content: content,
+					Width:   cluster.CellWidth,
+					Fg:      fg,
+					Bg:      bg,
+				},
 			})
 			currentX += cluster.CellWidth
 		}
@@ -274,10 +277,12 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 		trackGlyph := string(sb.TrackGlyph.UnwrapOr(style.DefaultScrollbarTrackVertical))
 		for i := 0; i < viewHeight; i++ {
 			p.setCell(trackX, trackYStart+i, Cell{
-				Content: trackGlyph,
-				Width:   1,
-				FG:      trackFG,
-				BG:      bg,
+				Cell: backend.Cell{
+					Content: trackGlyph,
+					Width:   1,
+					Fg:      trackFG,
+					Bg:      bg,
+				},
 			})
 		}
 
@@ -292,10 +297,12 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 			thumbGlyph := string(sb.ThumbGlyph.UnwrapOr(style.DefaultScrollbarThumbVertical))
 			for i := range thumbHeight {
 				p.setCell(trackX, trackYStart+thumbPos+i, Cell{
-					Content: thumbGlyph,
-					Width:   1,
-					FG:      thumbFG,
-					BG:      bg,
+					Cell: backend.Cell{
+						Content: thumbGlyph,
+						Width:   1,
+						Fg:      thumbFG,
+						Bg:      bg,
+					},
 				})
 			}
 		}
@@ -318,10 +325,12 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 		trackGlyph := string(sb.TrackGlyph.UnwrapOr(style.DefaultScrollbarTrackHorizontal))
 		for i := 0; i < viewWidth; i++ {
 			p.setCell(trackXStart+i, trackY, Cell{
-				Content: trackGlyph,
-				Width:   1,
-				FG:      trackFG,
-				BG:      bg,
+				Cell: backend.Cell{
+					Content: trackGlyph,
+					Width:   1,
+					Fg:      trackFG,
+					Bg:      bg,
+				},
 			})
 		}
 
@@ -336,10 +345,12 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 			thumbGlyph := string(sb.ThumbGlyph.UnwrapOr(style.DefaultScrollbarThumbHorizontal))
 			for i := range thumbWidth {
 				p.setCell(trackXStart+thumbPos+i, trackY, Cell{
-					Content: thumbGlyph,
-					Width:   1,
-					FG:      thumbFG,
-					BG:      bg,
+					Cell: backend.Cell{
+						Content: thumbGlyph,
+						Width:   1,
+						Fg:      thumbFG,
+						Bg:      bg,
+					},
 				})
 			}
 		}
@@ -447,7 +458,7 @@ func (p *PaintEngine) tintRect(r geom.Rect, c color.Color) {
 		for x := 0; x < r.Size.Width; x++ {
 			absX, absY := r.Origin.X+x, r.Origin.Y+y
 			cell := p.rootSurface.CellAt(absX, absY)
-			cell.BG = c
+			cell.Bg = c
 			p.setCell(absX, absY, cell)
 		}
 	}
@@ -472,16 +483,16 @@ func (p *PaintEngine) resolveBorders(surface Surface) {
 		right := surface.CellAt(x+1, y)
 
 		mask := 0
-		if up.BorderStyle == c.BorderStyle && colorsEqual(up.FG, c.FG) && colorsEqual(up.BG, c.BG) && p.connectsDown(up) {
+		if up.BorderStyle == c.BorderStyle && colorsEqual(up.Fg, c.Fg) && colorsEqual(up.Bg, c.Bg) && p.connectsDown(up) {
 			mask |= 8
 		}
-		if down.BorderStyle == c.BorderStyle && colorsEqual(down.FG, c.FG) && colorsEqual(down.BG, c.BG) && p.connectsUp(down) {
+		if down.BorderStyle == c.BorderStyle && colorsEqual(down.Fg, c.Fg) && colorsEqual(down.Bg, c.Bg) && p.connectsUp(down) {
 			mask |= 4
 		}
-		if left.BorderStyle == c.BorderStyle && colorsEqual(left.FG, c.FG) && colorsEqual(left.BG, c.BG) && p.connectsRight(left) {
+		if left.BorderStyle == c.BorderStyle && colorsEqual(left.Fg, c.Fg) && colorsEqual(left.Bg, c.Bg) && p.connectsRight(left) {
 			mask |= 2
 		}
-		if right.BorderStyle == c.BorderStyle && colorsEqual(right.FG, c.FG) && colorsEqual(right.BG, c.BG) && p.connectsLeft(right) {
+		if right.BorderStyle == c.BorderStyle && colorsEqual(right.Fg, c.Fg) && colorsEqual(right.Bg, c.Bg) && p.connectsLeft(right) {
 			mask |= 1
 		}
 
@@ -647,10 +658,12 @@ func (p *PaintEngine) fillRect(r geom.Rect, content string, fg, bg color.Color) 
 	for y := 0; y < visibleRect.Size.Height; y++ {
 		for x := 0; x < visibleRect.Size.Width; x++ {
 			p.setCell(visibleRect.Origin.X+x, visibleRect.Origin.Y+y, Cell{
-				Content: content,
-				Width:   1,
-				FG:      fg,
-				BG:      bg,
+				Cell: backend.Cell{
+					Content: content,
+					Width:   1,
+					Fg:      fg,
+					Bg:      bg,
+				},
 			})
 		}
 	}
@@ -701,7 +714,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		xStart := max(x, clip.Origin.X)
 		xEnd := min(x+width, clip.Origin.X+clip.Size.Width)
 		for cx := xStart; cx < xEnd; cx++ {
-			p.setCell(cx, y, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+			p.setCell(cx, y, Cell{
+				Cell: backend.Cell{
+					Content: glyphs.H,
+					Width:   1,
+					Fg:      c,
+					Bg:      bg,
+				},
+				BorderStyle: bs,
+			})
 		}
 	}
 	if border.Edges.Bottom {
@@ -716,7 +737,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 			xStart := max(x, clip.Origin.X)
 			xEnd := min(x+width, clip.Origin.X+clip.Size.Width)
 			for cx := xStart; cx < xEnd; cx++ {
-				p.setCell(cx, bottomY, Cell{Content: glyphs.H, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+				p.setCell(cx, bottomY, Cell{
+					Cell: backend.Cell{
+						Content: glyphs.H,
+						Width:   1,
+						Fg:      c,
+						Bg:      bg,
+					},
+					BorderStyle: bs,
+				})
 			}
 		}
 	}
@@ -730,7 +759,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		yStart := max(y, clip.Origin.Y)
 		yEnd := min(y+height, clip.Origin.Y+clip.Size.Height)
 		for cy := yStart; cy < yEnd; cy++ {
-			p.setCell(x, cy, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+			p.setCell(x, cy, Cell{
+				Cell: backend.Cell{
+					Content: glyphs.V,
+					Width:   1,
+					Fg:      c,
+					Bg:      bg,
+				},
+				BorderStyle: bs,
+			})
 		}
 	}
 	if border.Edges.Right {
@@ -745,7 +782,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 			yStart := max(y, clip.Origin.Y)
 			yEnd := min(y+height, clip.Origin.Y+clip.Size.Height)
 			for cy := yStart; cy < yEnd; cy++ {
-				p.setCell(rightX, cy, Cell{Content: glyphs.V, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+				p.setCell(rightX, cy, Cell{
+					Cell: backend.Cell{
+						Content: glyphs.V,
+						Width:   1,
+						Fg:      c,
+						Bg:      bg,
+					},
+					BorderStyle: bs,
+				})
 			}
 		}
 	}
@@ -762,7 +807,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		p.setCell(x, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		p.setCell(x, y, Cell{
+			Cell: backend.Cell{
+				Content: glyph,
+				Width:   1,
+				Fg:      c,
+				Bg:      bg,
+			},
+			BorderStyle: bs,
+		})
 	}
 	// Top-Right
 	if border.Edges.Top && border.Edges.Right {
@@ -775,7 +828,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		p.setCell(x+width-1, y, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		p.setCell(x+width-1, y, Cell{
+			Cell: backend.Cell{
+				Content: glyph,
+				Width:   1,
+				Fg:      c,
+				Bg:      bg,
+			},
+			BorderStyle: bs,
+		})
 	}
 	// Bottom-Left
 	if border.Edges.Bottom && border.Edges.Left {
@@ -788,7 +849,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		p.setCell(x, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		p.setCell(x, y+height-1, Cell{
+			Cell: backend.Cell{
+				Content: glyph,
+				Width:   1,
+				Fg:      c,
+				Bg:      bg,
+			},
+			BorderStyle: bs,
+		})
 	}
 	// Bottom-Right
 	if border.Edges.Bottom && border.Edges.Right {
@@ -801,7 +870,15 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 		if c == nil {
 			c = color.RGBA{255, 255, 255, 255}
 		}
-		p.setCell(x+width-1, y+height-1, Cell{Content: glyph, Width: 1, FG: c, BG: bg, BorderStyle: bs})
+		p.setCell(x+width-1, y+height-1, Cell{
+			Cell: backend.Cell{
+				Content: glyph,
+				Width:   1,
+				Fg:      c,
+				Bg:      bg,
+			},
+			BorderStyle: bs,
+		})
 	}
 }
 

@@ -14,8 +14,8 @@ import (
 // SelectionRect represents a physical rectangle of selected content.
 type SelectionRect struct {
 	Rect geom.Rect
-	FG   color.Color
-	BG   color.Color
+	Fg   color.Color
+	Bg   color.Color
 }
 
 // SelectionSource is an interface that provides access to selection ranges.
@@ -285,7 +285,7 @@ func calculateTextSelectionRect(frag *layout.Fragment, origin geom.Point, clip g
 
 	return &SelectionRect{
 		Rect: resRect,
-		FG:   comp.SelectionForeground,
-		BG:   comp.SelectionBackground,
+		Fg:   comp.SelectionForeground,
+		Bg:   comp.SelectionBackground,
 	}
 }

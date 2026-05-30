@@ -4,10 +4,8 @@ import (
 	"image/color"
 	"io"
 
-	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // Backend is the interface that decouples the paint engine from the terminal
@@ -27,7 +25,7 @@ type Backend interface {
 
 	// BeginFrame prepares a new frame and returns the Surface the paint
 	// engine should draw into. BeginFrame must be called before EndFrame.
-	BeginFrame() paint.Surface
+	BeginFrame() Surface
 
 	// EndFrame commits the current frame to the output target. It returns
 	// an error if the commit fails (e.g., a write error to the terminal).
@@ -63,7 +61,7 @@ type Backend interface {
 	SetCursorPos(x, y int)
 
 	// SetCursorShape sets the cursor visual shape.
-	SetCursorShape(cursor.Shape)
+	SetCursorShape(CursorShape)
 
 	// SetCursorColor sets the terminal hardware cursor color.
 	SetCursorColor(color.Color)
@@ -74,6 +72,90 @@ type Backend interface {
 	// Extensions returns the list of terminal extensions active on this backend.
 	Extensions() []TerminalExtension
 }
+
+type CursorShape uint8
+
+const (
+	CursorBlock CursorShape = iota
+	CursorUnderline
+	CursorBar
+)
+
+type Surface interface {
+	// Set writes cell c into position (x, y).
+	Set(x, y int, c Cell)
+
+	// CellAt returns the cell at absolute position (x, y).
+	CellAt(x, y int) Cell
+}
+
+// Buffer is a simple implementation of Surface that stores cells in a flat slice.
+// It is useful for backends that need to buffer frames before rendering.
+type Buffer struct {
+	Cells  []Cell
+	Width  int
+	Height int
+}
+
+func NewBuffer(width, height int) *Buffer {
+	return &Buffer{
+		Cells:  make([]Cell, width*height),
+		Width:  width,
+		Height: height,
+	}
+}
+
+func (b *Buffer) Set(x, y int, c Cell) {
+	if x < 0 || y < 0 || x >= b.Width || y >= b.Height {
+		return
+	}
+	b.Cells[y*b.Width+x] = c
+}
+
+func (b *Buffer) CellAt(x, y int) Cell {
+	if x < 0 || y < 0 || x >= b.Width || y >= b.Height {
+		return Cell{}
+	}
+	return b.Cells[y*b.Width+x]
+}
+
+func (b *Buffer) Reset() {
+	for i := range b.Cells {
+		b.Cells[i] = Cell{}
+	}
+}
+
+func (b *Buffer) Bounds() geom.Rect {
+	return geom.Rect{Size: b.Size()}
+}
+
+func (b *Buffer) Size() geom.Size {
+	return geom.Size{Width: b.Width, Height: b.Height}
+}
+
+type Cell struct {
+	Content string
+	Fg      color.Color
+	Bg      color.Color
+	Width   int // number of columns this cell occupies (1 for normal chars, >1 for wide chars)
+
+	// Style is a bitmask of text styles (bold, italic, etc.). The exact
+	// styles and their bit values are defined by the backend.
+	Style CellStyle
+}
+
+type CellStyle uint16
+
+const (
+	CellBold CellStyle = 1 << iota
+	CellFaint
+	CellItalic
+	CellUnderline
+	CellBlink
+	CellReverse
+	CellConceal
+	CellStrikethrough
+)
 
 // TerminalExtension is implemented by terminal-specific protocol handlers
 // (e.g. Kitty advanced paste, graphics protocols).

@@ -9,7 +9,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/extras/promise"
+	"github.com/masterkeysrd/kite/promise"
 )
 
 func TestContextCancellationOnUnmount(t *testing.T) {

@@ -98,7 +98,7 @@ func TestIntrinsicStyle_OverflowClipResistsAuthorOverride(t *testing.T) {
 	// Verify the intrinsic clip won: cells 0..9 may have red, cells 10+ must not.
 	for x := 10; x < 30; x++ {
 		cell := fr.Surface.CellAt(x, 0)
-		if cell.BG == (color.RGBA{255, 0, 0, 255}) {
+		if cell.Bg == (color.RGBA{255, 0, 0, 255}) {
 			t.Errorf("cell (%d,0): intrinsic OverflowX:Clip was bypassed — red content leaked outside the 10-cell boundary", x)
 		}
 	}

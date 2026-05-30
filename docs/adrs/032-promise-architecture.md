@@ -22,8 +22,8 @@ type Scheduler interface {
 ```
 The concrete implementation of this Scheduler will live in the `engine` package (e.g., `engine.NewScheduler(workers)`), effectively extracting the worker pool and queue management out of the core `Engine` struct. The Engine will simply coordinate by calling `DrainMicrotasks()` on the Scheduler during its frame loop.
 
-### 2. Idiomatic Go Promises (`extras/promise`)
-We will introduce an `extras/promise` package.
+### 2. Idiomatic Go Promises (`promise`)
+We will introduce an `promise` package.
 - **Global Context:** It will hold a global reference to the `terminal.Scheduler` (set at application boot) to avoid passing the scheduler into every promise creation.
 - **Idiomatic Executor:** Instead of JavaScript-style `resolve`/`reject` callbacks, the `promise.New` executor will return a standard Go tuple `(T, error)`.
 ```go

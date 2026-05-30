@@ -20,6 +20,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/style"
 )
 
 type textControlBase[T Element] struct {
@@ -190,7 +191,10 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 		Visible: focused,
 		X:       insetLeft + b.lastKnownCX,
 		Y:       insetTop + b.lastKnownCY,
-		Shape:   cursor.ShapeBarBlink,
+		Style: style.Cursor{
+			Shape: style.Some(style.CursorBar),
+			Blink: style.Some(true),
+		},
 	}
 }
 

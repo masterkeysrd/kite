@@ -16,7 +16,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 📦 **Global State Management**: Lightweight, thread-safe external state store with selector-based re-rendering (via [`extras/kites`](extras/kites/)).
 - ✈️ **Stack Navigation**: Type-safe stack-based navigation (push/pop) with automated focus isolation (via [`extras/flight`](extras/flight/)).
 - 🌀 **Async Fetching & Cache**: Ergonomic data fetching and caching with background refetches and mutations (via [`extras/wind`](extras/wind/)).
-- 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`extras/promise`](extras/promise/)).
+- 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`promise`](promise/)).
 
 ## 🏗 Architecture Overview
 

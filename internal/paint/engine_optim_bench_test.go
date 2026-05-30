@@ -5,6 +5,7 @@ import (
 
 	"image/color"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/layout/text"
@@ -66,7 +67,7 @@ func BenchmarkResolveBorders(b *testing.B) {
 	pe.clipStack = append(pe.clipStack, fb.Bounds())
 	for y := 0; y < h; y += 2 {
 		for x := 0; x < w; x += 2 {
-			pe.setCell(x, y, Cell{BorderStyle: BorderSingle, Content: "│"})
+			pe.setCell(x, y, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
 		}
 	}
 

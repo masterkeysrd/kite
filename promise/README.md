@@ -1,6 +1,6 @@
 # Promise Package
 
-The `extras/promise` package provides a Go-idiomatic, chainable async primitive for Kite applications. It replaces ad-hoc goroutines and ensures that callbacks are executed safely on the main UI thread.
+The `promise` package provides a Go-idiomatic, chainable async primitive for Kite applications. It replaces ad-hoc goroutines and ensures that callbacks are executed safely on the main UI thread.
 
 ## Usage
 

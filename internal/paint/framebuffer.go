@@ -52,8 +52,8 @@ func (fb *FrameBuffer) Set(x, y int, c Cell) {
 	ly := y - fb.bounds.Origin.Y
 	idx := ly*fb.bounds.Size.Width + lx
 
-	if c.BG == color.Transparent {
-		c.BG = fb.cells[idx].BG
+	if c.Bg == color.Transparent {
+		c.Bg = fb.cells[idx].Bg
 	}
 
 	fb.cells[idx] = c

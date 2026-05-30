@@ -1,7 +1,5 @@
 package geom
 
-import "github.com/masterkeysrd/kite/style"
-
 // Point is a position in terminal-cell coordinates.
 type Point struct {
 	X, Y int
@@ -29,7 +27,7 @@ func (r Rect) Contains(p Point) bool {
 
 // Inset returns a new Rect shrunk on all four sides by e. Width and Height
 // are clamped to zero if the insets exceed the available space.
-func (r Rect) Inset(e style.EdgeValues[int]) Rect {
+func (r Rect) Inset(e Edges) Rect {
 	return Rect{
 		Origin: Point{
 			X: r.Origin.X + e.Left,
@@ -75,3 +73,10 @@ const (
 	PlacementLeft
 	PlacementRight
 )
+
+type Edges struct {
+	Top    int
+	Right  int
+	Bottom int
+	Left   int
+}

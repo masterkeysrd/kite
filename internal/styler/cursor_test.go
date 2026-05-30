@@ -15,8 +15,11 @@ func TestCursorInheritance(t *testing.T) {
 	parent := &fakeNode{
 		kind: 1, // Element
 		rawStyle: style.Style{
-			CursorShape: style.Some(style.CursorShapeBarSteady),
-			CursorColor: style.Some[color.Color](color.RGBA{R: 255, G: 0, B: 0, A: 255}),
+			Cursor: style.Some(style.Cursor{
+				Shape: style.Some(style.CursorBar),
+				Blink: style.Some(false),
+				Color: style.Some[color.Color](color.RGBA{R: 255, G: 0, B: 0, A: 255}),
+			}),
 		},
 	}
 	parentRO := render.NewBox(parent, nil)
@@ -29,11 +32,14 @@ func TestCursorInheritance(t *testing.T) {
 	parentComputed := resolver.Resolve(parentRO, nil)
 	childComputed := resolver.Resolve(childRO, parentComputed)
 
-	if childComputed.CursorShape != style.CursorShapeBarSteady {
-		t.Errorf("child: expected inherited BarSteady shape, got %v", childComputed.CursorShape)
+	if childComputed.Cursor.Shape.UnwrapOr(style.CursorBlock) != style.CursorBar {
+		t.Errorf("child: expected inherited Bar shape, got %v", childComputed.Cursor.Shape)
 	}
-	if childComputed.CursorColor != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
-		t.Errorf("child: expected inherited red color, got %v", childComputed.CursorColor)
+	if childComputed.Cursor.Blink.UnwrapOr(true) != false {
+		t.Errorf("child: expected inherited non-blinking, got %v", childComputed.Cursor.Blink)
+	}
+	if childComputed.Cursor.Color.UnwrapOr(nil) != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
+		t.Errorf("child: expected inherited red color, got %v", childComputed.Cursor.Color)
 	}
 }
 
@@ -43,7 +49,9 @@ func TestCursorOverride(t *testing.T) {
 	parent := &fakeNode{
 		kind: 1,
 		rawStyle: style.Style{
-			CursorShape: style.Some(style.CursorShapeBarSteady),
+			Cursor: style.Some(style.Cursor{
+				Shape: style.Some(style.CursorBar),
+			}),
 		},
 	}
 	parentRO := render.NewBox(parent, nil)
@@ -52,7 +60,9 @@ func TestCursorOverride(t *testing.T) {
 	child := &fakeNode{
 		kind: 1,
 		rawStyle: style.Style{
-			CursorShape: style.Some(style.CursorShapeBlockSteady),
+			Cursor: style.Some(style.Cursor{
+				Shape: style.Some(style.CursorBlock),
+			}),
 		},
 	}
 	childRO := render.NewBox(child, nil)
@@ -61,7 +71,7 @@ func TestCursorOverride(t *testing.T) {
 	parentComputed := resolver.Resolve(parentRO, nil)
 	childComputed := resolver.Resolve(childRO, parentComputed)
 
-	if childComputed.CursorShape != style.CursorShapeBlockSteady {
-		t.Errorf("child: expected overridden BlockSteady shape, got %v", childComputed.CursorShape)
+	if childComputed.Cursor.Shape.UnwrapOr(style.CursorBar) != style.CursorBlock {
+		t.Errorf("child: expected overridden Block shape, got %v", childComputed.Cursor.Shape)
 	}
 }

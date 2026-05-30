@@ -1,13 +1,15 @@
 package engine
 
-import "github.com/masterkeysrd/kite/cursor"
+import (
+	"github.com/masterkeysrd/kite/style"
+)
 
 // cursorState holds the engine-side cursor model. The engine emits the
 // corresponding OSC/CSI sequences during the Sync phase.
 type cursorState struct {
 	visible bool
 	pos     position
-	shape   cursor.Shape
+	shape   style.CursorShape
 }
 
 // position is an (x, y) coordinate in terminal-cell space.
@@ -37,6 +39,6 @@ func (c *CursorController) SetPos(x, y int) {
 // SetShape sets the cursor visual shape. Blink rate is terminal-controlled
 // when a *Blink shape is set; the engine emits no software blink ticker.
 // Changes take effect at the next Sync phase.
-func (c *CursorController) SetShape(shape cursor.Shape) {
+func (c *CursorController) SetShape(shape style.CursorShape) {
 	c.state.shape = shape
 }

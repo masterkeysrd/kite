@@ -129,10 +129,8 @@ type Style struct {
 
 	// --- Cursor ---------------------------------------------------------------
 
-	// CursorShape sets the terminal hardware cursor shape when this element is focused.
-	CursorShape Optional[CursorShape]
-	// CursorColor sets the terminal hardware cursor color.
-	CursorColor Optional[color.Color]
+	// Cursor defines the terminal hardware cursor properties when this element is focused.
+	Cursor Optional[Cursor]
 }
 
 // Apply returns a copy of base with every set field in s overlaid on top.
@@ -246,11 +244,8 @@ func (s Style) Apply(base Computed) Computed {
 	if s.SelectionBackground.IsSet() {
 		base.SelectionBackground = s.SelectionBackground.Value()
 	}
-	if s.CursorShape.IsSet() {
-		base.CursorShape = s.CursorShape.Value()
-	}
-	if s.CursorColor.IsSet() {
-		base.CursorColor = s.CursorColor.Value()
+	if s.Cursor.IsSet() {
+		base.Cursor = base.Cursor.Merge(s.Cursor.Value())
 	}
 	if s.TextAlign.IsSet() {
 		base.TextAlign = s.TextAlign.Value()
@@ -339,7 +334,18 @@ func (s Style) Merge(override Style) Style {
 		OverflowX: s.OverflowX.Merge(override.OverflowX),
 		OverflowY: s.OverflowY.Merge(override.OverflowY),
 		Scrollbar: mergeOptionalScrollbar(s.Scrollbar, override.Scrollbar),
+		Cursor:    mergeOptionalCursor(s.Cursor, override.Cursor),
 	}
+}
+
+func mergeOptionalCursor(base, override Optional[Cursor]) Optional[Cursor] {
+	if !override.IsSet() {
+		return base
+	}
+	if !base.IsSet() {
+		return override
+	}
+	return Some(base.Value().Merge(override.Value()))
 }
 
 func mergeOptionalScrollbar(base, override Optional[Scrollbar]) Optional[Scrollbar] {

@@ -17,26 +17,23 @@ While the Selection-Driven approach is ideal for standard elements (`<input>`, `
 We will adopt a **Hybrid Approach**:
 
 1. **Delete `cursor.Provider`:** The interface and the engine's polling mechanism will be removed completely.
-2. **Selection as Default:** By default, the Engine will resolve the `dom.Document`'s active `Selection`. If the selection is collapsed (start == end), the engine maps the logical text offset to physical coordinates and automatically plots the hardware cursor.
-3. **Imperative Override (`terminal.Cursor`):** We will expand the `terminal.Terminal` interface to include a `Cursor()` manager. 
+2. **Style-Driven Configuration:** Every `style.Style` now includes a `Cursor` field of type `style.Cursor`. This struct allows elements to declare their desired cursor shape, color, and blinking behavior when focused.
    ```go
-   type Cursor interface {
-       SetPosition(x, y int)
-       SetShape(shape style.CursorShape)
-       Hide()
+   type Cursor struct {
+       Shape Optional[CursorShape]
+       Blink Optional[bool]
+       Color Optional[color.Color]
    }
    ```
-   Custom components (like editors) can call this API during their event handling or lifecycle hooks. 
-4. **Resolution Precedence:** At the end of the frame, the Engine will resolve the cursor state:
-   - If `terminal.Cursor` was imperatively invoked during the frame, that state wins.
-   - Else if a collapsed `dom.Selection` exists, it resolves and wins.
-   - Else, the hardware cursor is hidden.
+3. **Selection as Default:** Standard text elements (`InputElement`, `TextAreaElement`) configure their `Cursor` style to match their internal insertion point. By default, the Engine resolves the `dom.Document`'s active `Selection`. If the selection is collapsed, the engine translates the logical offset to physical coordinates and applies the `Cursor` style from the focused element.
+4. **Backend Agnosticism:** The `backend` package remains agnostic of internal `style` or `cursor` packages. The `Engine` is responsible for mapping internal `style.CursorShape` values to `backend.CursorShape` and calling the appropriate backend methods (`SetCursorPos`, `SetCursorShape`, `SetCursorColor`).
 
 ## Consequences
 ### Positive
 * Standard text inputs behave exactly like browsers—they just manipulate the logical `dom.Selection`.
-* Custom editors get unhindered, ergonomic access to the real hardware cursor.
+* Custom widgets can precisely control the hardware cursor via their `IntrinsicStyle` or `RawStyle` without faking DOM text nodes.
+* The `backend` package is fully decoupled from the internal type system.
 * We remove the ugly `cursor.Provider` type-assertion polling from the core Engine render loop.
 
 ### Negative
-* The Engine must reset the imperative `terminal.Cursor` state at the beginning of every frame to ensure old positions don't persist if a custom component stops calling `SetPosition`.
+* The Engine must resolve and reconcile the physical cursor state against the backend state on every frame to ensure synchronization.

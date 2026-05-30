@@ -145,17 +145,29 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 	selection := e.resolveSelection()
 
 	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 || len(selection) > 0 {
-		surface := e.backend.BeginFrame()
+		e.frameBuffer.Reset()
+		e.frameBuffer.BumpVersion()
+
 		ctx := &paint.Context{
 			Tracer:    e.Tracer(),
 			Selection: selection,
 		}
-		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), surface)
+		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), e.frameBuffer)
 		for _, overlay := range overlays {
-			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), surface)
+			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), e.frameBuffer)
 		}
-		e.paintEngine.ResolveBorders(ctx, surface)
-		e.paintEngine.ApplySelection(surface, ctx.Selection)
+		e.paintEngine.ResolveBorders(ctx, e.frameBuffer)
+		e.paintEngine.ApplySelection(e.frameBuffer, ctx.Selection)
+
+		// Bridge to agnostic backend.
+		surface := e.backend.BeginFrame()
+		bounds := e.frameBuffer.Bounds()
+		for y := 0; y < bounds.Size.Height; y++ {
+			for x := 0; x < bounds.Size.Width; x++ {
+				cell := e.frameBuffer.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
+				surface.Set(x, y, cell.Cell)
+			}
+		}
 
 		if err := e.backend.EndFrame(); err != nil {
 			// error logging is handled in Engine.Frame if we wanted,

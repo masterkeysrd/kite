@@ -29,8 +29,8 @@ func TestPaint_InheritedStyle(t *testing.T) {
 		name        string
 		nodeStyle   *style.Computed
 		parentStyle *style.Computed
-		wantFG      color.Color
-		wantBG      color.Color
+		wantFg      color.Color
+		wantBg      color.Color
 	}{
 		{
 			name: "Default style",
@@ -38,8 +38,8 @@ func TestPaint_InheritedStyle(t *testing.T) {
 				Foreground: style.TerminalDefault,
 				Background: color.Transparent,
 			},
-			wantFG: color.RGBA{255, 255, 255, 255}, // Default fallback
-			wantBG: color.Transparent,
+			wantFg: color.RGBA{255, 255, 255, 255}, // Default fallback
+			wantBg: color.Transparent,
 		},
 		{
 			name: "Explicit foreground on node",
@@ -47,8 +47,8 @@ func TestPaint_InheritedStyle(t *testing.T) {
 				Foreground: red,
 				Background: color.Transparent,
 			},
-			wantFG: red,
-			wantBG: color.Transparent,
+			wantFg: red,
+			wantBg: color.Transparent,
 		},
 		{
 			name: "Inherit foreground from parent",
@@ -59,8 +59,8 @@ func TestPaint_InheritedStyle(t *testing.T) {
 			parentStyle: &style.Computed{
 				Foreground: blue,
 			},
-			wantFG: blue,
-			wantBG: color.Transparent,
+			wantFg: blue,
+			wantBg: color.Transparent,
 		},
 		{
 			name: "Explicit background on parent",
@@ -71,8 +71,8 @@ func TestPaint_InheritedStyle(t *testing.T) {
 			parentStyle: &style.Computed{
 				Background: blue,
 			},
-			wantFG: color.RGBA{255, 255, 255, 255},
-			wantBG: blue,
+			wantFg: color.RGBA{255, 255, 255, 255},
+			wantBg: blue,
 		},
 		{
 			name: "Node background overrides parent",
@@ -82,8 +82,8 @@ func TestPaint_InheritedStyle(t *testing.T) {
 			parentStyle: &style.Computed{
 				Background: blue,
 			},
-			wantFG: color.RGBA{255, 255, 255, 255},
-			wantBG: red,
+			wantFg: color.RGBA{255, 255, 255, 255},
+			wantBg: red,
 		},
 	}
 
@@ -97,11 +97,11 @@ func TestPaint_InheritedStyle(t *testing.T) {
 			}
 
 			gotFG, gotBG := pe.getInheritedStyle(frag)
-			if gotFG != tt.wantFG {
-				t.Errorf("gotFG = %v, want %v", gotFG, tt.wantFG)
+			if gotFG != tt.wantFg {
+				t.Errorf("gotFG = %v, want %v", gotFG, tt.wantFg)
 			}
-			if gotBG != tt.wantBG {
-				t.Errorf("gotBG = %v, want %v", gotBG, tt.wantBG)
+			if gotBG != tt.wantBg {
+				t.Errorf("gotBG = %v, want %v", gotBG, tt.wantBg)
 			}
 		})
 	}
@@ -559,22 +559,22 @@ func TestPaint_DebugXRay(t *testing.T) {
 	contentColor := color.RGBA{0, 0, 100, 255}
 
 	// Cell (0,0) should be margin color
-	if c := fb.CellAt(0, 0).BG; c != marginColor {
+	if c := fb.CellAt(0, 0).Bg; c != marginColor {
 		t.Errorf("expected margin color at (0,0), got %v", c)
 	}
 
 	// Cell (1,1) is border, should be margin color (since it's outside padding box)
-	if c := fb.CellAt(1, 1).BG; c != marginColor {
+	if c := fb.CellAt(1, 1).Bg; c != marginColor {
 		t.Errorf("expected margin color at (1,1) [border], got %v", c)
 	}
 
 	// Cell (2,2) should be padding color
-	if c := fb.CellAt(2, 2).BG; c != paddingColor {
+	if c := fb.CellAt(2, 2).Bg; c != paddingColor {
 		t.Errorf("expected padding color at (2,2), got %v", c)
 	}
 
 	// Cell (3,3) should be content color
-	if c := fb.CellAt(3, 3).BG; c != contentColor {
+	if c := fb.CellAt(3, 3).Bg; c != contentColor {
 		t.Errorf("expected content color at (3,3), got %v", c)
 	}
 }
@@ -602,12 +602,12 @@ func TestPaint_DebugXRay_Clipping(t *testing.T) {
 	marginColor := color.RGBA{100, 0, 0, 255}
 
 	// (2,2) should be margin color (it's inside parent 5x5)
-	if c := fb.CellAt(2, 2).BG; c != marginColor {
+	if c := fb.CellAt(2, 2).Bg; c != marginColor {
 		t.Errorf("expected margin color at (2,2), got %v", c)
 	}
 
 	// (5,2) should be nil (clipped by parent)
-	if c := fb.CellAt(5, 2).BG; c != nil {
+	if c := fb.CellAt(5, 2).Bg; c != nil {
 		t.Errorf("expected clipped at (5,2), got %v", c)
 	}
 }

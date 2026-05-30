@@ -4,14 +4,14 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // ScreenAssertion provides fluent assertions over a rendered framebuffer.
 type ScreenAssertion struct {
 	t  *testing.T
-	fb paint.Surface
+	fb *backend.Buffer
 }
 
 // ExpectScreen starts an assertion chain for the rendered framebuffer.
@@ -28,7 +28,7 @@ func ExpectScreen(t *testing.T, env *Environment) *ScreenAssertion {
 type CellAssertion struct {
 	screen *ScreenAssertion
 	x, y   int
-	cell   paint.Cell
+	cell   backend.Cell
 }
 
 // CellAt scopes the next assertions to a specific X,Y coordinate.
@@ -49,18 +49,18 @@ func (c *CellAssertion) ToHaveContent(expected string) *ScreenAssertion {
 }
 
 // ToHaveAttribute asserts that the cell has the given attribute.
-func (c *CellAssertion) ToHaveAttribute(attr paint.CellAttrs) *ScreenAssertion {
+func (c *CellAssertion) ToHaveAttribute(attr backend.CellStyle) *ScreenAssertion {
 	c.screen.t.Helper()
-	if c.cell.Attrs&attr == 0 {
-		c.screen.t.Errorf("cell at (%d,%d) expected to have attribute %v, got %v", c.x, c.y, attr, c.cell.Attrs)
+	if c.cell.Style&attr == 0 {
+		c.screen.t.Errorf("cell at (%d,%d) expected to have attribute %v, got %v", c.x, c.y, attr, c.cell.Style)
 	}
 	return c.screen
 }
 
 // ToNotHaveAttribute asserts that the cell does NOT have the given attribute.
-func (c *CellAssertion) ToNotHaveAttribute(attr paint.CellAttrs) *ScreenAssertion {
+func (c *CellAssertion) ToNotHaveAttribute(attr backend.CellStyle) *ScreenAssertion {
 	c.screen.t.Helper()
-	if c.cell.Attrs&attr != 0 {
+	if c.cell.Style&attr != 0 {
 		c.screen.t.Errorf("cell at (%d,%d) expected NOT to have attribute %v, but it did", c.x, c.y, attr)
 	}
 	return c.screen
@@ -90,7 +90,7 @@ func (r *RegionAssertion) ToHaveBackground(expected color.Color) *ScreenAssertio
 	fb := r.screen.fb
 	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
 		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
-			actual := fb.CellAt(cx, cy).BG
+			actual := fb.CellAt(cx, cy).Bg
 			if actual != expected {
 				r.screen.t.Errorf("cell (%d,%d) expected bg %v, got %v", cx, cy, expected, actual)
 			}
@@ -105,7 +105,7 @@ func (r *RegionAssertion) ToNotHaveBackground(unexpected color.Color) *ScreenAss
 	fb := r.screen.fb
 	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
 		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
-			actual := fb.CellAt(cx, cy).BG
+			actual := fb.CellAt(cx, cy).Bg
 			if actual == unexpected {
 				r.screen.t.Errorf("cell (%d,%d) was clipped but had unexpected bg %v", cx, cy, actual)
 			}
@@ -122,7 +122,7 @@ func (r *RegionAssertion) ToHaveBackgroundCountGreaterThan(expected color.Color,
 	count := 0
 	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
 		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
-			if fb.CellAt(cx, cy).BG == expected {
+			if fb.CellAt(cx, cy).Bg == expected {
 				count++
 			}
 		}

@@ -6,9 +6,7 @@ import (
 	"io"
 
 	"github.com/masterkeysrd/kite/backend"
-	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/paint"
 )
 
 // Compile-time assertion: Backend implements backend.Backend.
@@ -16,9 +14,9 @@ var _ backend.Backend = (*Backend)(nil)
 
 // FrameRecord captures the state of one completed frame.
 type FrameRecord struct {
-	// Surface is the FrameBuffer that was returned by BeginFrame and
+	// Surface is the Buffer that was returned by BeginFrame and
 	// subsequently drawn into by the paint engine.
-	Surface *paint.FrameBuffer
+	Surface *backend.Buffer
 }
 
 // Backend is a recording backend for tests. It implements backend.Backend and
@@ -51,7 +49,7 @@ type Backend struct {
 	// Output captures all raw sequences written to the backend via Writer().
 	Output bytes.Buffer
 
-	current *paint.FrameBuffer
+	current *backend.Buffer
 
 	extensions []backend.TerminalExtension
 }
@@ -60,7 +58,7 @@ type Backend struct {
 type CursorRecord struct {
 	Visible bool
 	X, Y    int
-	Shape   cursor.Shape
+	Shape   backend.CursorShape
 	Color   color.Color
 }
 
@@ -89,12 +87,11 @@ func (b *Backend) Start() error {
 	return nil
 }
 
-// BeginFrame allocates a fresh FrameBuffer, records the call, and returns the
-// buffer as a paint.Surface.
-func (b *Backend) BeginFrame() paint.Surface {
+// BeginFrame allocates a fresh Buffer, records the call, and returns the
+// buffer as a backend.Surface.
+func (b *Backend) BeginFrame() backend.Surface {
 	b.BeginFrameCalls++
-	b.current = paint.NewFrameBuffer(0, 0, b.width, b.height)
-	b.current.BumpVersion()
+	b.current = backend.NewBuffer(b.width, b.height)
 	return b.current
 }
 
@@ -138,10 +135,10 @@ func (b *Backend) SetExtensions(exts []backend.TerminalExtension) {
 	b.extensions = exts
 }
 
-func (b *Backend) ShowCursor(v bool)             { b.Cursor.Visible = v }
-func (b *Backend) SetCursorPos(x, y int)         { b.Cursor.X, b.Cursor.Y = x, y }
-func (b *Backend) SetCursorColor(c color.Color)  { b.Cursor.Color = c }
-func (b *Backend) SetCursorShape(s cursor.Shape) { b.Cursor.Shape = s }
+func (b *Backend) ShowCursor(v bool)                    { b.Cursor.Visible = v }
+func (b *Backend) SetCursorPos(x, y int)                { b.Cursor.X, b.Cursor.Y = x, y }
+func (b *Backend) SetCursorColor(c color.Color)         { b.Cursor.Color = c }
+func (b *Backend) SetCursorShape(s backend.CursorShape) { b.Cursor.Shape = s }
 
 // LastFrame returns the most recently completed frame, or a zero FrameRecord
 // if no frames have been completed yet.

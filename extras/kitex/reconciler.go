@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/masterkeysrd/kite/dom"
-	"github.com/masterkeysrd/kite/extras/promise"
+	"github.com/masterkeysrd/kite/promise"
 )
 
 var (

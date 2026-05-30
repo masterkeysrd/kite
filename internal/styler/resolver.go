@@ -166,8 +166,7 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 		if c.ListStyleType == style.ListStyleInherit {
 			c.ListStyleType = parent.ListStyleType
 		}
-		c.CursorShape = parent.CursorShape
-		c.CursorColor = parent.CursorColor
+		c.Cursor = parent.Cursor
 		c.SelectionForeground = parent.SelectionForeground
 		c.SelectionBackground = parent.SelectionBackground
 	}

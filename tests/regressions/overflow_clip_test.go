@@ -13,9 +13,9 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -27,9 +27,9 @@ var (
 	colorRed = color.RGBA{255, 0, 0, 255}
 )
 
-// overflowFrame runs one engine frame and returns the FrameBuffer; it fatals if
+// overflowFrame runs one engine frame and returns the Buffer; it fatals if
 // no surface was produced.
-func overflowFrame(t *testing.T, env *testenv.Environment) *paint.FrameBuffer {
+func overflowFrame(t *testing.T, env *testenv.Environment) *backend.Buffer {
 	t.Helper()
 	env.RenderFrame()
 	fr := env.Backend.LastFrame()

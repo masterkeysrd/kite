@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/extras/promise"
+	"github.com/masterkeysrd/kite/promise"
 )
 
 type Result[T any] struct {

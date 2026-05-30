@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"log/slog"
 	"os"
 	"runtime/debug"
@@ -16,10 +17,10 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/extras/promise"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/focus"
+	"github.com/masterkeysrd/kite/promise"
 	"github.com/masterkeysrd/kite/terminal"
 
 	"github.com/masterkeysrd/kite/geom"
@@ -80,6 +81,10 @@ type Engine struct {
 
 	// paintEngine drives the Paint pipeline.
 	paintEngine *paint.PaintEngine
+
+	// frameBuffer is the internal drawing surface used by the paintEngine.
+	// Its contents are copied to the backend.Surface at the end of each frame.
+	frameBuffer *paint.FrameBuffer
 
 	// dispatcher performs 3-phase event dispatch.
 	dispatcher event.Dispatcher
@@ -239,6 +244,9 @@ func New(b backend.Backend, opts Options) *Engine {
 		extensions:      opts.Extensions,
 		renderMap:       make(map[dom.Node]render.Object),
 	}
+
+	size := b.Size()
+	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 
 	e.scheduler = newDefaultScheduler(numWorkers, clk, logger, macroTaskDuration, e.RequestFrame)
 	promise.SetScheduler(e.scheduler)
@@ -652,7 +660,8 @@ func (e *Engine) Frame() {
 type cursorRecord struct {
 	Visible bool
 	X, Y    int
-	Shape   cursor.Shape
+	Shape   backend.CursorShape
+	Color   color.Color
 }
 
 func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
@@ -720,7 +729,21 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 							next.Visible = true
 							next.X = cursorPos.X
 							next.Y = cursorPos.Y
-							next.Shape = state.Shape
+
+							// Resolve cursor shape from provider and style.
+							cursorStyle := cs.Cursor
+							if state.Style.Shape.IsSet() {
+								cursorStyle.Shape = state.Style.Shape
+							}
+							if state.Style.Blink.IsSet() {
+								cursorStyle.Blink = state.Style.Blink
+							}
+							if state.Style.Color.IsSet() {
+								cursorStyle.Color = state.Style.Color
+							}
+
+							next.Shape = mapCursorShape(cursorStyle.Shape.UnwrapOr(style.CursorBlock))
+							next.Color = cursorStyle.Color.UnwrapOr(style.TerminalDefault)
 						}
 					}
 				}
@@ -733,11 +756,8 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 		if next.Visible {
 			e.backend.SetCursorPos(next.X, next.Y)
 			e.backend.SetCursorShape(next.Shape)
-			if ro != nil {
-				comp := ro.Style()
-				if comp != nil && comp.CursorColor != nil && comp.CursorColor != style.TerminalDefault {
-					e.backend.SetCursorColor(comp.CursorColor)
-				}
+			if next.Color != nil && next.Color != style.TerminalDefault {
+				e.backend.SetCursorColor(next.Color)
 			}
 			e.backend.ShowCursor(true)
 		} else {
@@ -746,6 +766,19 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 		return true
 	}
 	return false
+}
+
+func mapCursorShape(s style.CursorShape) backend.CursorShape {
+	switch s {
+	case style.CursorBlock:
+		return backend.CursorBlock
+	case style.CursorBar:
+		return backend.CursorBar
+	case style.CursorUnderline:
+		return backend.CursorUnderline
+	default:
+		return backend.CursorBlock
+	}
 }
 
 // syncRenderTree walks the logical DOM and ensures the render tree matches
@@ -1433,6 +1466,7 @@ func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
 
 func (e *Engine) handleResize(ev *event.ResizeEvent) {
 	e.backend.Resize(geom.Size{Width: ev.Width, Height: ev.Height})
+	e.frameBuffer = paint.NewFrameBuffer(0, 0, ev.Width, ev.Height)
 	e.renderView.SetViewportSize(geom.Size{
 		Width:  ev.Width,
 		Height: ev.Height,
@@ -1460,8 +1494,8 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 	for i, r := range rs {
 		ps[i] = paint.SelectionRect{
 			Rect: r.Rect,
-			FG:   r.FG,
-			BG:   r.BG,
+			Fg:   r.Fg,
+			Bg:   r.Bg,
 		}
 	}
 	return ps

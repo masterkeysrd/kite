@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/masterkeysrd/kite/extras/kitex"
-	"github.com/masterkeysrd/kite/extras/promise"
+	"github.com/masterkeysrd/kite/promise"
 )
 
 type MutationContext struct {

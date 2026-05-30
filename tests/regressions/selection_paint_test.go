@@ -80,11 +80,11 @@ func TestTextSelectionCustomColors(t *testing.T) {
 	// Verify custom colors
 	for x := 0; x < 8; x++ {
 		cell := env.Backend.LastFrame().Surface.CellAt(x, 0)
-		if cell.FG != selFG {
-			t.Errorf("at x=%d, expected FG %v, got %v", x, selFG, cell.FG)
+		if cell.Fg != selFG {
+			t.Errorf("at x=%d, expected FG %v, got %v", x, selFG, cell.Fg)
 		}
-		if cell.BG != selBG {
-			t.Errorf("at x=%d, expected BG %v, got %v", x, selBG, cell.BG)
+		if cell.Bg != selBG {
+			t.Errorf("at x=%d, expected BG %v, got %v", x, selBG, cell.Bg)
 		}
 	}
 }
