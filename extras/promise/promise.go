@@ -50,7 +50,8 @@ type Promise[T any] struct {
 }
 
 // New creates a new Promise and executes the executor in the background.
-func New[T any](ctx context.Context, executor func(context.Context) (T, error)) *Promise[T] {
+// The context provided to the executor is managed by the scheduler.
+func New[T any](executor func(context.Context) (T, error)) *Promise[T] {
 	p := &Promise[T]{
 		state: Pending,
 		done:  make(chan struct{}),
@@ -59,11 +60,11 @@ func New[T any](ctx context.Context, executor func(context.Context) (T, error)) 
 	sched := getScheduler()
 	if sched == nil {
 		// Fallback for tests or uninitialized environments
-		go p.run(ctx, executor)
+		go p.run(context.Background(), executor)
 		return p
 	}
 
-	sched.RunBackground(func() {
+	sched.RunBackground(func(ctx context.Context) {
 		p.run(ctx, executor)
 	})
 

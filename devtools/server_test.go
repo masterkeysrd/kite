@@ -1,6 +1,7 @@
 package devtools_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -55,7 +56,7 @@ func TestDevToolsServer_Profiling(t *testing.T) {
 
 	// 2. Submit a background task and run some frames.
 	doneChan := make(chan struct{})
-	eng.Scheduler().RunBackground(func() {
+	eng.Scheduler().RunBackground(func(ctx context.Context) {
 		time.Sleep(10 * time.Millisecond)
 		close(doneChan)
 	})

@@ -19,7 +19,7 @@ type defaultScheduler struct {
 	workerCancel context.CancelFunc
 	workerWG     sync.WaitGroup
 	workerSem    chan struct{}
-	jobQueue     chan func()
+	jobQueue     chan func(ctx context.Context)
 
 	clock             Clock
 	logger            *slog.Logger
@@ -39,7 +39,7 @@ func newDefaultScheduler(numWorkers int, clk Clock, logger *slog.Logger, macroTa
 		workerCtx:         workerCtx,
 		workerCancel:      workerCancel,
 		workerSem:         make(chan struct{}, numWorkers),
-		jobQueue:          make(chan func(), numWorkers*4),
+		jobQueue:          make(chan func(ctx context.Context), numWorkers*4),
 		clock:             clk,
 		logger:            logger,
 		macroTaskDuration: macroTaskDuration,
@@ -54,17 +54,17 @@ func newDefaultScheduler(numWorkers int, clk Clock, logger *slog.Logger, macroTa
 	return s
 }
 
-func (s *defaultScheduler) RunBackground(task func()) {
+func (s *defaultScheduler) RunBackground(task func(ctx context.Context)) {
 	var endSubmit func()
 	if s.onJobSubmit != nil {
 		endSubmit = s.onJobSubmit("anonymous")
 	}
 
-	s.jobQueue <- func() {
+	s.jobQueue <- func(ctx context.Context) {
 		if endSubmit != nil {
 			endSubmit()
 		}
-		task()
+		task(ctx)
 	}
 }
 
@@ -143,7 +143,7 @@ func (s *defaultScheduler) runWorker(ctx context.Context, workerID int) {
 	}
 }
 
-func (s *defaultScheduler) executeTask(ctx context.Context, task func(), workerID int) {
+func (s *defaultScheduler) executeTask(ctx context.Context, task func(ctx context.Context), workerID int) {
 	var endRun func()
 	if s.onJobRun != nil {
 		endRun = s.onJobRun("anonymous", workerID)
@@ -162,5 +162,5 @@ func (s *defaultScheduler) executeTask(ctx context.Context, task func(), workerI
 		}
 	}()
 
-	task()
+	task(ctx)
 }

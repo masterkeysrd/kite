@@ -20,12 +20,14 @@ func TestContextCancellationOnUnmount(t *testing.T) {
 	client := NewClient()
 
 	ctxCancelled := make(chan struct{})
-	fetcher := func(ctx context.Context) *promise.Promise[string] {
-		return promise.New(ctx, func(ctx context.Context) (string, error) {
+	fetcher := func(windCtx context.Context) *promise.Promise[string] {
+		return promise.New(func(schedCtx context.Context) (string, error) {
 			select {
-			case <-ctx.Done():
+			case <-windCtx.Done():
 				close(ctxCancelled)
-				return "", ctx.Err()
+				return "", windCtx.Err()
+			case <-schedCtx.Done():
+				return "", schedCtx.Err()
 			case <-time.After(2 * time.Second):
 				return "done", nil
 			}
@@ -80,7 +82,7 @@ func TestRequestDeduping(t *testing.T) {
 		mu.Lock()
 		fetchCount++
 		mu.Unlock()
-		return promise.New(ctx, func(ctx context.Context) (string, error) {
+		return promise.New(func(ctx context.Context) (string, error) {
 			time.Sleep(50 * time.Millisecond)
 			return "data", nil
 		})
@@ -123,7 +125,7 @@ func TestQueryInvalidation(t *testing.T) {
 		fetchCount++
 		currentCount := fetchCount
 		mu.Unlock()
-		return promise.New(ctx, func(ctx context.Context) (string, error) {
+		return promise.New(func(ctx context.Context) (string, error) {
 			return "value_" + string(rune('0'+currentCount)), nil
 		})
 	}
@@ -189,7 +191,7 @@ func TestMutation(t *testing.T) {
 	var mutation MutationResult[int]
 	app := kitex.SimpleFC("App", func() kitex.Node {
 		mutation = UseMutation(func(ctx context.Context, vars int) *promise.Promise[string] {
-			return promise.New(ctx, func(ctx context.Context) (string, error) {
+			return promise.New(func(ctx context.Context) (string, error) {
 				return "mut_res", nil
 			})
 		}, mutOpts)
@@ -261,7 +263,7 @@ func BenchmarkUseQuery(b *testing.B) {
 
 	client := NewClient()
 	fetcher := func(ctx context.Context) *promise.Promise[string] {
-		return promise.New(ctx, func(ctx context.Context) (string, error) {
+		return promise.New(func(ctx context.Context) (string, error) {
 			return "data", nil
 		})
 	}
@@ -284,7 +286,7 @@ func BenchmarkUseMutation(b *testing.B) {
 
 	client := NewClient()
 	mutationFn := func(ctx context.Context, val int) *promise.Promise[string] {
-		return promise.New(ctx, func(ctx context.Context) (string, error) {
+		return promise.New(func(ctx context.Context) (string, error) {
 			return "ok", nil
 		})
 	}

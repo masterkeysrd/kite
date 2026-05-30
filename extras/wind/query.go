@@ -59,11 +59,9 @@ func Use[K comparable, T any](key K, fetcher func(context.Context) *promise.Prom
 	entry.mu.Lock()
 	typeEraser := func(ctx context.Context) *promise.Promise[any] {
 		p := fetcher(ctx)
-		// Wrap to erase type
-		res := promise.New(ctx, func(ctx context.Context) (any, error) {
+		return promise.New(func(ctx context.Context) (any, error) {
 			return p.Await(ctx)
 		})
-		return res
 	}
 	entry.refetch = func() {
 		client.executeFetch(entry, typeEraser)

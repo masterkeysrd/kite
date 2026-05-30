@@ -10,11 +10,11 @@ import (
 )
 
 type mockScheduler struct {
-	backgroundTasks []func()
+	backgroundTasks []func(ctx context.Context)
 	microtasks      []func()
 }
 
-func (m *mockScheduler) RunBackground(task func()) {
+func (m *mockScheduler) RunBackground(task func(ctx context.Context)) {
 	m.backgroundTasks = append(m.backgroundTasks, task)
 }
 
@@ -31,7 +31,7 @@ func (m *mockScheduler) flushBackground() {
 		tasks := m.backgroundTasks
 		m.backgroundTasks = nil
 		for _, t := range tasks {
-			t()
+			t(context.Background())
 		}
 	}
 }
@@ -52,7 +52,7 @@ func TestPromise_Fulfill(t *testing.T) {
 	sched := &mockScheduler{}
 	SetScheduler(sched)
 
-	p := New(context.Background(), func(ctx context.Context) (string, error) {
+	p := New(func(ctx context.Context) (string, error) {
 		return "hello", nil
 	})
 
@@ -87,7 +87,7 @@ func TestPromise_Reject(t *testing.T) {
 	SetScheduler(sched)
 
 	errTest := errors.New("test error")
-	p := New(context.Background(), func(ctx context.Context) (string, error) {
+	p := New(func(ctx context.Context) (string, error) {
 		return "", errTest
 	})
 
@@ -113,7 +113,7 @@ func TestPromise_Chaining_Settled(t *testing.T) {
 	sched := &mockScheduler{}
 	SetScheduler(sched)
 
-	p := New(context.Background(), func(ctx context.Context) (string, error) {
+	p := New(func(ctx context.Context) (string, error) {
 		return "instant", nil
 	})
 
@@ -140,7 +140,7 @@ func TestPromise_Finally(t *testing.T) {
 	sched := &mockScheduler{}
 	SetScheduler(sched)
 
-	p := New(context.Background(), func(ctx context.Context) (int, error) {
+	p := New(func(ctx context.Context) (int, error) {
 		return 42, nil
 	})
 
@@ -163,7 +163,7 @@ func TestPromise_Await(t *testing.T) {
 	sched := &mockScheduler{}
 	SetScheduler(sched)
 
-	p := New(context.Background(), func(ctx context.Context) (string, error) {
+	p := New(func(ctx context.Context) (string, error) {
 		time.Sleep(10 * time.Millisecond)
 		return "awaited", nil
 	})

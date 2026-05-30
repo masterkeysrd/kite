@@ -4,12 +4,13 @@ The `extras/promise` package provides a Go-idiomatic, chainable async primitive 
 
 ## Usage
 
-Promises are created using `promise.New`, which takes a context and an executor function returning `(T, error)`.
+Promises are created using `promise.New`, which takes an executor function returning `(T, error)`. The executor receives a context managed by the scheduler.
 
 ```go
-p := promise.New(ctx, func(ctx context.Context) (string, error) {
+p := promise.New(func(ctx context.Context) (string, error) {
     // This runs in a background worker pool.
-    return fetchData()
+    // The ctx is automatically injected by the scheduler.
+    return fetchData(ctx)
 })
 
 p.Then(func(data string) {

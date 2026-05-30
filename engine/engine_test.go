@@ -310,7 +310,7 @@ func TestEngine_Scheduler_RunBackground(t *testing.T) {
 	var runs atomic.Int32
 	var completes atomic.Int32
 
-	e.Scheduler().RunBackground(func() {
+	e.Scheduler().RunBackground(func(ctx context.Context) {
 		runs.Add(1)
 		e.Scheduler().QueueMicrotask(func() {
 			completes.Add(1)

@@ -33,7 +33,7 @@ func fetchPodStatus(ctx context.Context, key PodKey) (string, error) {
 }
 
 func restartPod(ctx context.Context, key PodKey) *promise.Promise[string] {
-	return promise.New(ctx, func(ctx context.Context) (string, error) {
+	return promise.New(func(ctx context.Context) (string, error) {
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
@@ -48,7 +48,7 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 
 	// Use wind query hook
 	query := wind.Use(key, func(ctx context.Context) *promise.Promise[string] {
-		return promise.New(ctx, func(ctx context.Context) (string, error) {
+		return promise.New(func(ctx context.Context) (string, error) {
 			return fetchPodStatus(ctx, key)
 		})
 	})

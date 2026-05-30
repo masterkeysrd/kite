@@ -1,6 +1,6 @@
 package terminal
 
-// import "github.com/masterkeysrd/kite/backend"
+import "context"
 
 // Terminal provides access to terminal-specific features like the
 // clipboard and layout engine.
@@ -14,7 +14,8 @@ type Terminal interface {
 
 type Scheduler interface {
 	// RunBackground executes a task on a background worker pool.
-	RunBackground(task func())
+	// The provided context is managed by the scheduler.
+	RunBackground(task func(ctx context.Context))
 	// QueueMicrotask schedules a task to run as a microtask on the main thread.
 	QueueMicrotask(task func())
 	// QueueMacrotask schedules a task to run as a macrotask on the main thread.
