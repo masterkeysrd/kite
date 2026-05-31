@@ -661,7 +661,7 @@ func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int)
 			data := t.Data()
 			byteLen := len(data)
 
-			if targetByteOffset >= currByte && targetByteOffset < currByte+byteLen {
+			if targetByteOffset >= currByte && targetByteOffset <= currByte+byteLen {
 				// At start or strictly inside.
 				rel := targetByteOffset - currByte
 				runeOffset := 0

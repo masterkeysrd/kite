@@ -450,6 +450,7 @@ func populateUVCell(cell *uv.Cell, c backend.Cell) {
 	cell.Content = content
 	cell.Width = max(1, c.Width)
 
+	cell.Style.Attrs = 0
 	cell.Style.Fg = c.Fg
 	if c.Bg != nil {
 		_, _, _, a := c.Bg.RGBA()

@@ -981,11 +981,13 @@ func (e *Engine) Dump(path string) error {
 			Width  int `json:"width"`
 			Height int `json:"height"`
 		} `json:"screen_size"`
-		RawText   []string    `json:"raw_text"`
-		DOMTree   *nodeDump   `json:"dom_tree"`
-		Overlays  []*nodeDump `json:"overlays,omitempty"`
-		Cursor    cursorRecord
-		Fragments *layout.Fragment
+		RawText        []string    `json:"raw_text"`
+		DOMTree        *nodeDump   `json:"dom_tree"`
+		Overlays       []*nodeDump `json:"overlays,omitempty"`
+		Cursor         cursorRecord
+		Fragments      *layout.Fragment
+		SelectedText   string                `json:"selected_text,omitempty"`
+		SelectionRects []paint.SelectionRect `json:"selection_rects,omitempty"`
 	}{
 		ScreenSize: struct {
 			Width  int `json:"width"`
@@ -1000,6 +1002,9 @@ func (e *Engine) Dump(path string) error {
 		data.Overlays = append(data.Overlays, dumpNode(overlay))
 	}
 	data.Fragments = root.Fragment()
+
+	data.SelectedText = e.document.Selection().String()
+	data.SelectionRects = e.resolveSelection()
 
 	f, err := os.Create(path)
 	if err != nil {
@@ -1436,7 +1441,7 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 	}
 
 	nodeOrder := e.computeNodeOrder()
-	source := &selectionSourceAdapter{sel: sel}
+	source := &selectionSourceAdapter{sel: sel, nodeOrder: nodeOrder}
 	rs := render.ResolveSelection(root, source, nodeOrder)
 	if len(rs) == 0 {
 		return nil
@@ -1475,8 +1480,10 @@ func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
 
 		first := count
 		if _, ok := order[identity]; !ok {
-			order[identity] = render.NodeOrder{First: count, Last: count}
 			count++
+			order[identity] = render.NodeOrder{First: first, Last: first}
+		} else {
+			first = order[identity].First
 		}
 
 		for child := range internaldom.LayoutChildren(n) {
@@ -1485,7 +1492,6 @@ func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
 
 		last := count - 1
 		o := order[identity]
-		o.First = first
 		o.Last = last
 		order[identity] = o
 
@@ -1496,7 +1502,8 @@ func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
 }
 
 type selectionSourceAdapter struct {
-	sel dom.Selection
+	sel       dom.Selection
+	nodeOrder map[any]render.NodeOrder
 }
 
 func (a *selectionSourceAdapter) RangeCount() int {
@@ -1508,11 +1515,12 @@ func (a *selectionSourceAdapter) GetRangeAt(idx int) render.SelectionRange {
 	if r == nil {
 		return nil
 	}
-	return &selectionRangeAdapter{r: r}
+	return &selectionRangeAdapter{r: r, nodeOrder: a.nodeOrder}
 }
 
 type selectionRangeAdapter struct {
-	r dom.Range
+	r         dom.Range
+	nodeOrder map[any]render.NodeOrder
 }
 
 func (a *selectionRangeAdapter) StartContainerAny() any {
@@ -1524,6 +1532,77 @@ func (a *selectionRangeAdapter) EndContainerAny() any {
 func (a *selectionRangeAdapter) StartOffset() int  { return a.r.StartOffset() }
 func (a *selectionRangeAdapter) EndOffset() int    { return a.r.EndOffset() }
 func (a *selectionRangeAdapter) IsCollapsed() bool { return a.r.IsCollapsed() }
+
+func getBaseNode(n dom.Node) any {
+	if n == nil {
+		return nil
+	}
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+	return curr
+}
+
+func (a *selectionRangeAdapter) StartIndex() int {
+	startNode := a.r.StartContainer()
+	if startNode == nil {
+		return 0
+	}
+	baseStart := getBaseNode(startNode)
+	ord, ok := a.nodeOrder[baseStart]
+	if !ok {
+		return 0
+	}
+	if _, ok := baseStart.(dom.TextNode); ok {
+		return ord.First
+	}
+	// Element
+	var children []dom.Node
+	for child := range internaldom.LayoutChildren(startNode) {
+		children = append(children, child)
+	}
+	offset := a.r.StartOffset()
+	if offset < len(children) {
+		childBase := getBaseNode(children[offset])
+		if childOrd, ok := a.nodeOrder[childBase]; ok {
+			return childOrd.First
+		}
+	}
+	return ord.Last + 1
+}
+
+func (a *selectionRangeAdapter) EndIndex() int {
+	endNode := a.r.EndContainer()
+	if endNode == nil {
+		return 0
+	}
+	baseEnd := getBaseNode(endNode)
+	ord, ok := a.nodeOrder[baseEnd]
+	if !ok {
+		return 0
+	}
+	if _, ok := baseEnd.(dom.TextNode); ok {
+		return ord.Last + 1
+	}
+	// Element
+	var children []dom.Node
+	for child := range internaldom.LayoutChildren(endNode) {
+		children = append(children, child)
+	}
+	offset := a.r.EndOffset()
+	if offset < len(children) {
+		childBase := getBaseNode(children[offset])
+		if childOrd, ok := a.nodeOrder[childBase]; ok {
+			return childOrd.First
+		}
+	}
+	return ord.Last + 1
+}
 
 func (e *Engine) handleDefaultKeyAction(ev *event.KeyEvent) {
 	// Tab navigation, etc.

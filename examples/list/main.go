@@ -111,6 +111,10 @@ func main() {
 			if ke.MatchString("ctrl+c") || ke.MatchString("q") {
 				cancel()
 			}
+
+			if ke.MatchString("f10") {
+				eng.Dump("./example_dump.txt")
+			}
 		}
 	})
 

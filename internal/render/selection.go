@@ -31,6 +31,8 @@ type SelectionRange interface {
 	StartOffset() int
 	EndOffset() int
 	IsCollapsed() bool
+	StartIndex() int
+	EndIndex() int
 }
 
 // NodeOrder tracks the pre-order traversal boundaries of a node's subtree.
@@ -95,10 +97,14 @@ func walkFragments(frag *layout.Fragment, origin geom.Point, clip geom.Rect, s *
 		base := getBase(ln)
 		order := s.nodeOrder[base]
 
-		isStart := base == getBase(s.rng.StartContainerAny())
+		// Check if we should stop: if this node starts at or after endIndex
+		if order.First >= s.rng.EndIndex() {
+			s.stopped = true
+			return
+		}
 
-		// A. Check if we should start here.
-		if !s.started && isStart {
+		// Check if we should start: if this text node is at or after startIndex
+		if !s.started && order.Last >= s.rng.StartIndex() {
 			if _, ok := ln.(interface{ Data() string }); ok {
 				// Text node start.
 				s.started = true
@@ -121,13 +127,6 @@ func walkFragments(frag *layout.Fragment, origin geom.Point, clip geom.Rect, s *
 				}
 				s.nodeOffsets[base] += count
 			}
-		}
-
-		// C. Check if we logically passed the end container.
-		orderEnd := s.nodeOrder[getBase(s.rng.EndContainerAny())]
-		if order.First > orderEnd.Last {
-			s.stopped = true
-			return
 		}
 	}
 
@@ -153,23 +152,7 @@ func walkFragments(frag *layout.Fragment, origin geom.Point, clip geom.Rect, s *
 		}
 	}
 
-	for i, childLink := range frag.Children {
-		if ln != nil {
-			base := getBase(ln)
-			if base == getBase(s.rng.StartContainerAny()) {
-				if i >= s.rng.StartOffset() {
-					s.started = true
-				}
-			}
-			// Element end boundary check BEFORE walking the child.
-			if base == getBase(s.rng.EndContainerAny()) {
-				if i >= s.rng.EndOffset() {
-					s.stopped = true
-					return
-				}
-			}
-		}
-
+	for _, childLink := range frag.Children {
 		childOrigin := geom.Point{
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
