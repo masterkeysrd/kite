@@ -68,6 +68,14 @@ func (rg *RadioGroupElement) walkRadios(n dom.Node, fn func(*RadioElement)) {
 	}
 }
 
+func (rg *RadioGroupElement) radios() []*RadioElement {
+	var list []*RadioElement
+	rg.walkRadios(rg, func(r *RadioElement) {
+		list = append(list, r)
+	})
+	return list
+}
+
 func (rg *RadioGroupElement) notifySelected(value string) {
 	rg.SetValue(value)
 }
@@ -224,6 +232,45 @@ func (r *RadioElement) handleKeyDown(e event.Event) {
 	}
 	if ke.MatchString(" ") {
 		r.selectSelf()
+		e.PreventDefault()
+		e.StopPropagation()
+		return
+	}
+
+	if ke.MatchString("up") || ke.MatchString("left") || ke.MatchString("down") || ke.MatchString("right") {
+		rg := r.findGroup()
+		if rg == nil {
+			return
+		}
+		radios := rg.radios()
+		if len(radios) <= 1 {
+			return
+		}
+
+		idx := -1
+		for i, item := range radios {
+			if item == r {
+				idx = i
+				break
+			}
+		}
+		if idx == -1 {
+			return
+		}
+
+		var nextIdx int
+		if ke.MatchString("down") || ke.MatchString("right") {
+			nextIdx = (idx + 1) % len(radios)
+		} else { // "up" or "left"
+			nextIdx = (idx - 1 + len(radios)) % len(radios)
+		}
+
+		nextRadio := radios[nextIdx]
+		nextRadio.selectSelf()
+		nextRadio.Focus()
+
+		e.PreventDefault()
+		e.StopPropagation()
 	}
 }
 

@@ -326,6 +326,12 @@ func (e *Element) SetTabIndex(index int) {
 
 func (e *Element) Focus() {
 	if doc := e.ownerDocument; doc != nil {
+		if e.outer != nil {
+			if el, ok := e.outer.(dom.Element); ok {
+				doc.Focus(el)
+				return
+			}
+		}
 		doc.Focus(e)
 	}
 }
