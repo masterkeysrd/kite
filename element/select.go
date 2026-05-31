@@ -247,9 +247,11 @@ func (s *SelectElement) wireEvents() {
 		if ke, ok := e.(*event.KeyEvent); ok {
 			if ke.MatchString("up") || ke.MatchString("down") {
 				s.openDropdown(e)
+				e.PreventDefault()
 				e.StopPropagation()
 			} else if ke.MatchString(" ") || ke.MatchString("enter") {
 				s.openDropdown(e)
+				e.PreventDefault()
 				e.StopPropagation()
 			}
 		}
@@ -302,7 +304,7 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 	content.ScrollbarY(true)
 
 	for _, opt := range s.options {
-		btn := Button(" " + opt.text).Style(style.Style{
+		btn := Button(" " + opt.text).WithClass("select-option").Style(style.Style{
 			Display:   style.Some(style.DisplayBlock), // Ensure one per line
 			Width:     style.Some(style.Percent(100)),
 			TextAlign: style.Some(style.TextAlignLeft),
@@ -376,17 +378,21 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 		}
 		if ke.MatchString("esc") {
 			s.closeDropdown()
+			e.PreventDefault()
 			e.StopPropagation()
 		} else if ke.MatchString("up") {
 			doc.PreviousFocus()
+			e.PreventDefault()
 			e.StopPropagation()
 		} else if ke.MatchString("down") {
 			doc.NextFocus()
+			e.PreventDefault()
 			e.StopPropagation()
 		} else if ke.MatchString("enter") || ke.MatchString(" ") {
 			if focused := doc.CurrentFocus(); focused != nil {
 				if btn, ok := focused.(*ButtonElement); ok {
 					btn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+					e.PreventDefault()
 					e.StopPropagation()
 				}
 			}
