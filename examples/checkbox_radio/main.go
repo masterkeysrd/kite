@@ -94,6 +94,7 @@ func main() {
 			element.Box("\nInstructions:").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
 			element.Box("- Click with Mouse to toggle/select").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
 			element.Box("- Tab to focus, then press Space to toggle/select").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
+			element.Box("- Use Arrow keys to navigate Radio buttons").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
 			element.Box("- Press 'q' to quit").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
 		).Style(style.Style{
 			Display:        style.Some(style.DisplayFlex),
@@ -116,6 +117,37 @@ func main() {
 	})
 
 	eng.Mount(root)
+
+	// Add capturing event listeners for checkbox and radio buttons focus/blur styling
+	eng.Document().AddEventListener(event.EventFocus, func(e event.Event) {
+		if et := e.Target().EventTarget(); et != nil {
+			switch el := et.(type) {
+			case *element.CheckboxElement:
+				s := el.RawStyle()
+				s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
+				el.Style(s)
+			case *element.RadioElement:
+				s := el.RawStyle()
+				s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
+				el.Style(s)
+			}
+		}
+	}, event.Capture())
+
+	eng.Document().AddEventListener(event.EventBlur, func(e event.Event) {
+		if et := e.Target().EventTarget(); et != nil {
+			switch el := et.(type) {
+			case *element.CheckboxElement:
+				s := el.RawStyle()
+				s.Foreground = style.Some[color.Color](style.TerminalDefault) // Revert to default on blur
+				el.Style(s)
+			case *element.RadioElement:
+				s := el.RawStyle()
+				s.Foreground = style.Some[color.Color](style.TerminalDefault) // Revert to default on blur
+				el.Style(s)
+			}
+		}
+	}, event.Capture())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

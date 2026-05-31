@@ -45,6 +45,24 @@ func main() {
 		Width: style.Some(style.Cells(25)),
 	})
 
+	// Show how the user can customize the text color of the focused item in the options
+	// by listening to Focus/Blur events globally on the Document.
+	eng.Document().AddEventListener(event.EventFocus, func(e event.Event) {
+		if btn, ok := e.Target().(*element.ButtonElement); ok && btn.Class() == "select-option" {
+			s := btn.RawStyle()
+			s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold/Yellow text when focused
+			btn.Style(s)
+		}
+	}, event.Capture())
+
+	eng.Document().AddEventListener(event.EventBlur, func(e event.Event) {
+		if btn, ok := e.Target().(*element.ButtonElement); ok && btn.Class() == "select-option" {
+			s := btn.RawStyle()
+			s.Foreground = style.Some[color.Color](style.TerminalDefault) // Revert to default text color on blur
+			btn.Style(s)
+		}
+	}, event.Capture())
+
 	// Helper for creating instruction lines that are explicitly block-level.
 	instr := func(t string) *element.BoxElement {
 		return element.Box(t).Style(style.Style{
