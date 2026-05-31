@@ -122,6 +122,8 @@ func (c *CheckboxElement) handleKeyDown(e event.Event) {
 	}
 	if ke.MatchString(" ") {
 		c.toggle()
+		e.PreventDefault()
+		e.StopPropagation()
 	}
 }
 
