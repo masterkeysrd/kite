@@ -105,3 +105,30 @@ func TestButton_ActiveStyle(t *testing.T) {
 		t.Error("button should not be reversed after mouse up")
 	}
 }
+
+func TestButton_Disabled_Click(t *testing.T) {
+	btn := element.Button("Click Me").Disabled(true)
+	clicked := false
+	btn.OnEvent(event.EventClick, func(e event.Event) {
+		clicked = true
+	})
+
+	d := event.NewDispatcher()
+	path := []event.EventTarget{btn}
+
+	// 1. Mouse Click attempt
+	click := event.NewMouseEvent(event.EventClick, geom.Point{X: 0, Y: 0}, event.ButtonLeft, 0)
+	d.Dispatch(click, path)
+	if clicked {
+		t.Error("clicked fired on disabled button for Mouse EventClick")
+	}
+
+	// 2. Keyboard Space attempt
+	clicked = false
+	kd := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: ' ', Text: " "})
+	d.Dispatch(kd, path)
+	if clicked {
+		t.Error("clicked fired on disabled button for KeyDown Space")
+	}
+}
+

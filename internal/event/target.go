@@ -90,6 +90,9 @@ func (t *Target) RemoveRegistration(id uint64) {
 // respects the phase and the once flag. Cancelled registrations are
 // purged after each call.
 func (t *Target) DispatchTo(e event.Event) {
+	if isInteractionEvent(e.Type()) && isDisabled(e.CurrentTarget()) {
+		return
+	}
 	typ := e.Type()
 	regs := t.listeners[typ]
 	if len(regs) == 0 {
@@ -136,6 +139,9 @@ func (t *Target) DispatchTo(e event.Event) {
 // DOM specification where the target phase fires capture listeners then
 // bubble listeners in registration order.
 func (t *Target) DispatchToTarget(e event.Event) {
+	if isInteractionEvent(e.Type()) && isDisabled(e.CurrentTarget()) {
+		return
+	}
 	typ := e.Type()
 	regs := t.listeners[typ]
 	if len(regs) == 0 {
@@ -184,4 +190,40 @@ func (t *Target) DispatchToTarget(e event.Event) {
 		}
 	}
 	t.listeners[typ] = surviving
+}
+
+type disableable interface {
+	IsDisabled() bool
+}
+
+func isDisabled(et event.EventTarget) bool {
+	if et == nil {
+		return false
+	}
+	if userTarget := et.EventTarget(); userTarget != nil {
+		if d, ok := userTarget.(disableable); ok && d.IsDisabled() {
+			return true
+		}
+	}
+	if d, ok := et.(disableable); ok && d.IsDisabled() {
+		return true
+	}
+	return false
+}
+
+func isInteractionEvent(typ event.EventType) bool {
+	switch typ {
+	case event.EventClick,
+		event.EventMouseDown,
+		event.EventMouseUp,
+		event.EventMouseMove,
+		event.EventDrag,
+		event.EventWheel,
+		event.EventKeyDown,
+		event.EventKeyUp,
+		event.EventKeyPress:
+		return true
+	default:
+		return false
+	}
 }
