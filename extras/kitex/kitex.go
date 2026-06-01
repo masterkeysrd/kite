@@ -1772,6 +1772,7 @@ type componentInstance interface {
 	Rendered() Node
 	ReRender() Node
 	Destroy()
+	restoreContexts() func()
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -1790,6 +1791,7 @@ type ComponentNode[P any] struct {
 	dirty        bool
 	componentRef *componentRef
 	key          string
+	contextSnap  contextSnapshot
 
 	// Memoization: complexityScore holds the node count of the last rendered
 	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
@@ -1913,6 +1915,9 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
 	cr := componentRefPool.Get().(*componentRef)
 	cr.node = c
 	c.componentRef = cr
+
+	c.contextSnap = captureContexts()
+
 	pushCurrentComponent(c)
 	c.isFirst = true
 	c.hookIndex = 0
@@ -1943,6 +1948,7 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	c.complexityScore = oldComp.complexityScore
 	c.shouldMemo = oldComp.shouldMemo
 	c.componentRef = oldComp.componentRef
+	c.contextSnap = oldComp.contextSnap
 	if c.componentRef == nil {
 		cr := componentRefPool.Get().(*componentRef)
 		cr.node = c
@@ -2040,6 +2046,7 @@ func (c *ComponentNode[P]) Release() {
 	c.rendered = nil
 	c.hooks = nil
 	c.componentRef = nil
+	c.contextSnap = contextSnapshot{}
 
 	if c.pool != nil {
 		p := c.pool
@@ -2047,6 +2054,20 @@ func (c *ComponentNode[P]) Release() {
 		p.Put(c)
 	}
 }
+
+func (c *ComponentNode[P]) restoreContexts() func() {
+	if len(c.contextSnap.states) == 0 {
+		return noopCleanup
+	}
+	prevSnap := captureContexts()
+	restoreContexts(c.contextSnap)
+	return func() {
+		restoreContexts(prevSnap)
+	}
+}
+
+func noopCleanup() {}
+
 
 // ClearDirty clears the dirty flag of the component.
 func (c *ComponentNode[P]) ClearDirty() {

@@ -92,10 +92,12 @@ func processDirtyLoop() {
 			}
 
 			oldRendered := comp.Rendered()
+			restoreCleanup := comp.restoreContexts()
 			newRendered := comp.ReRender()
 			comp.ClearDirty()
 
 			newReal := reconcile(parentEl, oldRendered, newRendered, realNode)
+			restoreCleanup()
 			if newReal != realNode {
 				comp.setRef(newReal)
 			}

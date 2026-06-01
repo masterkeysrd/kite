@@ -40,15 +40,103 @@ func (c *contextHookState[T]) unsubscribe(comp componentInstance) {
 	}
 }
 
+// contextRegistry is the type-erased interface for capturing/restoring stacks of any Context.
+type contextRegistry interface {
+	captureStack() any
+	restoreStack(any)
+	hasStack() bool
+}
+
+func (c *Context[T]) hasStack() bool {
+	return len(c.stack) > 0
+}
+
+func (c *Context[T]) captureStack() any {
+	if len(c.stack) == 0 {
+		return nil
+	}
+	s := make([]*contextEntry[T], len(c.stack))
+	copy(s, c.stack)
+	return s
+}
+
+func (c *Context[T]) restoreStack(val any) {
+	if val == nil {
+		if len(c.stack) == 0 {
+			return
+		}
+		c.stack = nil
+		return
+	}
+	c.stack = val.([]*contextEntry[T])
+}
+
+var (
+	contextsMu  sync.RWMutex
+	allContexts []contextRegistry
+)
+
+// contextSnapshot holds a copy of all context stacks at a specific point in time.
+type contextSnapshot struct {
+	states []any
+}
+
+func captureContexts() contextSnapshot {
+	contextsMu.RLock()
+	defer contextsMu.RUnlock()
+
+	anyActive := false
+	for _, ctx := range allContexts {
+		if ctx.hasStack() {
+			anyActive = true
+			break
+		}
+	}
+	if !anyActive {
+		return contextSnapshot{}
+	}
+
+	states := make([]any, len(allContexts))
+	for i, ctx := range allContexts {
+		states[i] = ctx.captureStack()
+	}
+	return contextSnapshot{states: states}
+}
+
+func restoreContexts(snap contextSnapshot) {
+	contextsMu.RLock()
+	defer contextsMu.RUnlock()
+
+	if len(snap.states) == 0 {
+		for _, ctx := range allContexts {
+			ctx.restoreStack(nil)
+		}
+		return
+	}
+
+	for i, ctx := range allContexts {
+		if i < len(snap.states) {
+			ctx.restoreStack(snap.states[i])
+		} else {
+			ctx.restoreStack(nil)
+		}
+	}
+}
+
 // CreateContext creates a Context[T] identity with a default value.
 func CreateContext[T comparable](defaultValue T) *Context[T] {
-	return &Context[T]{
+	ctx := &Context[T]{
 		defaultValue: defaultValue,
 		pool: &sync.Pool{
 			New: func() any { return &ProviderNode[T]{} },
 		},
 	}
+	contextsMu.Lock()
+	allContexts = append(allContexts, ctx)
+	contextsMu.Unlock()
+	return ctx
 }
+
 
 func (c *Context[T]) push(entry *contextEntry[T]) {
 	c.stack = append(c.stack, entry)

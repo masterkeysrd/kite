@@ -379,3 +379,43 @@ func BenchmarkContextPropagation(b *testing.B) {
 		}
 	}
 }
+
+func TestContextPropagation_DirtyComponentRerender(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+
+	themeCtx := CreateContext("light")
+
+	var themeVal string
+	Consumer := FC("Consumer", func(props struct{}) Node {
+		themeVal = UseContext(themeCtx)
+		return Text(themeVal)
+	})
+
+	var toggleShow func()
+	MiddleComponent := FC("MiddleComponent", func(props struct{}) Node {
+		show, setShow := UseState(false)
+		toggleShow = func() {
+			setShow(!show())
+		}
+		if show() {
+			return Consumer(struct{}{})
+		}
+		return Text("hidden")
+	})
+
+	app := themeCtx.Provider("dark", MiddleComponent(struct{}{}))
+	Render(app, container)
+
+	if themeVal != "" {
+		t.Errorf("expected Consumer not to be rendered yet, got themeVal=%q", themeVal)
+	}
+
+	// Trigger re-render of MiddleComponent. This will mount Consumer for the first time.
+	toggleShow()
+
+	if themeVal != "dark" {
+		t.Errorf("expected Consumer to receive 'dark' context, got %q", themeVal)
+	}
+}
+
