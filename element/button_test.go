@@ -3,6 +3,7 @@ package element_test
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
@@ -131,4 +132,26 @@ func TestButton_Disabled_Click(t *testing.T) {
 		t.Error("clicked fired on disabled button for KeyDown Space")
 	}
 }
+
+func TestButton_Disabled_Click_TestEnv(t *testing.T) {
+	env := testenv.Default(80, 24)
+	defer env.Close()
+
+	clicked := false
+	btn := element.Button("Click Me").Disabled(true).OnEvent(event.EventClick, func(e event.Event) {
+		clicked = true
+	})
+
+	env.Mount(btn)
+	env.Flush()
+
+	// Click at the button's position.
+	env.Click(0, 0)
+	env.Flush()
+
+	if clicked {
+		t.Error("clicked fired on disabled button inside testenv simulation")
+	}
+}
+
 
