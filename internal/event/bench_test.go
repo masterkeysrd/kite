@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	internal "github.com/masterkeysrd/kite/internal/event"
@@ -82,5 +83,62 @@ func BenchmarkSynthesizer_ClickStream_1k(b *testing.B) {
 			s.Process(&backend.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft})
 			s.Process(&backend.RawMouseEvent{X: 5, Y: 5, Button: event.ButtonLeft, Up: true})
 		}
+	}
+}
+
+// BenchmarkSynthesizer_HoverTransition_Sibling measures the cost of transitioning
+// the mouse between siblings (where the common ancestor is their direct parent).
+func BenchmarkSynthesizer_HoverTransition_Sibling(b *testing.B) {
+	root := &mockDomNode{target: event.NewTarget()}
+	parent := &mockDomNode{target: event.NewTarget(), parent: root}
+
+	siblingA := &mockDomNode{target: event.NewTarget(), parent: parent}
+	siblingB := &mockDomNode{target: event.NewTarget(), parent: parent}
+
+	hit := &stubHitTester{}
+	s := internal.NewSynthesizer(hit, nil, internal.SynthesizerOptions{})
+
+	b.ResetTimer()
+	for i := range b.N {
+		if i%2 == 0 {
+			hit.result = siblingA
+		} else {
+			hit.result = siblingB
+		}
+		_ = s.Process(&backend.RawMouseEvent{X: 1, Y: 1, Move: true})
+	}
+}
+
+// BenchmarkSynthesizer_HoverTransition_DeepTree measures the cost of transitioning
+// the mouse between two elements in different deep subtrees (where the common ancestor is the root).
+func BenchmarkSynthesizer_HoverTransition_DeepTree(b *testing.B) {
+	const depth = 16
+	root := &mockDomNode{target: event.NewTarget()}
+
+	// Branch A
+	var lastA dom.Node = root
+	for i := 0; i < depth; i++ {
+		node := &mockDomNode{target: event.NewTarget(), parent: lastA}
+		lastA = node
+	}
+
+	// Branch B
+	var lastB dom.Node = root
+	for i := 0; i < depth; i++ {
+		node := &mockDomNode{target: event.NewTarget(), parent: lastB}
+		lastB = node
+	}
+
+	hit := &stubHitTester{}
+	s := internal.NewSynthesizer(hit, nil, internal.SynthesizerOptions{})
+
+	b.ResetTimer()
+	for i := range b.N {
+		if i%2 == 0 {
+			hit.result = lastA
+		} else {
+			hit.result = lastB
+		}
+		_ = s.Process(&backend.RawMouseEvent{X: 1, Y: 1, Move: true})
 	}
 }

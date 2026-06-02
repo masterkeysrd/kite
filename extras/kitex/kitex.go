@@ -83,9 +83,13 @@ type ElementProps struct {
 	OnWheel     func(event.Event)
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnChange     func(event.Event)
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 }
 
 // elementNode is the base implementation of Node for element VDOM nodes.
@@ -684,6 +688,10 @@ func updateElementBase(el element.Element, old, new *ElementProps) {
 	updateListener(el, event.EventBlur, old.OnBlur, new.OnBlur)
 	updateListener(el, event.EventChange, old.OnChange, new.OnChange)
 	updateListener(el, event.EventScroll, old.OnScroll, new.OnScroll)
+	updateListener(el, event.EventMouseEnter, old.OnMouseEnter, new.OnMouseEnter)
+	updateListener(el, event.EventMouseLeave, old.OnMouseLeave, new.OnMouseLeave)
+	updateListener(el, event.EventMouseOver, old.OnMouseOver, new.OnMouseOver)
+	updateListener(el, event.EventMouseOut, old.OnMouseOut, new.OnMouseOut)
 }
 
 // --- VDOM Factories -----------------------------------------------------------
@@ -786,8 +794,12 @@ type ButtonProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	Disabled    bool
 	Active      bool
 	Type        string
@@ -801,6 +813,7 @@ func (p ButtonProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -871,6 +884,10 @@ type CheckboxProps struct {
 	OnBlur         func(event.Event)
 	OnChange       func(event.Event)
 	OnScroll       func(event.Event)
+	OnMouseEnter   func(event.Event)
+	OnMouseLeave   func(event.Event)
+	OnMouseOver    func(event.Event)
+	OnMouseOut     func(event.Event)
 	Ref            refSetter
 	Checked        bool
 	UncheckedGlyph string
@@ -886,6 +903,7 @@ func (p CheckboxProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -963,6 +981,10 @@ type RadioGroupProps struct {
 	OnBlur        func(event.Event)
 	OnChange      func(event.Event)
 	OnScroll      func(event.Event)
+	OnMouseEnter  func(event.Event)
+	OnMouseLeave  func(event.Event)
+	OnMouseOver   func(event.Event)
+	OnMouseOut    func(event.Event)
 	Ref           refSetter
 	Value         string
 	OnValueChange func(string)
@@ -976,6 +998,7 @@ func (p RadioGroupProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1038,6 +1061,10 @@ type RadioProps struct {
 	OnBlur         func(event.Event)
 	OnChange       func(event.Event)
 	OnScroll       func(event.Event)
+	OnMouseEnter   func(event.Event)
+	OnMouseLeave   func(event.Event)
+	OnMouseOver    func(event.Event)
+	OnMouseOut     func(event.Event)
 	Ref            refSetter
 	Value          string
 	UncheckedGlyph string
@@ -1052,6 +1079,7 @@ func (p RadioProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1127,6 +1155,10 @@ type SelectProps struct {
 	OnBlur        func(event.Event)
 	OnChange      func(event.Event)
 	OnScroll      func(event.Event)
+	OnMouseEnter  func(event.Event)
+	OnMouseLeave  func(event.Event)
+	OnMouseOver   func(event.Event)
+	OnMouseOut    func(event.Event)
 	Ref           refSetter
 	Value         string
 	OnValueChange func(string)
@@ -1141,6 +1173,7 @@ func (p SelectProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1211,8 +1244,12 @@ type OptionProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	Text        string
 	Value       string
 }
@@ -1224,6 +1261,7 @@ func (p OptionProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1283,8 +1321,12 @@ type InputProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	Value       string
 	Name        string
 }
@@ -1297,6 +1339,7 @@ func (p InputProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1356,8 +1399,12 @@ type TextAreaProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	Value       string
 	Name        string
 }
@@ -1370,6 +1417,7 @@ func (p TextAreaProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1528,8 +1576,12 @@ type TDProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	ColSpan     int
 	RowSpan     int
 }
@@ -1541,6 +1593,7 @@ func (p TDProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1615,8 +1668,12 @@ type OverlayProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	Anchor      dom.Element
 	ZIndex      int
 	Placement   geom.Placement
@@ -1630,6 +1687,7 @@ func (p OverlayProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
@@ -1698,8 +1756,12 @@ type DialogProps struct {
 	OnFocus     func(event.Event)
 	OnBlur      func(event.Event)
 	OnChange    func(event.Event)
-	OnScroll    func(event.Event)
-	Ref         refSetter
+	OnScroll     func(event.Event)
+	OnMouseEnter func(event.Event)
+	OnMouseLeave func(event.Event)
+	OnMouseOver  func(event.Event)
+	OnMouseOut   func(event.Event)
+	Ref          refSetter
 	ZIndex      int
 }
 
@@ -1710,6 +1772,7 @@ func (p DialogProps) elementProps() ElementProps {
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
+		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
 		Ref: p.Ref,
 	}
 }
