@@ -180,7 +180,7 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 
 	// Layer 5: UA-mandated intrinsic style — highest precedence; authors cannot
 	// override. Only applied when the element has intrinsic properties set
-	// (sparse: most elements return an empty Style{} and Apply is a no-op).
+	// (sparse: most elements return an empty style.S() and Apply is a no-op).
 	var intrinsic style.Style
 	if isEl {
 		intrinsic = el.IntrinsicStyle()

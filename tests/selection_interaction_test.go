@@ -128,10 +128,7 @@ func TestSelectionInteraction_MultiLine(t *testing.T) {
 	// Box with fixed width to force wrapping
 	env.Mount(element.Box(
 		element.Text("Line One. Line Two."),
-	).Style(style.Style{
-		Width:   style.Some(style.Cells(10)), // Wrap after "Line One. "
-		Display: style.Some(style.DisplayBlock),
-	}))
+	).Style(style.S().Width(style.Cells(10)).Display(style.DisplayBlock)))
 
 	env.Flush()
 

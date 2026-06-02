@@ -21,9 +21,9 @@ func (m *mockCursorNode) Class() string                                { return 
 func (m *mockCursorNode) SetClass(string)                              {}
 func (m *mockCursorNode) QuerySelector(string) dom.Element             { return nil }
 func (m *mockCursorNode) ReplaceWith(...dom.Node) dom.Element          { return m }
-func (m *mockCursorNode) RawStyle() style.Style                        { return style.Style{} }
-func (m *mockCursorNode) DefaultStyle() style.Style                    { return style.Style{} }
-func (m *mockCursorNode) IntrinsicStyle() style.Style                  { return style.Style{} }
+func (m *mockCursorNode) RawStyle() style.Style                        { return style.S() }
+func (m *mockCursorNode) DefaultStyle() style.Style                    { return style.S() }
+func (m *mockCursorNode) IntrinsicStyle() style.Style                  { return style.S() }
 func (m *mockCursorNode) AttachUARoot(dom.Node)                        {}
 func (m *mockCursorNode) Scroll() (int, int)                           { return 0, 0 }
 func (m *mockCursorNode) ScrollTo(int, int)                            {}

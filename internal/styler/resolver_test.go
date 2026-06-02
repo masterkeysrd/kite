@@ -122,7 +122,7 @@ func TestResolver_FullTreeWalk(t *testing.T) {
 	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
 	pNode := &fakeNode{
 		kind:     dom.KindElement,
-		rawStyle: style.Style{Foreground: style.Some[color.Color](red)},
+		rawStyle: style.S().Foreground(red),
 	}
 	parent := render.NewBlock(pNode, nil)
 

@@ -12,14 +12,15 @@ type UnorderedListElement struct {
 
 var _ Element = (*UnorderedListElement)(nil)
 
+var defaultUnorderedListStyle = style.S().
+	Display(style.DisplayBlock).
+	ListStyleType(style.ListStyleDisc).
+	Padding(style.EdgeValues[int]{Left: 2})
+
 // NewUnorderedList creates a new unordered list.
 func NewUnorderedList(doc dom.Document) *UnorderedListElement {
 	u := &UnorderedListElement{}
-	u.initBase(doc.CreateElement("ul", u), u, style.Style{
-		Display:       style.Some(style.DisplayBlock),
-		ListStyleType: style.Some(style.ListStyleDisc),
-		Padding:       style.Some(style.EdgeValues[int]{Left: 2}),
-	})
+	u.initBase(doc.CreateElement("ul", u), u, defaultUnorderedListStyle)
 	return u
 }
 
@@ -37,14 +38,15 @@ type OrderedListElement struct {
 
 var _ Element = (*OrderedListElement)(nil)
 
+var defaultOrderedListStyle = style.S().
+	Display(style.DisplayBlock).
+	ListStyleType(style.ListStyleDecimal).
+	Padding(style.EdgeValues[int]{Left: 3})
+
 // NewOrderedList creates a new ordered list.
 func NewOrderedList(doc dom.Document) *OrderedListElement {
 	o := &OrderedListElement{}
-	o.initBase(doc.CreateElement("ol", o), o, style.Style{
-		Display:       style.Some(style.DisplayBlock),
-		ListStyleType: style.Some(style.ListStyleDecimal),
-		Padding:       style.Some(style.EdgeValues[int]{Left: 3}),
-	})
+	o.initBase(doc.CreateElement("ol", o), o, defaultOrderedListStyle)
 	return o
 }
 
@@ -62,12 +64,13 @@ type ListItemElement struct {
 
 var _ Element = (*ListItemElement)(nil)
 
+var defaultListItemStyle = style.S().
+	Display(style.DisplayListItem)
+
 // NewListItem creates a new list item.
 func NewListItem(doc dom.Document) *ListItemElement {
 	l := &ListItemElement{}
-	l.initBase(doc.CreateElement("li", l), l, style.Style{
-		Display: style.Some(style.DisplayListItem),
-	})
+	l.initBase(doc.CreateElement("li", l), l, defaultListItemStyle)
 	return l
 }
 

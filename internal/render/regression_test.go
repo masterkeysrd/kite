@@ -68,20 +68,18 @@ func (n *stubNode) Blur()                                    {}
 func (n *stubNode) IsFocusable() bool                        { return false }
 
 func (n *stubNode) RawStyle() style.Style       { return n.style }
-func (n *stubNode) DefaultStyle() style.Style   { return style.Style{} }
-func (n *stubNode) IntrinsicStyle() style.Style { return style.Style{} }
+func (n *stubNode) DefaultStyle() style.Style   { return style.S() }
+func (n *stubNode) IntrinsicStyle() style.Style { return style.S() }
 
 func TestRegression_InheritancePropagation(t *testing.T) {
 	view := render.NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
-	pNode := &stubNode{style: style.Style{
-		Foreground: style.Some[color.Color](color.White),
-	}}
+	pNode := &stubNode{style: style.S().Foreground(color.White)}
 	parent := render.NewBlock(pNode, nil)
 	view.InsertChild(parent, nil)
 
-	cNode := &stubNode{style: style.Style{}}
+	cNode := &stubNode{style: style.S()}
 	child := render.NewBlock(cNode, nil)
 	// child does not set foreground, should inherit
 	parent.InsertChild(child, nil)
@@ -96,9 +94,7 @@ func TestRegression_InheritancePropagation(t *testing.T) {
 
 	// Change parent foreground
 	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	pNode.style = style.Style{
-		Foreground: style.Some[color.Color](red),
-	}
+	pNode.style = style.S().Foreground(red)
 	parent.MarkDirty(render.DirtyStyle)
 
 	// Resolve again
@@ -113,23 +109,15 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	view := render.NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
-	fNode := &stubNode{style: style.Style{
-		Display: style.Some(style.DisplayFlex),
-		Width:   style.Some(style.Percent(100)),
-		Height:  style.Some(style.Percent(100)),
-	}}
+	fNode := &stubNode{style: style.S().Display(style.DisplayFlex).Width(style.Percent(100)).Height(style.Percent(100))}
 	flex := render.NewBox(fNode, nil)
 	view.InsertChild(flex, nil)
 
-	c1Node := &stubNode{style: style.Style{
-		Flex: style.Some(style.Flex(1, 1, style.Auto)),
-	}}
+	c1Node := &stubNode{style: style.S().Flex(style.Flex(1, 1, style.Auto))}
 	child1 := render.NewBlock(c1Node, nil)
 	flex.InsertChild(child1, nil)
 
-	c2Node := &stubNode{style: style.Style{
-		Flex: style.Some(style.Flex(1, 1, style.Auto)),
-	}}
+	c2Node := &stubNode{style: style.S().Flex(style.Flex(1, 1, style.Auto))}
 	child2 := render.NewBlock(c2Node, nil)
 	flex.InsertChild(child2, nil)
 
@@ -160,15 +148,15 @@ func TestRegression_MultipleChildrenBlock(t *testing.T) {
 	view := render.NewRenderView()
 	view.SetViewportSize(geom.Size{Width: 80, Height: 24})
 
-	bNode := &stubNode{style: style.Style{Display: style.Some(style.DisplayBlock)}}
+	bNode := &stubNode{style: style.S().Display(style.DisplayBlock)}
 	block := render.NewBlock(bNode, nil)
 	view.InsertChild(block, nil)
 
-	c1Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
+	c1Node := &stubNode{style: style.S().Height(style.Cells(1))}
 	child1 := render.NewBlock(c1Node, nil)
 	block.InsertChild(child1, nil)
 
-	c2Node := &stubNode{style: style.Style{Height: style.Some(style.Cells(1))}}
+	c2Node := &stubNode{style: style.S().Height(style.Cells(1))}
 	child2 := render.NewBlock(c2Node, nil)
 	block.InsertChild(child2, nil)
 

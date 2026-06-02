@@ -17,8 +17,8 @@ import "fmt"
 // Example:
 //
 //	sheet := style.NewSheet(map[string]style.Style{
-//	    "button":    {Display: style.Some(style.DisplayFlex)},
-//	    "buttonHot": {Foreground: style.Some(hotColor)},
+//	    "button":    {display: style.Some(style.DisplayFlex)},
+//	    "buttonHot": {foreground: style.Some(hotColor)},
 //	})
 //	box.Style(sheet.Get("button"))
 type Sheet struct {
@@ -79,12 +79,12 @@ func validateStyle(s Style) error {
 		name string
 		d    Optional[Dimension]
 	}{
-		{"Width", s.Width},
-		{"Height", s.Height},
-		{"MinWidth", s.MinWidth},
-		{"MaxWidth", s.MaxWidth},
-		{"MinHeight", s.MinHeight},
-		{"MaxHeight", s.MaxHeight},
+		{"Width", s.width},
+		{"Height", s.height},
+		{"MinWidth", s.minWidth},
+		{"MaxWidth", s.maxWidth},
+		{"MinHeight", s.minHeight},
+		{"MaxHeight", s.maxHeight},
 	} {
 		if pair.d.IsSet() {
 			if err := validateDimension(pair.name, pair.d.Value()); err != nil {
@@ -94,13 +94,13 @@ func validateStyle(s Style) error {
 	}
 
 	// EdgeValues[int]: negative cell widths are not meaningful.
-	if s.Padding.IsSet() {
-		if err := validateEdgeInt("Padding", s.Padding.Value()); err != nil {
+	if s.padding.IsSet() {
+		if err := validateEdgeInt("Padding", s.padding.Value()); err != nil {
 			return err
 		}
 	}
-	if s.Margin.IsSet() {
-		if err := validateEdgeInt("Margin", s.Margin.Value()); err != nil {
+	if s.margin.IsSet() {
+		if err := validateEdgeInt("Margin", s.margin.Value()); err != nil {
 			return err
 		}
 	}

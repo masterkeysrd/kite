@@ -75,7 +75,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		btnProps := ButtonProps{
 			ID:       "btn1",
 			Class:    "btn-class",
-			Style:    style.Style{Bold: style.Some(true)},
+			Style:    style.S().Bold(true),
 			Disabled: true,
 			Active:   true,
 		}
@@ -96,7 +96,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		if !btnEl.IsDisabled() {
 			t.Errorf("expected button to be disabled")
 		}
-		if !btnEl.RawStyle().Bold.UnwrapOr(false) {
+		if !btnEl.RawStyle().BoldOpt().UnwrapOr(false) {
 			t.Errorf("expected bold style to be true")
 		}
 
@@ -104,7 +104,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		newBtnProps := ButtonProps{
 			ID:       "btn2",
 			Class:    "btn-class-new",
-			Style:    style.Style{Bold: style.Some(false)},
+			Style:    style.S().Bold(false),
 			Disabled: false,
 			Active:   false,
 		}
@@ -120,7 +120,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		if btnEl.IsDisabled() {
 			t.Errorf("expected button to be enabled after update")
 		}
-		if btnEl.RawStyle().Bold.UnwrapOr(true) {
+		if btnEl.RawStyle().BoldOpt().UnwrapOr(true) {
 			t.Errorf("expected bold style to be false after update")
 		}
 	})

@@ -10,12 +10,7 @@ import (
 
 func TestLayout_ScrollbarSpaceReservation(t *testing.T) {
 	// Root node with ScrollbarY enabled and OverflowScroll (forced reservation)
-	rootStyle := style.Style{
-		OverflowX: style.Some(style.OverflowAuto),
-		OverflowY: style.Some(style.OverflowScroll),
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(10)),
-	}.ScrollbarY(true)
+	rootStyle := style.S().OverflowX(style.OverflowAuto).OverflowY(style.OverflowScroll).Width(style.Cells(10)).Height(style.Cells(10)).ScrollbarY(true)
 
 	rootComp := rootStyle.Apply(style.DefaultStyle())
 	root := &mockLayoutNode{
@@ -23,10 +18,7 @@ func TestLayout_ScrollbarSpaceReservation(t *testing.T) {
 	}
 
 	// Child node that wants 100% width
-	childStyle := style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Cells(1)),
-	}
+	childStyle := style.S().Width(style.Percent(100)).Height(style.Cells(1))
 	childComp := childStyle.Apply(style.DefaultStyle())
 	child := &mockLayoutNode{
 		style: &childComp,
@@ -57,12 +49,7 @@ func TestLayout_ScrollbarSpaceReservation(t *testing.T) {
 
 func TestLayout_ScrollbarAutoHidden(t *testing.T) {
 	// Root node with ScrollbarY enabled and OverflowAuto, but content fits.
-	rootStyle := style.Style{
-		OverflowX: style.Some(style.OverflowAuto),
-		OverflowY: style.Some(style.OverflowAuto),
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(10)),
-	}.ScrollbarY(true)
+	rootStyle := style.S().OverflowX(style.OverflowAuto).OverflowY(style.OverflowAuto).Width(style.Cells(10)).Height(style.Cells(10)).ScrollbarY(true)
 
 	rootComp := rootStyle.Apply(style.DefaultStyle())
 	root := &mockLayoutNode{
@@ -70,10 +57,7 @@ func TestLayout_ScrollbarAutoHidden(t *testing.T) {
 	}
 
 	// Child node that fits exactly
-	childStyle := style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Cells(5)),
-	}
+	childStyle := style.S().Width(style.Percent(100)).Height(style.Cells(5))
 	childComp := childStyle.Apply(style.DefaultStyle())
 	child := &mockLayoutNode{
 		style: &childComp,

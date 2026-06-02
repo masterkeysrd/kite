@@ -18,6 +18,21 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	stageStyle          = style.S().Display(style.DisplayFlex).Width(style.Percent(100)).Height(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 60, G: 60, B: 70, A: 255})).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter)
+	titleStyle          = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	sectionLabelStyle   = style.S().Bold(true).Margin(style.Edges(0, 0, 0, 1))
+	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	spacerStyle         = style.S().Flex(style.Flex(1))
+	statusTextStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 0, A: 255}).Bold(true)
+	sidebarStyle        = style.S().Width(style.Cells(45)).Height(style.Percent(100)).Background(color.RGBA{R: 25, G: 25, B: 35, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 80, G: 80, B: 90, A: 255})).Padding(style.Edges(1, 2)).Display(style.DisplayFlex).FlexDirection(style.FlexColumn)
+	separatorStyle      = style.S().Width(style.Cells(2))
+	stageContainerStyle = style.S().Flex(style.Flex(1)).Height(style.Percent(100)).Display(style.DisplayFlex)
+	mainLayoutStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Width(style.Percent(100)).Flex(style.Flex(1)).JustifyContent(style.JustifyBetween)
+	instructionsStyle   = style.S().Foreground(color.RGBA{R: 130, G: 130, B: 140, A: 255}).Margin(style.Edges(1, 0, 0, 0)).TextAlign(style.TextAlignCenter)
+	rootStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255}).Padding(style.Edges(1, 2))
+)
+
 // GroupAnimator runs multiple animations in parallel.
 type GroupAnimator struct {
 	Animators  []animation.Animator
@@ -247,117 +262,60 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 	updateTargetStyle()
 
 	// 3. Create Stage container centering targetBox
-	stage := element.Box(targetBox).Style(style.Style{
-		Display:        style.Some(style.DisplayFlex),
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		Border:         style.SingleBorder().Color(color.RGBA{R: 60, G: 60, B: 70, A: 255}).Some(),
-		Background:     style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 25, A: 255}),
-		AlignItems:     style.Some(style.AlignCenter),
-		JustifyContent: style.Some(style.JustifyCenter),
-	})
+	stage := element.Box(targetBox).Style(stageStyle)
 
 	// 4. Assemble main layout
 	root := element.Box(
 		// Title
-		element.Box(" ⚡ KITE INTERACTIVE ANIMATION SHOWCASE ⚡ ").Style(style.Style{
-			Bold:       style.Some(true),
-			Foreground: style.Some[color.Color](color.RGBA{R: 0, G: 255, B: 200, A: 255}),
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-		}),
+		element.Box(" ⚡ KITE INTERACTIVE ANIMATION SHOWCASE ⚡ ").Style(titleStyle),
 
 		// Split workspace
 		element.Box(
 			// Left Panel: Controls
 			element.Box(
-				element.Box("Easing Function:").Style(style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 0, 1))}),
+				element.Box("Easing Function:").Style(sectionLabelStyle),
 				element.Box(
 					easingBtns["Linear"],
 					easingBtns["EaseInQuad"],
 					easingBtns["EaseOutQuad"],
 					easingBtns["EaseInOutCubic"],
-				).Style(style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexRow),
-					Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-				}),
+				).Style(buttonRowStyle),
 
-				element.Box("Duration:").Style(style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 0, 1))}),
+				element.Box("Duration:").Style(sectionLabelStyle),
 				element.Box(
 					durationBtns["500ms"],
 					durationBtns["1s"],
 					durationBtns["2s"],
 					durationBtns["3s"],
-				).Style(style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexRow),
-					Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-				}),
+				).Style(buttonRowStyle),
 
-				element.Box("Animate Property:").Style(style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 0, 1))}),
+				element.Box("Animate Property:").Style(sectionLabelStyle),
 				element.Box(
 					propertyBtns["Width"],
 					propertyBtns["Height"],
 					propertyBtns["Color"],
 					propertyBtns["All"],
-				).Style(style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexRow),
-					Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-				}),
+				).Style(buttonRowStyle),
 
 				triggerBtn,
 
-				element.Box("").Style(style.Style{Flex: style.Some(style.Flex(1))}), // Push status text down
+				element.Box("").Style(spacerStyle), // Push status text down
 
-				element.Box(statusText).Style(style.Style{
-					Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 200, B: 0, A: 255}),
-					Bold:       style.Some(true),
-				}),
-			).Style(style.Style{
-				Width:         style.Some(style.Cells(45)),
-				Height:        style.Some(style.Percent(100)),
-				Background:    style.Some[color.Color](color.RGBA{R: 25, G: 25, B: 35, A: 255}),
-				Border:        style.SingleBorder().Color(color.RGBA{R: 80, G: 80, B: 90, A: 255}).Some(),
-				Padding:       style.Some(style.Edges(1, 2)),
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexColumn),
-			}),
+				element.Box(statusText).Style(statusTextStyle),
+			).Style(sidebarStyle),
 
 			// Spacer
-			element.Box("").Style(style.Style{Width: style.Some(style.Cells(2))}),
+			element.Box("").Style(separatorStyle),
 
 			// Right Panel: Stage
 			element.Box(
 				stage,
-			).Style(style.Style{
-				Flex:    style.Some(style.Flex(1)),
-				Height:  style.Some(style.Percent(100)),
-				Display: style.Some(style.DisplayFlex),
-			}),
-		).Style(style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexRow),
-			Width:          style.Some(style.Percent(100)),
-			Flex:           style.Some(style.Flex(1)),
-			JustifyContent: style.Some(style.JustifyBetween),
-		}),
+			).Style(stageContainerStyle),
+		).Style(mainLayoutStyle),
 
 		// Footer instructions
-		element.Box("Instructions: Tab / Shift+Tab to navigate controls. Space or Enter to select/run. Press 'q' to quit.").Style(style.Style{
-			Foreground: style.Some[color.Color](color.RGBA{R: 130, G: 130, B: 140, A: 255}),
-			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-			TextAlign:  style.Some(style.TextAlignCenter),
-		}),
-	).Style(style.Style{
-		Display:       style.Some(style.DisplayFlex),
-		FlexDirection: style.Some(style.FlexColumn),
-		Width:         style.Some(style.Percent(100)),
-		Height:        style.Some(style.Percent(100)),
-		Background:    style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 20, A: 255}),
-		Padding:       style.Some(style.Edges(1, 2)),
-	})
+		element.Box("Instructions: Tab / Shift+Tab to navigate controls. Space or Enter to select/run. Press 'q' to quit.").Style(instructionsStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 
@@ -378,16 +336,7 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 
 // updateTargetStyle modifies style properties of the animated box
 func updateTargetStyle() {
-	targetBox.Style(style.Style{
-		Width:          style.Some(style.Cells(targetWidth)),
-		Height:         style.Some(style.Cells(targetHeight)),
-		Background:     style.Some(targetColor),
-		Border:         style.DoubleBorder().Color(color.RGBA{R: 220, G: 220, B: 220, A: 255}).Some(),
-		AlignItems:     style.Some(style.AlignCenter),
-		JustifyContent: style.Some(style.JustifyCenter),
-		Foreground:     style.Some[color.Color](color.White),
-		Bold:           style.Some(true),
-	})
+	targetBox.Style(style.S().Width(style.Cells(targetWidth)).Height(style.Cells(targetHeight)).Background(targetColor).Border(style.DoubleBorder().Color(color.RGBA{R: 220, G: 220, B: 220, A: 255})).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Foreground(color.White).Bold(true))
 	if eng != nil {
 		eng.RequestFrame()
 	}
@@ -440,13 +389,7 @@ func applyButtonStyle(btn *element.ButtonElement, selected bool, focused bool) {
 		borderCol = color.RGBA{R: 255, G: 165, B: 0, A: 255} // Orange focus ring
 	}
 
-	btn.Style(style.Style{
-		Background: style.Some(bg),
-		Foreground: style.Some(fg),
-		Border:     style.SingleBorder().Color(borderCol).Some(),
-		Padding:    style.Some(style.Edges(0, 1)),
-		Margin:     style.Some(style.Edges(0, 1, 0, 0)),
-	})
+	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.SingleBorder().Color(borderCol)).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 1, 0, 0)))
 }
 
 func applyTriggerButtonStyle(btn *element.ButtonElement, focused bool) {
@@ -463,15 +406,7 @@ func applyTriggerButtonStyle(btn *element.ButtonElement, focused bool) {
 		borderCol = color.RGBA{R: 255, G: 215, B: 0, A: 255}       // Gold focus ring
 	}
 
-	btn.Style(style.Style{
-		Background: style.Some(bg),
-		Foreground: style.Some(fg),
-		Border:     style.DoubleBorder().Color(borderCol).Some(),
-		Bold:       style.Some(true),
-		Padding:    style.Some(style.Edges(0, 3)),
-		Margin:     style.Some(style.Edges(1, 0, 1, 0)),
-		TextAlign:  style.Some(style.TextAlignCenter),
-	})
+	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.DoubleBorder().Color(borderCol)).Bold(true).Padding(style.Edges(0, 3)).Margin(style.Edges(1, 0, 1, 0)).TextAlign(style.TextAlignCenter))
 }
 
 func getTriggerText() string {

@@ -13,7 +13,7 @@
 //
 //	tween := animation.NewTween(0, 100, 1*time.Second, animation.EaseInOutCubic, animation.IntInterpolator, func(val int) {
 //		s := element.RawStyle()
-//		s.Width = style.Some(style.Cells(val))
+//		s = s.Width(style.Cells(val))
 //		element.Style(s)
 //	})
 //	engine.RegisterAnimation(tween)

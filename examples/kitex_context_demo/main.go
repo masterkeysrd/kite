@@ -17,6 +17,16 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	btnStyle          = style.S().Background(color.RGBA{R: 70, G: 70, B: 90, A: 255}).Foreground(color.White).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 1))
+	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Padding(style.Edges(1, 2)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
+	appTitleStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 50, A: 255}).Bold(true).Margin(style.Edges(0, 0, 1, 0))
+	buttonRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	providerBoxStyle  = style.S().Border(style.SingleBorder()).Padding(style.Edges(1, 1)).Margin(style.Edges(1, 0))
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 120, G: 120, B: 130, A: 255}).Margin(style.Edges(1, 0, 0, 0))
+	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 type Theme string
 
 const (
@@ -42,13 +52,7 @@ func getThemeStyle(theme Theme) style.Style {
 		fg = color.RGBA{R: 30, G: 30, B: 35, A: 255}
 	}
 
-	return style.Style{
-		Background: style.Some(bg),
-		Foreground: style.Some(fg),
-		Border:     style.SingleBorder().Some(),
-		Padding:    style.Some(style.Edges(1, 2)),
-		Margin:     style.Some(style.Edges(1, 0)),
-	}
+	return style.S().Background(bg).Foreground(fg).Border(style.SingleBorder()).Padding(style.Edges(1, 2)).Margin(style.Edges(1, 0))
 }
 
 // ConsumerComponent consumes ThemeContext and displays itself accordingly.
@@ -68,7 +72,7 @@ var DefaultConsumer = kitex.SimpleFC("DefaultConsumer", func() kitex.Node {
 	theme := kitex.UseContext(ThemeContext)
 	themeStyle := getThemeStyle(theme)
 	// Override margin/title styles
-	themeStyle.Border = style.DoubleBorder().Some()
+	themeStyle = themeStyle.Border(style.DoubleBorder())
 
 	return kitex.Box(kitex.BoxProps{
 		Style: themeStyle,
@@ -104,37 +108,19 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		}
 	}
 
-	btnStyle := style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 70, G: 70, B: 90, A: 255}),
-		Foreground: style.Some[color.Color](color.White),
-		Padding:    style.Some(style.Edges(0, 1)),
-		Margin:     style.Some(style.Edges(0, 1)),
-	}
+	btnStyle := btnStyle
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			Padding:       style.Some(style.Edges(1, 2)),
-			Background:    style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 20, A: 255}),
-		},
+		Style: appContainerStyle,
 	},
 		// Title
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 200, B: 50, A: 255}),
-				Bold:       style.Some(true),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: appTitleStyle,
 		}, kitex.Text("⚛️ Kitex Context System Demo")),
 
 		// Top Actions
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: buttonRowStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e event.Event) { toggleOuter() },
@@ -153,11 +139,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		// Theme Provider (Outer)
 		ThemeContext.Provider(outerTheme(),
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Border:  style.SingleBorder().Some(),
-					Padding: style.Some(style.Edges(1, 1)),
-					Margin:  style.Some(style.Edges(1, 0)),
-				},
+				Style: providerBoxStyle,
 			},
 				kitex.Text(fmt.Sprintf("Outer Provider (Providing: %s)", outerTheme())),
 
@@ -167,11 +149,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				// Nested Theme Provider (Inner)
 				ThemeContext.Provider(innerTheme(),
 					kitex.Box(kitex.BoxProps{
-						Style: style.Style{
-							Border:  style.SingleBorder().Some(),
-							Padding: style.Some(style.Edges(1, 1)),
-							Margin:  style.Some(style.Edges(1, 0)),
-						},
+						Style: providerBoxStyle,
 					},
 						kitex.Text(fmt.Sprintf("Nested Inner Provider (Providing: %s)", innerTheme())),
 
@@ -184,10 +162,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 		// Help/Exit instructions
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 120, G: 120, B: 130, A: 255}),
-				Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-			},
+			Style: instructionsStyle,
 		}, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
 	)
 })
@@ -207,10 +182,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger})
 
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true

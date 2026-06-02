@@ -16,9 +16,7 @@ var _ Element = (*TableElement)(nil)
 // NewTable creates a new table element.
 func NewTable(doc dom.Document) *TableElement {
 	t := &TableElement{}
-	t.initBase(doc.CreateElement("table", t), t, style.Style{
-		Display: style.Some(style.DisplayTable),
-	})
+	t.initBase(doc.CreateElement("table", t), t, style.S().Display(style.DisplayTable))
 	return t
 }
 
@@ -39,9 +37,7 @@ var _ Element = (*TableHeaderElement)(nil)
 // NewTableHeader creates a new table header group element.
 func NewTableHeader(doc dom.Document) *TableHeaderElement {
 	th := &TableHeaderElement{}
-	th.initBase(doc.CreateElement("thead", th), th, style.Style{
-		Display: style.Some(style.DisplayTableHeaderGroup),
-	})
+	th.initBase(doc.CreateElement("thead", th), th, style.S().Display(style.DisplayTableHeaderGroup))
 	return th
 }
 
@@ -67,9 +63,7 @@ var _ Element = (*TableBodyElement)(nil)
 // NewTableBody creates a new table body group element.
 func NewTableBody(doc dom.Document) *TableBodyElement {
 	tb := &TableBodyElement{}
-	tb.initBase(doc.CreateElement("tbody", tb), tb, style.Style{
-		Display: style.Some(style.DisplayTableRowGroup),
-	})
+	tb.initBase(doc.CreateElement("tbody", tb), tb, style.S().Display(style.DisplayTableRowGroup))
 	return tb
 }
 
@@ -95,9 +89,7 @@ var _ Element = (*TableFooterElement)(nil)
 // NewTableFooter creates a new table footer group element.
 func NewTableFooter(doc dom.Document) *TableFooterElement {
 	tf := &TableFooterElement{}
-	tf.initBase(doc.CreateElement("tfoot", tf), tf, style.Style{
-		Display: style.Some(style.DisplayTableFooterGroup),
-	})
+	tf.initBase(doc.CreateElement("tfoot", tf), tf, style.S().Display(style.DisplayTableFooterGroup))
 	return tf
 }
 
@@ -123,9 +115,7 @@ var _ Element = (*TableRowElement)(nil)
 // NewTableRow creates a new table row element.
 func NewTableRow(doc dom.Document) *TableRowElement {
 	tr := &TableRowElement{}
-	tr.initBase(doc.CreateElement("tr", tr), tr, style.Style{
-		Display: style.Some(style.DisplayTableRow),
-	})
+	tr.initBase(doc.CreateElement("tr", tr), tr, style.S().Display(style.DisplayTableRow))
 	return tr
 }
 
@@ -151,9 +141,7 @@ func NewTableCell(doc dom.Document) *TableCellElement {
 		colSpan: 1,
 		rowSpan: 1,
 	}
-	td.initBase(doc.CreateElement("td", td), td, style.Style{
-		Display: style.Some(style.DisplayTableCell),
-	})
+	td.initBase(doc.CreateElement("td", td), td, style.S().Display(style.DisplayTableCell))
 	return td
 }
 

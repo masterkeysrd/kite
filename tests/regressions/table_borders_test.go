@@ -16,20 +16,15 @@ func TestTableBorders(t *testing.T) {
 	root := element.Box(
 		element.Table(
 			element.TR(
-				element.TD("A").Style(style.Style{Border: style.SingleBorder().Some()}),
-				element.TD("B").Style(style.Style{Border: style.SingleBorder().Some()}),
+				element.TD("A").Style(style.S().Border(style.SingleBorder())),
+				element.TD("B").Style(style.S().Border(style.SingleBorder())),
 			),
 			element.TR(
-				element.TD("C").Style(style.Style{Border: style.SingleBorder().Some()}),
-				element.TD("D").Style(style.Style{Border: style.SingleBorder().Some()}),
+				element.TD("C").Style(style.S().Border(style.SingleBorder())),
+				element.TD("D").Style(style.S().Border(style.SingleBorder())),
 			),
-		).Style(style.Style{
-			Width:  style.Some(style.Percent(100)),
-			Border: style.SingleBorder().Some(),
-		}),
-	).Style(style.Style{
-		Padding: style.Some(style.Edges(1)),
-	})
+		).Style(style.S().Width(style.Percent(100)).Border(style.SingleBorder())),
+	).Style(style.S().Padding(style.Edges(1)))
 
 	env.Mount(root)
 	env.RenderFrame()

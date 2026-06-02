@@ -62,13 +62,9 @@ func TestEnvironment_Wheel(t *testing.T) {
 
 	box := element.Box().WithID("scroller")
 	// Make it scrollable by giving it fixed size and content that exceeds it
-	box.Style(style.Style{
-		Width:     style.Some(style.Cells(5)),
-		Height:    style.Some(style.Cells(5)),
-		OverflowY: style.Some(style.OverflowScroll),
-	})
+	box.Style(style.S().Width(style.Cells(5)).Height(style.Cells(5)).OverflowY(style.OverflowScroll))
 	// Add a tall child to ensure there is something to scroll
-	box.AddChild(element.Box().Style(style.Style{Height: style.Some(style.Cells(20))}))
+	box.AddChild(element.Box().Style(style.S().Height(style.Cells(20))))
 
 	env.Mount(box)
 	env.Flush()
@@ -116,10 +112,7 @@ func TestMoreNewFeatures(t *testing.T) {
 	env := testenv.Default(80, 24)
 	defer env.Close()
 
-	box := element.Box().WithID("my-box").Style(style.Style{
-		Width:  style.Some(style.Cells(5)),
-		Height: style.Some(style.Cells(5)),
-	})
+	box := element.Box().WithID("my-box").Style(style.S().Width(style.Cells(5)).Height(style.Cells(5)))
 	input := element.Input("").WithID("input-field")
 
 	container := element.Box()

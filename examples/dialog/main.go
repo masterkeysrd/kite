@@ -16,6 +16,12 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	dialogHeaderStyle = style.S().TextAlign(style.TextAlignCenter).Padding(style.Edges(1))
+	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+	dialogBoxStyle    = style.S().Width(style.Cells(30)).Height(style.Cells(5)).Background(color.RGBA{R: 60, G: 60, B: 100, A: 255}).Border(style.SingleBorder()).Padding(style.Edges(1))
+)
+
 func main() {
 	f, _ := os.Create("kite.log")
 	defer f.Close()
@@ -41,16 +47,9 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
 	root := element.Box(
-		element.Box("Dialog Example").Style(style.Style{
-			TextAlign: style.Some(style.TextAlignCenter),
-			Padding:   style.Some(style.Edges(1)),
-		}),
+		element.Box("Dialog Example").Style(dialogHeaderStyle),
 		"Press 'd' to open, 'Enter' or 'Esc' to close.",
-	).Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Percent(100)),
-		Background: style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 20, A: 255}),
-	})
+	).Style(rootStyle)
 
 	eng.Mount(root)
 	devtools.Install(eng, devtools.Options{})
@@ -81,13 +80,7 @@ func main() {
 
 		if ke.MatchString("d") && activeDialog == nil {
 			slog.Info("Opening dialog")
-			content := element.Box("Hello! I am a Dialog.").Style(style.Style{
-				Width:      style.Some(style.Cells(30)),
-				Height:     style.Some(style.Cells(5)),
-				Background: style.Some[color.Color](color.RGBA{R: 60, G: 60, B: 100, A: 255}),
-				Border:     style.SingleBorder().Some(),
-				Padding:    style.Some(style.Edges(1)),
-			})
+			content := element.Box("Hello! I am a Dialog.").Style(dialogBoxStyle)
 			activeDialog = element.Dialog(content, 100)
 			eng.Document().AppendChild(activeDialog)
 		}

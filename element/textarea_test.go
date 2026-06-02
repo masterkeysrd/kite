@@ -33,17 +33,17 @@ func TestTextArea_IntrinsicStyle_Properties(t *testing.T) {
 	txa := element.TextArea("")
 	is := txa.IntrinsicStyle()
 
-	if !is.OverflowY.IsSet() || is.OverflowY.Value() != style.OverflowAuto {
-		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowAuto", is.OverflowY)
+	if !is.OverflowYOpt().IsSet() || is.OverflowYOpt().Value() != style.OverflowAuto {
+		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowAuto", is.OverflowYOpt())
 	}
-	if !is.OverflowWrap.IsSet() || is.OverflowWrap.Value() != style.OverflowWrapBreakWord {
-		t.Errorf("IntrinsicStyle.OverflowWrap = %v, want OverflowWrapBreakWord", is.OverflowWrap)
+	if !is.OverflowWrapOpt().IsSet() || is.OverflowWrapOpt().Value() != style.OverflowWrapBreakWord {
+		t.Errorf("IntrinsicStyle.OverflowWrap = %v, want OverflowWrapBreakWord", is.OverflowWrapOpt())
 	}
-	if !is.OverflowX.IsSet() || is.OverflowX.Value() != style.OverflowClip {
-		t.Errorf("IntrinsicStyle.OverflowX = %v, want OverflowClip", is.OverflowX)
+	if !is.OverflowXOpt().IsSet() || is.OverflowXOpt().Value() != style.OverflowClip {
+		t.Errorf("IntrinsicStyle.OverflowX = %v, want OverflowClip", is.OverflowXOpt())
 	}
-	if !is.WhiteSpace.IsSet() || is.WhiteSpace.Value() != style.WhiteSpacePreWrap {
-		t.Errorf("IntrinsicStyle.WhiteSpace = %v, want WhiteSpacePreWrap", is.WhiteSpace)
+	if !is.WhiteSpaceOpt().IsSet() || is.WhiteSpaceOpt().Value() != style.WhiteSpacePreWrap {
+		t.Errorf("IntrinsicStyle.WhiteSpace = %v, want WhiteSpacePreWrap", is.WhiteSpaceOpt())
 	}
 }
 
@@ -85,9 +85,7 @@ func TestTextArea_AuthorStyle_OverridesDisplay(t *testing.T) {
 
 	txa := element.TextArea("")
 	// Author attempts to set Display:Block — should win over default InlineBlock.
-	txa.Style(style.Style{
-		Display: style.Some(style.DisplayBlock),
-	})
+	txa.Style(style.S().Display(style.DisplayBlock))
 
 	root := element.Box(txa)
 	eng.Mount(root)
@@ -109,9 +107,7 @@ func TestTextArea_IntrinsicStyle_Wins(t *testing.T) {
 	defer eng.Stop()
 
 	txa := element.TextArea("")
-	txa.Style(style.Style{
-		OverflowY: style.Some(style.OverflowVisible), // must lose to intrinsic Auto
-	})
+	txa.Style(style.S().OverflowY(style.OverflowVisible))
 
 	root := element.Box(txa)
 	eng.Mount(root)
@@ -288,10 +284,7 @@ func TestTextArea_WrapConsistency(t *testing.T) {
 	// Line 2: "BCDEFGHIJ"
 	text := " • ABCDEFGHIJ"
 	txa := element.NewTextArea(eng.Document(), text)
-	txa.Style(style.Style{
-		Width:   style.Some(style.Cells(10)),
-		Padding: style.Some(style.Edges(0, 0)),
-	})
+	txa.Style(style.S().Width(style.Cells(10)).Padding(style.Edges(0, 0)))
 	root := element.Box(txa)
 	eng.Mount(root)
 	eng.Frame()
@@ -324,10 +317,7 @@ func TestTextArea_CursorVisibilityAtBoundary(t *testing.T) {
 	// 10 cells wide.
 	// "1234567890" is 10 cells.
 	txa := element.NewTextArea(eng.Document(), "1234567890")
-	txa.Style(style.Style{
-		Width:   style.Some(style.Cells(10)),
-		Padding: style.Some(style.Edges(0, 0)),
-	})
+	txa.Style(style.S().Width(style.Cells(10)).Padding(style.Edges(0, 0)))
 	eng.Mount(txa)
 	txa.Focus()
 	eng.Frame()

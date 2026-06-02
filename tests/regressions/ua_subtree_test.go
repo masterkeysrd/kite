@@ -116,9 +116,7 @@ func TestUASubtree_Engine_HostStyleApplied(t *testing.T) {
 	doc := eng.Document()
 	h := newTestHost(doc)
 
-	root := element.Box(h).Style(style.Style{
-		Display: style.Some(style.DisplayBlock),
-	})
+	root := element.Box(h).Style(style.S().Display(style.DisplayBlock))
 	eng.Mount(root)
 	eng.Frame()
 

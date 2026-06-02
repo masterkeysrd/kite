@@ -14,19 +14,20 @@ type DialogElement struct {
 var _ Element = (*DialogElement)(nil)
 var _ dom.Lifecycle = (*DialogElement)(nil)
 
+var defaultDialogStyle = style.S().
+	Width(style.Percent(100)).
+	Height(style.Percent(100)).
+	Display(style.DisplayFlex).
+	JustifyContent(style.JustifyCenter).
+	AlignItems(style.AlignCenter).
+	AlignContent(style.AlignCenter)
+
 func NewDialog(doc dom.Document, content dom.Node, zIndex int) *DialogElement {
 	d := &DialogElement{zIndex: zIndex}
 
 	// Requirement: Applies styles: Width: 100%, Height: 100%, Display: Flex,
 	// JustifyContent: Center, AlignItems: Center.
-	d.initBase(doc.CreateElement("dialog", d), d, style.Style{
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		Display:        style.Some(style.DisplayFlex),
-		JustifyContent: style.Some(style.JustifyCenter),
-		AlignItems:     style.Some(style.AlignCenter),
-		AlignContent:   style.Some(style.AlignCenter),
-	})
+	d.initBase(doc.CreateElement("dialog", d), d, defaultDialogStyle)
 
 	if content != nil {
 		d.AppendChild(content)

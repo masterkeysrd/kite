@@ -17,9 +17,7 @@ var _ Element = (*FormElement)(nil)
 func NewForm(doc dom.Document, children ...any) *FormElement {
 	f := &FormElement{}
 	el := doc.CreateElement("form", f)
-	f.initBase(el, f, style.Style{
-		Display: style.Some(style.DisplayBlock),
-	})
+	f.initBase(el, f, style.S().Display(style.DisplayBlock))
 	processChildren(f, children)
 	f.wireEvents()
 	return f

@@ -15,6 +15,19 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	primaryBtnStyle      = style.S().Background(color.RGBA{R: 60, G: 60, B: 100, A: 255}).Foreground(color.White)
+	primaryBtnHoverStyle = style.S().Background(color.RGBA{R: 80, G: 80, B: 140, A: 255}).Foreground(color.White)
+	defaultBtnStyle      = style.S().Margin(style.Edges(1, 0, 0, 0))
+	defaultBtnHoverStyle = style.S().Background(color.RGBA{R: 70, G: 70, B: 70, A: 255}).Foreground(color.White).Margin(style.Edges(1, 0, 0, 0))
+	dangerBtnStyle       = style.S().Background(color.RGBA{R: 150, G: 40, B: 40, A: 255}).Foreground(color.White).Bold(true).Border(style.DoubleBorder()).Padding(style.Edges(0, 2)).Margin(style.Edges(1, 0, 0, 0))
+	dangerBtnHoverStyle  = style.S().Background(color.RGBA{R: 200, G: 50, B: 50, A: 255}).Foreground(color.White).Bold(true).Border(style.DoubleBorder()).Padding(style.Edges(0, 2)).Margin(style.Edges(1, 0, 0, 0))
+	titleStyle           = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	counterStyle         = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	instructionsStyle    = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
+	containerStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+)
+
 func main() {
 	f, _ := os.Create("kite.log")
 	defer f.Close()
@@ -33,10 +46,7 @@ func main() {
 	counterText := element.Text("Clicks: 0")
 
 	// Create a standard button
-	btn1 := element.Button("  Click Me  ").Style(style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 60, G: 60, B: 100, A: 255}),
-		Foreground: style.Some[color.Color](color.White),
-	})
+	btn1 := element.Button("  Click Me  ").Style(primaryBtnStyle)
 
 	btn1.OnEvent(event.EventClick, func(e event.Event) {
 		count++
@@ -46,54 +56,31 @@ func main() {
 
 	// Add hover effects to btn1
 	btn1.OnEvent(event.EventMouseEnter, func(e event.Event) {
-		btn1.Style(style.Style{
-			Background: style.Some[color.Color](color.RGBA{R: 80, G: 80, B: 140, A: 255}),
-			Foreground: style.Some[color.Color](color.White),
-		})
+		btn1.Style(primaryBtnHoverStyle)
 		eng.RequestFrame()
 	})
 	btn1.OnEvent(event.EventMouseLeave, func(e event.Event) {
-		btn1.Style(style.Style{
-			Background: style.Some[color.Color](color.RGBA{R: 60, G: 60, B: 100, A: 255}),
-			Foreground: style.Some[color.Color](color.White),
-		})
+		btn1.Style(primaryBtnStyle)
 		eng.RequestFrame()
 	})
 
 	// Create a default button showcasing hover styling (no initial background/foreground set)
-	btnDefault := element.Button("  Hover Me  ").Style(style.Style{
-		Margin: style.Some(style.Edges(1, 0, 0, 0)),
-	})
+	btnDefault := element.Button("  Hover Me  ").Style(defaultBtnStyle)
 
 	btnDefault.OnEvent(event.EventMouseEnter, func(e event.Event) {
-		btnDefault.Style(style.Style{
-			Background: style.Some[color.Color](color.RGBA{R: 70, G: 70, B: 70, A: 255}),
-			Foreground: style.Some[color.Color](color.White),
-			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-		})
+		btnDefault.Style(defaultBtnHoverStyle)
 		eng.RequestFrame()
 	})
 	btnDefault.OnEvent(event.EventMouseLeave, func(e event.Event) {
-		btnDefault.Style(style.Style{
-			Margin: style.Some(style.Edges(1, 0, 0, 0)),
-		})
+		btnDefault.Style(defaultBtnStyle)
 		eng.RequestFrame()
 	})
 
 	// Create a disabled button
-	btn2 := element.Button("Disabled").Disabled(true).Style(style.Style{
-		Margin: style.Some(style.Edges(1, 0, 0, 0)),
-	})
+	btn2 := element.Button("Disabled").Disabled(true).Style(defaultBtnStyle)
 
 	// Create a styled "action" button
-	btn3 := element.Button("  DANGER  ").Style(style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 150, G: 40, B: 40, A: 255}),
-		Foreground: style.Some[color.Color](color.White),
-		Bold:       style.Some(true),
-		Border:     style.DoubleBorder().Some(),
-		Padding:    style.Some(style.Edges(0, 2)),
-		Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-	})
+	btn3 := element.Button("  DANGER  ").Style(dangerBtnStyle)
 
 	btn3.OnEvent(event.EventClick, func(e event.Event) {
 		count = 0
@@ -103,59 +90,30 @@ func main() {
 
 	// Add hover effects to btn3
 	btn3.OnEvent(event.EventMouseEnter, func(e event.Event) {
-		btn3.Style(style.Style{
-			Background: style.Some[color.Color](color.RGBA{R: 200, G: 50, B: 50, A: 255}),
-			Foreground: style.Some[color.Color](color.White),
-			Bold:       style.Some(true),
-			Border:     style.DoubleBorder().Some(),
-			Padding:    style.Some(style.Edges(0, 2)),
-			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-		})
+		btn3.Style(dangerBtnHoverStyle)
 		eng.RequestFrame()
 	})
 	btn3.OnEvent(event.EventMouseLeave, func(e event.Event) {
-		btn3.Style(style.Style{
-			Background: style.Some[color.Color](color.RGBA{R: 150, G: 40, B: 40, A: 255}),
-			Foreground: style.Some[color.Color](color.White),
-			Bold:       style.Some(true),
-			Border:     style.DoubleBorder().Some(),
-			Padding:    style.Some(style.Edges(0, 2)),
-			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-		})
+		btn3.Style(dangerBtnStyle)
 		eng.RequestFrame()
 	})
 
 	root := element.Box(
 		element.Box(
-			element.Box("Button Component Demonstration").Style(style.Style{
-				Bold:      style.Some(true),
-				TextAlign: style.Some(style.TextAlignCenter),
-				Margin:    style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box("Button Component Demonstration").Style(titleStyle),
 
-			element.Box(counterText).Style(style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 100, G: 255, B: 100, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box(counterText).Style(counterStyle),
 
 			btn1,
 			btnDefault,
 			btn2,
 			btn3,
 
-			element.Box("\nInstructions:").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Click with Mouse").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Tab to focus, then press Space or Enter").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Press 'q' to quit").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-		).Style(style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexColumn),
-			AlignItems:     style.Some(style.AlignCenter),
-			JustifyContent: style.Some(style.JustifyCenter),
-			Width:          style.Some(style.Percent(100)),
-			Height:         style.Some(style.Percent(100)),
-			Background:     style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 20, A: 255}),
-		}),
+			element.Box("\nInstructions:").Style(instructionsStyle),
+			element.Box("- Click with Mouse").Style(instructionsStyle),
+			element.Box("- Tab to focus, then press Space or Enter").Style(instructionsStyle),
+			element.Box("- Press 'q' to quit").Style(instructionsStyle),
+		).Style(containerStyle),
 	)
 
 	eng.Mount(root)

@@ -26,9 +26,7 @@ func TestRegression_DynamicListStyleUpdate(t *testing.T) {
 	}
 
 	// Update UL style
-	ul.Style(style.Style{
-		ListStyleType: style.Some(style.ListStyleSquare),
-	})
+	ul.Style(style.S().ListStyleType(style.ListStyleSquare))
 
 	// Second frame: should resolve to Square
 	eng.Frame()

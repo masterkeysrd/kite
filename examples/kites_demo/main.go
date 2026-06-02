@@ -17,6 +17,25 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	cardAStyle           = style.S().Padding(style.Edges(1, 2)).Background(color.RGBA{R: 35, G: 38, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(45)).Margin(style.Edges(0, 1))
+	cardATitleStyle      = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 180, B: 255, A: 255})
+	cardBodyStyle        = style.S().Margin(style.Edges(1, 0))
+	cardRendersTextStyle = style.S().Foreground(color.RGBA{R: 160, G: 160, B: 180, A: 255})
+	cardBStyle           = style.S().Padding(style.Edges(1, 2)).Background(color.RGBA{R: 35, G: 55, B: 38, A: 255}).Border(style.SingleBorder()).Width(style.Percent(45)).Margin(style.Edges(0, 1))
+	cardBTitleStyle      = style.S().Bold(true).Foreground(color.RGBA{R: 120, G: 220, B: 140, A: 255})
+	appContainerStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(style.Edges(1, 2))
+	appHeaderStyle       = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	appDescriptionStyle  = style.S().Foreground(color.RGBA{R: 180, G: 180, B: 200, A: 255}).Margin(style.Edges(0, 0, 2, 0)).TextAlign(style.TextAlignCenter)
+	cardsRowStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyAround).Margin(style.Edges(0, 0, 2, 0))
+	buttonsRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyCenter)
+	btnAStyle            = style.S().Background(color.RGBA{R: 50, G: 120, B: 220, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	btnBStyle            = style.S().Background(color.RGBA{R: 50, G: 180, B: 100, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	btnAsyncStyle        = style.S().Background(color.RGBA{R: 180, G: 80, B: 220, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	footerStyle          = style.S().Foreground(color.RGBA{R: 120, G: 120, B: 120, A: 255}).Margin(style.Edges(2, 0, 0, 0)).TextAlign(style.TextAlignCenter)
+	rootStyle            = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 type AppState struct {
 	CountA int
 	CountB int
@@ -36,29 +55,16 @@ var CompA = kitex.SimpleFC("CompA", func() kitex.Node {
 	})
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Padding:    style.Some(style.Edges(1, 2)),
-			Background: style.Some[color.Color](color.RGBA{R: 35, G: 38, B: 55, A: 255}),
-			Border:     style.SingleBorder().Some(),
-			Width:      style.Some(style.Percent(45)),
-			Margin:     style.Some(style.Edges(0, 1)),
-		},
+		Style: cardAStyle,
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 90, G: 180, B: 255, A: 255}),
-			},
+			Style: cardATitleStyle,
 		}, kitex.Text("Component A (Slices CountA)")),
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Margin: style.Some(style.Edges(1, 0)),
-			},
+			Style: cardBodyStyle,
 		}, kitex.Text(fmt.Sprintf("Count A: %d", countA))),
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 160, G: 160, B: 180, A: 255}),
-			},
+			Style: cardRendersTextStyle,
 		}, kitex.Text(fmt.Sprintf("Renders: %d", renderCountA))),
 	)
 })
@@ -71,80 +77,42 @@ var CompB = kitex.SimpleFC("CompB", func() kitex.Node {
 	})
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Padding:    style.Some(style.Edges(1, 2)),
-			Background: style.Some[color.Color](color.RGBA{R: 35, G: 55, B: 38, A: 255}),
-			Border:     style.SingleBorder().Some(),
-			Width:      style.Some(style.Percent(45)),
-			Margin:     style.Some(style.Edges(0, 1)),
-		},
+		Style: cardBStyle,
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 120, G: 220, B: 140, A: 255}),
-			},
+			Style: cardBTitleStyle,
 		}, kitex.Text("Component B (Slices CountB)")),
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Margin: style.Some(style.Edges(1, 0)),
-			},
+			Style: cardBodyStyle,
 		}, kitex.Text(fmt.Sprintf("Count B: %d", countB))),
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 160, G: 160, B: 180, A: 255}),
-			},
+			Style: cardRendersTextStyle,
 		}, kitex.Text(fmt.Sprintf("Renders: %d", renderCountB))),
 	)
 })
 
 var App = kitex.SimpleFC("App", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			Width:         style.Some(style.Percent(100)),
-			Height:        style.Some(style.Percent(100)),
-			Background:    style.Some[color.Color](color.RGBA{R: 18, G: 18, B: 24, A: 255}),
-			Padding:       style.Some(style.Edges(1, 2)),
-		},
+		Style: appContainerStyle,
 	},
 		// Title
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 240, G: 190, B: 90, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appHeaderStyle,
 		}, kitex.Text("🛰️ Kite Global State Manager Demo (extras/kites)")),
 
 		// Description
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 180, G: 180, B: 200, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 2, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appDescriptionStyle,
 		}, kitex.Text("This app proves selector-based re-rendering. Incrementing A doesn't trigger B, and vice-versa.\nBackground routine will automatically increment CountA every 2s.")),
 
 		// Components side-by-side
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:        style.Some(style.DisplayFlex),
-				FlexDirection:  style.Some(style.FlexRow),
-				JustifyContent: style.Some(style.JustifyAround),
-				Margin:         style.Some(style.Edges(0, 0, 2, 0)),
-			},
+			Style: cardsRowStyle,
 		}, CompA(), CompB()),
 
 		// Buttons control panel
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:        style.Some(style.DisplayFlex),
-				FlexDirection:  style.Some(style.FlexRow),
-				JustifyContent: style.Some(style.JustifyCenter),
-			},
+			Style: buttonsRowStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e event.Event) {
@@ -153,11 +121,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						return s
 					})
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 50, G: 120, B: 220, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
+				Style: btnAStyle,
 			}, kitex.Text(" Increment A ")),
 
 			kitex.Button(kitex.ButtonProps{
@@ -167,11 +131,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						return s
 					})
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 50, G: 180, B: 100, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
+				Style: btnBStyle,
 			}, kitex.Text(" Increment B ")),
 
 			kitex.Button(kitex.ButtonProps{
@@ -184,20 +144,12 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						})
 					}()
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 180, G: 80, B: 220, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
+				Style: btnAsyncStyle,
 			}, kitex.Text(" Async +10 B (500ms delay) ")),
 		),
 
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 120, G: 120, B: 120, A: 255}),
-				Margin:     style.Some(style.Edges(2, 0, 0, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: footerStyle,
 		}, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
 	)
 })
@@ -217,10 +169,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger})
 
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.Render(App(), container)

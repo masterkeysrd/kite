@@ -15,7 +15,7 @@ var _ Element = (*BoxElement)(nil)
 // NewBox creates a new generic box container.
 func NewBox(doc dom.Document) *BoxElement {
 	b := &BoxElement{}
-	b.initBase(doc.CreateElement("box", b), b, style.Style{})
+	b.initBase(doc.CreateElement("box", b), b, style.S())
 	return b
 }
 

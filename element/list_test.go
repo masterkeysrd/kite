@@ -16,13 +16,13 @@ func TestListComponents_Defaults(t *testing.T) {
 		t.Errorf("expected tag ul, got %s", ul.TagName())
 	}
 	ulDef := ul.DefaultStyle()
-	if ulDef.Display.Value() != style.DisplayBlock {
+	if ulDef.DisplayOpt().Value() != style.DisplayBlock {
 		t.Errorf("UL default display should be Block")
 	}
-	if ulDef.ListStyleType.Value() != style.ListStyleDisc {
+	if ulDef.ListStyleTypeOpt().Value() != style.ListStyleDisc {
 		t.Errorf("UL default ListStyleType should be Disc")
 	}
-	if ulDef.Padding.Value().Left != 2 {
+	if ulDef.PaddingOpt().Value().Left != 2 {
 		t.Errorf("UL default Padding.Left should be 2")
 	}
 
@@ -31,13 +31,13 @@ func TestListComponents_Defaults(t *testing.T) {
 		t.Errorf("expected tag ol, got %s", ol.TagName())
 	}
 	olDef := ol.DefaultStyle()
-	if olDef.Display.Value() != style.DisplayBlock {
+	if olDef.DisplayOpt().Value() != style.DisplayBlock {
 		t.Errorf("OL default display should be Block")
 	}
-	if olDef.ListStyleType.Value() != style.ListStyleDecimal {
+	if olDef.ListStyleTypeOpt().Value() != style.ListStyleDecimal {
 		t.Errorf("OL default ListStyleType should be Decimal")
 	}
-	if olDef.Padding.Value().Left != 3 {
+	if olDef.PaddingOpt().Value().Left != 3 {
 		t.Errorf("OL default Padding.Left should be 3")
 	}
 
@@ -46,7 +46,7 @@ func TestListComponents_Defaults(t *testing.T) {
 		t.Errorf("expected tag li, got %s", li.TagName())
 	}
 	liDef := li.DefaultStyle()
-	if liDef.Display.Value() != style.DisplayListItem {
+	if liDef.DisplayOpt().Value() != style.DisplayListItem {
 		t.Errorf("LI default display should be ListItem")
 	}
 }
@@ -72,9 +72,7 @@ func TestListComponents_Inheritance(t *testing.T) {
 	}
 
 	// Change ol to Square
-	ol.Style(style.Style{
-		ListStyleType: style.Some(style.ListStyleSquare),
-	})
+	ol.Style(style.S().ListStyleType(style.ListStyleSquare))
 
 	// Resolve styles again
 	eng.Frame()

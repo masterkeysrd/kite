@@ -16,6 +16,20 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	homeCardStyle     = style.S().Padding(style.Edges(1, 2)).Background(color.RGBA{R: 25, G: 35, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(80)).Margin(style.Edges(1, 0))
+	homeTitleStyle    = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 160, B: 255, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	bodyTextStyle     = style.S().Margin(style.Edges(0, 0, 1, 0))
+	primaryBtnStyle   = style.S().Background(color.RGBA{R: 50, G: 120, B: 220, A: 255}).Foreground(color.White)
+	detailsCardStyle  = style.S().Padding(style.Edges(1, 2)).Background(color.RGBA{R: 35, G: 55, B: 38, A: 255}).Border(style.SingleBorder()).Width(style.Percent(80)).Margin(style.Edges(1, 0))
+	detailsTitleStyle = style.S().Bold(true).Foreground(color.RGBA{R: 120, G: 220, B: 140, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	backBtnStyle      = style.S().Background(color.RGBA{R: 200, G: 60, B: 60, A: 255}).Foreground(color.White)
+	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(style.Edges(1, 2))
+	appHeaderStyle    = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).TextAlign(style.TextAlignCenter)
+	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 type HomeRoute struct{}
 type DetailsRoute struct {
 	ID string
@@ -32,36 +46,21 @@ var HomeView = kitex.SimpleFC("HomeView", func() kitex.Node {
 	}, []any{nav})
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Padding:    style.Some(style.Edges(1, 2)),
-			Background: style.Some[color.Color](color.RGBA{R: 25, G: 35, B: 55, A: 255}),
-			Border:     style.SingleBorder().Some(),
-			Width:      style.Some(style.Percent(80)),
-			Margin:     style.Some(style.Edges(1, 0)),
-		},
+		Style: homeCardStyle,
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 90, G: 160, B: 255, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: homeTitleStyle,
 		}, kitex.Text("🏠 Home Screen")),
 
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Margin: style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: bodyTextStyle,
 		}, kitex.Text("Press 'Enter' or click the button below to view details for Item #42.")),
 
 		kitex.Button(kitex.ButtonProps{
 			OnClick: func(e event.Event) {
 				nav.Push(DetailsRoute{ID: "42"})
 			},
-			Style: style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 50, G: 120, B: 220, A: 255}),
-				Foreground: style.Some[color.Color](color.White),
-			},
+			Style: primaryBtnStyle,
 		}, kitex.Text(" View Details (ID: 42) ")),
 	)
 })
@@ -77,68 +76,37 @@ var DetailsView = kitex.FC("DetailsView", func(props struct{ ID string }) kitex.
 	}, []any{nav})
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Padding:    style.Some(style.Edges(1, 2)),
-			Background: style.Some[color.Color](color.RGBA{R: 35, G: 55, B: 38, A: 255}),
-			Border:     style.SingleBorder().Some(),
-			Width:      style.Some(style.Percent(80)),
-			Margin:     style.Some(style.Edges(1, 0)),
-		},
+		Style: detailsCardStyle,
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 120, G: 220, B: 140, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: detailsTitleStyle,
 		}, kitex.Text(fmt.Sprintf("ℹ️ Details Screen (Item ID: %s)", props.ID))),
 
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Margin: style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: bodyTextStyle,
 		}, kitex.Text("You are viewing details of item #42. Press 'Esc' or click below to go back.")),
 
 		kitex.Button(kitex.ButtonProps{
 			OnClick: func(e event.Event) {
 				nav.Pop()
 			},
-			Style: style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 200, G: 60, B: 60, A: 255}),
-				Foreground: style.Some[color.Color](color.White),
-			},
+			Style: backBtnStyle,
 		}, kitex.Text(" Go Back Home (Esc) ")),
 	)
 })
 
 var App = kitex.SimpleFC("App", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			AlignItems:    style.Some(style.AlignCenter),
-			Width:         style.Some(style.Percent(100)),
-			Height:        style.Some(style.Percent(100)),
-			Background:    style.Some[color.Color](color.RGBA{R: 18, G: 18, B: 24, A: 255}),
-			Padding:       style.Some(style.Edges(1, 2)),
-		},
+		Style: appContainerStyle,
 	},
 		// Header
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 240, G: 190, B: 90, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appHeaderStyle,
 		}, kitex.Text("✈️ Kite Stack Navigation Demo (extras/flight)")),
 
 		// Instruction Info
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255}),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: instructionsStyle,
 		}, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
 
 		// Flight Stack Router
@@ -173,10 +141,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger})
 
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.Render(App(), container)

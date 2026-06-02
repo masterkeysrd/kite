@@ -33,16 +33,14 @@ var _ Element = (*BrElement)(nil)
 
 // intrinsicBrStyle is the UA-mandated style for <br>: display inline so the
 // IFC builder processes it inline rather than as a block child.
-var intrinsicBrStyle = style.Style{
-	Display: style.Some(style.DisplayInline),
-}
+var intrinsicBrStyle = style.S().Display(style.DisplayInline)
 
 // NewBr creates a new content BrElement owned by doc.
 // It represents a '\n' character in the buffer.
 func NewBr(doc dom.Document) *BrElement {
 	br := &BrElement{}
 	el := doc.CreateElement("br", br)
-	br.initBase(el, br, style.Style{}, intrinsicBrStyle)
+	br.initBase(el, br, style.S(), intrinsicBrStyle)
 	return br
 }
 
@@ -52,7 +50,7 @@ func NewBr(doc dom.Document) *BrElement {
 func NewPlaceholderBr(doc dom.Document) *BrElement {
 	br := &BrElement{placeholder: true}
 	el := doc.CreateElement("br", br)
-	br.initBase(el, br, style.Style{}, intrinsicBrStyle)
+	br.initBase(el, br, style.S(), intrinsicBrStyle)
 	return br
 }
 

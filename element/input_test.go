@@ -95,14 +95,14 @@ func TestInput_IntrinsicStyle_Properties(t *testing.T) {
 	inp := element.Input("")
 	is := inp.IntrinsicStyle()
 
-	if !is.OverflowX.IsSet() || is.OverflowX.Value() != style.OverflowClip {
-		t.Errorf("IntrinsicStyle.OverflowX = %v, want OverflowClip", is.OverflowX)
+	if !is.OverflowXOpt().IsSet() || is.OverflowXOpt().Value() != style.OverflowClip {
+		t.Errorf("IntrinsicStyle.OverflowX = %v, want OverflowClip", is.OverflowXOpt())
 	}
-	if !is.OverflowY.IsSet() || is.OverflowY.Value() != style.OverflowClip {
-		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowClip", is.OverflowY)
+	if !is.OverflowYOpt().IsSet() || is.OverflowYOpt().Value() != style.OverflowClip {
+		t.Errorf("IntrinsicStyle.OverflowY = %v, want OverflowClip", is.OverflowYOpt())
 	}
-	if !is.WhiteSpace.IsSet() || is.WhiteSpace.Value() != style.WhiteSpacePre {
-		t.Errorf("IntrinsicStyle.WhiteSpace = %v, want WhiteSpacePre", is.WhiteSpace)
+	if !is.WhiteSpaceOpt().IsSet() || is.WhiteSpaceOpt().Value() != style.WhiteSpacePre {
+		t.Errorf("IntrinsicStyle.WhiteSpace = %v, want WhiteSpacePre", is.WhiteSpaceOpt())
 	}
 }
 
@@ -115,9 +115,7 @@ func TestInput_AuthorStyle_OverridesDefault(t *testing.T) {
 
 	inp := element.Input("")
 	// Author attempts to set Display:Block — should win over default InlineBlock.
-	inp.Style(style.Style{
-		Display: style.Some(style.DisplayBlock),
-	})
+	inp.Style(style.S().Display(style.DisplayBlock))
 
 	root := element.Box(inp)
 	eng.Mount(root)

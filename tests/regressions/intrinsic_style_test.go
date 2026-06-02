@@ -38,11 +38,9 @@ func newIntrinsicClipElement(doc dom.Document, rawStyle style.Style) *intrinsicC
 }
 
 func (e *intrinsicClipElement) RawStyle() style.Style     { return e.rawStyle }
-func (e *intrinsicClipElement) DefaultStyle() style.Style { return style.Style{} }
+func (e *intrinsicClipElement) DefaultStyle() style.Style { return style.S() }
 func (e *intrinsicClipElement) IntrinsicStyle() style.Style {
-	return style.Style{
-		OverflowX: style.Some(style.OverflowClip),
-	}
+	return style.S().OverflowX(style.OverflowClip)
 }
 func (e *intrinsicClipElement) Unwrap() dom.Node   { return e.Element }
 func (e *intrinsicClipElement) IsDirtyStyle() bool { return false }
@@ -68,18 +66,10 @@ func TestIntrinsicStyle_OverflowClipResistsAuthorOverride(t *testing.T) {
 
 	// Author tries to set OverflowX:Visible — intrinsic layer must override.
 	doc := dom.NewDocument()
-	clipEl := newIntrinsicClipElement(doc, style.Style{
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(1)),
-		OverflowX: style.Some(style.OverflowVisible), // author override — must lose
-	})
+	clipEl := newIntrinsicClipElement(doc, style.S().Width(style.Cells(10)).Height(style.Cells(1)).OverflowX(style.OverflowVisible))
 
 	// Child: 30-cell wide red box — would spill without clipping.
-	child := element.Box().Style(style.Style{
-		Width:      style.Some(style.Cells(30)),
-		Height:     style.Some(style.Cells(1)),
-		Background: style.Some[color.Color](color.RGBA{255, 0, 0, 255}),
-	})
+	child := element.Box().Style(style.S().Width(style.Cells(30)).Height(style.Cells(1)).Background(color.RGBA{255, 0, 0, 255}))
 
 	// Connect: clipEl → child using the DOM node directly.
 	clipEl.AppendChild(child)

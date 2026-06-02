@@ -18,6 +18,25 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	headerStyle                  = style.S().Foreground(color.RGBA{R: 255, G: 255, B: 0, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	inlineFlexItemStyle          = style.S().Background(color.RGBA{R: 150, G: 0, B: 0, A: 255}).Padding(style.Edges(0, 1))
+	columnFlexItemStyle          = style.S().Background(color.RGBA{R: 180, G: 80, B: 0, A: 255}).Padding(style.Edges(0, 2)).Width(style.Auto)
+	inlineFlexContainerStyle     = style.S().Display(style.DisplayInlineFlex).Background(color.RGBA{R: 0, G: 80, B: 150, A: 255}).Border(style.SingleBorder()).Gap(style.Gap(0, 1)).Padding(style.Edges(0, 1))
+	inlineFlexWrapperStyle       = style.S().Margin(style.Edges(0, 0, 2, 0))
+	flexRowContainerStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyBetween).AlignItems(style.AlignCenter).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}).Height(style.Cells(5)).Padding(style.Edges(0, 2)).Margin(style.Edges(0, 0, 2, 0))
+	flexColContainerStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignEnd).Background(color.RGBA{R: 30, G: 30, B: 60, A: 255}).Width(style.Percent(50)).Padding(style.Edges(1, 2)).Gap(style.Gap(1, 0)).Margin(style.Edges(0, 0, 2, 0))
+	reverseItemRedStyle          = style.S().Background(color.RGBA{200, 0, 0, 255}).Padding(style.Edges(0, 1))
+	reverseItemGreenStyle        = style.S().Background(color.RGBA{0, 200, 0, 255}).Padding(style.Edges(0, 1))
+	reverseItemBlueStyle         = style.S().Background(color.RGBA{0, 0, 200, 255}).Padding(style.Edges(0, 1))
+	flexRowReverseContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRowReverse).Background(color.RGBA{R: 60, G: 30, B: 30, A: 255}).Padding(style.Edges(0, 2)).Margin(style.Edges(0, 0, 2, 0)).Gap(style.Gap(0, 2))
+	orderItem1Style              = style.S().Background(color.RGBA{R: 200, G: 0, B: 0, A: 255}).Padding(style.Edges(0, 1)).Order(3).Flex(style.Flex(1)).Border(style.SingleBorder())
+	orderItem2Style              = style.S().Background(color.RGBA{R: 0, G: 200, B: 0, A: 255}).Padding(style.Edges(0, 1)).Order(1).Flex(style.Flex(1)).Border(style.SingleBorder())
+	orderItem3Style              = style.S().Background(color.RGBA{R: 0, G: 0, B: 200, A: 255}).Padding(style.Edges(0, 1)).Order(2).Flex(style.Flex(1)).Border(style.SingleBorder())
+	flexOrderContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Background(color.RGBA{R: 30, G: 60, B: 30, A: 255}).Width(style.Percent(100)).Padding(style.Edges(0, 2)).Gap(style.Gap(2)).Border(style.SingleBorder())
+	rootStyle                    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 15, A: 255}).Padding(style.Edges(1, 2)).FlexDirection(style.FlexColumn).Display(style.DisplayFlex)
+)
+
 func main() {
 	f, er := os.Create("kite.log")
 	if er != nil {
@@ -54,19 +73,13 @@ func main() {
 	}
 	eng := engine.New(b, opts)
 
-	headerStyle := style.Style{
-		Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 255, B: 0, A: 255}),
-		Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-	}
+	headerStyle := headerStyle
 
 	// Helper for creating inline flex items
 	inlineFlexItems := make([]any, 0, 3)
 	for i := 1; i <= 3; i++ {
 		inlineFlexItems = append(inlineFlexItems,
-			element.Box(fmt.Sprintf("Item %d", i)).Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 150, G: 0, B: 0, A: 255}),
-				Padding:    style.Some(style.Edges(0, 1)),
-			}),
+			element.Box(fmt.Sprintf("Item %d", i)).Style(inlineFlexItemStyle),
 		)
 	}
 
@@ -74,11 +87,7 @@ func main() {
 	rowFlexItems := make([]any, 0, 4)
 	for i := 1; i <= 4; i++ {
 		rowFlexItems = append(rowFlexItems,
-			element.Box(fmt.Sprintf("Row Item %d", i)).Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 0, G: 120, B: 0, A: 255}),
-				Padding:    style.Some(style.Edges(0, 2)),
-				Height:     style.Some(style.Cells(1 + i%2)),
-			}),
+			element.Box(fmt.Sprintf("Row Item %d", i)).Style(style.S().Background(color.RGBA{R: 0, G: 120, B: 0, A: 255}).Padding(style.Edges(0, 2)).Height(style.Cells(1+i%2))),
 		)
 	}
 
@@ -86,11 +95,7 @@ func main() {
 	colFlexItems := make([]any, 0, 3)
 	for i := 1; i <= 3; i++ {
 		colFlexItems = append(colFlexItems,
-			element.Box(fmt.Sprintf("Column Item %d (Stays Right)", i)).Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 180, G: 80, B: 0, A: 255}),
-				Padding:    style.Some(style.Edges(0, 2)),
-				Width:      style.Some(style.Auto),
-			}),
+			element.Box(fmt.Sprintf("Column Item %d (Stays Right)", i)).Style(columnFlexItemStyle),
 		)
 	}
 
@@ -100,98 +105,34 @@ func main() {
 		element.Box("1. Inline Flex (Shrink-wrap content)").Style(headerStyle),
 		element.Box(
 			"Text before -> ",
-			element.Box(inlineFlexItems...).Style(style.Style{
-				Display:    style.Some(style.DisplayInlineFlex),
-				Background: style.Some[color.Color](color.RGBA{R: 0, G: 80, B: 150, A: 255}),
-				Border:     style.SingleBorder().Some(),
-				Gap:        style.Some(style.Gap(0, 1)),
-				Padding:    style.Some(style.Edges(0, 1)),
-			}),
+			element.Box(inlineFlexItems...).Style(inlineFlexContainerStyle),
 			" <- Text after",
-		).Style(style.Style{Margin: style.Some(style.Edges(0, 0, 2, 0))}),
+		).Style(inlineFlexWrapperStyle),
 
 		// 2. Flex Row Example
 		element.Box("2. Flex Row (Justify: Space-Between, Align: Center)").Style(headerStyle),
-		element.Box(rowFlexItems...).Style(style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexRow),
-			JustifyContent: style.Some(style.JustifyBetween),
-			AlignItems:     style.Some(style.AlignCenter),
-			Background:     style.Some[color.Color](color.RGBA{R: 40, G: 40, B: 40, A: 255}),
-			Height:         style.Some(style.Cells(5)),
-			Padding:        style.Some(style.Edges(0, 2)),
-			Margin:         style.Some(style.Edges(0, 0, 2, 0)),
-		}),
+		element.Box(rowFlexItems...).Style(flexRowContainerStyle),
 
 		// 3. Flex Column Example
 		element.Box("3. Flex Column (Align: End)").Style(headerStyle),
-		element.Box(colFlexItems...).Style(style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			AlignItems:    style.Some(style.AlignEnd),
-			Background:    style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 60, A: 255}),
-			Width:         style.Some(style.Percent(50)),
-			Padding:       style.Some(style.Edges(1, 2)),
-			Gap:           style.Some(style.Gap(1, 0)),
-			Margin:        style.Some(style.Edges(0, 0, 2, 0)),
-		}),
+		element.Box(colFlexItems...).Style(flexColContainerStyle),
 
 		// 4. Flex Row Reverse Example
 		element.Box("4. Flex Row Reverse").Style(headerStyle),
 		element.Box(
-			element.Box("Reverse Item 1").Style(style.Style{Background: style.Some[color.Color](color.RGBA{200, 0, 0, 255}), Padding: style.Some(style.Edges(0, 1))}),
-			element.Box("Reverse Item 2").Style(style.Style{Background: style.Some[color.Color](color.RGBA{0, 200, 0, 255}), Padding: style.Some(style.Edges(0, 1))}),
-			element.Box("Reverse Item 3").Style(style.Style{Background: style.Some[color.Color](color.RGBA{0, 0, 200, 255}), Padding: style.Some(style.Edges(0, 1))}),
-		).Style(style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexRowReverse),
-			Background:    style.Some[color.Color](color.RGBA{R: 60, G: 30, B: 30, A: 255}),
-			Padding:       style.Some(style.Edges(0, 2)),
-			Margin:        style.Some(style.Edges(0, 0, 2, 0)),
-			Gap:           style.Some(style.Gap(0, 2)),
-		}),
+			element.Box("Reverse Item 1").Style(reverseItemRedStyle),
+			element.Box("Reverse Item 2").Style(reverseItemGreenStyle),
+			element.Box("Reverse Item 3").Style(reverseItemBlueStyle),
+		).Style(flexRowReverseContainerStyle),
 
 		// 5. Flex Order Example
 		element.Box("5. Flex Order Property").Style(headerStyle),
 		element.Box(
-			element.Box("First in DOM (Order 3)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 200, G: 0, B: 0, A: 255}),
-				Padding:    style.Some(style.Edges(0, 1)),
-				Order:      style.Some(3),
-				Flex:       style.Some(style.Flex(1)),
-				Border:     style.SingleBorder().Some(),
-			}),
-			element.Box("Second in DOM (Order 1)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 0, G: 200, B: 0, A: 255}),
-				Padding:    style.Some(style.Edges(0, 1)),
-				Order:      style.Some(1),
-				Flex:       style.Some(style.Flex(1)),
-				Border:     style.SingleBorder().Some(),
-			}),
-			element.Box("Third in DOM (Order 2)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 0, G: 0, B: 200, A: 255}),
-				Padding:    style.Some(style.Edges(0, 1)),
-				Order:      style.Some(2),
-				Flex:       style.Some(style.Flex(1)),
-				Border:     style.SingleBorder().Some(),
-			}),
-		).Style(style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexRow),
-			Background:    style.Some[color.Color](color.RGBA{R: 30, G: 60, B: 30, A: 255}),
-			Width:         style.Some(style.Percent(100)),
-			Padding:       style.Some(style.Edges(0, 2)),
-			Gap:           style.Some(style.Gap(2)),
-			Border:        style.SingleBorder().Some(),
-		}),
-	).Style(style.Style{
-		Width:         style.Some(style.Percent(100)),
-		Height:        style.Some(style.Percent(100)),
-		Background:    style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 15, A: 255}),
-		Padding:       style.Some(style.Edges(1, 2)),
-		FlexDirection: style.Some(style.FlexColumn),
-		Display:       style.Some(style.DisplayFlex),
-	})
+			element.Box("First in DOM (Order 3)").Style(orderItem1Style),
+			element.Box("Second in DOM (Order 1)").Style(orderItem2Style),
+			element.Box("Third in DOM (Order 2)").Style(orderItem3Style),
+		).Style(flexOrderContainerStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 

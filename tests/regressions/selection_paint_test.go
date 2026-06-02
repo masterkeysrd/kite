@@ -19,10 +19,7 @@ func TestTextSelectionPaint(t *testing.T) {
 	// 1. Build a document with some text.
 	doc := env.Document()
 	div := element.NewBox(doc)
-	div.Style(style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 0, G: 0, B: 0, A: 255}),
-		Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 255, B: 255, A: 255}),
-	})
+	div.Style(style.S().Background(color.RGBA{R: 0, G: 0, B: 0, A: 255}).Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}))
 
 	t1 := element.Text("Hello ")
 	t2 := element.Text("Selection")
@@ -60,10 +57,7 @@ func TestTextSelectionCustomColors(t *testing.T) {
 
 	doc := env.Document()
 	div := element.NewBox(doc)
-	div.Style(style.Style{
-		SelectionForeground: style.Some[color.Color](selFG),
-		SelectionBackground: style.Some[color.Color](selBG),
-	})
+	div.Style(style.S().SelectionForeground(selFG).SelectionBackground(selBG))
 
 	t1 := element.Text("Selected")
 	div.AppendChild(t1)
@@ -128,9 +122,7 @@ func TestMultilineTextSelectionPaint(t *testing.T) {
 	// Box with fixed width to force wrap
 	box := element.Box(
 		element.Text("Line One. Line Two."),
-	).Style(style.Style{
-		Width: style.Some(style.Cells(10)),
-	})
+	).Style(style.S().Width(style.Cells(10)))
 	doc.AppendChild(box)
 
 	// "Line One. " is 10 chars, should be first line.
@@ -330,10 +322,7 @@ func TestSelectLastCharOfWrappedLine(t *testing.T) {
 
 	doc := env.Document()
 	// Force wrap after 3 cells
-	box := element.Box(element.Text("ABCDE")).Style(style.Style{
-		Width:        style.Some(style.Cells(3)),
-		OverflowWrap: style.Some(style.OverflowWrapBreakWord), // Enable breaking
-	})
+	box := element.Box(element.Text("ABCDE")).Style(style.S().Width(style.Cells(3)).OverflowWrap(style.OverflowWrapBreakWord))
 	doc.AppendChild(box)
 
 	env.Flush()
@@ -420,9 +409,7 @@ func TestSelectionOverPaddingArea(t *testing.T) {
 	outer := element.Box(
 		element.Box("Header"),
 		element.Box("Target Text"),
-	).Style(style.Style{
-		Padding: style.Some(style.Edges(2, 2)), // 2 rows padding top/bottom
-	})
+	).Style(style.S().Padding(style.Edges(2, 2)))
 	doc.AppendChild(outer)
 
 	env.Flush()

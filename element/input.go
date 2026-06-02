@@ -21,17 +21,18 @@ type uaInputDiv struct {
 // (asBase, InsertBefore, etc.) can navigate to the concrete baseNode.
 func (d *uaInputDiv) Unwrap() dom.Node { return d.Element }
 
+var defaultUAInputDivStyle = style.S().
+	MinWidth(style.Cells(1)).
+	Width(style.MaxContent)
+
 // DefaultStyle returns Width:MaxContent so the div grows to accommodate its
 // text content rather than stretching to the host's available width.
 func (d *uaInputDiv) DefaultStyle() style.Style {
-	return style.Style{
-		MinWidth: style.Some(style.Cells(1)), // ensure the div is always at least 1 cell wide, even when empty
-		Width:    style.Some(style.MaxContent),
-	}
+	return defaultUAInputDivStyle
 }
 
-func (d *uaInputDiv) RawStyle() style.Style       { return style.Style{} }
-func (d *uaInputDiv) IntrinsicStyle() style.Style { return style.Style{} }
+func (d *uaInputDiv) RawStyle() style.Style       { return style.S() }
+func (d *uaInputDiv) IntrinsicStyle() style.Style { return style.S() }
 func (d *uaInputDiv) IsDirtyStyle() bool {
 	if de := internaldom.AsDirtyElement(d.Element); de != nil {
 		return de.IsDirtyStyle()
@@ -87,22 +88,20 @@ var (
 
 // intrinsicInputStyle is the UA-mandated style shared by all InputElement
 // instances. Set once at package init; never mutated.
-var intrinsicInputStyle = style.Style{
-	OverflowX:  style.Some(style.OverflowClip),
-	OverflowY:  style.Some(style.OverflowClip),
-	WhiteSpace: style.Some(style.WhiteSpacePre),
-}
+var intrinsicInputStyle = style.S().
+	OverflowX(style.OverflowClip).
+	OverflowY(style.OverflowClip).
+	WhiteSpace(style.WhiteSpacePre)
 
 // defaultInputStyle holds the author-overridable defaults for an input.
 // Height is intentionally absent: the block algorithm naturally produces
 // border.Top + 1 content row + border.Bottom, which is the correct
 // terminal height for a single-line bordered field. Hard-coding Height(1)
 // would cap the outer box at 1 cell and crush the border rows.
-var defaultInputStyle = style.Style{
-	Display: style.Some(style.DisplayInlineBlock),
-	Width:   style.Some(style.Cells(20)),
-	Padding: style.Some(style.EdgeValues[int]{}),
-}
+var defaultInputStyle = style.S().
+	Display(style.DisplayInlineBlock).
+	Width(style.Cells(20)).
+	Padding(style.EdgeValues[int]{})
 
 // NewInput creates a new InputElement owned by doc with an optional initial
 // value.

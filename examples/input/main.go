@@ -28,6 +28,12 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	spacerStyle        = style.S().Height(style.Cells(1))
+	footerRowStyle     = style.S().Margin(style.Edges(1, 0, 0, 0))
+	shortcutBadgeStyle = style.S().Background(color.RGBA{R: 60, G: 65, B: 90, A: 255}).Foreground(color.RGBA{R: 200, G: 210, B: 255, A: 255}).Padding(style.Edges(0, 1))
+)
+
 // ── palette ──────────────────────────────────────────────────────────────────
 
 var (
@@ -76,22 +82,10 @@ func main() {
 	const fieldWidth = 30
 
 	usernameInp := element.NewInput(eng.Document(), "")
-	usernameInp.Style(style.Style{
-		Width:      style.Some(style.Cells(fieldWidth)),
-		Background: style.Some[color.Color](colInputBG),
-		Foreground: style.Some[color.Color](color.RGBA{R: 220, G: 225, B: 255, A: 255}),
-		Border:     style.SingleBorder().Color(colBorder).Some(),
-		Padding:    style.Some(style.Edges(0, 1)),
-	})
+	usernameInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
 
 	passwordInp := element.NewInput(eng.Document(), "")
-	passwordInp.Style(style.Style{
-		Width:      style.Some(style.Cells(fieldWidth)),
-		Background: style.Some[color.Color](colInputBG),
-		Foreground: style.Some[color.Color](color.RGBA{R: 220, G: 225, B: 255, A: 255}),
-		Border:     style.SingleBorder().Color(colBorder).Some(),
-		Padding:    style.Some(style.Edges(0, 1)),
-	})
+	passwordInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
 
 	// ── live echo text node ──────────────────────────────────────────────────
 	// A Text node that displays the current username value in real time.
@@ -115,106 +109,42 @@ func main() {
 		element.Box(
 
 			// Title
-			element.Box("  Sign In  ").Style(style.Style{
-				Foreground: style.Some[color.Color](colTitle),
-				Bold:       style.Some(true),
-				TextAlign:  style.Some(style.TextAlignCenter),
-				Width:      style.Some(style.Percent(100)),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box("  Sign In  ").Style(style.S().Foreground(colTitle).Bold(true).TextAlign(style.TextAlignCenter).Width(style.Percent(100)).Margin(style.Edges(0, 0, 1, 0))),
 
 			// Separator
-			element.Box("").Style(style.Style{
-				Width:      style.Some(style.Percent(100)),
-				Height:     style.Some(style.Cells(1)),
-				Background: style.Some[color.Color](colSeparator),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(0, 0, 1, 0))),
 
 			// Username label + field
-			element.Box("Username").Style(style.Style{
-				Foreground: style.Some[color.Color](colLabel),
-				Margin:     style.Some(style.Edges(0, 0, 0, 0)),
-			}),
+			element.Box("Username").Style(style.S().Foreground(colLabel).Margin(style.Edges(0, 0, 0, 0))),
 			usernameInp,
 
 			// Spacer
-			element.Box("").Style(style.Style{Height: style.Some(style.Cells(1))}),
+			element.Box("").Style(spacerStyle),
 
 			// Password label + field
-			element.Box("Password").Style(style.Style{
-				Foreground: style.Some[color.Color](colLabel),
-				Margin:     style.Some(style.Edges(0, 0, 0, 0)),
-			}),
+			element.Box("Password").Style(style.S().Foreground(colLabel).Margin(style.Edges(0, 0, 0, 0))),
 			passwordInp,
 
 			// Separator
-			element.Box("").Style(style.Style{
-				Width:      style.Some(style.Percent(100)),
-				Height:     style.Some(style.Cells(1)),
-				Background: style.Some[color.Color](colSeparator),
-				Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-			}),
+			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(1, 0, 0, 0))),
 
 			// Live echo row
 			element.Box(
-				element.Span("Username value: ").Style(style.Style{
-					Foreground: style.Some[color.Color](colHint),
-				}),
-				element.Span(echoText).Style(style.Style{
-					Foreground: style.Some[color.Color](colAccent),
-					Bold:       style.Some(true),
-				}),
-			).Style(style.Style{
-				Margin: style.Some(style.Edges(1, 0, 0, 0)),
-			}),
+				element.Span("Username value: ").Style(style.S().Foreground(colHint)),
+				element.Span(echoText).Style(style.S().Foreground(colAccent).Bold(true)),
+			).Style(footerRowStyle),
 
 			// Hints footer
 			element.Box(
-				element.Span("Tab").Style(style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 60, G: 65, B: 90, A: 255}),
-					Foreground: style.Some[color.Color](color.RGBA{R: 200, G: 210, B: 255, A: 255}),
-					Padding:    style.Some(style.Edges(0, 1)),
-				}),
-				element.Span(" next field  ").Style(style.Style{
-					Foreground: style.Some[color.Color](colHint),
-				}),
-				element.Span("Shift+Tab").Style(style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 60, G: 65, B: 90, A: 255}),
-					Foreground: style.Some[color.Color](color.RGBA{R: 200, G: 210, B: 255, A: 255}),
-					Padding:    style.Some(style.Edges(0, 1)),
-				}),
-				element.Span(" prev field  ").Style(style.Style{
-					Foreground: style.Some[color.Color](colHint),
-				}),
-				element.Span("Q").Style(style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 60, G: 65, B: 90, A: 255}),
-					Foreground: style.Some[color.Color](color.RGBA{R: 200, G: 210, B: 255, A: 255}),
-					Padding:    style.Some(style.Edges(0, 1)),
-				}),
-				element.Span(" quit").Style(style.Style{
-					Foreground: style.Some[color.Color](colHint),
-				}),
-			).Style(style.Style{
-				Margin: style.Some(style.Edges(1, 0, 0, 0)),
-			}),
-		).Style(style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			Width:         style.Some(style.Cells(fieldWidth + 6)), // card width = field + padding
-			Background:    style.Some[color.Color](colCard),
-			Border:        style.SingleBorder().Color(colBorder).Some(),
-			Padding:       style.Some(style.Edges(1, 2)),
-		}),
-	).Style(style.Style{
-		Display:        style.Some(style.DisplayFlex),
-		FlexDirection:  style.Some(style.FlexColumn),
-		JustifyContent: style.Some(style.JustifyCenter),
-		AlignItems:     style.Some(style.AlignCenter),
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		Background:     style.Some[color.Color](colBG),
-	})
+				element.Span("Tab").Style(shortcutBadgeStyle),
+				element.Span(" next field  ").Style(style.S().Foreground(colHint)),
+				element.Span("Shift+Tab").Style(shortcutBadgeStyle),
+				element.Span(" prev field  ").Style(style.S().Foreground(colHint)),
+				element.Span("Q").Style(shortcutBadgeStyle),
+				element.Span(" quit").Style(style.S().Foreground(colHint)),
+			).Style(footerRowStyle),
+		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Cells(fieldWidth + 6)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(1, 2))),
+	).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG))
 
 	eng.Mount(root)
 

@@ -28,11 +28,7 @@ func TestMatchGolden(t *testing.T) {
 	env := Default(10, 5)
 	defer env.Close()
 
-	env.Mount(element.Box().Style(style.Style{
-		Width:      style.Some(style.Cells(5)),
-		Height:     style.Some(style.Cells(2)),
-		Background: style.Some(color.Color(color.RGBA{R: 255, G: 0, B: 0, A: 255})),
-	}))
+	env.Mount(element.Box().Style(style.S().Width(style.Cells(5)).Height(style.Cells(2)).Background(color.Color(color.RGBA{R: 255, G: 0, B: 0, A: 255}))))
 	env.Flush()
 
 	goldenName := "test-frame"
@@ -48,11 +44,7 @@ func TestMatchGolden(t *testing.T) {
 	env.MatchGolden(t, goldenName)
 
 	// 3. Intentional failure
-	env.Mount(element.Box().Style(style.Style{
-		Width:      style.Some(style.Cells(6)), // Changed width
-		Height:     style.Some(style.Cells(2)),
-		Background: style.Some(color.Color(color.RGBA{R: 0, G: 255, B: 0, A: 255})), // Changed color
-	}))
+	env.Mount(element.Box().Style(style.S().Width(style.Cells(6)).Height(style.Cells(2)).Background(color.Color(color.RGBA{R: 0, G: 255, B: 0, A: 255}))))
 	env.Flush()
 
 	actual, expected, _, actualPath, err := env.matchGolden(goldenName)
@@ -72,12 +64,7 @@ func TestDumps(t *testing.T) {
 	env := Default(10, 2)
 	defer env.Close()
 
-	env.Mount(element.Box().Style(style.Style{
-		Width:      style.Some(style.Cells(10)),
-		Height:     style.Some(style.Cells(2)),
-		Background: style.Some(color.Color(color.RGBA{R: 0, G: 0, B: 255, A: 255})),
-		Foreground: style.Some(color.Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})),
-	}).AddChild(element.Text("Hello")))
+	env.Mount(element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(2)).Background(color.Color(color.RGBA{R: 0, G: 0, B: 255, A: 255})).Foreground(color.Color(color.RGBA{R: 255, G: 255, B: 255, A: 255}))).AddChild(element.Text("Hello")))
 	env.Flush()
 
 	t.Run("DumpText", func(t *testing.T) {

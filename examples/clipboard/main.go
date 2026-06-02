@@ -16,6 +16,20 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	sourceBoxStyle       = style.S().Width(style.Percent(100)).Height(style.Cells(8)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255})).Padding(style.Edges(1, 2)).Margin(style.Edges(0, 0, 1, 0))
+	inputStyle           = style.S().Display(style.DisplayBlock).Width(style.Auto).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 200, B: 100, A: 255})).Padding(style.Edges(0, 1))
+	titleStyle           = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	labelStyle           = style.S().Bold(true)
+	labelWithMarginStyle = style.S().Bold(true).Margin(style.Edges(1, 0, 0, 0))
+	spacerStyle          = style.S().Flex(style.Flex(1))
+	statusLabelStyle     = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
+	statusValueStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 0, A: 255}).Bold(true)
+	statusContainerStyle = style.S().Padding(style.Edges(1)).Background(color.RGBA{R: 25, G: 25, B: 30, A: 255}).Border(style.SingleBorder().Top(true))
+	instructionsStyle    = style.S().Foreground(color.RGBA{R: 100, G: 100, B: 100, A: 255}).TextAlign(style.TextAlignCenter).Margin(style.Edges(1, 0, 0, 0))
+	rootStyle            = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStretch).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255}).Padding(style.Edges(1, 2))
+)
+
 func main() {
 	f, _ := os.Create("clipboard.log")
 	defer f.Close()
@@ -43,64 +57,31 @@ func main() {
 			"This text is in a standard Box element. " +
 			"You can click and drag to select parts of this text, " +
 			"then press Ctrl+C to copy it to your system clipboard.",
-	).Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Cells(8)),
-		Background: style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 40, A: 255}),
-		Border:     style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255}).Some(),
-		Padding:    style.Some(style.Edges(1, 2)),
-		Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-	})
+	).Style(sourceBoxStyle)
 
 	// An input field to paste into
 	pasteInput := element.NewInput(eng.Document(), "")
-	pasteInput.Style(style.Style{
-		Display:    style.Some(style.DisplayBlock),
-		Width:      style.Some(style.Auto),
-		Background: style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 25, A: 255}),
-		Border:     style.SingleBorder().Color(color.RGBA{R: 100, G: 200, B: 100, A: 255}).Some(),
-		Padding:    style.Some(style.Edges(0, 1)),
-	})
+	pasteInput.Style(inputStyle)
 
 	// 3. Layout
 	root := element.Box(
-		element.Box("📋 Clipboard Integration Showcase").Style(style.Style{
-			Bold:      style.Some(true),
-			TextAlign: style.Some(style.TextAlignCenter),
-			Margin:    style.Some(style.Edges(0, 0, 1, 0)),
-		}),
+		element.Box("📋 Clipboard Integration Showcase").Style(titleStyle),
 
-		element.Box("Source Text (Selectable):").Style(style.Style{Bold: style.Some(true)}),
+		element.Box("Source Text (Selectable):").Style(labelStyle),
 		sourceText,
 
-		element.Box("Paste Target (Input):").Style(style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(1, 0, 0, 0))}),
+		element.Box("Paste Target (Input):").Style(labelWithMarginStyle),
 		pasteInput,
 
-		element.Box("").Style(style.Style{Flex: style.Some(style.Flex(1))}), // Spacer
+		element.Box("").Style(spacerStyle), // Spacer
 
 		element.Box(
-			element.Span("Status: ").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Span(statusText).Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 200, B: 0, A: 255}), Bold: style.Some(true)}),
-		).Style(style.Style{
-			Padding:    style.Some(style.Edges(1)),
-			Background: style.Some[color.Color](color.RGBA{R: 25, G: 25, B: 30, A: 255}),
-			Border:     style.SingleBorder().Top(true).Some(),
-		}),
+			element.Span("Status: ").Style(statusLabelStyle),
+			element.Span(statusText).Style(statusValueStyle),
+		).Style(statusContainerStyle),
 
-		element.Box("Instructions: Ctrl+C (Copy), Ctrl+V (Paste), Q (Quit)").Style(style.Style{
-			Foreground: style.Some[color.Color](color.RGBA{R: 100, G: 100, B: 100, A: 255}),
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-		}),
-	).Style(style.Style{
-		Display:       style.Some(style.DisplayFlex),
-		FlexDirection: style.Some(style.FlexColumn),
-		AlignItems:    style.Some(style.AlignStretch),
-		Width:         style.Some(style.Percent(100)),
-		Height:        style.Some(style.Percent(100)),
-		Background:    style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 20, A: 255}),
-		Padding:       style.Some(style.Edges(1, 2)),
-	})
+		element.Box("Instructions: Ctrl+C (Copy), Ctrl+V (Paste), Q (Quit)").Style(instructionsStyle),
+	).Style(rootStyle)
 
 	// 4. Document-level Event Listeners for feedback
 	eng.Document().AddEventListener(event.EventCopy, func(e event.Event) {

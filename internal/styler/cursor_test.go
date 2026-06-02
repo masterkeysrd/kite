@@ -14,13 +14,11 @@ func TestCursorInheritance(t *testing.T) {
 
 	parent := &fakeNode{
 		kind: 1, // Element
-		rawStyle: style.Style{
-			Cursor: style.Some(style.Cursor{
-				Shape: style.Some(style.CursorBar),
-				Blink: style.Some(false),
-				Color: style.Some[color.Color](color.RGBA{R: 255, G: 0, B: 0, A: 255}),
-			}),
-		},
+		rawStyle: style.S().Cursor(style.Cursor{
+			Shape: style.Some(style.CursorBar),
+			Blink: style.Some(false),
+			Color: style.Some[color.Color](color.RGBA{R: 255, G: 0, B: 0, A: 255}),
+		}),
 	}
 	parentRO := render.NewBox(parent, nil)
 	parentRO.MarkDirty(render.DirtyStyle)
@@ -48,22 +46,18 @@ func TestCursorOverride(t *testing.T) {
 
 	parent := &fakeNode{
 		kind: 1,
-		rawStyle: style.Style{
-			Cursor: style.Some(style.Cursor{
-				Shape: style.Some(style.CursorBar),
-			}),
-		},
+		rawStyle: style.S().Cursor(style.Cursor{
+			Shape: style.Some(style.CursorBar),
+		}),
 	}
 	parentRO := render.NewBox(parent, nil)
 	parentRO.MarkDirty(render.DirtyStyle)
 
 	child := &fakeNode{
 		kind: 1,
-		rawStyle: style.Style{
-			Cursor: style.Some(style.Cursor{
-				Shape: style.Some(style.CursorBlock),
-			}),
-		},
+		rawStyle: style.S().Cursor(style.Cursor{
+			Shape: style.Some(style.CursorBlock),
+		}),
 	}
 	childRO := render.NewBox(child, nil)
 	childRO.MarkDirty(render.DirtyStyle)

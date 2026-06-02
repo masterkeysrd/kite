@@ -55,7 +55,7 @@ type elementBase[Self any] struct {
 
 	// intrinsicStyle holds the UA-mandated forced style for this element.
 	// Properties set here cannot be overridden by the author. Replaced and
-	// compound elements set this in their constructor. Default: empty Style{}.
+	// compound elements set this in their constructor. Default: empty style.S().
 	// See ADR-010.
 	intrinsicStyle style.Style
 
@@ -89,7 +89,7 @@ func (b *elementBase[Self]) DefaultStyle() style.Style { return b.defaultStyle }
 
 // IntrinsicStyle returns the UA-mandated forced style for this element.
 // Properties set here have the highest cascade precedence; authors cannot
-// override them via Style(). Most elements return an empty Style{}. Replaced
+// override them via Style(). Most elements return an empty style.S(). Replaced
 // and compound elements return a sparse Style with UA-forced properties
 // (e.g. Display:InlineBlock, OverflowX:Clip). See ADR-010.
 func (b *elementBase[Self]) IntrinsicStyle() style.Style { return b.intrinsicStyle }
@@ -209,7 +209,7 @@ func (b *elementBase[Self]) AddChild(child dom.Node) *Self {
 // initBase initialises b with the given DOM element, self-pointer and default style.
 // Must be called exactly once, at the end of each element's constructor,
 // before any modifier methods run. The optional intrinsicStyle parameter
-// sets the UA-mandated forced style (ADR-010); pass style.Style{} or omit
+// sets the UA-mandated forced style (ADR-010); pass style.S() or omit
 // when no UA properties need to be forced.
 func (b *elementBase[Self]) initBase(el dom.Element, self *Self, defaultStyle style.Style, intrinsicStyle ...style.Style) {
 	b.Element = el

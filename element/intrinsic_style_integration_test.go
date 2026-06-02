@@ -30,18 +30,15 @@ type intrinsicElement struct {
 
 func newIntrinsicElement(doc dom.Document) *intrinsicElement {
 	e := &intrinsicElement{
-		Element: dom.NewElement(doc, "test-input", nil),
-		intrinsicStyle: style.Style{
-			Display:   style.Some(style.DisplayInlineBlock),
-			OverflowX: style.Some(style.OverflowClip),
-		},
+		Element:        dom.NewElement(doc, "test-input", nil),
+		intrinsicStyle: style.S().Display(style.DisplayInlineBlock).OverflowX(style.OverflowClip),
 	}
 	// Register self as outer so the engine recognises it.
 	return e
 }
 
 func (e *intrinsicElement) RawStyle() style.Style       { return e.rawStyle }
-func (e *intrinsicElement) DefaultStyle() style.Style   { return style.Style{} }
+func (e *intrinsicElement) DefaultStyle() style.Style   { return style.S() }
 func (e *intrinsicElement) IntrinsicStyle() style.Style { return e.intrinsicStyle }
 func (e *intrinsicElement) Unwrap() dom.Node            { return e.Element }
 func (e *intrinsicElement) IsDirtyStyle() bool          { return false }
@@ -71,9 +68,7 @@ func TestIntrinsicStyle_Integration_InlineBlockForced(t *testing.T) {
 	el := newIntrinsicElement(doc)
 
 	// Author tries to override Display to Block.
-	el.rawStyle = style.Style{
-		Display: style.Some(style.DisplayBlock),
-	}
+	el.rawStyle = style.S().Display(style.DisplayBlock)
 
 	// Mount via a wrapper box so the engine sees it.
 	box := dom.NewElement(doc, "box", nil)

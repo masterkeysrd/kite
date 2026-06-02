@@ -33,9 +33,7 @@ func NewCheckbox(doc dom.Document, checked bool) *CheckboxElement {
 	}
 
 	el := doc.CreateElement("checkbox", c)
-	c.initBase(el, c, style.Style{}, style.Style{
-		Display: style.Some(style.DisplayInlineBlock),
-	})
+	c.initBase(el, c, style.S(), style.S().Display(style.DisplayInlineBlock))
 
 	// UA Shadow Subtree: a box containing the glyph text.
 	c.uaText = doc.CreateTextNode(c.currentGlyph(), nil)

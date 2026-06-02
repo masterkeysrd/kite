@@ -14,10 +14,8 @@ func TestResolver_ElementDefaults_AppliedBeforeInheritance(t *testing.T) {
 	r := styler.NewResolver()
 
 	node := &fakeNode{
-		kind: dom.KindElement,
-		elementDefaultStyle: style.Style{
-			Display: style.Some(style.DisplayInline),
-		},
+		kind:                dom.KindElement,
+		elementDefaultStyle: style.S().Display(style.DisplayInline),
 	}
 	ro := render.NewBox(node, nil)
 	ro.MarkDirty(render.DirtyStyle)
@@ -39,10 +37,8 @@ func TestResolver_ElementDefaults_InheritanceOverridesElementDefault(t *testing.
 
 	defaultFG := color.RGBA{R: 255, G: 0, B: 0, A: 255}
 	node := &fakeNode{
-		kind: dom.KindElement,
-		elementDefaultStyle: style.Style{
-			Foreground: style.Some[color.Color](defaultFG),
-		},
+		kind:                dom.KindElement,
+		elementDefaultStyle: style.S().Foreground(defaultFG),
 	}
 	ro := render.NewBox(node, nil)
 	ro.MarkDirty(render.DirtyStyle)
@@ -59,13 +55,9 @@ func TestResolver_ElementDefaults_OverriddenByExplicitStyle(t *testing.T) {
 	r := styler.NewResolver()
 
 	node := &fakeNode{
-		kind: dom.KindElement,
-		elementDefaultStyle: style.Style{
-			Display: style.Some(style.DisplayInline),
-		},
-		rawStyle: style.Style{
-			Display: style.Some(style.DisplayFlex),
-		},
+		kind:                dom.KindElement,
+		elementDefaultStyle: style.S().Display(style.DisplayInline),
+		rawStyle:            style.S().Display(style.DisplayFlex),
 	}
 	ro := render.NewBox(node, nil)
 	ro.MarkDirty(render.DirtyStyle)
@@ -83,7 +75,7 @@ func TestResolver_ElementDefaults_ZeroStyleIsNoop(t *testing.T) {
 	want := style.DefaultStyle()
 	node := &fakeNode{
 		kind:                dom.KindElement,
-		elementDefaultStyle: style.Style{}, // all unset
+		elementDefaultStyle: style.S(), // all unset
 	}
 	ro := render.NewBox(node, nil)
 	ro.MarkDirty(render.DirtyStyle)
@@ -99,8 +91,8 @@ func TestResolver_ElementDefaults_ZeroStyleIsNoop(t *testing.T) {
 func TestStyleSheet_Create_ValidatesEntries(t *testing.T) {
 	t.Run("ValidSheet", func(t *testing.T) {
 		_, err := style.NewSheet(map[string]style.Style{
-			"button": {Display: style.Some(style.DisplayFlex)},
-			"label":  {Display: style.Some(style.DisplayInline)},
+			"button": style.S().Display(style.DisplayFlex),
+			"label":  style.S().Display(style.DisplayInline),
 		})
 		if err != nil {
 			t.Errorf("NewSheet with valid styles returned error: %v", err)
@@ -109,7 +101,7 @@ func TestStyleSheet_Create_ValidatesEntries(t *testing.T) {
 
 	t.Run("EmptyKeyRejected", func(t *testing.T) {
 		_, err := style.NewSheet(map[string]style.Style{
-			"": {Display: style.Some(style.DisplayBlock)},
+			"": style.S().Display(style.DisplayBlock),
 		})
 		if err == nil {
 			t.Error("NewSheet with empty key must return an error")
@@ -118,9 +110,7 @@ func TestStyleSheet_Create_ValidatesEntries(t *testing.T) {
 
 	t.Run("NegativePaddingRejected", func(t *testing.T) {
 		_, err := style.NewSheet(map[string]style.Style{
-			"bad": {
-				Padding: style.Some(style.Edges(-1)),
-			},
+			"bad": style.S().Padding(style.Edges(-1)),
 		})
 		if err == nil {
 			t.Error("NewSheet with negative padding must return an error")
