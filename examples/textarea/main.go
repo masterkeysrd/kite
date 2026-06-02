@@ -26,6 +26,10 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	statusRowStyle = style.S().Margin(style.Edges(1, 0, 0, 0))
+)
+
 // ── palette ──────────────────────────────────────────────────────────────────
 
 var (
@@ -77,14 +81,7 @@ func main() {
 		" • LongUnbreakableRunsThatEmergencyWrap"
 
 	txa := element.NewTextArea(eng.Document(), initialText)
-	txa.Style(style.Style{
-		Width:      style.Some(style.Cells(50)),
-		Height:     style.Some(style.Cells(10)),
-		Background: style.Some[color.Color](colCard),
-		Foreground: style.Some[color.Color](color.RGBA{R: 220, G: 225, B: 255, A: 255}),
-		Border:     style.SingleBorder().Color(colBorder).Some(),
-		Padding:    style.Some(style.Edges(0, 1)),
-	})
+	txa.Style(style.S().Width(style.Cells(50)).Height(style.Cells(10)).Background(colCard).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
 
 	// ── status bar ───────────────────────────────────────────────────────────
 	statusText := element.Text("Pos: (0, 0)")
@@ -103,53 +100,27 @@ func main() {
 	root := element.Box(
 		element.Box(
 			// Title
-			element.Box("  Kite Text Editor  ").Style(style.Style{
-				Foreground: style.Some[color.Color](colTitle),
-				Bold:       style.Some(true),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box("  Kite Text Editor  ").Style(style.S().Foreground(colTitle).Bold(true).Margin(style.Edges(0, 0, 1, 0))),
 
 			// Editor
 			txa,
 
 			// Status Bar
 			element.Box(
-				element.Span("Status: ").Style(style.Style{Foreground: style.Some[color.Color](colHint)}),
-				element.Span(statusText).Style(style.Style{Foreground: style.Some[color.Color](colStatus), Bold: style.Some(true)}),
-			).Style(style.Style{
-				Margin: style.Some(style.Edges(1, 0, 0, 0)),
-			}),
+				element.Span("Status: ").Style(style.S().Foreground(colHint)),
+				element.Span(statusText).Style(style.S().Foreground(colStatus).Bold(true)),
+			).Style(statusRowStyle),
 
 			// Help Hints
 			element.Box(
-				element.Span(" Arrows").Style(style.Style{
-					Background: style.Some[color.Color](colBorder),
-					Foreground: style.Some[color.Color](colTitle),
-					Padding:    style.Some(style.Edges(0, 1)),
-				}),
-				element.Span(" navigate  ").Style(style.Style{Foreground: style.Some[color.Color](colHint)}),
-				element.Span(" Enter").Style(style.Style{
-					Background: style.Some[color.Color](colBorder),
-					Foreground: style.Some[color.Color](colTitle),
-					Padding:    style.Some(style.Edges(0, 1)),
-				}),
-				element.Span(" newline  ").Style(style.Style{Foreground: style.Some[color.Color](colHint)}),
-				element.Span(" Q").Style(style.Style{
-					Background: style.Some[color.Color](colBorder),
-					Foreground: style.Some[color.Color](colTitle),
-					Padding:    style.Some(style.Edges(0, 1)),
-				}),
-				element.Span(" quit").Style(style.Style{Foreground: style.Some[color.Color](colHint)}),
-			).Style(style.Style{
-				Margin: style.Some(style.Edges(1, 0, 0, 0)),
-			}),
-		).Style(style.Style{
-			Padding:       style.Some(style.Edges(1, 2)),
-			Background:    style.Some[color.Color](colBG),
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			AlignItems:    style.Some(style.AlignStart),
-		}),
+				element.Span(" Arrows").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(style.Edges(0, 1))),
+				element.Span(" navigate  ").Style(style.S().Foreground(colHint)),
+				element.Span(" Enter").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(style.Edges(0, 1))),
+				element.Span(" newline  ").Style(style.S().Foreground(colHint)),
+				element.Span(" Q").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(style.Edges(0, 1))),
+				element.Span(" quit").Style(style.S().Foreground(colHint)),
+			).Style(statusRowStyle),
+		).Style(style.S().Padding(style.Edges(1, 2)).Background(colBG).Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart)),
 	)
 
 	// ── engine run ───────────────────────────────────────────────────────────

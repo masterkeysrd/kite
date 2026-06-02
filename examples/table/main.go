@@ -18,35 +18,30 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	defaultCellStyle       = style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}))
+	tableGridStyle         = style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 255, B: 100, A: 255}))
+	rowStyle               = style.S().Width(style.Percent(50)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}))
+	nameColumnStyle        = style.S().Width(style.Cells(15)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}))
+	roleColumnStyle        = style.S().Width(style.Cells(20)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}))
+	wellFormedTableStyle   = style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255}))
+	sectionHeaderStyle     = style.S().Margin(style.Edges(1, 0))
+	col1WidthStyle         = style.S().Width(style.Cells(15))
+	col2WidthStyle         = style.S().Width(style.Cells(20))
+	malformedTableStyle    = style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255}))
+	tableHeaderBorderStyle = style.S().Border(style.SingleBorder().Top(false).Right(false).Left(false))
+	tableFooterBorderStyle = style.S().Border(style.SingleBorder().Bottom(false).Right(false).Left(false))
+	rootStyle              = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(style.Edges(2, 4)).Gap(style.Gap(2, 0))
+)
+
 var styles = map[string]style.Style{
-	"title": {
-		Width:  style.Some(style.Percent(100)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
-	},
-	"table": {
-		Width:  style.Some(style.Percent(100)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Some(),
-	},
-	"th": {
-		Width:  style.Some(style.Percent(50)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
-	},
-	"tr": {
-		Width:  style.Some(style.Percent(50)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
-	},
-	"name_cell": {
-		Width:  style.Some(style.Cells(15)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
-	},
-	"role_cell": {
-		Width:  style.Some(style.Cells(20)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
-	},
-	"cell": {
-		Width:  style.Some(style.Percent(100)),
-		Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}).Some(),
-	},
+	"title":     defaultCellStyle,
+	"table":     tableGridStyle,
+	"th":        rowStyle,
+	"tr":        rowStyle,
+	"name_cell": nameColumnStyle,
+	"role_cell": roleColumnStyle,
+	"cell":      defaultCellStyle,
 }
 
 func main() {
@@ -89,33 +84,25 @@ func main() {
 					Style(styles["cell"]).
 					SetColSpan(2),
 			).Style(styles["tr"]),
-		).Style(style.Style{
-			Width:  style.Some(style.Percent(100)),
-			Border: style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255}).Some(),
-		}),
+		).Style(wellFormedTableStyle),
 
 		// Table 2: Malformed Table
-		element.Box("Malformed Table (Cells without Rows)").Style(style.Style{Margin: style.Some(style.Edges(1, 0))}),
+		element.Box("Malformed Table (Cells without Rows)").Style(sectionHeaderStyle),
 		element.Table(
 			// Directly add cells to table
-			element.TD("Direct Cell 1").Style(style.Style{Width: style.Some(style.Cells(15))}),
-			element.TD("Direct Cell 2").Style(style.Style{Width: style.Some(style.Cells(20))}),
-		).Style(style.Style{
-			Width:  style.Some(style.Percent(100)),
-			Border: style.SingleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255}).Some(),
-		}),
+			element.TD("Direct Cell 1").Style(col1WidthStyle),
+			element.TD("Direct Cell 2").Style(col2WidthStyle),
+		).Style(malformedTableStyle),
 
 		// Table 3: Grouped Table (thead, tbody, tfoot)
-		element.Box("Grouped Table (thead, tbody, tfoot)").Style(style.Style{Margin: style.Some(style.Edges(1, 0))}),
+		element.Box("Grouped Table (thead, tbody, tfoot)").Style(sectionHeaderStyle),
 		element.Table(
 			element.THead(
 				element.TR(
-					element.TD("Header Col 1").Style(style.Style{Width: style.Some(style.Cells(15))}),
-					element.TD("Header Col 2").Style(style.Style{Width: style.Some(style.Cells(20))}),
+					element.TD("Header Col 1").Style(col1WidthStyle),
+					element.TD("Header Col 2").Style(col2WidthStyle),
 				),
-			).Style(style.Style{
-				Border: style.SingleBorder().Top(false).Right(false).Left(false).Some(),
-			}),
+			).Style(tableHeaderBorderStyle),
 			element.TBody(
 				element.TR(
 					element.TD("Body Row 1, C1"),
@@ -131,22 +118,9 @@ func main() {
 					element.TD("Footer 1"),
 					element.TD("Footer 2"),
 				),
-			).Style(style.Style{
-				Border: style.SingleBorder().Bottom(false).Right(false).Left(false).Some(),
-			}),
-		).Style(style.Style{
-			Width:  style.Some(style.Percent(100)),
-			Border: style.SingleBorder().Color(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Some(),
-		}),
-	).Style(style.Style{
-		Display:       style.Some(style.DisplayFlex),
-		FlexDirection: style.Some(style.FlexColumn),
-		Width:         style.Some(style.Percent(100)),
-		Height:        style.Some(style.Percent(100)),
-		Background:    style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 30, A: 255}),
-		Padding:       style.Some(style.Edges(2, 4)),
-		Gap:           style.Some(style.Gap(2, 0)),
-	})
+			).Style(tableFooterBorderStyle),
+		).Style(tableGridStyle),
+	).Style(rootStyle)
 
 	eng.Mount(ui)
 

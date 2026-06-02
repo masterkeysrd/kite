@@ -117,7 +117,7 @@ func (e *Element) Children() iter.Seq[dom.Node] {
 // It delegates to the user-visible wrapper (outer) if it's a specialized implementation.
 func (e *Element) IntrinsicStyle() style.Style {
 	if e.inIntrinsicStyle {
-		return style.Style{}
+		return style.S()
 	}
 	e.inIntrinsicStyle = true
 
@@ -136,7 +136,7 @@ func (e *Element) IntrinsicStyle() style.Style {
 
 func (e *Element) RawStyle() style.Style {
 	if e.inRawStyle {
-		return style.Style{}
+		return style.S()
 	}
 	e.inRawStyle = true
 
@@ -155,7 +155,7 @@ func (e *Element) RawStyle() style.Style {
 
 func (e *Element) DefaultStyle() style.Style {
 	if e.inDefaultStyle {
-		return style.Style{}
+		return style.S()
 	}
 	e.inDefaultStyle = true
 

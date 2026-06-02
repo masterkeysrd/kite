@@ -46,10 +46,7 @@ func TestTextControlBase_ScrollCursorIntoView_UpdatesYScroll(t *testing.T) {
 	// The text.Buffer places the cursor at the end by default, i.e. line 9.
 	text := "line0\nline1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9"
 	txa := element.NewTextArea(eng.Document(), text)
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(3)), // only 3 rows visible
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(3)))
 	root := element.Box(txa)
 	eng.Mount(root)
 
@@ -85,10 +82,7 @@ func TestTextControlBase_ScrollCursorIntoView_ScrollsUpWhenCursorAboveView(t *te
 
 	text := "line0\nline1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9"
 	txa := element.NewTextArea(eng.Document(), text)
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(3)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(3)))
 	root := element.Box(txa)
 	eng.Mount(root)
 	eng.Frame()
@@ -127,9 +121,7 @@ func TestTextControlBase_ScrollCursorIntoView_InputIgnoresYScroll(t *testing.T) 
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.Style{
-		Width: style.Some(style.Cells(5)),
-	})
+	inp.Style(style.S().Width(style.Cells(5)))
 	root := element.Box(inp)
 	eng.Mount(root)
 	eng.Frame()
@@ -180,10 +172,7 @@ func TestTextControlBase_MouseDown_HitTest_AfterScroll(t *testing.T) {
 	// line4 → offset 24–28
 	text := "line0\nline1\nline2\nline3\nline4"
 	txa := element.NewTextArea(eng.Document(), text)
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(2)), // only 2 rows visible
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(2)))
 	root := element.Box(txa)
 	eng.Mount(root)
 	eng.Frame()

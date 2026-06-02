@@ -17,6 +17,14 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	listHeaderStyle       = style.S().Margin(style.Edges(1, 0, 0, 0)).Underline(true)
+	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Bold(true)
+	squareListStyle       = style.S().ListStyleType(style.ListStyleSquare)
+	contentContainerStyle = style.S().Width(style.Percent(90)).Margin(style.Edges(1, 0)).Padding(style.Edges(1, 2)).Border(style.SingleBorder())
+	rootStyle             = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(style.Edges(1, 2)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+)
+
 func main() {
 	var b backend.Backend
 	f, _ := os.Create("kite.log")
@@ -38,15 +46,11 @@ func main() {
 
 	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
 
-	headerStyle := style.Style{Margin: style.Some(style.Edges(1, 0, 0, 0)), Underline: style.Some(true)}
+	headerStyle := listHeaderStyle
 
 	root := element.Box(
 		element.Box(
-			element.Box("Kite List Components Demonstration").Style(style.Style{
-				TextAlign: style.Some(style.TextAlignCenter),
-				Margin:    style.Some(style.Edges(0, 0, 1, 0)),
-				Bold:      style.Some(true),
-			}),
+			element.Box("Kite List Components Demonstration").Style(titleStyle),
 
 			// 1. Unordered List (Disc)
 			element.Box("Unordered List (Default: Disc)").Style(headerStyle),
@@ -69,9 +73,7 @@ func main() {
 			element.UL(
 				element.LI("Customized UL"),
 				element.LI("Uses Square markers via inheritance"),
-			).Style(style.Style{
-				ListStyleType: style.Some(style.ListStyleSquare),
-			}),
+			).Style(squareListStyle),
 
 			// 4. Nested Lists
 			element.Box("Nested Lists").Style(headerStyle),
@@ -85,18 +87,8 @@ func main() {
 				),
 				element.LI("Another parent item"),
 			),
-		).Style(style.Style{
-			Width:   style.Some(style.Percent(90)),
-			Margin:  style.Some(style.Edges(1, 0)),
-			Padding: style.Some(style.Edges(1, 2)),
-			Border:  style.SingleBorder().Some(),
-		}),
-	).Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Percent(100)),
-		Padding:    style.Some(style.Edges(1, 2)),
-		Background: style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 20, A: 255}),
-	})
+		).Style(contentContainerStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 

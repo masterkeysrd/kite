@@ -17,6 +17,23 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	appContainerStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 26, A: 255}).Padding(style.Edges(1, 2))
+	appTitleStyle       = style.S().Bold(true).Foreground(color.RGBA{R: 242, G: 194, B: 48, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	appDescriptionStyle = style.S().Foreground(color.RGBA{R: 160, G: 160, B: 180, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	card1Style          = style.S().Border(style.SingleBorder()).Padding(style.Edges(1, 1)).Margin(style.Edges(0, 0, 1, 0)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255})
+	sectionHeaderStyle  = style.S().Bold(true).Margin(style.Edges(0, 0, 1, 0))
+	contentRowStyle     = style.S().Margin(style.Edges(0, 0, 1, 0))
+	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow)
+	incrementBtnStyle   = style.S().Background(color.RGBA{R: 70, G: 130, B: 180, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	forceRenderBtnStyle = style.S().Background(color.RGBA{R: 60, G: 179, B: 113, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	card2Style          = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Border(style.SingleBorder()).Padding(style.Edges(1, 1)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255})
+	inputRowStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	inputFieldStyle     = style.S().Background(color.RGBA{R: 50, G: 50, B: 60, A: 255}).Foreground(color.White).Border(style.SingleBorder()).Padding(style.Edges(0, 1))
+	focusBtnStyle       = style.S().Background(color.RGBA{R: 219, G: 112, B: 147, A: 255}).Foreground(color.White)
+	rootStyle           = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 // App is the root functional component.
 var App = kitex.SimpleFC("App", func() kitex.Node {
 	// Dummy state to force a re-render
@@ -50,129 +67,79 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			Width:         style.Some(style.Percent(100)),
-			Height:        style.Some(style.Percent(100)),
-			Background:    style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 26, A: 255}),
-			Padding:       style.Some(style.Edges(1, 2)),
-		},
+		Style: appContainerStyle,
 	},
 		// Title
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 242, G: 194, B: 48, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appTitleStyle,
 		}, kitex.Text("✨ Kitex Ref & Hook Demonstration ✨")),
 
 		// Instructions
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 160, G: 160, B: 180, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: appDescriptionStyle,
 		}, kitex.Text("Press 'q' to Quit. This demo shows how UseRef stores persistent mutable values without triggering re-renders, and how it binds to real DOM elements.")),
 
 		// Section 1: Non-rendering Ref state
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Border:     style.SingleBorder().Some(),
-				Padding:    style.Some(style.Edges(1, 1)),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				Background: style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 40, A: 255}),
-			},
+			Style: card1Style,
 		},
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 1, 0))},
+				Style: sectionHeaderStyle,
 			}, kitex.Text("1. Non-Rendering Ref State")),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{Margin: style.Some(style.Edges(0, 0, 1, 0))},
+				Style: contentRowStyle,
 			}, kitex.Text(fmt.Sprintf("Ref Clicks (won't update UI directly): %d", clicksRef.Current))),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{Margin: style.Some(style.Edges(0, 0, 1, 0))},
+				Style: contentRowStyle,
 			}, kitex.Text(fmt.Sprintf("Total Renders (force-render to update UI): %d", getRenderCount()))),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{Display: style.Some(style.DisplayFlex), FlexDirection: style.Some(style.FlexRow)},
+				Style: buttonRowStyle,
 			},
 				kitex.Button(kitex.ButtonProps{
 					OnClick: handleRefClick,
-					Style: style.Style{
-						Background: style.Some[color.Color](color.RGBA{R: 70, G: 130, B: 180, A: 255}),
-						Foreground: style.Some[color.Color](color.White),
-						Margin:     style.Some(style.Edges(0, 1)),
-					},
+					Style:   incrementBtnStyle,
 				}, kitex.Text(" Increment Ref Clicks ")),
 
 				// Force render button
 				kitex.Button(kitex.ButtonProps{
 					OnClick: handleForceRender,
-					Style: style.Style{
-						Background: style.Some[color.Color](color.RGBA{R: 60, G: 179, B: 113, A: 255}),
-						Foreground: style.Some[color.Color](color.White),
-						Margin:     style.Some(style.Edges(0, 1)),
-					},
+					Style:   forceRenderBtnStyle,
 				}, kitex.Text(" Force Render ")),
 			),
 		),
 
 		// Section 2: DOM Element Ref Wiring
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexColumn),
-				Border:        style.SingleBorder().Some(),
-				Padding:       style.Some(style.Edges(1, 1)),
-				Background:    style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 40, A: 255}),
-			},
+			Style: card2Style,
 		},
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 1, 0))},
+				Style: sectionHeaderStyle,
 			}, kitex.Text("2. DOM Element Ref Wiring & Programmatic Focus")),
 
 			// Ref wiring instructions
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{Margin: style.Some(style.Edges(0, 0, 1, 0))},
+				Style: contentRowStyle,
 			}, kitex.Text("Use the button below to programmatically focus the input field using its Ref pointer:")),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexRow),
-					AlignItems:    style.Some(style.AlignCenter),
-					Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-				},
+				Style: inputRowStyle,
 			},
 				kitex.Input(kitex.InputProps{
 					Ref:   inputRef,
 					Value: "Focus me programmatically!",
-					Style: style.Style{
-						Background: style.Some[color.Color](color.RGBA{R: 50, G: 50, B: 60, A: 255}),
-						Foreground: style.Some[color.Color](color.White),
-						Border:     style.SingleBorder().Some(),
-						Padding:    style.Some(style.Edges(0, 1)),
-					},
+					Style: inputFieldStyle,
 				}),
 			),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexRow),
-				},
+				Style: buttonRowStyle,
 			},
 				kitex.Button(kitex.ButtonProps{
 					OnClick: handleFocusInput,
-					Style: style.Style{
-						Background: style.Some[color.Color](color.RGBA{R: 219, G: 112, B: 147, A: 255}),
-						Foreground: style.Some[color.Color](color.White),
-					},
+					Style:   focusBtnStyle,
 				}, kitex.Text(" Focus Input Field via Ref ")),
 			),
 		),
@@ -194,10 +161,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger})
 
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true

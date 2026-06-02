@@ -15,15 +15,8 @@ func TestPaint_ScrollbarRendering(t *testing.T) {
 	// Create a scrollable box with a scrollbar.
 	// We use a large inner box to ensure overflow.
 	box := element.Box(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(10)),
-			Height: style.Some(style.Cells(20)),
-		}),
-	).Style(style.Style{
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(5)),
-		OverflowY: style.Some(style.OverflowScroll),
-	}).ScrollbarY(true)
+		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(20))),
+	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).OverflowY(style.OverflowScroll)).ScrollbarY(true)
 
 	env.Mount(box)
 	env.Flush()
@@ -56,15 +49,8 @@ func TestPaint_HorizontalScrollbarRendering(t *testing.T) {
 
 	// Create a horizontally scrollable box.
 	box := element.Box(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(20)),
-			Height: style.Some(style.Cells(5)),
-		}),
-	).Style(style.Style{
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(5)),
-		OverflowX: style.Some(style.OverflowScroll),
-	}).ScrollbarX(true)
+		element.Box().Style(style.S().Width(style.Cells(20)).Height(style.Cells(5))),
+	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).OverflowX(style.OverflowScroll)).ScrollbarX(true)
 
 	env.Mount(box)
 	env.Flush()
@@ -100,15 +86,8 @@ func TestPaint_ScrollbarAutoHidden(t *testing.T) {
 
 	// Create a box with OverflowAuto and ScrollbarY=true, but NO overflow.
 	box := element.Box(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(10)),
-			Height: style.Some(style.Cells(2)),
-		}),
-	).Style(style.Style{
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(5)),
-		OverflowY: style.Some(style.OverflowAuto),
-	}).ScrollbarY(true)
+		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(2))),
+	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).OverflowY(style.OverflowAuto)).ScrollbarY(true)
 
 	env.Mount(box)
 	env.Flush()
@@ -125,15 +104,8 @@ func TestPaint_ScrollbarAutoShown(t *testing.T) {
 
 	// Create a box with OverflowAuto and ScrollbarY=true, WITH overflow.
 	box := element.Box(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(10)),
-			Height: style.Some(style.Cells(10)),
-		}),
-	).Style(style.Style{
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(5)),
-		OverflowY: style.Some(style.OverflowAuto),
-	}).ScrollbarY(true)
+		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(10))),
+	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).OverflowY(style.OverflowAuto)).ScrollbarY(true)
 
 	env.Mount(box)
 	env.Flush()
@@ -149,17 +121,8 @@ func TestPaint_ScrollbarWithBorderPadding(t *testing.T) {
 
 	// Create a box with border, padding and overflow.
 	box := element.Box(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(10)),
-			Height: style.Some(style.Cells(20)),
-		}),
-	).Style(style.Style{
-		Width:     style.Some(style.Cells(10)),
-		Height:    style.Some(style.Cells(5)),
-		Border:    style.SingleBorder().Some(),
-		Padding:   style.Some(style.Edges(1)),
-		OverflowY: style.Some(style.OverflowAuto),
-	}).ScrollbarY(true)
+		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(20))),
+	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).Border(style.SingleBorder()).Padding(style.Edges(1)).OverflowY(style.OverflowAuto)).ScrollbarY(true)
 
 	env.Mount(box)
 	env.Flush()

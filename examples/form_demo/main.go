@@ -18,6 +18,17 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	flexColStyle            = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn)
+	fieldWrapperStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Margin(style.Edges(0, 0, 1, 0))
+	fullWidthStyle          = style.S().Width(style.Percent(100))
+	flexRowStyle            = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow)
+	radioOptionWrapperStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 2, 0, 0))
+	radioOptionAlignStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter)
+	checkboxWrapperStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	hostContainerStyle      = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 // Sleek dark palette for a premium feel
 var (
 	colBG        = color.RGBA{R: 15, G: 16, B: 22, A: 255}    // Deep space black
@@ -68,115 +79,65 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	s := f.State()
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexColumn),
-			JustifyContent: style.Some(style.JustifyCenter),
-			AlignItems:     style.Some(style.AlignCenter),
-			Width:          style.Some(style.Percent(100)),
-			Height:         style.Some(style.Percent(100)),
-			Background:     style.Some[color.Color](colBG),
-		},
+		Style: flexColStyle.JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG),
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexColumn),
-				Width:         style.Some(style.Cells(50)),
-				Background:    style.Some[color.Color](colCard),
-				Border:        style.SingleBorder().Color(colBorder).Some(),
-				Padding:       style.Some(style.Edges(1, 2)),
-			},
+			Style: flexColStyle.Width(style.Cells(50)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(1, 2)),
 		},
 			// Success Notification
 			kitex.If(notification() != "",
 				kitex.Box(kitex.BoxProps{
-					Style: style.Style{
-						Background: style.Some[color.Color](colAccent),
-						Foreground: style.Some[color.Color](colBG),
-						Padding:    style.Some(style.Edges(0, 1)),
-						Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-						Bold:       style.Some(true),
-						TextAlign:  style.Some(style.TextAlignCenter),
-					},
+					Style: style.S().Background(colAccent).Foreground(colBG).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 0, 1, 0)).Bold(true).TextAlign(style.TextAlignCenter),
 				}, kitex.Text(notification())),
 			),
 
 			// Title
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Foreground: style.Some[color.Color](colText),
-					Bold:       style.Some(true),
-					TextAlign:  style.Some(style.TextAlignCenter),
-					Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				},
+				Style: style.S().Foreground(colText).Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)),
 			}, kitex.Text("   Create Cyber Profile   ")),
 
 			// Divider
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Width:      style.Some(style.Percent(100)),
-					Height:     style.Some(style.Cells(1)),
-					Background: style.Some[color.Color](colSeparator),
-					Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				},
+				Style: fullWidthStyle.Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(0, 0, 1, 0)),
 			}),
 
 			// Form Wrapper
 			kitex.Form(kitex.FormProps{
 				OnSubmit: f.HandleSubmit,
-				Style: style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexColumn),
-				},
+				Style:    flexColStyle,
 			},
 				// Field: Username Box
 				kitex.Box(kitex.BoxProps{
-					Style: style.Style{
-						Display:       style.Some(style.DisplayFlex),
-						FlexDirection: style.Some(style.FlexColumn),
-						Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-					},
+					Style: fieldWrapperStyle,
 				},
 					kitex.Span(kitex.SpanProps{
-						Style: style.Style{Foreground: style.Some[color.Color](colLabel)},
+						Style: style.S().Foreground(colLabel),
 					}, kitex.Text("Username")),
 					kitex.Input(kitex.InputProps{
 						Name:     "username",
 						Value:    s.Values.Username,
 						Disabled: s.IsSubmitting,
-						Style: style.Style{
-							Width:      style.Some(style.Percent(100)),
-							Background: style.Some[color.Color](colInputBG),
-							Border:     style.SingleBorder().Color(colBorder).Some(),
-							Padding:    style.Some(style.Edges(0, 1)),
-						},
+						Style:    fullWidthStyle.Background(colInputBG).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)),
 					}),
 					kitex.If(s.Errors["username"] != "",
 						kitex.Span(kitex.SpanProps{
-							Style: style.Style{Foreground: style.Some[color.Color](colError)},
+							Style: style.S().Foreground(colError),
 						}, kitex.Text(s.Errors["username"])),
 					),
 				),
 
 				// Field: Role (Select Dropdown) Box
 				kitex.Box(kitex.BoxProps{
-					Style: style.Style{
-						Display:       style.Some(style.DisplayFlex),
-						FlexDirection: style.Some(style.FlexColumn),
-						Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-					},
+					Style: fieldWrapperStyle,
 				},
 					kitex.Span(kitex.SpanProps{
-						Style: style.Style{Foreground: style.Some[color.Color](colLabel)},
+						Style: style.S().Foreground(colLabel),
 					}, kitex.Text("Access Class")),
 					kitex.Select(kitex.SelectProps{
 						Name:     "access_class",
 						Value:    s.Values.AccessClass,
 						Disabled: s.IsSubmitting,
-						Style: style.Style{
-							Width: style.Some(style.Percent(100)),
-						},
+						Style:    fullWidthStyle,
 					},
 						kitex.Option(kitex.OptionProps{Text: "Administrator", Value: "admin"}),
 						kitex.Option(kitex.OptionProps{Text: "Operator", Value: "operator"}),
@@ -186,46 +147,30 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 				// Field: Theme (Radio Group) Box
 				kitex.Box(kitex.BoxProps{
-					Style: style.Style{
-						Display:       style.Some(style.DisplayFlex),
-						FlexDirection: style.Some(style.FlexColumn),
-						Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-					},
+					Style: fieldWrapperStyle,
 				},
 					kitex.Span(kitex.SpanProps{
-						Style: style.Style{Foreground: style.Some[color.Color](colLabel)},
+						Style: style.S().Foreground(colLabel),
 					}, kitex.Text("Visual Spectrum")),
 					kitex.RadioGroup(kitex.RadioGroupProps{
 						Value:    s.Values.Theme,
 						Disabled: s.IsSubmitting,
-						Style: style.Style{
-							Display:       style.Some(style.DisplayFlex),
-							FlexDirection: style.Some(style.FlexRow),
-						},
+						Style:    flexRowStyle,
 					},
 						kitex.Box(kitex.BoxProps{
-							Style: style.Style{
-								Display:       style.Some(style.DisplayFlex),
-								FlexDirection: style.Some(style.FlexRow),
-								AlignItems:    style.Some(style.AlignCenter),
-								Margin:        style.Some(style.Edges(0, 2, 0, 0)),
-							},
+							Style: radioOptionWrapperStyle,
 						},
 							kitex.Radio(kitex.RadioProps{Name: "theme", Value: "emerald"}),
 							kitex.Span(kitex.SpanProps{
-								Style: style.Style{Foreground: style.Some[color.Color](colText), Margin: style.Some(style.Edges(0, 0, 0, 1))},
+								Style: style.S().Foreground(colText).Margin(style.Edges(0, 0, 0, 1)),
 							}, kitex.Text("Emerald")),
 						),
 						kitex.Box(kitex.BoxProps{
-							Style: style.Style{
-								Display:       style.Some(style.DisplayFlex),
-								FlexDirection: style.Some(style.FlexRow),
-								AlignItems:    style.Some(style.AlignCenter),
-							},
+							Style: radioOptionAlignStyle,
 						},
 							kitex.Radio(kitex.RadioProps{Name: "theme", Value: "amber"}),
 							kitex.Span(kitex.SpanProps{
-								Style: style.Style{Foreground: style.Some[color.Color](colText), Margin: style.Some(style.Edges(0, 0, 0, 1))},
+								Style: style.S().Foreground(colText).Margin(style.Edges(0, 0, 0, 1)),
 							}, kitex.Text("Amber")),
 						),
 					),
@@ -233,12 +178,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 				// Field: Terms (Checkbox)
 				kitex.Box(kitex.BoxProps{
-					Style: style.Style{
-						Display:       style.Some(style.DisplayFlex),
-						FlexDirection: style.Some(style.FlexRow),
-						AlignItems:    style.Some(style.AlignCenter),
-						Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-					},
+					Style: checkboxWrapperStyle,
 				},
 					kitex.Checkbox(kitex.CheckboxProps{
 						Name:     "newsletter",
@@ -246,7 +186,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Disabled: s.IsSubmitting,
 					}),
 					kitex.Span(kitex.SpanProps{
-						Style: style.Style{Foreground: style.Some[color.Color](colText), Margin: style.Some(style.Edges(0, 0, 0, 1))},
+						Style: style.S().Foreground(colText).Margin(style.Edges(0, 0, 0, 1)),
 					}, kitex.Text("Subscribe to intel feed")),
 				),
 
@@ -254,17 +194,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				kitex.Button(kitex.ButtonProps{
 					Type:     "submit",
 					Disabled: s.IsSubmitting,
-					Style: style.Style{
-						Display:        style.Some(style.DisplayFlex),
-						JustifyContent: style.Some(style.JustifyCenter),
-						AlignItems:     style.Some(style.AlignCenter),
-						Background:     style.Some[color.Color](colButtonBG),
-						Foreground:     style.Some[color.Color](colText),
-						Border:         style.SingleBorder().Color(colBorder).Some(),
-						Padding:        style.Some(style.Edges(0, 2)),
-						Height:         style.Some(style.Cells(3)),
-						Margin:         style.Some(style.Edges(1, 0, 0, 0)),
-					},
+					Style:    style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Background(colButtonBG).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 2)).Height(style.Cells(3)).Margin(style.Edges(1, 0, 0, 0)),
 				}, kitex.Text(func() string {
 					if s.IsSubmitting {
 						return "Processing..."
@@ -275,28 +205,20 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 			// Divider
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Width:      style.Some(style.Percent(100)),
-					Height:     style.Some(style.Cells(1)),
-					Background: style.Some[color.Color](colSeparator),
-					Margin:     style.Some(style.Edges(1, 0, 1, 0)),
-				},
+				Style: fullWidthStyle.Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(1, 0, 1, 0)),
 			}),
 
 			// Submitted Data Preview
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexColumn),
-				},
+				Style: flexColStyle,
 			},
 				kitex.Span(kitex.SpanProps{
-					Style: style.Style{Foreground: style.Some[color.Color](colLabel), Bold: style.Some(true)},
+					Style: style.S().Foreground(colLabel).Bold(true),
 				}, kitex.Text("Decrypted Transmission Payload:")),
 
 				kitex.IfElse(hasSubmitted() || s.IsSubmitting,
 					kitex.Span(kitex.SpanProps{
-						Style: style.Style{Foreground: style.Some[color.Color](colAccent), Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 0, 0))},
+						Style: style.S().Foreground(colAccent).Bold(true).Margin(style.Edges(0, 0, 0, 0)),
 					}, kitex.Text(func() string {
 						if s.IsSubmitting {
 							return "Encrypting packet..."
@@ -305,7 +227,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 							s.Values.Username, s.Values.AccessClass, s.Values.Theme, s.Values.Newsletter)
 					}())),
 					kitex.Span(kitex.SpanProps{
-						Style: style.Style{Foreground: style.Some[color.Color](colLabel), Italic: style.Some(true)},
+						Style: style.S().Foreground(colLabel).Italic(true),
 					}, kitex.Text("Awaiting submission...")),
 				),
 			),
@@ -335,10 +257,7 @@ func main() {
 
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(hostContainerStyle)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true

@@ -24,6 +24,6 @@
 //     returned by IntrinsicStyle(). Replaced and compound elements (e.g.
 //     <input>, <textarea>) use this layer to force UA-mandated properties
 //     (e.g. Display:InlineBlock, OverflowX:Clip, WhiteSpace:PreWrap) that
-//     the author cannot override. Most elements return an empty Style{} from
+//     the author cannot override. Most elements return an empty style.S() from
 //     IntrinsicStyle(), paying zero additional cost.
 package styler

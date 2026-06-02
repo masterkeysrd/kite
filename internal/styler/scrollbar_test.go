@@ -10,12 +10,12 @@ import (
 )
 
 func TestStyle_ScrollbarCascade(t *testing.T) {
-	base := style.Style{}.ScrollbarY(true).ScrollbarThumb('+', color.White)
-	override := style.Style{}.ScrollbarX(true).ScrollbarTrack('.', color.Black)
+	base := style.S().ScrollbarY(true).ScrollbarThumb('+', color.White)
+	override := style.S().ScrollbarX(true).ScrollbarTrack('.', color.Black)
 
 	merged := base.Merge(override)
 
-	sb := merged.Scrollbar.Value()
+	sb := merged.ScrollbarOpt().Value()
 	if !sb.Y.UnwrapOr(false) {
 		t.Error("expected Y to be true")
 	}
@@ -34,7 +34,7 @@ func TestStyle_ResolverScrollbarDefaults(t *testing.T) {
 	resolver := styler.NewResolver()
 	node := &fakeNode{
 		kind:     1,
-		rawStyle: style.Style{}.ScrollbarY(true),
+		rawStyle: style.S().ScrollbarY(true),
 	}
 	ro := render.NewBox(node, nil)
 	ro.MarkDirty(render.DirtyStyle)

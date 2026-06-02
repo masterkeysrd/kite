@@ -24,10 +24,8 @@ type ItemProps struct {
 
 var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 	return kitex.Box(kitex.BoxProps{
-		ID: "item-" + props.ID,
-		Style: style.Style{
-			Height: style.Some(style.Cells(1)),
-		},
+		ID:    "item-" + props.ID,
+		Style: style.S().Height(style.Cells(1)),
 	}, kitex.Text(fmt.Sprintf("Item %s", props.ID)))
 })
 

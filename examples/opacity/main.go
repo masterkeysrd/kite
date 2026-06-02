@@ -16,38 +16,42 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	hoverBtnBaseStyle     = style.S().Background(color.Transparent).Foreground(color.White)
+	hoverBtnHoverStyle    = style.S().Background(color.RGBA{R: 255, G: 255, B: 255, A: 60}).Foreground(color.White)
+	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 80, B: 200, A: 255}).Padding(style.Edges(1)).Bold(true)
+	redBandStyle          = style.S().Background(color.RGBA{R: 200, G: 50, B: 50, A: 255}).Padding(style.Edges(1, 2))
+	greenBandStyle        = style.S().Background(color.RGBA{R: 50, G: 180, B: 50, A: 255}).Padding(style.Edges(1, 2))
+	blueBandStyle         = style.S().Background(color.RGBA{R: 50, G: 50, B: 200, A: 255}).Padding(style.Edges(1, 2))
+	yellowBandStyle       = style.S().Background(color.RGBA{R: 200, G: 180, B: 50, A: 255}).Padding(style.Edges(1, 2))
+	bandsContainerStyle   = style.S().Margin(style.Edges(1, 0))
+	btnSectionHeaderStyle = style.S().Bold(true).Margin(style.Edges(1, 0, 0, 0))
+	btnRowStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	instructionsStyle     = style.S().Padding(style.Edges(1, 2)).Border(style.SingleBorder())
+	mainContainerStyle    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(style.Edges(2))
+	overlayTitleStyle     = style.S().TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Bold(true)
+	overlayFooterStyle    = style.S().Margin(style.Edges(1, 0, 0, 0)).TextAlign(style.TextAlignCenter).Foreground(color.RGBA{R: 100, G: 100, B: 100, A: 255})
+	overlayWrapperStyle   = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter)
+)
+
 func createHoverButton(eng *engine.Engine, label string, baseBg color.RGBA) *element.BoxElement {
 	// The actual button inside, with a transparent background by default
-	btn := element.Button(label).Style(style.Style{
-		Background: style.Some[color.Color](color.Transparent),
-		Foreground: style.Some[color.Color](color.White),
-	})
+	btn := element.Button(label).Style(hoverBtnBaseStyle)
 
 	// When hovered, we set a semi-transparent white background on the button.
 	// This will blend with the wrapper box's base background color in the framebuffer!
 	btn.OnEvent(event.EventMouseEnter, func(e event.Event) {
-		btn.Style(style.Style{
-			Background: style.Some[color.Color](color.RGBA{R: 255, G: 255, B: 255, A: 60}), // 60/255 white overlay
-			Foreground: style.Some[color.Color](color.White),
-		})
+		btn.Style(hoverBtnHoverStyle)
 		eng.RequestFrame()
 	})
 
 	btn.OnEvent(event.EventMouseLeave, func(e event.Event) {
-		btn.Style(style.Style{
-			Background: style.Some[color.Color](color.Transparent),
-			Foreground: style.Some[color.Color](color.White),
-		})
+		btn.Style(hoverBtnBaseStyle)
 		eng.RequestFrame()
 	})
 
 	// A wrapper box that holds the solid base background color
-	wrapper := element.Box(btn).Style(style.Style{
-		Background: style.Some[color.Color](baseBg),
-		Padding:    style.Some(style.Edges(0, 1)),
-		Margin:     style.Some(style.Edges(0, 1)),
-		Border:     style.SingleBorder().Color(color.RGBA{255, 255, 255, 80}).Some(),
-	})
+	wrapper := element.Box(btn).Style(style.S().Background(baseBg).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 1)).Border(style.SingleBorder().Color(color.RGBA{255, 255, 255, 80})))
 
 	return wrapper
 }
@@ -78,59 +82,25 @@ func main() {
 
 	// Background grid with multiple colors to show off the transparency blending.
 	root := element.Box(
-		element.Box("Opacity & Color Blending Demonstration").Style(style.Style{
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Background: style.Some[color.Color](color.RGBA{R: 50, G: 80, B: 200, A: 255}),
-			Padding:    style.Some(style.Edges(1)),
-			Bold:       style.Some(true),
-		}),
+		element.Box("Opacity & Color Blending Demonstration").Style(titleStyle),
 		element.Box(
-			element.Box("RED BAND (Solid Background)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 200, G: 50, B: 50, A: 255}),
-				Padding:    style.Some(style.Edges(1, 2)),
-			}),
-			element.Box("GREEN BAND (Solid Background)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 50, G: 180, B: 50, A: 255}),
-				Padding:    style.Some(style.Edges(1, 2)),
-			}),
-			element.Box("BLUE BAND (Solid Background)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 50, G: 50, B: 200, A: 255}),
-				Padding:    style.Some(style.Edges(1, 2)),
-			}),
-			element.Box("YELLOW BAND (Solid Background)").Style(style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 200, G: 180, B: 50, A: 255}),
-				Padding:    style.Some(style.Edges(1, 2)),
-			}),
-		).Style(style.Style{
-			Margin: style.Some(style.Edges(1, 0)),
-		}),
-		element.Box("Hover Buttons (Blends semi-transparent white hover state on base color)").Style(style.Style{
-			Bold:   style.Some(true),
-			Margin: style.Some(style.Edges(1, 0, 0, 0)),
-		}),
+			element.Box("RED BAND (Solid Background)").Style(redBandStyle),
+			element.Box("GREEN BAND (Solid Background)").Style(greenBandStyle),
+			element.Box("BLUE BAND (Solid Background)").Style(blueBandStyle),
+			element.Box("YELLOW BAND (Solid Background)").Style(yellowBandStyle),
+		).Style(bandsContainerStyle),
+		element.Box("Hover Buttons (Blends semi-transparent white hover state on base color)").Style(btnSectionHeaderStyle),
 		element.Box(
 			createHoverButton(eng, "  Blue Button  ", color.RGBA{R: 30, G: 60, B: 180, A: 255}),
 			createHoverButton(eng, "  Green Button  ", color.RGBA{R: 30, G: 150, B: 60, A: 255}),
 			createHoverButton(eng, "  Purple Button  ", color.RGBA{R: 120, G: 30, B: 150, A: 255}),
-		).Style(style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexRow),
-			Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-		}),
+		).Style(btnRowStyle),
 		element.Box(
 			"Press 'o' to toggle the semi-transparent overlay dialog.",
 			"\nPress '+' or '-' to adjust overlay opacity when visible.",
 			"\nPress 'q' or 'ctrl+c' to quit.",
-		).Style(style.Style{
-			Padding: style.Some(style.Edges(1, 2)),
-			Border:  style.SingleBorder().Some(),
-		}),
-	).Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Percent(100)),
-		Background: style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 30, A: 255}),
-		Padding:    style.Some(style.Edges(2)),
-	})
+		).Style(instructionsStyle),
+	).Style(mainContainerStyle)
 
 	eng.Mount(root)
 	devtools.Install(eng, devtools.Options{})
@@ -142,28 +112,11 @@ func main() {
 	// Create a dynamic function to build the overlay content at the current alpha.
 	getOverlay := func() *element.BoxElement {
 		return element.Box(
-			element.Box("Semi-Transparent Dialog").Style(style.Style{
-				TextAlign: style.Some(style.TextAlignCenter),
-				Margin:    style.Some(style.Edges(0, 0, 1, 0)),
-				Bold:      style.Some(true),
-			}),
+			element.Box("Semi-Transparent Dialog").Style(overlayTitleStyle),
 			fmt.Sprintf("Current Alpha Opacity: %d / 255", alpha),
 			"\nNotice how the colored bands behind me\nblend through the dialog background!",
-			element.Box("Press '+' to increase opacity, '-' to decrease.").Style(style.Style{
-				Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-				Foreground: style.Some[color.Color](color.RGBA{R: 100, G: 100, B: 100, A: 255}),
-			}),
-		).Style(style.Style{
-			Width:  style.Some(style.Cells(45)),
-			Height: style.Some(style.Cells(10)),
-			// Using white base color with the dynamic alpha level for opacity blending
-			Background: style.Some[color.Color](color.RGBA{R: 255, G: 255, B: 255, A: alpha}),
-			// Dark text so it stands out against the light/transparent background
-			Foreground: style.Some[color.Color](color.RGBA{R: 0, G: 0, B: 0, A: 255}),
-			Border:     style.DoubleBorder().Color(color.RGBA{R: 255, G: 255, B: 255, A: 255}).Some(),
-			Padding:    style.Some(style.Edges(1, 2)),
-		})
+			element.Box("Press '+' to increase opacity, '-' to decrease.").Style(overlayFooterStyle),
+		).Style(style.S().Width(style.Cells(45)).Height(style.Cells(10)).Background(color.RGBA{R: 255, G: 255, B: 255, A: alpha}).Foreground(color.RGBA{R: 0, G: 0, B: 0, A: 255}).Border(style.DoubleBorder().Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})).Padding(style.Edges(1, 2)))
 	}
 
 	// Full-screen overlay container
@@ -175,13 +128,7 @@ func main() {
 			eng.Document().HideOverlay(overlayDialog)
 		}
 		overlayContent := getOverlay()
-		overlayDialog = element.Box(overlayContent).Style(style.Style{
-			Width:          style.Some(style.Percent(100)),
-			Height:         style.Some(style.Percent(100)),
-			Display:        style.Some(style.DisplayFlex),
-			JustifyContent: style.Some(style.JustifyCenter),
-			AlignItems:     style.Some(style.AlignCenter),
-		})
+		overlayDialog = element.Box(overlayContent).Style(overlayWrapperStyle)
 		if overlayVisible {
 			eng.Document().ShowOverlay(overlayDialog, 100)
 		}

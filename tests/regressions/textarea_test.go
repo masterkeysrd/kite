@@ -18,10 +18,7 @@ func TestTextArea_Regression_Nav(t *testing.T) {
 
 	// 10 cells wide to force wrapping
 	txa := element.NewTextArea(e.Document(), "line1\nline2")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(10)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -45,10 +42,7 @@ func TestTextArea_Regression_SoftWrapNav(t *testing.T) {
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "123456789012345")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(10)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -66,10 +60,7 @@ func TestTextArea_Bug1_UpFromLastChar(t *testing.T) {
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "abc\ndef")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -91,12 +82,7 @@ func TestTextArea_Bug2_WithPadding(t *testing.T) {
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "abc\ndef")
-	txa.Style(style.Style{
-		Width:   style.Some(style.Cells(20)),
-		Height:  style.Some(style.Cells(5)),
-		Padding: style.Some(style.Edges(0, 1)),
-		Border:  style.SingleBorder().Some(),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)).Padding(style.Edges(0, 1)).Border(style.SingleBorder()))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -119,10 +105,7 @@ func TestTextArea_Bug3_StuckInThirdLine(t *testing.T) {
 
 	initialText := "Welcome!\n\nThird line"
 	txa := element.NewTextArea(e.Document(), initialText)
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -151,10 +134,7 @@ func TestTextArea_Bug4_DownFromLastRowStaysOnLastRow(t *testing.T) {
 
 	// Two lines: move cursor to the START of the last line (not the end).
 	txa := element.NewTextArea(e.Document(), "line1\nline2")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -189,10 +169,7 @@ func TestTextArea_Bug4_DownFromLastRowSoftWrap(t *testing.T) {
 	// Single long line that soft-wraps at column 10 → produces two visual rows.
 	// Place cursor at start of the second (last) visual row.
 	txa := element.NewTextArea(e.Document(), "1234567890abcde")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(10)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -227,10 +204,7 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 	// 12 lines in a 4-row viewport — forces scrolling.
 	text := "line0\nline1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\nline11"
 	txa := element.NewTextArea(e.Document(), text)
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(4)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(4)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -300,10 +274,7 @@ func TestTextArea_Bug5_CursorStateStaleFragment(t *testing.T) {
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "hello\nworld")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -340,11 +311,7 @@ func TestTextArea_CrashOverflow(t *testing.T) {
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "line1")
-	txa.Style(style.Style{
-		Width:      style.Some(style.Cells(20)),
-		Height:     style.Some(style.Cells(3)),
-		Background: style.Some[color.Color](color.White),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(3)).Background(color.White))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -412,12 +379,7 @@ func TestTextArea_Regression_ScrollCursorPos(t *testing.T) {
 	// 5 lines of text
 	initialText := "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
 	txa := element.NewTextArea(e.Document(), initialText)
-	txa.Style(style.Style{
-		Width:   style.Some(style.Cells(20)),
-		Height:  style.Some(style.Cells(7)), // 3 lines visible + 4 cells inset (border=1, padding=1)
-		Padding: style.Some(style.Edges(1, 1)),
-		Border:  style.SingleBorder().Some(),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(7)).Padding(style.Edges(1, 1)).Border(style.SingleBorder()))
 
 	root := element.Box(txa)
 	e.Mount(root)

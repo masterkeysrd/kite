@@ -18,6 +18,14 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+	cardStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Gap(style.Gap(1)).AlignItems(style.AlignCenter)
+	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255})
+	lastKeyBoxStyle   = style.S().Margin(style.Edges(1, 0)).Padding(style.Edges(0, 1)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255}).Border(style.SingleBorder())
+	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 func makeApp(cancel context.CancelFunc) kitex.Node {
 	return kitex.SimpleFC("App", func() kitex.Node {
 		buttonRef := kitex.UseRef[dom.Element](nil)
@@ -39,52 +47,25 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 		}
 
 		return kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:        style.Some(style.DisplayFlex),
-				FlexDirection:  style.Some(style.FlexColumn),
-				AlignItems:     style.Some(style.AlignCenter),
-				JustifyContent: style.Some(style.JustifyCenter),
-				Width:          style.Some(style.Percent(100)),
-				Height:         style.Some(style.Percent(100)),
-				Background:     style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 20, A: 255}),
-			},
+			Style: appContainerStyle,
 		},
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Display:       style.Some(style.DisplayFlex),
-					FlexDirection: style.Some(style.FlexColumn),
-					Gap:           style.Some(style.Gap(1)),
-					AlignItems:    style.Some(style.AlignCenter),
-				},
+				Style: cardStyle,
 			},
 				kitex.Span(kitex.SpanProps{
-					Style: style.Style{
-						Bold:       style.Some(true),
-						Foreground: style.Some[color.Color](color.RGBA{R: 90, G: 140, B: 255, A: 255}),
-					},
+					Style: titleStyle,
 				}, kitex.Text("⚡ Kitex Convenience Hooks Demo ⚡")),
 				kitex.Text("Press Tab to focus the button."),
 				kitex.Text("Press any key to see it update below."),
 				kitex.Text("Press 'q', Esc, or Ctrl+C to exit."),
 
 				kitex.Box(kitex.BoxProps{
-					Style: style.Style{
-						Margin:     style.Some(style.Edges(1, 0)),
-						Padding:    style.Some(style.Edges(0, 1)),
-						Background: style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 40, A: 255}),
-						Border:     style.SingleBorder().Some(),
-					},
+					Style: lastKeyBoxStyle,
 				}, kitex.Text(fmt.Sprintf("Last key: %s", getLastKey()))),
 
 				kitex.Button(kitex.ButtonProps{
-					Ref: buttonRef,
-					Style: style.Style{
-						Border:     style.Some(style.SingleBorder().Color(borderColor)),
-						Padding:    style.Some(style.Edges(0, 1)),
-						Width:      style.Some(style.Cells(25)),
-						Height:     style.Some(style.Cells(3)),
-						Background: style.Some[color.Color](color.RGBA{R: 40, G: 40, B: 40, A: 255}),
-					},
+					Ref:   buttonRef,
+					Style: style.S().Border(style.SingleBorder().Color(borderColor)).Padding(style.Edges(0, 1)).Width(style.Cells(25)).Height(style.Cells(3)).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}),
 				}, kitex.Text(fmt.Sprintf("Focused: %v", isFocused))),
 			),
 		)
@@ -107,10 +88,7 @@ func main() {
 
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true

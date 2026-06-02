@@ -20,6 +20,20 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	timerBoxStyle        = style.S().Border(style.SingleBorder()).Padding(style.Edges(1, 1)).Margin(style.Edges(0, 0, 1, 0)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255})
+	sectionHeaderStyle   = style.S().Bold(true).Margin(style.Edges(0, 0, 1, 0))
+	contentRowStyle      = style.S().Margin(style.Edges(0, 0, 1, 0))
+	subscriptionBoxStyle = style.S().Border(style.SingleBorder()).Padding(style.Edges(1, 1)).Margin(style.Edges(0, 0, 1, 0)).Background(color.RGBA{R: 30, G: 40, B: 30, A: 255})
+	appContainerStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 26, A: 255}).Padding(style.Edges(1, 2))
+	appTitleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	appDescriptionStyle  = style.S().Foreground(color.RGBA{R: 160, G: 160, B: 180, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	actionsPanelStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	broadcastBtnStyle    = style.S().Background(color.RGBA{R: 60, G: 120, B: 220, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	toggleBtnStyle       = style.S().Background(color.RGBA{R: 160, G: 80, B: 220, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	rootStyle            = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 // PubSub is a simple pub/sub subscription broker for demonstrating UseEffectCleanup.
 type PubSub struct {
 	mu   sync.Mutex
@@ -91,29 +105,21 @@ var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Border:     style.SingleBorder().Some(),
-			Padding:    style.Some(style.Edges(1, 1)),
-			Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			Background: style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 40, A: 255}),
-		},
+		Style: timerBoxStyle,
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 1, 0))},
+			Style: sectionHeaderStyle,
 		}, kitex.Text("⏳ 1. UseEffect Timer Demonstration")),
 
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{Margin: style.Some(style.Edges(0, 0, 1, 0))},
+			Style: contentRowStyle,
 		}, kitex.Text(fmt.Sprintf("Elapsed Time: %d seconds (%s)", getSeconds(), statusText))),
 
 		kitex.Button(kitex.ButtonProps{
 			OnClick: func(e event.Event) {
 				setIsActive(!getIsActive())
 			},
-			Style: style.Style{
-				Background: style.Some[color.Color](btnBg),
-				Foreground: style.Some[color.Color](color.White),
-			},
+			Style: style.S().Background(btnBg).Foreground(color.White),
 		}, kitex.Text(btnText)),
 	)
 })
@@ -133,23 +139,18 @@ var SubscriptionComponent = kitex.SimpleFC("SubscriptionComponent", func() kitex
 	}, []any{})
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Border:     style.SingleBorder().Some(),
-			Padding:    style.Some(style.Edges(1, 1)),
-			Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			Background: style.Some[color.Color](color.RGBA{R: 30, G: 40, B: 30, A: 255}),
-		},
+		Style: subscriptionBoxStyle,
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 1, 0))},
+			Style: sectionHeaderStyle,
 		}, kitex.Text("📢 2. UseEffect Subscription Demonstration")),
 
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{Margin: style.Some(style.Edges(0, 0, 1, 0))},
+			Style: contentRowStyle,
 		}, kitex.Text(fmt.Sprintf("Last Broadcast: %s", getMessage()))),
 
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{Margin: style.Some(style.Edges(0, 0, 1, 0))},
+			Style: contentRowStyle,
 		}, kitex.Text(fmt.Sprintf("Total Messages Received: %d", getMsgCount()))),
 	)
 })
@@ -173,59 +174,32 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			Width:         style.Some(style.Percent(100)),
-			Height:        style.Some(style.Percent(100)),
-			Background:    style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 26, A: 255}),
-			Padding:       style.Some(style.Edges(1, 2)),
-		},
+		Style: appContainerStyle,
 	},
 		// Title
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 90, G: 140, B: 255, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appTitleStyle,
 		}, kitex.Text("⚡ Kitex Effect Hooks & Lifecycle Demo ⚡")),
 
 		// Subtitle / Info
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 160, G: 160, B: 180, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: appDescriptionStyle,
 		}, kitex.Text("Press 'q' to Quit. Pausing/Unmounting clean up background tickers and subscriptions.")),
 
 		// Actions Panel
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: actionsPanelStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
 				OnClick: handlePublish,
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 60, G: 120, B: 220, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
+				Style:   broadcastBtnStyle,
 			}, kitex.Text(" Broadcast Phrase ")),
 
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e event.Event) {
 					setShowSub(!getShowSub())
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 160, G: 80, B: 220, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
+				Style: toggleBtnStyle,
 			}, kitex.Text(func() string {
 				if getShowSub() {
 					return " Unmount Subscription Component "
@@ -257,10 +231,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger})
 
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true

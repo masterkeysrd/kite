@@ -18,20 +18,9 @@ func TestBorderSnapping_Integration(t *testing.T) {
 	// They share the horizontal line at y=5 (relative to parent)
 	// But in Kite, they are block elements, so Box 2 starts after Box 1.
 	root := element.Box(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(10)),
-			Height: style.Some(style.Cells(3)),
-			Border: style.SingleBorder().Some(),
-		}),
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(10)),
-			Height: style.Some(style.Cells(3)),
-			Border: style.SingleBorder().Some(),
-			Margin: style.Some(style.Edges(-1, 0, 0, 0)), // Overlap the border
-		}),
-	).Style(style.Style{
-		Padding: style.Some(style.Edges(1)),
-	})
+		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).Border(style.SingleBorder())),
+		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).Border(style.SingleBorder()).Margin(style.Edges(-1, 0, 0, 0))),
+	).Style(style.S().Padding(style.Edges(1)))
 
 	e.Mount(root)
 	e.RenderFrame()

@@ -15,9 +15,7 @@ var _ Element = (*SpanElement)(nil)
 // NewSpan creates a new inline span container.
 func NewSpan(doc dom.Document) *SpanElement {
 	s := &SpanElement{}
-	s.initBase(doc.CreateElement("span", s), s, style.Style{
-		Display: style.Some(style.DisplayInline),
-	})
+	s.initBase(doc.CreateElement("span", s), s, style.S().Display(style.DisplayInline))
 	return s
 }
 

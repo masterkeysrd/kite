@@ -15,6 +15,20 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	checkboxStyle        = style.S().Margin(style.Edges(0, 1, 0, 0))
+	radioItemStyle       = style.S().Margin(style.Edges(0, 0, 0, 0))
+	titleStyle           = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	checkboxLabelStyle   = style.S().Bold(true).Margin(style.Edges(0, 1, 0, 0))
+	checkboxStatusStyle  = style.S().Foreground(color.RGBA{R: 100, G: 200, B: 255, A: 255})
+	checkboxRowStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 0, 2, 0))
+	radioGroupLabelStyle = style.S().Bold(true).Margin(style.Edges(0, 0, 1, 0))
+	radioStatusStyle     = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Margin(style.Edges(1, 0, 0, 0))
+	instructionsStyle    = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
+	contentWrapperStyle  = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart).JustifyContent(style.JustifyCenter).Width(style.Percent(80)).Height(style.Percent(80)).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(style.Edges(1, 2)).Border(style.SingleBorder())
+	rootStyle            = style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 15, A: 255})
+)
+
 func main() {
 	f, _ := os.Create("kite.log")
 	defer f.Close()
@@ -31,9 +45,7 @@ func main() {
 
 	// --- Checkbox Section ---
 	cbStatus := element.Text("Unchecked")
-	cb := element.Checkbox(false).Style(style.Style{
-		Margin: style.Some(style.Edges(0, 1, 0, 0)),
-	})
+	cb := element.Checkbox(false).Style(checkboxStyle)
 	cb.OnEvent(event.EventChange, func(e event.Event) {
 		if cb.Checked() {
 			cbStatus.SetData("Checked")
@@ -49,15 +61,15 @@ func main() {
 		element.Box(
 			element.Radio("option1"),
 			element.Span(" Option 1"),
-		).Style(style.Style{Margin: style.Some(style.Edges(0, 0, 0, 0))}),
+		).Style(radioItemStyle),
 		element.Box(
 			element.Radio("option2"),
 			element.Span(" Option 2"),
-		).Style(style.Style{Margin: style.Some(style.Edges(0, 0, 0, 0))}),
+		).Style(radioItemStyle),
 		element.Box(
 			element.Radio("option3"),
 			element.Span(" Option 3"),
-		).Style(style.Style{Margin: style.Some(style.Edges(0, 0, 0, 0))}),
+		).Style(radioItemStyle),
 	).OnChange(func(val string) {
 		radioStatus.SetData(fmt.Sprintf("Selected: %s", val))
 		eng.RequestFrame()
@@ -65,56 +77,27 @@ func main() {
 
 	root := element.Box(
 		element.Box(
-			element.Box("Checkbox and Radio Components").Style(style.Style{
-				Bold:      style.Some(true),
-				TextAlign: style.Some(style.TextAlignCenter),
-				Margin:    style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box("Checkbox and Radio Components").Style(titleStyle),
 
 			// Checkbox Row
 			element.Box(
-				element.Box("Checkbox:").Style(style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 1, 0, 0))}),
+				element.Box("Checkbox:").Style(checkboxLabelStyle),
 				cb,
-				element.Box(cbStatus).Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 100, G: 200, B: 255, A: 255})}),
-			).Style(style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				AlignItems:    style.Some(style.AlignCenter),
-				Margin:        style.Some(style.Edges(0, 0, 2, 0)),
-			}),
+				element.Box(cbStatus).Style(checkboxStatusStyle),
+			).Style(checkboxRowStyle),
 
 			// Radio Group Section
-			element.Box("Radio Group:").Style(style.Style{Bold: style.Some(true), Margin: style.Some(style.Edges(0, 0, 1, 0))}),
+			element.Box("Radio Group:").Style(radioGroupLabelStyle),
 			rg,
-			element.Box(radioStatus).Style(style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 100, G: 255, B: 100, A: 255}),
-				Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-			}),
+			element.Box(radioStatus).Style(radioStatusStyle),
 
-			element.Box("\nInstructions:").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Click with Mouse to toggle/select").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Tab to focus, then press Space to toggle/select").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Use Arrow keys to navigate Radio buttons").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-			element.Box("- Press 'q' to quit").Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255})}),
-		).Style(style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexColumn),
-			AlignItems:     style.Some(style.AlignStart),
-			JustifyContent: style.Some(style.JustifyCenter),
-			Width:          style.Some(style.Percent(80)),
-			Height:         style.Some(style.Percent(80)),
-			Background:     style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 30, A: 255}),
-			Padding:        style.Some(style.Edges(1, 2)),
-			Border:         style.SingleBorder().Some(),
-		}),
-	).Style(style.Style{
-		Display:        style.Some(style.DisplayFlex),
-		JustifyContent: style.Some(style.JustifyCenter),
-		AlignItems:     style.Some(style.AlignCenter),
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		Background:     style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 15, A: 255}),
-	})
+			element.Box("\nInstructions:").Style(instructionsStyle),
+			element.Box("- Click with Mouse to toggle/select").Style(instructionsStyle),
+			element.Box("- Tab to focus, then press Space to toggle/select").Style(instructionsStyle),
+			element.Box("- Use Arrow keys to navigate Radio buttons").Style(instructionsStyle),
+			element.Box("- Press 'q' to quit").Style(instructionsStyle),
+		).Style(contentWrapperStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 
@@ -124,11 +107,11 @@ func main() {
 			switch el := et.(type) {
 			case *element.CheckboxElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
+				s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
 				el.Style(s)
 			case *element.RadioElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
+				s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
 				el.Style(s)
 			}
 		}
@@ -139,11 +122,11 @@ func main() {
 			switch el := et.(type) {
 			case *element.CheckboxElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](style.TerminalDefault) // Revert to default on blur
+				s = s.Foreground(style.TerminalDefault) // Revert to default on blur
 				el.Style(s)
 			case *element.RadioElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](style.TerminalDefault) // Revert to default on blur
+				s = s.Foreground(style.TerminalDefault) // Revert to default on blur
 				el.Style(s)
 			}
 		}

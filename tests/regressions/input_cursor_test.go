@@ -19,11 +19,7 @@ func TestRegression_InputCursorPosition(t *testing.T) {
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "hello")
-	inp.Style(style.Style{
-		Width:   style.Some(style.Cells(20)),
-		Border:  style.SingleBorder().Some(),
-		Padding: style.Some(style.Edges(0, 2)), // 2 cells padding-left/right
-	})
+	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(style.Edges(0, 2)))
 
 	eng.Mount(inp)
 	eng.Frame()
@@ -62,11 +58,7 @@ func TestRegression_EmptyInputCursorPosition(t *testing.T) {
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.Style{
-		Width:   style.Some(style.Cells(20)),
-		Border:  style.SingleBorder().Some(),
-		Padding: style.Some(style.Edges(0, 1)), // 1 cell padding
-	})
+	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(style.Edges(0, 1)))
 
 	eng.Mount(inp)
 	eng.Frame()

@@ -15,19 +15,12 @@ func TestOverlay_Positioning(t *testing.T) {
 	eng := engine.New(be, engine.Options{})
 
 	// Create an anchor at a fixed position
-	anchor := element.Box().Style(style.Style{
-		Width:  style.Some(style.Cells(10)),
-		Height: style.Some(style.Cells(3)),
-		Margin: style.Some(style.Edges(5, 0, 0, 10)),
-	})
+	anchor := element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).Margin(style.Edges(5, 0, 0, 10)))
 	eng.Mount(anchor)
 
 	// Create an overlay
 	ovl := element.Overlay(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(5)),
-			Height: style.Some(style.Cells(2)),
-		}),
+		element.Box().Style(style.S().Width(style.Cells(5)).Height(style.Cells(2))),
 		element.OverlayConfig{
 			Anchor:    anchor,
 			Placement: geom.PlacementBottom,
@@ -69,19 +62,12 @@ func TestOverlay_Flipping(t *testing.T) {
 	eng := engine.New(be, engine.Options{})
 
 	// Create an anchor near the bottom edge
-	anchor := element.Box().Style(style.Style{
-		Width:  style.Some(style.Cells(10)),
-		Height: style.Some(style.Cells(3)),
-		Margin: style.Some(style.Edges(20, 0, 0, 10)),
-	})
+	anchor := element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).Margin(style.Edges(20, 0, 0, 10)))
 	eng.Mount(anchor)
 
 	// Create an overlay with Bottom placement and Flip enabled
 	ovl := element.Overlay(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(5)),
-			Height: style.Some(style.Cells(5)),
-		}),
+		element.Box().Style(style.S().Width(style.Cells(5)).Height(style.Cells(5))),
 		element.OverlayConfig{
 			Anchor:    anchor,
 			Placement: geom.PlacementBottom,
@@ -116,19 +102,12 @@ func TestOverlay_BestFit(t *testing.T) {
 	eng := engine.New(be, engine.Options{})
 
 	// Anchor at Y=5, Height=2. Top space: 5, Bottom space: 24 - 7 = 17.
-	anchor := element.Box().Style(style.Style{
-		Width:  style.Some(style.Cells(10)),
-		Height: style.Some(style.Cells(2)),
-		Margin: style.Some(style.Edges(5, 0, 0, 10)),
-	})
+	anchor := element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(2)).Margin(style.Edges(5, 0, 0, 10)))
 	eng.Mount(anchor)
 
 	// Overlay height 20.
 	ovl := element.Overlay(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(5)),
-			Height: style.Some(style.Cells(20)),
-		}),
+		element.Box().Style(style.S().Width(style.Cells(5)).Height(style.Cells(20))),
 		element.OverlayConfig{
 			Anchor:    anchor,
 			Placement: geom.PlacementTop, // Start at Top (space 5)
@@ -156,18 +135,11 @@ func TestOverlay_HorizontalBestFit(t *testing.T) {
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
 
-	anchor := element.Box().Style(style.Style{
-		Width:  style.Some(style.Cells(2)),
-		Height: style.Some(style.Cells(3)),
-		Margin: style.Some(style.Edges(10, 0, 0, 5)),
-	})
+	anchor := element.Box().Style(style.S().Width(style.Cells(2)).Height(style.Cells(3)).Margin(style.Edges(10, 0, 0, 5)))
 	eng.Mount(anchor)
 
 	ovl := element.Overlay(
-		element.Box().Style(style.Style{
-			Width:  style.Some(style.Cells(50)),
-			Height: style.Some(style.Cells(5)),
-		}),
+		element.Box().Style(style.S().Width(style.Cells(50)).Height(style.Cells(5))),
 		element.OverlayConfig{
 			Anchor:    anchor,
 			Placement: geom.PlacementLeft,

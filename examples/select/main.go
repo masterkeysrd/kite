@@ -15,6 +15,19 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	selectDropdownStyle     = style.S().Width(style.Cells(25))
+	instructionLineStyle    = style.S().Display(style.DisplayBlock).Foreground(color.RGBA{R: 150, G: 150, B: 180, A: 255}).Margin(style.Edges(0, 0, 0, 0))
+	titleStyle              = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Background(color.RGBA{R: 60, G: 60, B: 120, A: 255}).Foreground(color.White)
+	pickLabelStyle          = style.S().Bold(true)
+	pickerRowStyle          = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(1, 0, 2, 0)).Gap(style.Gap(0, 1))
+	selectedStatusStyle     = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Bold(true)
+	statusRowStyle          = style.S().Margin(style.Edges(0, 0, 2, 0)).Border(style.SingleBorder().Left(false).Right(false).Top(false).Color(color.RGBA{R: 50, G: 50, B: 50, A: 255}))
+	instructionsHeaderStyle = style.S().Bold(true).Margin(style.Edges(0, 0, 1, 0))
+	cardContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart).JustifyContent(style.JustifyStart).Width(style.Cells(50)).Height(style.Auto).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(style.Edges(1, 3)).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 100, A: 255}))
+	rootStyle               = style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
+)
+
 func main() {
 	f, _ := os.Create("kite.log")
 	defer f.Close()
@@ -41,16 +54,14 @@ func main() {
 	).OnChange(func(val string) {
 		statusText.SetData(val)
 		eng.RequestFrame()
-	}).Style(style.Style{
-		Width: style.Some(style.Cells(25)),
-	})
+	}).Style(selectDropdownStyle)
 
 	// Show how the user can customize the text color of the focused item in the options
 	// by listening to Focus/Blur events globally on the Document.
 	eng.Document().AddEventListener(event.EventFocus, func(e event.Event) {
 		if btn, ok := e.Target().(*element.ButtonElement); ok && btn.Class() == "select-option" {
 			s := btn.RawStyle()
-			s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold/Yellow text when focused
+			s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold/Yellow text when focused
 			btn.Style(s)
 		}
 	}, event.Capture())
@@ -58,79 +69,37 @@ func main() {
 	eng.Document().AddEventListener(event.EventBlur, func(e event.Event) {
 		if btn, ok := e.Target().(*element.ButtonElement); ok && btn.Class() == "select-option" {
 			s := btn.RawStyle()
-			s.Foreground = style.Some[color.Color](style.TerminalDefault) // Revert to default text color on blur
+			s = s.Foreground(style.TerminalDefault) // Revert to default text color on blur
 			btn.Style(s)
 		}
 	}, event.Capture())
 
 	// Helper for creating instruction lines that are explicitly block-level.
 	instr := func(t string) *element.BoxElement {
-		return element.Box(t).Style(style.Style{
-			Display:    style.Some(style.DisplayBlock),
-			Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 180, A: 255}),
-			Margin:     style.Some(style.Edges(0, 0, 0, 0)),
-		})
+		return element.Box(t).Style(instructionLineStyle)
 	}
 
 	root := element.Box(
 		element.Box(
-			element.Box("Select Component Demo").Style(style.Style{
-				Bold:       style.Some(true),
-				TextAlign:  style.Some(style.TextAlignCenter),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				Background: style.Some[color.Color](color.RGBA{R: 60, G: 60, B: 120, A: 255}),
-				Foreground: style.Some[color.Color](color.White),
-			}),
+			element.Box("Select Component Demo").Style(titleStyle),
 
 			element.Box(
-				element.Span("Pick a language: ").Style(style.Style{Bold: style.Some(true)}),
+				element.Span("Pick a language: ").Style(pickLabelStyle),
 				sel,
-			).Style(style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				AlignItems:    style.Some(style.AlignCenter),
-				Margin:        style.Some(style.Edges(1, 0, 2, 0)),
-				Gap:           style.Some(style.Gap(0, 1)),
-			}),
+			).Style(pickerRowStyle),
 
 			element.Box(
 				element.Span("Selected: "),
-				element.Span(statusText).Style(style.Style{
-					Foreground: style.Some[color.Color](color.RGBA{R: 100, G: 255, B: 100, A: 255}),
-					Bold:       style.Some(true),
-				}),
-			).Style(style.Style{
-				Margin: style.Some(style.Edges(0, 0, 2, 0)),
-				Border: style.SingleBorder().Left(false).Right(false).Top(false).Color(color.RGBA{R: 50, G: 50, B: 50, A: 255}).Some(),
-			}),
+				element.Span(statusText).Style(selectedStatusStyle),
+			).Style(statusRowStyle),
 
-			element.Box("Instructions:").Style(style.Style{
-				Bold:   style.Some(true),
-				Margin: style.Some(style.Edges(0, 0, 1, 0)),
-			}),
+			element.Box("Instructions:").Style(instructionsHeaderStyle),
 			instr("• Click or Space/Enter to toggle"),
 			instr("• Arrow keys to navigate options"),
 			instr("• Enter to confirm selection"),
 			instr("• Esc or Click outside to close"),
 			instr("• Press 'q' to quit"),
-		).Style(style.Style{
-			Display:        style.Some(style.DisplayFlex),
-			FlexDirection:  style.Some(style.FlexColumn),
-			AlignItems:     style.Some(style.AlignStart),
-			JustifyContent: style.Some(style.JustifyStart),
-			Width:          style.Some(style.Cells(50)),
-			Height:         style.Some(style.Auto),
-			Background:     style.Some[color.Color](color.RGBA{R: 30, G: 30, B: 30, A: 255}),
-			Padding:        style.Some(style.Edges(1, 3)),
-			Border:         style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 100, A: 255}).Some(),
-		})).Style(style.Style{
-		Display:        style.Some(style.DisplayFlex),
-		JustifyContent: style.Some(style.JustifyCenter),
-		AlignItems:     style.Some(style.AlignCenter),
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		Background:     style.Some[color.Color](color.RGBA{R: 15, G: 15, B: 20, A: 255}),
-	})
+		).Style(cardContainerStyle)).Style(rootStyle)
 
 	eng.Mount(root)
 

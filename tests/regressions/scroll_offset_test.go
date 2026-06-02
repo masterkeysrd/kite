@@ -29,13 +29,13 @@ func TestScroll_PreservedAcrossMoves(t *testing.T) {
 func TestScroll_PreservedAcrossOverflowToggle(t *testing.T) {
 	doc := dom.NewDocument()
 	// Using element package for easier style setting
-	el := element.Box().Style(style.Style{}.Overflow(style.OverflowScroll))
+	el := element.Box().Style(style.S().Overflow(style.OverflowScroll))
 	doc.AppendChild(el.Unwrap().(dom.Element))
 
 	el.Unwrap().(dom.Element).ScrollTo(10, 20)
 
 	// Toggle overflow to visible (non-container)
-	el.Style(style.Style{}.Overflow(style.OverflowVisible))
+	el.Style(style.S().Overflow(style.OverflowVisible))
 
 	testenv.Expect(t, el.Unwrap().(dom.Element)).ToHaveScroll(10, 20)
 }

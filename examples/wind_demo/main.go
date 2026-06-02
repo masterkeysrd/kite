@@ -18,6 +18,20 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	podCardStyle      = style.S().Padding(style.Edges(1, 2)).Background(color.RGBA{R: 25, G: 35, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(90)).Margin(style.Edges(1, 0))
+	keyInfoStyle      = style.S().Margin(style.Edges(0, 0, 1, 0))
+	statusRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	bgFetchTextStyle  = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
+	buttonsRowStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Gap(style.Gap(2))
+	restartBtnStyle   = style.S().Background(color.RGBA{R: 200, G: 60, B: 60, A: 255}).Foreground(color.White)
+	refetchBtnStyle   = style.S().Background(color.RGBA{R: 50, G: 120, B: 220, A: 255}).Foreground(color.White)
+	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(style.Edges(1, 2))
+	appHeaderStyle    = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 type PodKey struct {
 	Namespace string
 	ID        string
@@ -86,50 +100,29 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Padding:    style.Some(style.Edges(1, 2)),
-			Background: style.Some[color.Color](color.RGBA{R: 25, G: 35, B: 55, A: 255}),
-			Border:     style.SingleBorder().Some(),
-			Width:      style.Some(style.Percent(90)),
-			Margin:     style.Some(style.Edges(1, 0)),
-		},
+		Style: podCardStyle,
 	},
 		// Key info
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Margin: style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: keyInfoStyle,
 		}, kitex.Text(fmt.Sprintf("🔑 Query Key: PodKey{Namespace: %q, ID: %q}", key.Namespace, key.ID))),
 
 		// Status info
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: statusRowStyle,
 		},
 			kitex.Text("Current Status: "),
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Foreground: style.Some[color.Color](textColor),
-					Bold:       style.Some(true),
-				},
+				Style: style.S().Foreground(textColor).Bold(true),
 			}, kitex.Text(statusText)),
 			kitex.Box(kitex.BoxProps{
-				Style: style.Style{
-					Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255}),
-				},
+				Style: bgFetchTextStyle,
 			}, kitex.Text(bgStateText)),
 		),
 
 		// Action buttons
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				Gap:           style.Some(style.Gap(2)),
-			},
+			Style: buttonsRowStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e event.Event) {
@@ -137,20 +130,14 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 						mutation.Mutate(key)
 					}
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 200, G: 60, B: 60, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-				},
+				Style: restartBtnStyle,
 			}, kitex.Text(fmt.Sprintf(" 🔄 %s ", mutationText))),
 
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e event.Event) {
 					query.Refetch()
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 50, G: 120, B: 220, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-				},
+				Style: refetchBtnStyle,
 			}, kitex.Text(" 🔍 Manual Refetch ")),
 		),
 	)
@@ -158,33 +145,16 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 
 var App = kitex.SimpleFC("App", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			AlignItems:    style.Some(style.AlignCenter),
-			Width:         style.Some(style.Percent(100)),
-			Height:        style.Some(style.Percent(100)),
-			Background:    style.Some[color.Color](color.RGBA{R: 18, G: 18, B: 24, A: 255}),
-			Padding:       style.Some(style.Edges(1, 2)),
-		},
+		Style: appContainerStyle,
 	},
 		// Header
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 240, G: 190, B: 90, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appHeaderStyle,
 		}, kitex.Text("💨 Kite Async Data Fetching Demo (extras/wind)")),
 
 		// Help
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: instructionsStyle,
 		}, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
 
 		// Status View
@@ -207,10 +177,7 @@ func main() {
 	eng := engine.New(b, engine.Options{Logger: logger})
 
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	client := wind.NewClient()

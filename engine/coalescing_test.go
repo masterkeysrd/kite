@@ -18,10 +18,7 @@ func TestEngine_EventCoalescing_MouseMove(t *testing.T) {
 
 	count := 0
 	div := element.NewBox(e.Document()).
-		Style(style.Style{
-			Width:  style.Some(style.Percent(100)),
-			Height: style.Some(style.Percent(100)),
-		})
+		Style(style.S().Width(style.Percent(100)).Height(style.Percent(100)))
 	div.AddEventListener(event.EventMouseMove, func(ev event.Event) {
 		count++
 	})
@@ -52,10 +49,7 @@ func TestEngine_EventCoalescing_WheelEvents(t *testing.T) {
 	var lastDeltaY int
 	count := 0
 	div := element.NewBox(e.Document()).
-		Style(style.Style{
-			Width:  style.Some(style.Percent(100)),
-			Height: style.Some(style.Percent(100)),
-		})
+		Style(style.S().Width(style.Percent(100)).Height(style.Percent(100)))
 	div.AddEventListener(event.EventWheel, func(ev event.Event) {
 		we := ev.(*event.WheelEvent)
 		lastDeltaY = we.DeltaY

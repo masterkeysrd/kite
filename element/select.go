@@ -26,13 +26,16 @@ var _ Element = (*OptionElement)(nil)
 // NewOption creates a new OptionElement owned by doc.
 func NewOption(doc dom.Document, text, value string) *OptionElement {
 	o := &OptionElement{value: value, text: text}
-	o.initBase(doc.CreateElement("option", o), o, style.Style{})
+	o.initBase(doc.CreateElement("option", o), o, style.S())
 	return o
 }
 
+var intrinsicOptionStyle = style.S().
+	Display(style.DisplayNone)
+
 func (o *OptionElement) IntrinsicStyle() style.Style {
 	// Options are metadata-only; they should never produce render objects.
-	return style.Style{Display: style.Some(style.DisplayNone)}
+	return intrinsicOptionStyle
 }
 
 // Option creates a new OptionElement with the given text and value.
@@ -65,13 +68,31 @@ type uaSelectRoot struct {
 
 func (r *uaSelectRoot) Unwrap() dom.Node { return r.Element }
 
-var defaultSelectStyle = style.Style{
-	Width: style.Some(style.Cells(20)),
-}
+var defaultSelectStyle = style.S().
+	Width(style.Cells(20))
 
-var intrinsicSelectStyle = style.Style{
-	Display: style.Some(style.DisplayInlineBlock),
-}
+var intrinsicSelectStyle = style.S().
+	Display(style.DisplayInlineBlock)
+
+var selectButtonStyle = style.S().
+	Display(style.DisplayBlock).
+	Width(style.Percent(100)).
+	Height(style.Auto)
+
+var selectDropdownBaseStyle = style.S().
+	Display(style.DisplayFlex).
+	FlexDirection(style.FlexColumn).
+	MaxHeight(style.Cells(10)).
+	Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 150, A: 255})).
+	Background(color.RGBA{R: 25, G: 25, B: 35, A: 255}).
+	OverflowY(style.OverflowAuto)
+
+var selectOptionButtonStyle = style.S().
+	Display(style.DisplayBlock).
+	Width(style.Percent(100)).
+	TextAlign(style.TextAlignLeft).
+	Padding(style.Edges(0, 1)).
+	Border(style.EmptyBorder())
 
 // SelectElement implements a dropdown selection component.
 type SelectElement struct {
@@ -103,11 +124,7 @@ func NewSelect(doc dom.Document, children ...any) *SelectElement {
 	// UA Shadow Subtree: Trigger Button. We force DisplayBlock here so that
 	// the button correctly fills the host's available width even when the
 	// host is an InlineBlock (as is the case for SelectElement).
-	s.uaButton = NewButton(doc, "Select... ▼").Style(style.Style{
-		Display: style.Some(style.DisplayBlock),
-		Width:   style.Some(style.Percent(100)),
-		Height:  style.Some(style.Auto),
-	})
+	s.uaButton = NewButton(doc, "Select... ▼").Style(selectButtonStyle)
 	uaRoot := &uaSelectRoot{}
 	uaRootEl := doc.CreateElement("ua-select-root", uaRoot)
 	uaRoot.Element = uaRootEl
@@ -292,25 +309,11 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 	}
 
 	// Create overlay content
-	content := Box().Style(style.Style{
-		Display:       style.Some(style.DisplayFlex),
-		FlexDirection: style.Some(style.FlexColumn),
-		Width:         style.Some(width),
-		MaxHeight:     style.Some(style.Cells(10)),
-		Border:        style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 150, A: 255}).Some(),
-		Background:    style.Some[color.Color](color.RGBA{R: 25, G: 25, B: 35, A: 255}),
-		OverflowY:     style.Some(style.OverflowAuto),
-	})
+	content := Box().Style(selectDropdownBaseStyle.Width(width))
 	content.ScrollbarY(true)
 
 	for _, opt := range s.options {
-		btn := Button(" " + opt.text).WithClass("select-option").Style(style.Style{
-			Display:   style.Some(style.DisplayBlock), // Ensure one per line
-			Width:     style.Some(style.Percent(100)),
-			TextAlign: style.Some(style.TextAlignLeft),
-			Padding:   style.Some(style.Edges(0, 1)),
-			Border:    style.EmptyBorder().Some(),
-		})
+		btn := Button(" " + opt.text).WithClass("select-option").Style(selectOptionButtonStyle)
 		btn.OnEvent(event.EventClick, func(e event.Event) {
 			s.selectOption(opt)
 		})

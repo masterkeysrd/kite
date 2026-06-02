@@ -45,11 +45,14 @@ type uaTextAreaDiv struct {
 }
 
 func (d *uaTextAreaDiv) Unwrap() dom.Node { return d.Element }
+
+var defaultUATextAreaDivStyle = style.S().Width(style.Auto)
+
 func (d *uaTextAreaDiv) DefaultStyle() style.Style {
-	return style.Style{Width: style.Some(style.Auto)}
+	return defaultUATextAreaDivStyle
 }
-func (d *uaTextAreaDiv) RawStyle() style.Style       { return style.Style{} }
-func (d *uaTextAreaDiv) IntrinsicStyle() style.Style { return style.Style{} }
+func (d *uaTextAreaDiv) RawStyle() style.Style       { return style.S() }
+func (d *uaTextAreaDiv) IntrinsicStyle() style.Style { return style.S() }
 func (d *uaTextAreaDiv) IsDirtyStyle() bool {
 	if de := internaldom.AsDirtyElement(d.Element); de != nil {
 		return de.IsDirtyStyle()
@@ -65,21 +68,19 @@ var (
 )
 
 // intrinsicTextAreaStyle is the UA-mandated style for TextAreaElement.
-var intrinsicTextAreaStyle = style.Style{
-	OverflowX:    style.Some(style.OverflowClip),
-	OverflowY:    style.Some(style.OverflowAuto),
-	OverflowWrap: style.Some(style.OverflowWrapBreakWord),
-	WhiteSpace:   style.Some(style.WhiteSpacePreWrap),
-}
+var intrinsicTextAreaStyle = style.S().
+	OverflowX(style.OverflowClip).
+	OverflowY(style.OverflowAuto).
+	OverflowWrap(style.OverflowWrapBreakWord).
+	WhiteSpace(style.WhiteSpacePreWrap)
 
 // defaultTextAreaStyle holds the author-overridable defaults for a textarea.
-var defaultTextAreaStyle = style.Style{
-	Display:   style.Some(style.DisplayInlineBlock),
-	Width:     style.Some(style.Cells(20)),
-	Height:    style.Some(style.Cells(5)),
-	Padding:   style.Some(style.EdgeValues[int]{}),
-	Scrollbar: style.Some(style.Scrollbar{Y: style.Some(true)}),
-}
+var defaultTextAreaStyle = style.S().
+	Display(style.DisplayInlineBlock).
+	Width(style.Cells(20)).
+	Height(style.Cells(5)).
+	Padding(style.EdgeValues[int]{}).
+	Scrollbar(style.Scrollbar{Y: style.Some(true)})
 
 // NewTextArea creates a new TextAreaElement owned by doc with an optional
 // initial value.

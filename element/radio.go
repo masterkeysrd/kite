@@ -20,7 +20,7 @@ var _ Element = (*RadioGroupElement)(nil)
 func NewRadioGroup(doc dom.Document, children ...any) *RadioGroupElement {
 	rg := &RadioGroupElement{}
 	el := doc.CreateElement("radiogroup", rg)
-	rg.initBase(el, rg, style.Style{})
+	rg.initBase(el, rg, style.S())
 	processChildren(rg, children)
 	rg.syncRadios()
 	return rg
@@ -126,9 +126,7 @@ func NewRadio(doc dom.Document, value string) *RadioElement {
 	}
 
 	el := doc.CreateElement("radio", r)
-	r.initBase(el, r, style.Style{}, style.Style{
-		Display: style.Some(style.DisplayInlineBlock),
-	})
+	r.initBase(el, r, style.S(), style.S().Display(style.DisplayInlineBlock))
 
 	// UA Shadow Subtree: a box containing the glyph text.
 	r.uaText = doc.CreateTextNode("", nil)

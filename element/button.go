@@ -37,26 +37,25 @@ func Button(children ...any) *ButtonElement {
 	return NewButton(orphanDocument, children...)
 }
 
-var defaultButtonStyle = style.Style{
-	Display:        style.Some(style.DisplayInlineBlock),
-	AlignItems:     style.Some(style.AlignCenter),
-	JustifyContent: style.Some(style.JustifyCenter),
-	WhiteSpace:     style.Some(style.WhiteSpacePre),
-	TextAlign:      style.Some(style.TextAlignCenter),
-	Padding:        style.Some(style.Edges(0, 1)),
-	Border:         style.SingleBorder().Some(),
-	Background:     style.Some(style.TerminalDefault),
-	Foreground:     style.Some(style.TerminalDefault),
-}
+var defaultButtonStyle = style.S().
+	Display(style.DisplayInlineBlock).
+	AlignItems(style.AlignCenter).
+	JustifyContent(style.JustifyCenter).
+	WhiteSpace(style.WhiteSpacePre).
+	TextAlign(style.TextAlignCenter).
+	Padding(style.Edges(0, 1)).
+	Border(style.SingleBorder()).
+	Background(style.TerminalDefault).
+	Foreground(style.TerminalDefault)
 
 // DefaultStyle returns the element's default style, including dynamic state.
 func (b *ButtonElement) DefaultStyle() style.Style {
 	s := defaultButtonStyle
 	if b.active {
-		s.Reverse = style.Some(true)
+		s = s.Reverse(true)
 	}
 	if b.disabled {
-		s.Foreground = style.Some[color.Color](color.RGBA{R: 100, G: 100, B: 100, A: 255})
+		s = s.Foreground(color.RGBA{R: 100, G: 100, B: 100, A: 255})
 	}
 	return s
 }
@@ -68,7 +67,7 @@ func (b *ButtonElement) wireEvents() {
 }
 
 func (b *ButtonElement) IntrinsicStyle() style.Style {
-	return style.Style{}
+	return style.S()
 }
 
 // Type sets the button type (e.g. "button", "submit") and returns the ButtonElement.

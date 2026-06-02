@@ -16,6 +16,16 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	titleStyle          = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 50, B: 80, A: 255}).Padding(style.Edges(1))
+	instructionsStyle   = style.S().Margin(style.Edges(2, 0)).Padding(style.Edges(1, 2)).Border(style.SingleBorder())
+	rootStyle           = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(style.Edges(2))
+	overlayTitleStyle   = style.S().TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Bold(true)
+	overlayFooterStyle  = style.S().Margin(style.Edges(1, 0, 0, 0)).TextAlign(style.TextAlignCenter).Foreground(color.RGBA{R: 200, G: 200, B: 200, A: 255})
+	overlayBoxStyle     = style.S().Width(style.Cells(40)).Height(style.Cells(10)).Background(color.RGBA{R: 80, G: 40, B: 40, A: 255}).Border(style.DoubleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255})).Padding(style.Edges(1, 2))
+	overlayWrapperStyle = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter)
+)
+
 func main() {
 	f, _ := os.Create("kite.log")
 	defer f.Close()
@@ -44,25 +54,12 @@ func main() {
 
 	// Create a main background element
 	root := element.Box(
-		element.Box("Overlay API Example").Style(style.Style{
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Background: style.Some[color.Color](color.RGBA{R: 50, G: 50, B: 80, A: 255}),
-			Padding:    style.Some(style.Edges(1)),
-		}),
+		element.Box("Overlay API Example").Style(titleStyle),
 		element.Box(
 			"Press 'o' to toggle the Overlay.",
 			"\nPress 'q' or 'ctrl+c' to quit.",
-		).Style(style.Style{
-			Margin:  style.Some(style.Edges(2, 0)),
-			Padding: style.Some(style.Edges(1, 2)),
-			Border:  style.SingleBorder().Some(),
-		}),
-	).Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Percent(100)),
-		Background: style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 30, A: 255}),
-		Padding:    style.Some(style.Edges(2)),
-	})
+		).Style(instructionsStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 
@@ -71,34 +68,14 @@ func main() {
 
 	// Create the overlay content
 	overlayContent := element.Box(
-		element.Box("I am an Overlay!").Style(style.Style{
-			TextAlign: style.Some(style.TextAlignCenter),
-			Margin:    style.Some(style.Edges(0, 0, 1, 0)),
-			Bold:      style.Some(true),
-		}),
+		element.Box("I am an Overlay!").Style(overlayTitleStyle),
 		"I am rendered in the Top Layer,\nabove the normal document flow.",
-		element.Box("Press 'o' to close me.").Style(style.Style{
-			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Foreground: style.Some[color.Color](color.RGBA{R: 200, G: 200, B: 200, A: 255}),
-		}),
-	).Style(style.Style{
-		Width:      style.Some(style.Cells(40)),
-		Height:     style.Some(style.Cells(10)),
-		Background: style.Some[color.Color](color.RGBA{R: 80, G: 40, B: 40, A: 255}),
-		Border:     style.DoubleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255}).Some(),
-		Padding:    style.Some(style.Edges(1, 2)),
-	})
+		element.Box("Press 'o' to close me.").Style(overlayFooterStyle),
+	).Style(overlayBoxStyle)
 
 	// Create a full-screen container to center the overlay content.
 	// This is the robust way to center overlays regardless of terminal size.
-	overlayDialog := element.Box(overlayContent).Style(style.Style{
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		Display:        style.Some(style.DisplayFlex),
-		JustifyContent: style.Some(style.JustifyCenter),
-		AlignItems:     style.Some(style.AlignCenter),
-	})
+	overlayDialog := element.Box(overlayContent).Style(overlayWrapperStyle)
 
 	overlayVisible := false
 

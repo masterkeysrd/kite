@@ -56,10 +56,7 @@ func TestInput_Regression_IntrinsicStyleWins(t *testing.T) {
 
 	inp := element.Input("hi")
 	// Author attempts Display:Block — should now win over default InlineBlock.
-	inp.Style(style.Style{
-		Display:   style.Some(style.DisplayBlock),
-		OverflowX: style.Some(style.OverflowVisible), // must lose to intrinsic Clip
-	})
+	inp.Style(style.S().Display(style.DisplayBlock).OverflowX(style.OverflowVisible))
 
 	root := element.Box(inp)
 	eng.Mount(root)
@@ -252,10 +249,7 @@ func TestInput_Regression_EmptyBorderedInput_Height(t *testing.T) {
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Border: style.SingleBorder().Some(),
-	})
+	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()))
 
 	root := element.Box(inp)
 	eng.Mount(root)
@@ -291,9 +285,7 @@ func TestInput_Regression_EmptyUnborderedInput_Height(t *testing.T) {
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.Style{
-		Width: style.Some(style.Cells(20)),
-	})
+	inp.Style(style.S().Width(style.Cells(20)))
 
 	root := element.Box(inp)
 	eng.Mount(root)
@@ -324,10 +316,7 @@ func TestInput_Regression_NonEmptyBorderedInput_Height(t *testing.T) {
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "hello")
-	inp.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Border: style.SingleBorder().Some(),
-	})
+	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()))
 
 	root := element.Box(inp)
 	eng.Mount(root)
@@ -390,11 +379,7 @@ func TestInput_Regression_ScrollBackOnBackspace(t *testing.T) {
 
 	// Create an input with a fixed width of 10 cells.
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.Style{
-		Width:   style.Some(style.Cells(10)),
-		Padding: style.Some(style.EdgeValues[int]{}),
-		Border:  style.Some(style.Border{}),
-	})
+	inp.Style(style.S().Width(style.Cells(10)).Padding(style.EdgeValues[int]{}).Border(style.Border{}))
 
 	root := element.Box(inp)
 	eng.Mount(root)

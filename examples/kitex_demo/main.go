@@ -18,6 +18,27 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	itemRowStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 0, 1, 0)).Padding(style.Edges(0, 1)).Background(color.RGBA{R: 35, G: 35, B: 50, A: 255}).Border(style.SingleBorder())
+	itemLabelStyle         = style.S().Foreground(color.RGBA{R: 220, G: 220, B: 230, A: 255}).Width(style.Percent(40))
+	incrementBtnStyle      = style.S().Background(color.RGBA{R: 60, G: 120, B: 220, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	incrementBtnHoverStyle = style.S().Background(color.RGBA{R: 80, G: 140, B: 240, A: 255})
+	deleteBtnStyle         = style.S().Background(color.RGBA{R: 200, G: 60, B: 60, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	deleteBtnHoverStyle    = style.S().Background(color.RGBA{R: 240, G: 80, B: 80, A: 255})
+	appContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(style.Edges(1, 2))
+	appTitleStyle          = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	instructionsStyle      = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 170, A: 255}).Margin(style.Edges(0, 0, 1, 0))
+	actionPanelStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	addBtnStyle            = style.S().Background(color.RGBA{R: 50, G: 180, B: 100, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	addBtnHoverStyle       = style.S().Background(color.RGBA{R: 70, G: 210, B: 120, A: 255})
+	reverseBtnStyle        = style.S().Background(color.RGBA{R: 160, G: 80, B: 220, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	reverseBtnHoverStyle   = style.S().Background(color.RGBA{R: 190, G: 100, B: 250, A: 255})
+	shuffleBtnStyle        = style.S().Background(color.RGBA{R: 220, G: 130, B: 40, A: 255}).Foreground(color.White).Margin(style.Edges(0, 1))
+	shuffleBtnHoverStyle   = style.S().Background(color.RGBA{R: 250, G: 160, B: 60, A: 255})
+	listContainerStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Border(style.DoubleBorder()).Padding(style.Edges(1, 1)).Background(color.RGBA{R: 25, G: 25, B: 38, A: 255})
+	rootStyle              = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+)
+
 type ItemData struct {
 	Key string
 	ID  string
@@ -63,51 +84,28 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 	getClicks, setClicks := kitex.UseState(0)
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexRow),
-			AlignItems:    style.Some(style.AlignCenter),
-			Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-			Padding:       style.Some(style.Edges(0, 1)),
-			Background:    style.Some[color.Color](color.RGBA{R: 35, G: 35, B: 50, A: 255}),
-			Border:        style.SingleBorder().Some(),
-		},
+		Style: itemRowStyle,
 	},
 		kitex.Span(kitex.SpanProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 220, G: 220, B: 230, A: 255}),
-				Width:      style.Some(style.Percent(40)),
-			},
+			Style: itemLabelStyle,
 		}, kitex.Text(fmt.Sprintf("Item %s (Clicks: %d)", props.ID, getClicks()))),
 
 		HoverButton(HoverButtonProps{
 			OnClick: func(e event.Event) {
 				setClicks(getClicks() + 1)
 			},
-			Style: style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 60, G: 120, B: 220, A: 255}),
-				Foreground: style.Some[color.Color](color.White),
-				Margin:     style.Some(style.Edges(0, 1)),
-			},
-			HoverStyle: style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 80, G: 140, B: 240, A: 255}),
-			},
-			Text: " +1 ",
+			Style:      incrementBtnStyle,
+			HoverStyle: incrementBtnHoverStyle,
+			Text:       " +1 ",
 		}),
 
 		HoverButton(HoverButtonProps{
 			OnClick: func(e event.Event) {
 				props.OnDelete()
 			},
-			Style: style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 200, G: 60, B: 60, A: 255}),
-				Foreground: style.Some[color.Color](color.White),
-				Margin:     style.Some(style.Edges(0, 1)),
-			},
-			HoverStyle: style.Style{
-				Background: style.Some[color.Color](color.RGBA{R: 240, G: 80, B: 80, A: 255}),
-			},
-			Text: " Delete ",
+			Style:      deleteBtnStyle,
+			HoverStyle: deleteBtnHoverStyle,
+			Text:       " Delete ",
 		}),
 	)
 })
@@ -145,40 +143,21 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.Style{
-			Display:       style.Some(style.DisplayFlex),
-			FlexDirection: style.Some(style.FlexColumn),
-			Width:         style.Some(style.Percent(100)),
-			Height:        style.Some(style.Percent(100)),
-			Background:    style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 30, A: 255}),
-			Padding:       style.Some(style.Edges(1, 2)),
-		},
+		Style: appContainerStyle,
 	},
 		// Title bar
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Bold:       style.Some(true),
-				Foreground: style.Some[color.Color](color.RGBA{R: 90, G: 140, B: 255, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-				TextAlign:  style.Some(style.TextAlignCenter),
-			},
+			Style: appTitleStyle,
 		}, kitex.Text("⚡ Kitex VDOM Reconciler Dashboard ⚡")),
 
 		// Info / Instructions
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 170, A: 255}),
-				Margin:     style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: instructionsStyle,
 		}, kitex.Text("Press 'q' to Quit. Click buttons below to Add, Reverse, Shuffle, or edit items.")),
 
 		// Actions Panel
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexRow),
-				Margin:        style.Some(style.Edges(0, 0, 1, 0)),
-			},
+			Style: actionPanelStyle,
 		},
 			HoverButton(HoverButtonProps{
 				OnClick: func(e event.Event) {
@@ -193,15 +172,9 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					}))
 					setNextID(nid + 1)
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 50, G: 180, B: 100, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
-				HoverStyle: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 70, G: 210, B: 120, A: 255}),
-				},
-				Text: " Add Item ",
+				Style:      addBtnStyle,
+				HoverStyle: addBtnHoverStyle,
+				Text:       " Add Item ",
 			}),
 
 			HoverButton(HoverButtonProps{
@@ -214,15 +187,9 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					}
 					setItems(reversed)
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 160, G: 80, B: 220, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
-				HoverStyle: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 190, G: 100, B: 250, A: 255}),
-				},
-				Text: " Reverse List ",
+				Style:      reverseBtnStyle,
+				HoverStyle: reverseBtnHoverStyle,
+				Text:       " Reverse List ",
 			}),
 
 			HoverButton(HoverButtonProps{
@@ -236,28 +203,16 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					})
 					setItems(shuffled)
 				},
-				Style: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 220, G: 130, B: 40, A: 255}),
-					Foreground: style.Some[color.Color](color.White),
-					Margin:     style.Some(style.Edges(0, 1)),
-				},
-				HoverStyle: style.Style{
-					Background: style.Some[color.Color](color.RGBA{R: 250, G: 160, B: 60, A: 255}),
-				},
-				Text: " Shuffle List ",
+				Style:      shuffleBtnStyle,
+				HoverStyle: shuffleBtnHoverStyle,
+				Text:       " Shuffle List ",
 			}),
 		),
 
 		// Keyed list — kitex.Map(getItems(), renderItem) passes the named
 		// function directly; no intermediate slice variable needed.
 		kitex.Box(kitex.BoxProps{
-			Style: style.Style{
-				Display:       style.Some(style.DisplayFlex),
-				FlexDirection: style.Some(style.FlexColumn),
-				Border:        style.DoubleBorder().Some(),
-				Padding:       style.Some(style.Edges(1, 1)),
-				Background:    style.Some[color.Color](color.RGBA{R: 25, G: 25, B: 38, A: 255}),
-			},
+			Style: listContainerStyle,
 		}, kitex.Map(getItems(), renderItem)),
 	)
 })
@@ -278,10 +233,7 @@ func main() {
 
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())
-	container.Style(style.Style{
-		Width:  style.Some(style.Percent(100)),
-		Height: style.Some(style.Percent(100)),
-	})
+	container.Style(rootStyle)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true

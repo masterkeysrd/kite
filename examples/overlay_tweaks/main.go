@@ -17,6 +17,18 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	anchorStyle           = style.S().Background(color.RGBA{R: 0, G: 128, B: 0, A: 255}).Foreground(color.White).Padding(style.Edges(1, 2)).Border(style.SingleBorder()).Width(style.Cells(12))
+	boldLabelStyle        = style.S().Bold(true)
+	controlsStyle         = style.S().Margin(style.Edges(1, 0))
+	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 50, B: 50, A: 255}).Padding(style.Edges(1))
+	infoTextStyle         = style.S().Foreground(color.RGBA{R: 255, G: 255, B: 0, A: 255})
+	anchorWrapperStyle    = style.S().Margin(style.Edges(5, 20))
+	contentContainerStyle = style.S().Padding(style.Edges(1, 2))
+	rootStyle             = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+	overlayStyle          = style.S().Background(color.RGBA{R: 128, G: 0, B: 0, A: 255}).Border(style.DoubleBorder()).Padding(style.Edges(0, 1))
+)
+
 func main() {
 	f, _ := os.Create("overlay_tweaks.log")
 	defer f.Close()
@@ -46,13 +58,7 @@ func main() {
 	flipEnabled := true
 
 	// Anchor element
-	anchor := element.Box("  ANCHOR  ").Style(style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 0, G: 128, B: 0, A: 255}),
-		Foreground: style.Some[color.Color](color.White),
-		Padding:    style.Some(style.Edges(1, 2)),
-		Border:     style.SingleBorder().Some(),
-		Width:      style.Some(style.Cells(12)),
-	})
+	anchor := element.Box("  ANCHOR  ").Style(anchorStyle)
 
 	// Info display
 	infoText := element.Text("")
@@ -74,48 +80,30 @@ func main() {
 
 	// Control hints
 	controls := element.Box(
-		element.Box("Controls:").Style(style.Style{Bold: style.Some(true)}),
+		element.Box("Controls:").Style(boldLabelStyle),
 		element.Box(" [1-4] Set Placement (Top, Bottom, Left, Right)"),
 		element.Box(" [f]   Toggle Flip"),
 		element.Box(" [q]   Quit"),
-	).Style(style.Style{
-		Margin: style.Some(style.Edges(1, 0)),
-	})
+	).Style(controlsStyle)
 
 	// Layout root
 	root := element.Box(
-		element.Box("Overlay Tweaks Example").Style(style.Style{
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Background: style.Some[color.Color](color.RGBA{R: 50, G: 50, B: 50, A: 255}),
-			Padding:    style.Some(style.Edges(1)),
-		}),
+		element.Box("Overlay Tweaks Example").Style(titleStyle),
 		element.Box(
-			element.Box(infoText).Style(style.Style{Foreground: style.Some[color.Color](color.RGBA{R: 255, G: 255, B: 0, A: 255})}),
+			element.Box(infoText).Style(infoTextStyle),
 			controls,
-			element.Box(anchor).Style(style.Style{
-				Margin: style.Some(style.Edges(5, 20)),
-			}),
-		).Style(style.Style{
-			Padding: style.Some(style.Edges(1, 2)),
-		}),
-	).Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Percent(100)),
-		Background: style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 20, A: 255}),
-	})
+			element.Box(anchor).Style(anchorWrapperStyle),
+		).Style(contentContainerStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 	devtools.Install(eng, devtools.Options{})
 
 	// Overlay content
 	ovlContent := element.Box(
-		element.Box("I am an Overlay").Style(style.Style{Bold: style.Some(true)}),
+		element.Box("I am an Overlay").Style(boldLabelStyle),
 		element.Box("Try moving me!"),
-	).Style(style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 128, G: 0, B: 0, A: 255}),
-		Border:     style.DoubleBorder().Some(),
-		Padding:    style.Some(style.Edges(0, 1)),
-	})
+	).Style(overlayStyle)
 
 	var currentOverlay *element.OverlayElement
 

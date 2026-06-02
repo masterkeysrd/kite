@@ -25,9 +25,7 @@ func TestInput_Regression_ScrollWhenTextOverflows(t *testing.T) {
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.Style{
-		Width: style.Some(style.Cells(5)), // 5 cells wide, no border/padding
-	})
+	inp.Style(style.S().Width(style.Cells(5)))
 	root := element.Box(inp)
 	eng.Mount(root)
 	eng.Frame()
@@ -66,11 +64,7 @@ func TestInput_Regression_CursorState_AccountsForBorderAndPadding(t *testing.T) 
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "abc")
-	inp.Style(style.Style{
-		Width:   style.Some(style.Cells(20)),
-		Border:  style.SingleBorder().Some(),   // left border = 1
-		Padding: style.Some(style.Edges(0, 1)), // 1-cell padding left/right
-	})
+	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(style.Edges(0, 1)))
 	root := element.Box(inp)
 	eng.Mount(root)
 	eng.Frame()
@@ -107,10 +101,7 @@ func TestTextArea_Regression_EnterInsertsBr(t *testing.T) {
 	defer eng.Stop()
 
 	txa := element.NewTextArea(eng.Document(), "hi")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	eng.Mount(root)
 	eng.Frame()
@@ -136,10 +127,7 @@ func TestTextArea_Regression_MultilineNavigation(t *testing.T) {
 	defer eng.Stop()
 
 	txa := element.NewTextArea(eng.Document(), "abc\ndef")
-	txa.Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Height: style.Some(style.Cells(5)),
-	})
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)))
 	root := element.Box(txa)
 	eng.Mount(root)
 	eng.Frame()

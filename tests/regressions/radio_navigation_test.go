@@ -39,12 +39,12 @@ func TestRadioArrowNavigationFocus(t *testing.T) {
 			switch el := et.(type) {
 			case *element.CheckboxElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255})
+				s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255})
 				el.Style(s)
 				focusHistory = append(focusHistory, "checkbox")
 			case *element.RadioElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](color.RGBA{R: 255, G: 215, B: 0, A: 255})
+				s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255})
 				el.Style(s)
 				focusHistory = append(focusHistory, el.Value().(string))
 			}
@@ -56,12 +56,12 @@ func TestRadioArrowNavigationFocus(t *testing.T) {
 			switch el := et.(type) {
 			case *element.CheckboxElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](style.TerminalDefault)
+				s = s.Foreground(style.TerminalDefault)
 				el.Style(s)
 				blurHistory = append(blurHistory, "checkbox")
 			case *element.RadioElement:
 				s := el.RawStyle()
-				s.Foreground = style.Some[color.Color](style.TerminalDefault)
+				s = s.Foreground(style.TerminalDefault)
 				el.Style(s)
 				blurHistory = append(blurHistory, el.Value().(string))
 			}
@@ -93,12 +93,12 @@ func TestRadioArrowNavigationFocus(t *testing.T) {
 	}
 
 	// Check style values to see if r1 reverted to default and r2 is Gold.
-	if r1.RawStyle().Foreground.Value() != style.TerminalDefault {
-		t.Errorf("Expected r1 style to revert to TerminalDefault, got %v", r1.RawStyle().Foreground.Value())
+	if r1.RawStyle().ForegroundOpt().Value() != style.TerminalDefault {
+		t.Errorf("Expected r1 style to revert to TerminalDefault, got %v", r1.RawStyle().ForegroundOpt().Value())
 	}
 	gold := color.RGBA{R: 255, G: 215, B: 0, A: 255}
-	if r2.RawStyle().Foreground.Value() != gold {
-		t.Errorf("Expected r2 style to be Gold, got %v", r2.RawStyle().Foreground.Value())
+	if r2.RawStyle().ForegroundOpt().Value() != gold {
+		t.Errorf("Expected r2 style to be Gold, got %v", r2.RawStyle().ForegroundOpt().Value())
 	}
 
 	// Step 3: Send Down Arrow (navigates to r3)

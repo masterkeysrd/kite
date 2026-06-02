@@ -55,17 +55,8 @@ func TestOverflowClip_BoxHiddenOverflow(t *testing.T) {
 	// A 10-wide clipping box containing a 30-wide red child box.
 	root := element.Box(
 		element.Box(
-			element.Box().Style(style.Style{
-				Width:      style.Some(style.Cells(30)),
-				Height:     style.Some(style.Cells(1)),
-				Background: style.Some[color.Color](colorRed),
-			}),
-		).Style(style.Style{
-			Width:     style.Some(style.Cells(10)),
-			Height:    style.Some(style.Cells(1)),
-			OverflowX: style.Some(style.OverflowHidden),
-			OverflowY: style.Some(style.OverflowVisible),
-		}),
+			element.Box().Style(style.S().Width(style.Cells(30)).Height(style.Cells(1)).Background(colorRed)),
+		).Style(style.S().Width(style.Cells(10)).Height(style.Cells(1)).OverflowX(style.OverflowHidden).OverflowY(style.OverflowVisible)),
 	)
 
 	env.Mount(root)
@@ -85,17 +76,8 @@ func TestOverflowClip_BoxVisibleOverflow(t *testing.T) {
 
 	root := element.Box(
 		element.Box(
-			element.Box().Style(style.Style{
-				Width:      style.Some(style.Cells(30)),
-				Height:     style.Some(style.Cells(1)),
-				Background: style.Some[color.Color](colorRed),
-			}),
-		).Style(style.Style{
-			Width:     style.Some(style.Cells(10)),
-			Height:    style.Some(style.Cells(1)),
-			OverflowX: style.Some(style.OverflowVisible),
-			OverflowY: style.Some(style.OverflowVisible),
-		}),
+			element.Box().Style(style.S().Width(style.Cells(30)).Height(style.Cells(1)).Background(colorRed)),
+		).Style(style.S().Width(style.Cells(10)).Height(style.Cells(1)).OverflowX(style.OverflowVisible).OverflowY(style.OverflowVisible)),
 	)
 
 	env.Mount(root)
@@ -115,20 +97,9 @@ func TestOverflowClip_HiddenInsideVisible(t *testing.T) {
 	root := element.Box(
 		element.Box(
 			element.Box(
-				element.Box().Style(style.Style{
-					Width:      style.Some(style.Cells(30)),
-					Height:     style.Some(style.Cells(1)),
-					Background: style.Some[color.Color](colorRed),
-				}),
-			).Style(style.Style{
-				Width:     style.Some(style.Cells(8)),
-				Height:    style.Some(style.Cells(1)),
-				OverflowX: style.Some(style.OverflowHidden),
-			}),
-		).Style(style.Style{
-			Width:     style.Some(style.Cells(30)),
-			OverflowX: style.Some(style.OverflowVisible),
-		}),
+				element.Box().Style(style.S().Width(style.Cells(30)).Height(style.Cells(1)).Background(colorRed)),
+			).Style(style.S().Width(style.Cells(8)).Height(style.Cells(1)).OverflowX(style.OverflowHidden)),
+		).Style(style.S().Width(style.Cells(30)).OverflowX(style.OverflowVisible)),
 	)
 
 	env.Mount(root)
@@ -151,18 +122,8 @@ func TestOverflowClip_BorderIntact(t *testing.T) {
 	// 30-wide so it would spill without clipping.
 	root := element.Box(
 		element.Box(
-			element.Box().Style(style.Style{
-				Width:      style.Some(style.Cells(30)),
-				Height:     style.Some(style.Cells(1)),
-				Background: style.Some[color.Color](colorRed),
-			}),
-		).Style(style.Style{
-			Width:     style.Some(style.Cells(10)),
-			Height:    style.Some(style.Cells(3)),
-			OverflowX: style.Some(style.OverflowHidden),
-			OverflowY: style.Some(style.OverflowHidden),
-			Border:    style.SingleBorder().Some(),
-		}),
+			element.Box().Style(style.S().Width(style.Cells(30)).Height(style.Cells(1)).Background(colorRed)),
+		).Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).OverflowX(style.OverflowHidden).OverflowY(style.OverflowHidden).Border(style.SingleBorder())),
 	)
 
 	env.Mount(root)
@@ -194,17 +155,8 @@ func TestOverflowClip_Asymmetric_HiddenX_VisibleY(t *testing.T) {
 	root := element.Box(
 		element.Box(
 			// Wide red child — should be horizontally clipped to 6 cols.
-			element.Box().Style(style.Style{
-				Width:      style.Some(style.Cells(30)),
-				Height:     style.Some(style.Cells(1)),
-				Background: style.Some[color.Color](colorRed),
-			}),
-		).Style(style.Style{
-			Width:     style.Some(style.Cells(6)),
-			Height:    style.Some(style.Cells(3)),
-			OverflowX: style.Some(style.OverflowHidden),
-			OverflowY: style.Some(style.OverflowVisible),
-		}),
+			element.Box().Style(style.S().Width(style.Cells(30)).Height(style.Cells(1)).Background(colorRed)),
+		).Style(style.S().Width(style.Cells(6)).Height(style.Cells(3)).OverflowX(style.OverflowHidden).OverflowY(style.OverflowVisible)),
 	)
 
 	env.Mount(root)

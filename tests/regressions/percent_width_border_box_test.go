@@ -31,16 +31,9 @@ func TestRegression_PercentWidthContentBox(t *testing.T) {
 	env := testenv.Default(40, 5)
 	defer env.Close()
 
-	inner := element.Box().Style(style.Style{
-		Width:      style.Some(style.Percent(50)),
-		Height:     style.Some(style.Cells(1)),
-		Background: style.Some[color.Color](colorGreen),
-	})
+	inner := element.Box().Style(style.S().Width(style.Percent(50)).Height(style.Cells(1)).Background(colorGreen))
 
-	outer := element.Box(inner).Style(style.Style{
-		Width:  style.Some(style.Cells(20)),
-		Border: style.Some(style.SingleBorder()),
-	})
+	outer := element.Box(inner).Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()))
 
 	env.Mount(element.Box(outer))
 	env.RenderFrame()
@@ -65,17 +58,9 @@ func TestRegression_PercentWidth100_NoOverflow(t *testing.T) {
 	// inner fills 100% of outer's content area.  With border=1 and padding=2 on each
 	// side, the content area is 20-2-4=14.  Green must stop at x=14 (1 border + 14
 	// content = x=1..14); the border at x=19 must still be a border glyph (not green).
-	inner := element.Box().Style(style.Style{
-		Width:      style.Some(style.Percent(100)),
-		Height:     style.Some(style.Cells(1)),
-		Background: style.Some[color.Color](colorGreen),
-	})
+	inner := element.Box().Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colorGreen))
 
-	outer := element.Box(inner).Style(style.Style{
-		Width:   style.Some(style.Cells(20)),
-		Border:  style.Some(style.SingleBorder()),
-		Padding: style.Some(style.Edges(2)),
-	})
+	outer := element.Box(inner).Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(style.Edges(2)))
 
 	env.Mount(element.Box(outer))
 	env.RenderFrame()
@@ -98,21 +83,11 @@ func TestRegression_NestedPercentResolution(t *testing.T) {
 	env := testenv.Default(60, 5)
 	defer env.Close()
 
-	level3 := element.Box().Style(style.Style{
-		Width:      style.Some(style.Percent(50)),
-		Height:     style.Some(style.Cells(1)),
-		Background: style.Some[color.Color](colorGreen),
-	})
+	level3 := element.Box().Style(style.S().Width(style.Percent(50)).Height(style.Cells(1)).Background(colorGreen))
 
-	level2 := element.Box(level3).Style(style.Style{
-		Width:  style.Some(style.Percent(50)),
-		Height: style.Some(style.Cells(1)),
-	})
+	level2 := element.Box(level3).Style(style.S().Width(style.Percent(50)).Height(style.Cells(1)))
 
-	level1 := element.Box(level2).Style(style.Style{
-		Width:  style.Some(style.Cells(40)),
-		Height: style.Some(style.Cells(1)),
-	})
+	level1 := element.Box(level2).Style(style.S().Width(style.Cells(40)).Height(style.Cells(1)))
 
 	env.Mount(element.Box(level1))
 	env.RenderFrame()

@@ -35,11 +35,7 @@ func BenchmarkResolver_FullResolve(b *testing.B) {
 	r := styler.NewResolver()
 
 	// 3-5 forced properties modelling a replaced element (e.g. <input>).
-	intrinsic := style.Style{
-		Display:    style.Some(style.DisplayInlineBlock),
-		OverflowX:  style.Some(style.OverflowClip),
-		WhiteSpace: style.Some(style.WhiteSpacePre),
-	}
+	intrinsic := style.S().Display(style.DisplayInlineBlock).OverflowX(style.OverflowClip).WhiteSpace(style.WhiteSpacePre)
 
 	// build a 1000-node linear tree
 	nodes := make([]*fakeNode, 1000)

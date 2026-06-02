@@ -18,9 +18,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	// The internal button should stretch to match this width.
 	s1 := element.Select(
 		element.Option("Option 1", "1"),
-	).WithID("select-fixed").Style(style.Style{
-		Width: style.Some(style.Cells(25)),
-	})
+	).WithID("select-fixed").Style(style.S().Width(style.Cells(25)))
 
 	env.Mount(s1)
 	env.Flush()
@@ -69,9 +67,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 
 	// Case 3: Narrow host.
 	// The internal button should be constrained to the host width.
-	s3 := element.Select().Style(style.Style{
-		Width: style.Some(style.Cells(10)),
-	})
+	s3 := element.Select().Style(style.S().Width(style.Cells(10)))
 	env.Mount(s3)
 	env.Flush()
 
@@ -94,11 +90,7 @@ func TestSelect_LayoutHeight(t *testing.T) {
 		element.Option("Option 1", "1"),
 	).WithID("select")
 
-	container := element.Box(s).Style(style.Style{
-		Display:    style.Some(style.DisplayFlex),
-		AlignItems: style.Some(style.AlignStretch),
-		Height:     style.Some(style.Cells(20)),
-	})
+	container := element.Box(s).Style(style.S().Display(style.DisplayFlex).AlignItems(style.AlignStretch).Height(style.Cells(20)))
 
 	env.Mount(container)
 	env.Flush()

@@ -23,9 +23,7 @@
 //
 // Borders are configured using a fluent, immutable API on the [style.Border] type.
 //
-//	element.Box("Content").Style(style.Style{
-//	    Border: style.SingleBorder().Color(color.RGBA{255, 0, 0, 255}).Some(),
-//	})
+//	element.Box("Content").Style(style.S().Border(style.SingleBorder().Color(color.RGBA{255, 0, 0, 255})))
 //
 // # Text Control Base Pattern
 //

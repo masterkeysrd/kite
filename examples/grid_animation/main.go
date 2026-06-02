@@ -17,6 +17,15 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+var (
+	btnStyle          = style.S().Background(color.RGBA{R: 255, G: 69, B: 0, A: 255}).Foreground(color.White).Border(style.SingleBorder()).Bold(true).Padding(style.Edges(0, 2))
+	btnFocusStyle     = style.S().Background(color.RGBA{R: 255, G: 99, B: 71, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 215, B: 0, A: 255})).Foreground(color.White).Bold(true).Padding(style.Edges(0, 2))
+	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 2, 0))
+	btnWrapperStyle   = style.S().Margin(style.Edges(2, 0, 0, 0))
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(style.Edges(2, 0, 0, 0))
+	rootStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).Padding(style.Edges(2, 4))
+)
+
 var eng *engine.Engine
 
 func main() {
@@ -51,15 +60,7 @@ func main() {
 	endCols := []style.GridTrackSize{style.Fr(3), style.Fr(1), style.Cells(10)}
 
 	updateGridStyle := func(cols []style.GridTrackSize) {
-		gridContainer.Style(style.Style{
-			Display:             style.Some(style.DisplayGrid),
-			GridTemplateColumns: style.Some(cols),
-			GridTemplateRows:    style.Some(style.Repeat(2, style.Fr(1))),
-			Height:              style.Some(style.Cells(10)),
-			Border:              style.SingleBorder().Some(),
-			Gap:                 style.Some(style.Gap(1)),
-			Padding:             style.Some(style.Edges(1)),
-		})
+		gridContainer.Style(style.S().Display(style.DisplayGrid).GridTemplateColumns(cols).GridTemplateRows(style.Repeat(2, style.Fr(1))).Height(style.Cells(10)).Border(style.SingleBorder()).Gap(style.Gap(1)).Padding(style.Edges(1)))
 		eng.RequestFrame()
 	}
 
@@ -68,20 +69,8 @@ func main() {
 	var triggerBtn *element.ButtonElement
 	triggerBtn = element.Button("  Animate Grid Tracks  ")
 
-	defaultBtnStyle := style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 255, G: 69, B: 0, A: 255}), // Red-Orange
-		Foreground: style.Some[color.Color](color.White),
-		Border:     style.SingleBorder().Some(),
-		Bold:       style.Some(true),
-		Padding:    style.Some(style.Edges(0, 2)),
-	}
-	focusBtnStyle := style.Style{
-		Background: style.Some[color.Color](color.RGBA{R: 255, G: 99, B: 71, A: 255}), // Tomato
-		Border:     style.SingleBorder().Color(color.RGBA{R: 255, G: 215, B: 0, A: 255}).Some(),
-		Foreground: style.Some[color.Color](color.White),
-		Bold:       style.Some(true),
-		Padding:    style.Some(style.Edges(0, 2)),
-	}
+	defaultBtnStyle := btnStyle
+	focusBtnStyle := btnFocusStyle
 
 	triggerBtn.Style(defaultBtnStyle)
 	triggerBtn.OnEvent(event.EventFocus, func(e event.Event) {
@@ -132,28 +121,11 @@ func main() {
 	})
 
 	root := element.Box(
-		element.Box("⚡ Grid Animation Interpolator Showcase ⚡").Style(style.Style{
-			Bold:       style.Some(true),
-			Foreground: style.Some[color.Color](color.RGBA{R: 0, G: 255, B: 200, A: 255}),
-			TextAlign:  style.Some(style.TextAlignCenter),
-			Margin:     style.Some(style.Edges(0, 0, 2, 0)),
-		}),
+		element.Box("⚡ Grid Animation Interpolator Showcase ⚡").Style(titleStyle),
 		gridContainer,
-		element.Box(triggerBtn).Style(style.Style{
-			Margin: style.Some(style.Edges(2, 0, 0, 0)),
-		}),
-		element.Box("Instructions: Press Tab to focus the button, then Space to click. 'q' to quit.").Style(style.Style{
-			Foreground: style.Some[color.Color](color.RGBA{R: 150, G: 150, B: 150, A: 255}),
-			Margin:     style.Some(style.Edges(2, 0, 0, 0)),
-		}),
-	).Style(style.Style{
-		Display:       style.Some(style.DisplayFlex),
-		FlexDirection: style.Some(style.FlexColumn),
-		Width:         style.Some(style.Percent(100)),
-		Height:        style.Some(style.Percent(100)),
-		Background:    style.Some[color.Color](color.RGBA{R: 20, G: 20, B: 25, A: 255}),
-		Padding:       style.Some(style.Edges(2, 4)),
-	})
+		element.Box(triggerBtn).Style(btnWrapperStyle),
+		element.Box("Instructions: Press Tab to focus the button, then Space to click. 'q' to quit.").Style(instructionsStyle),
+	).Style(rootStyle)
 
 	eng.Mount(root)
 
@@ -175,16 +147,7 @@ func main() {
 }
 
 func itemStyle(bg color.Color) style.Style {
-	return style.Style{
-		Background:     style.Some(bg),
-		Border:         style.SingleBorder().Some(),
-		Width:          style.Some(style.Percent(100)),
-		Height:         style.Some(style.Percent(100)),
-		AlignItems:     style.Some(style.AlignCenter),
-		JustifyContent: style.Some(style.JustifyCenter),
-		Display:        style.Some(style.DisplayFlex),
-		Bold:           style.Some(true),
-	}
+	return style.S().Background(bg).Border(style.SingleBorder()).Width(style.Percent(100)).Height(style.Percent(100)).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Display(style.DisplayFlex).Bold(true)
 }
 
 type CustomAnimator struct {
