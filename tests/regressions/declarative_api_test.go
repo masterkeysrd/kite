@@ -3,8 +3,8 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 func TestDeclarative_NestedSlices(t *testing.T) {

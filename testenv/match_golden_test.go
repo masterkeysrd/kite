@@ -120,3 +120,27 @@ func TestDumps(t *testing.T) {
 		}
 	})
 }
+
+func TestColorToHex(t *testing.T) {
+	tests := []struct {
+		name string
+		c    color.Color
+		want string
+	}{
+		{"nil", nil, ""},
+		{"TerminalDefault", style.TerminalDefault, "default"},
+		{"Transparent", color.Transparent, "transparent"},
+		{"RGBA Transparent", color.RGBA{0, 0, 0, 0}, "transparent"},
+		{"Red", color.RGBA{255, 0, 0, 255}, "#ff0000"},
+		{"Green", color.RGBA{0, 255, 0, 255}, "#00ff00"},
+		{"Blue", color.RGBA{0, 0, 255, 255}, "#0000ff"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := colorToHex(tt.c); got != tt.want {
+				t.Errorf("colorToHex(%v) = %q, want %q", tt.c, got, tt.want)
+			}
+		})
+	}
+}
