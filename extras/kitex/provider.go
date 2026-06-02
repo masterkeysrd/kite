@@ -1,7 +1,6 @@
 package kitex
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
 
@@ -15,6 +14,7 @@ type ProviderNode[T comparable] struct {
 	children []Node
 	entry    *contextEntry[T]
 	pool     *sync.Pool
+	refs     []dom.Node
 }
 
 // Ensure compile-time interface compliance.
@@ -54,9 +54,13 @@ func (p *ProviderNode[T]) Key() string {
 	return ""
 }
 
-// realNode returns nil because the ProviderNode has no DOM element of its own.
-func (p *ProviderNode[T]) realNode() dom.Node {
-	return nil
+// realNodes returns the slice of DOM nodes representing the provider's children.
+func (p *ProviderNode[T]) realNodes() []dom.Node {
+	return p.refs
+}
+
+func (p *ProviderNode[T]) setRefs(els []dom.Node) {
+	p.refs = els
 }
 
 func (p *ProviderNode[T]) containsProvider() bool {
@@ -91,6 +95,7 @@ func (p *ProviderNode[T]) Release() {
 	}
 	p.children = nil
 	p.entry = nil
+	p.refs = nil
 	pool := p.pool
 	p.pool = nil
 	pool.Put(p)
@@ -142,32 +147,38 @@ func (e *contextEntry[T]) notifySubscribers(newValue T) {
 	}
 }
 
-// Instantiate is called when the ProviderNode is treated as a single root.
-func (p *ProviderNode[T]) Instantiate(doc dom.Document) dom.Node {
+// Instantiate instantiates all children of the provider and returns them as a slice of DOM nodes.
+func (p *ProviderNode[T]) Instantiate(doc dom.Document) []dom.Node {
 	p.initEntry()
 	p.pushEntry()
 	defer p.popEntry()
 
-	if len(p.children) == 1 {
-		return p.children[0].Instantiate(doc)
+	var reals []dom.Node
+	for _, child := range p.children {
+		if child != nil {
+			reals = append(reals, child.Instantiate(doc)...)
+		}
 	}
-	panic(fmt.Sprintf("ProviderNode (%s) used as a single VDOM node root must have exactly one child", p.TagName()))
+	p.refs = reals
+	return reals
 }
 
-// Update is called when the ProviderNode is treated as a single root.
-func (p *ProviderNode[T]) Update(el dom.Node, old Node) {
+// Update is called when updating a provider node.
+func (p *ProviderNode[T]) Update(els []dom.Node, old Node) {
+	p.refs = els
 	p.initEntry()
 	p.pushEntry()
 	defer p.popEntry()
 
-	if len(p.children) == 1 {
-		var oldChild Node
-		if oldProv, ok := old.(*ProviderNode[T]); ok && len(oldProv.children) == 1 {
-			oldChild = oldProv.children[0]
+	var oldProv *ProviderNode[T]
+	if old != nil {
+		if op, ok := old.(*ProviderNode[T]); ok {
+			oldProv = op
 			p.updateFrom(oldProv)
 		}
-		p.children[0].Update(el, oldChild)
-		return
 	}
-	panic(fmt.Sprintf("ProviderNode (%s) used as a single VDOM node root must have exactly one child", p.TagName()))
+
+	if len(p.children) == 1 && oldProv != nil && len(oldProv.children) == 1 {
+		p.children[0].Update(els, oldProv.children[0])
+	}
 }

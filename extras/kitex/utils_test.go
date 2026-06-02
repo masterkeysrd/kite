@@ -11,9 +11,14 @@ import (
 
 func TestMap_Basic(t *testing.T) {
 	items := []string{"a", "b", "c"}
-	nodes := Map(items, func(item string, i int) Node {
+	node := Map(items, func(item string, i int) Node {
 		return Text(fmt.Sprintf("%d:%s", i, item))
 	})
+	frag, ok := node.(*fragmentNode)
+	if !ok {
+		t.Fatalf("expected Fragment, got %T", node)
+	}
+	nodes := frag.children
 	if len(nodes) != 3 {
 		t.Fatalf("expected 3 nodes, got %d", len(nodes))
 	}
@@ -27,19 +32,29 @@ func TestMap_Basic(t *testing.T) {
 
 func TestMap_FiltersNil(t *testing.T) {
 	items := []int{1, 2, 3, 4}
-	nodes := Map(items, func(item int, _ int) Node {
+	node := Map(items, func(item int, _ int) Node {
 		if item%2 == 0 {
 			return nil // skip evens
 		}
 		return Text(fmt.Sprintf("%d", item))
 	})
+	frag, ok := node.(*fragmentNode)
+	if !ok {
+		t.Fatalf("expected Fragment, got %T", node)
+	}
+	nodes := frag.children
 	if len(nodes) != 2 {
 		t.Fatalf("expected 2 nodes (odd items only), got %d", len(nodes))
 	}
 }
 
 func TestMap_EmptySlice(t *testing.T) {
-	nodes := Map([]string{}, func(s string, _ int) Node { return Text(s) })
+	node := Map([]string{}, func(s string, _ int) Node { return Text(s) })
+	frag, ok := node.(*fragmentNode)
+	if !ok {
+		t.Fatalf("expected Fragment, got %T", node)
+	}
+	nodes := frag.children
 	if len(nodes) != 0 {
 		t.Fatalf("expected empty slice, got %d nodes", len(nodes))
 	}
@@ -61,29 +76,44 @@ func TestMap_IndexProvided(t *testing.T) {
 // --- Nodes ---
 
 func TestNodes_MergesGroups(t *testing.T) {
-	g1 := []Node{Text("a"), Text("b")}
-	g2 := []Node{Text("c")}
+	g1 := Fragment(Text("a"), Text("b"))
+	g2 := Text("c")
 	merged := Nodes(g1, g2)
-	if len(merged) != 3 {
-		t.Fatalf("expected 3 nodes, got %d", len(merged))
+	frag, ok := merged.(*fragmentNode)
+	if !ok {
+		t.Fatalf("expected Fragment, got %T", merged)
+	}
+	nodes := frag.children
+	if len(nodes) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(nodes))
 	}
 }
 
 func TestNodes_FiltersNil(t *testing.T) {
-	g := []Node{Text("a"), nil, Text("b"), nil}
+	g := Fragment(Text("a"), nil, Text("b"), nil)
 	merged := Nodes(g)
-	if len(merged) != 2 {
-		t.Fatalf("expected 2 non-nil nodes, got %d", len(merged))
+	frag, ok := merged.(*fragmentNode)
+	if !ok {
+		t.Fatalf("expected Fragment, got %T", merged)
+	}
+	nodes := frag.children
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 non-nil nodes, got %d", len(nodes))
 	}
 }
 
 func TestNodes_Empty(t *testing.T) {
 	merged := Nodes()
 	if merged == nil {
-		t.Fatal("Nodes() should return non-nil empty slice")
+		t.Fatal("Nodes() should return non-nil Node")
 	}
-	if len(merged) != 0 {
-		t.Fatalf("expected 0 nodes, got %d", len(merged))
+	frag, ok := merged.(*fragmentNode)
+	if !ok {
+		t.Fatalf("expected Fragment, got %T", merged)
+	}
+	nodes := frag.children
+	if len(nodes) != 0 {
+		t.Fatalf("expected 0 nodes, got %d", len(nodes))
 	}
 }
 
@@ -130,21 +160,21 @@ func TestIfElse_False(t *testing.T) {
 // --- Fragment ---
 
 func TestFragment_Basic(t *testing.T) {
-	nodes := Fragment(Text("a"), Text("b"), Text("c"))
+	nodes := Fragment(Text("a"), Text("b"), Text("c")).Children()
 	if len(nodes) != 3 {
 		t.Fatalf("expected 3 nodes, got %d", len(nodes))
 	}
 }
 
 func TestFragment_FiltersNil(t *testing.T) {
-	nodes := Fragment(Text("a"), nil, Text("b"))
-	if len(nodes) != 2 {
-		t.Fatalf("expected 2 non-nil nodes, got %d", len(nodes))
+	nodes := Fragment(Text("a"), nil, Text("b")).Children()
+	if len(nodes) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(nodes))
 	}
 }
 
 func TestFragment_Empty(t *testing.T) {
-	nodes := Fragment()
+	nodes := Fragment().Children()
 	if len(nodes) != 0 {
 		t.Fatalf("expected empty fragment, got %d", len(nodes))
 	}
@@ -168,10 +198,10 @@ func TestMap_SpreadIntoBox(t *testing.T) {
 	vdom := Box(BoxProps{},
 		Map(rows, func(r Row, _ int) Node {
 			return Span(SpanProps{Key: r.Key}, Text(r.Text))
-		})...,
+		}),
 	)
 
-	real := vdom.Instantiate(doc).(dom.Element)
+	real := vdom.Instantiate(doc)[0].(dom.Element)
 	count := 0
 	for child := real.FirstChild(); child != nil; child = child.NextSibling() {
 		count++
@@ -189,7 +219,7 @@ func TestIf_SpreadIntoBox(t *testing.T) {
 			Text("always"),
 			If(show, Text("conditional")),
 		)
-		return vdom.Instantiate(doc).(dom.Element)
+		return vdom.Instantiate(doc)[0].(dom.Element)
 	}
 
 	// With show=true: 2 children

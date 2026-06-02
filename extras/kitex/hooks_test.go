@@ -95,7 +95,7 @@ func TestUseStatePersistence(t *testing.T) {
 
 	// 1. Initial instantiate
 	node := myComp(struct{}{})
-	realNode := node.Instantiate(doc)
+	realNodes := node.Instantiate(doc)
 
 	if renderCount != 1 {
 		t.Fatalf("expected renderCount to be 1, got %d", renderCount)
@@ -109,7 +109,7 @@ func TestUseStatePersistence(t *testing.T) {
 
 	// 2. Simulate update/re-render without state changes
 	node2 := myComp(struct{}{})
-	node2.Update(realNode, node)
+	node2.Update(realNodes, node)
 
 	if renderCount != 2 {
 		t.Fatalf("expected renderCount to be 2, got %d", renderCount)
@@ -142,7 +142,7 @@ func TestUseStatePersistence(t *testing.T) {
 
 	// In a real reconciler, it would re-render. Let's simulate that re-render:
 	node3 := myComp(struct{}{})
-	node3.Update(realNode, node2)
+	node3.Update(realNodes, node2)
 
 	if renderCount != 3 {
 		t.Fatalf("expected renderCount to be 3, got %d", renderCount)
@@ -212,7 +212,7 @@ func TestUseRef(t *testing.T) {
 
 	// 1. Initial instantiate
 	node1 := myComp(struct{}{})
-	realNode := node1.Instantiate(doc)
+	realNodes := node1.Instantiate(doc)
 
 	if renderCount != 1 {
 		t.Fatalf("expected renderCount to be 1, got %d", renderCount)
@@ -246,7 +246,7 @@ func TestUseRef(t *testing.T) {
 
 	// 3. Simulate update/re-render and verify persistence
 	node2 := myComp(struct{}{})
-	node2.Update(realNode, node1)
+	node2.Update(realNodes, node1)
 
 	if renderCount != 2 {
 		t.Fatalf("expected renderCount to be 2, got %d", renderCount)
@@ -320,13 +320,13 @@ func TestUseReducer_Dispatch(t *testing.T) {
 	})
 
 	node := myComp(struct{}{})
-	realNode := node.Instantiate(doc)
+	realNodes := node.Instantiate(doc)
 
 	dispatch("inc")
 
 	// Simulate re-render
 	node2 := myComp(struct{}{})
-	node2.Update(realNode, node)
+	node2.Update(realNodes, node)
 
 	if getState() != 11 {
 		t.Errorf("expected state to be 11 after inc dispatch, got %d", getState())
@@ -355,7 +355,7 @@ func TestUseReducer_MultipleDispatches(t *testing.T) {
 	})
 
 	node := myComp(struct{}{})
-	realNode := node.Instantiate(doc)
+	realNodes := node.Instantiate(doc)
 
 	dispatch("inc")
 	dispatch("inc")
@@ -364,7 +364,7 @@ func TestUseReducer_MultipleDispatches(t *testing.T) {
 
 	// Simulate re-render
 	node2 := myComp(struct{}{})
-	node2.Update(realNode, node)
+	node2.Update(realNodes, node)
 
 	if getState() != 12 {
 		t.Errorf("expected state to be 12 after multiple dispatches, got %d", getState())
@@ -418,10 +418,10 @@ func TestUseReducer_StableGetterAcrossRenders(t *testing.T) {
 	})
 
 	node1 := myComp(struct{}{})
-	realNode := node1.Instantiate(doc)
+	realNodes := node1.Instantiate(doc)
 
 	node2 := myComp(struct{}{})
-	node2.Update(realNode, node1)
+	node2.Update(realNodes, node1)
 
 	if len(getStates) != 2 {
 		t.Fatalf("expected 2 renders, got %d", len(getStates))
@@ -460,13 +460,13 @@ func TestUseCallback_ReturnsSameRef(t *testing.T) {
 		useSecond bool
 		x         int
 	}{useSecond: false, x: 1})
-	realNode := node1.Instantiate(doc)
+	realNodes := node1.Instantiate(doc)
 
 	node2 := myComp(struct {
 		useSecond bool
 		x         int
 	}{useSecond: true, x: 1})
-	node2.Update(realNode, node1)
+	node2.Update(realNodes, node1)
 
 	if len(callbacks) != 2 {
 		t.Fatalf("expected 2 renders, got %d", len(callbacks))
@@ -505,13 +505,13 @@ func TestUseCallback_UpdatesOnDepsChange(t *testing.T) {
 		useSecond bool
 		x         int
 	}{useSecond: false, x: 1})
-	realNode := node1.Instantiate(doc)
+	realNodes := node1.Instantiate(doc)
 
 	node2 := myComp(struct {
 		useSecond bool
 		x         int
 	}{useSecond: true, x: 2})
-	node2.Update(realNode, node1)
+	node2.Update(realNodes, node1)
 
 	if len(callbacks) != 2 {
 		t.Fatalf("expected 2 renders, got %d", len(callbacks))
@@ -544,10 +544,10 @@ func TestUseCallback_NilDeps(t *testing.T) {
 	})
 
 	node1 := myComp(struct{ useSecond bool }{useSecond: false})
-	realNode := node1.Instantiate(doc)
+	realNodes := node1.Instantiate(doc)
 
 	node2 := myComp(struct{ useSecond bool }{useSecond: true})
-	node2.Update(realNode, node1)
+	node2.Update(realNodes, node1)
 
 	if len(callbacks) != 2 {
 		t.Fatalf("expected 2 renders, got %d", len(callbacks))
@@ -565,7 +565,7 @@ func TestUseCallback_NilDeps(t *testing.T) {
 func BenchmarkContextFlatReconcile(b *testing.B) {
 	EnableDevMode = false
 	doc := dom.NewDocument()
-	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	ctx := CreateContext("value")
 
@@ -599,7 +599,7 @@ func init() {
 
 func TestUseEffect_RunsAfterFlush(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	effectCalled := false
 	comp := SimpleFC("TestComp", func() Node {
@@ -624,7 +624,7 @@ func TestUseEffect_RunsAfterFlush(t *testing.T) {
 
 func TestUseEffect_DepsNil_RunsEveryRender(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setTrigger func(int)
 	runCount := 0
@@ -658,7 +658,7 @@ func TestUseEffect_DepsNil_RunsEveryRender(t *testing.T) {
 
 func TestUseEffect_DepsEmpty_RunsOnce(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setTrigger func(int)
 	runCount := 0
@@ -686,7 +686,7 @@ func TestUseEffect_DepsEmpty_RunsOnce(t *testing.T) {
 
 func TestUseEffect_DepsChanged_Reruns(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setVal func(int)
 	runCount := 0
@@ -720,7 +720,7 @@ func TestUseEffect_DepsChanged_Reruns(t *testing.T) {
 
 func TestUseEffectCleanup_CleansUpBeforeRerun(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setVal func(int)
 	var order []string
@@ -751,7 +751,7 @@ func TestUseEffectCleanup_CleansUpBeforeRerun(t *testing.T) {
 
 func TestUseEffectCleanup_CleansUpOnUnmount(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	cleanupCalled := false
 	comp := SimpleFC("TestComp", func() Node {
@@ -778,7 +778,7 @@ func TestUseEffectCleanup_CleansUpOnUnmount(t *testing.T) {
 
 func TestUseLayoutEffect_RunsSynchronouslyAfterReconcile(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setTrigger func(int)
 	layoutEffectCalled := false
@@ -805,7 +805,7 @@ func TestUseLayoutEffect_RunsSynchronouslyAfterReconcile(t *testing.T) {
 
 func TestUseLayoutEffect_CanTriggerReRender(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	renderCount := 0
 	comp := SimpleFC("TestComp", func() Node {
@@ -829,7 +829,7 @@ func TestUseLayoutEffect_CanTriggerReRender(t *testing.T) {
 
 func TestUseLayoutEffect_ReentrancyCap(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	renderCount := 0
 	comp := SimpleFC("TestComp", func() Node {
@@ -856,7 +856,7 @@ func TestUseLayoutEffect_ReentrancyCap(t *testing.T) {
 
 func TestDestroy_RunsAllCleanups(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	cleanup1Called := false
 	cleanup2Called := false
@@ -888,7 +888,7 @@ func TestDestroy_RunsAllCleanups(t *testing.T) {
 
 func TestDestroy_RecursiveChildren(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	childCleanupCalled := false
 	childComp := SimpleFC("ChildComp", func() Node {
@@ -914,7 +914,7 @@ func TestDestroy_RecursiveChildren(t *testing.T) {
 
 func TestFlushBeforeRender_Guarantee(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setTrigger func(int)
 	effectRan := false
@@ -953,7 +953,7 @@ func TestFlushBeforeRender_Guarantee(t *testing.T) {
 
 func BenchmarkUseEffect(b *testing.B) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	comp := SimpleFC("BenchComp", func() Node {
 		// Queue up 100 effects
@@ -987,7 +987,7 @@ func BenchmarkDestroy(b *testing.B) {
 	}
 
 	for b.Loop() {
-		container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+		container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 		Render(buildTree(5), container)
 		testScheduler.flushMacrotasks()
 		Render(nil, container) // Destroy
@@ -996,7 +996,7 @@ func BenchmarkDestroy(b *testing.B) {
 
 func BenchmarkLayoutEffectReRender(b *testing.B) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	comp := SimpleFC("BenchComp", func() Node {
 		val, setVal := UseState(0)
@@ -1163,5 +1163,41 @@ func TestUseKeyboard(t *testing.T) {
 	// Since the component is unmounted and listener removed, state should not update
 	if state.lastPressed == "B" {
 		t.Errorf("Expected handler to be removed on unmount, but it was still called")
+	}
+}
+
+func TestUseState_UnmountedComponentNoop(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setState func(int)
+	var getState func() int
+	comp := SimpleFC("TestComp", func() Node {
+		get, set := UseState(10)
+		setState = set
+		getState = get
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+
+	if getState() != 10 {
+		t.Errorf("expected 10, got %d", getState())
+	}
+
+	Render(nil, container) // Unmount/destroy component
+
+	// Trigger state update after unmount
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("UseState set function panicked on unmounted component: %v", r)
+		}
+	}()
+
+	setState(42)
+
+	// Getter should return last known value
+	if getState() != 10 {
+		t.Errorf("expected getter to return last known value 10, got %d", getState())
 	}
 }

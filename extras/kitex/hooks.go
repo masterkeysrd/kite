@@ -50,6 +50,9 @@ func UseState[T any](initial T) (func() T, func(T)) {
 			ref.mu.Lock()
 			activeNode := ref.node
 			ref.mu.Unlock()
+			if activeNode == nil {
+				return hs.value
+			}
 			val, _ := activeNode.getHookState(idx)
 			return val.(*hookState[T]).value
 		}
@@ -58,6 +61,10 @@ func UseState[T any](initial T) (func() T, func(T)) {
 			ref.mu.Lock()
 			activeNode := ref.node
 			ref.mu.Unlock()
+
+			if activeNode == nil {
+				return
+			}
 
 			val, _ := activeNode.getHookState(idx)
 			hsPtr := val.(*hookState[T])
@@ -261,9 +268,9 @@ func UseDocument() func() dom.Document {
 			return nil
 		}
 
-		rn := activeNode.realNode()
-		if rn != nil {
-			return rn.OwnerDocument()
+		reals := activeNode.realNodes()
+		if len(reals) > 0 && reals[0] != nil {
+			return reals[0].OwnerDocument()
 		}
 		return nil
 	}
@@ -292,7 +299,11 @@ func UseElement() func() dom.Node {
 			return nil
 		}
 
-		return activeNode.realNode()
+		reals := activeNode.realNodes()
+		if len(reals) > 0 {
+			return reals[0]
+		}
+		return nil
 	}
 }
 

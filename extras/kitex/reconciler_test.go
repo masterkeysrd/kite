@@ -10,7 +10,7 @@ import (
 
 func TestReconcilerMountAndUnmount(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{ID: "container"}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
 
 	// 1. Initial Mount
 	rootVNode := Box(BoxProps{ID: "app"},
@@ -46,7 +46,7 @@ func TestReconcilerMountAndUnmount(t *testing.T) {
 
 func TestReconcilerTagMismatchReplacement(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	// Mount a Box
 	Render(Box(BoxProps{ID: "node1"}), container)
@@ -68,7 +68,7 @@ func TestReconcilerTagMismatchReplacement(t *testing.T) {
 
 func TestReconcilerStateUpdateDirtyReRender(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setCounter func(int)
 
@@ -101,7 +101,7 @@ func TestReconcilerStateUpdateDirtyReRender(t *testing.T) {
 
 func TestReconcilerKeyedListReordering(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	// Render list: A, B, C with keys
 	Render(Box(BoxProps{},
@@ -169,7 +169,7 @@ func TestReconcilerKeyedListReordering(t *testing.T) {
 // cases in the same pass and is the minimal repro.
 func TestReconcilerKeyedListReverse(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	Render(Box(BoxProps{},
 		Span(SpanProps{Key: "A", ID: "id-a"}, Text("A")),
@@ -221,7 +221,7 @@ func TestReconcilerKeyedListReverse(t *testing.T) {
 
 func TestReconcilerComponentListReverse(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	type ItemProps struct {
 		Key string
@@ -282,7 +282,7 @@ func TestReconcilerComponentListReverse(t *testing.T) {
 
 func TestReconcilerInsertionsAndDeletions(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	// Render: A, B
 	Render(Box(BoxProps{},
@@ -330,7 +330,7 @@ func TestReconcilerInsertionsAndDeletions(t *testing.T) {
 
 func TestReconcilerStateUpdateListReverse(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	type ItemData struct {
 		Key string
@@ -356,7 +356,7 @@ func TestReconcilerStateUpdateListReverse(t *testing.T) {
 		renderItem := func(item ItemData, _ int) Node {
 			return ItemComp(ItemProps(item))
 		}
-		return Box(BoxProps{}, Map(getItems(), renderItem)...)
+		return Box(BoxProps{}, Map(getItems(), renderItem))
 	})
 
 	Render(AppComp(struct{}{}), container)
@@ -405,7 +405,7 @@ func TestReconcilerStateUpdateListReverse(t *testing.T) {
 
 func TestReconcilerConditionalNilChildren(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setCondition func(bool)
 
@@ -478,7 +478,7 @@ func BenchmarkReconcilerMount(b *testing.B) {
 	doc := dom.NewDocument()
 
 	for b.Loop() {
-		container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+		container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 		root := Box(BoxProps{ID: "app"},
 			Span(SpanProps{ID: "s1"}, Text("text 1")),
 			Span(SpanProps{ID: "s2"}, Text("text 2")),
@@ -495,7 +495,7 @@ func BenchmarkReconcilerMount(b *testing.B) {
 func BenchmarkReconcilerNonKeyedUpdate(b *testing.B) {
 	EnableDevMode = false
 	doc := dom.NewDocument()
-	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	// Pre-create some lists
 	listA := make([]Node, 100)
@@ -521,7 +521,7 @@ func BenchmarkReconcilerNonKeyedUpdate(b *testing.B) {
 func BenchmarkReconcilerKeyedUpdate(b *testing.B) {
 	EnableDevMode = false
 	doc := dom.NewDocument()
-	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	listA := make([]Node, 100)
 	for i := range 100 {
@@ -541,5 +541,56 @@ func BenchmarkReconcilerKeyedUpdate(b *testing.B) {
 	for b.Loop() {
 		Render(rootA, container)
 		Render(rootB, container)
+	}
+}
+
+func TestFragmentComponentReconciliation(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	type MyFragmentCompProps struct {
+		Items []string
+	}
+
+	MyFragmentComp := FC("MyFragmentComp", func(props MyFragmentCompProps) Node {
+		var nodes []Node
+		for _, item := range props.Items {
+			nodes = append(nodes, Span(SpanProps{ID: item}, Text(item)))
+		}
+		return Fragment(nodes...)
+	})
+
+	// 1. Mount: A, B
+	Render(MyFragmentComp(MyFragmentCompProps{Items: []string{"A", "B"}}), container)
+
+	var childIDs []string
+	for child := range container.ChildNodes() {
+		if el, ok := child.(dom.Element); ok {
+			childIDs = append(childIDs, el.ID())
+		}
+	}
+	expectedIDs1 := []string{"A", "B"}
+	if !reflect.DeepEqual(childIDs, expectedIDs1) {
+		t.Fatalf("expected mounted children %v, got %v", expectedIDs1, childIDs)
+	}
+
+	// 2. Update: B, C, D (reordering, adding, removing)
+	Render(MyFragmentComp(MyFragmentCompProps{Items: []string{"B", "C", "D"}}), container)
+
+	childIDs = nil
+	for child := range container.ChildNodes() {
+		if el, ok := child.(dom.Element); ok {
+			childIDs = append(childIDs, el.ID())
+		}
+	}
+	expectedIDs2 := []string{"B", "C", "D"}
+	if !reflect.DeepEqual(childIDs, expectedIDs2) {
+		t.Fatalf("expected updated children %v, got %v", expectedIDs2, childIDs)
+	}
+
+	// 3. Unmount
+	Render(nil, container)
+	if container.FirstChild() != nil {
+		t.Errorf("expected container to be empty after unmount, but has child %v", container.FirstChild())
 	}
 }

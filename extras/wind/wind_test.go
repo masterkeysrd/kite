@@ -14,7 +14,7 @@ import (
 
 func TestContextCancellationOnUnmount(t *testing.T) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 
 	client := NewClient()
@@ -69,7 +69,7 @@ var ChildQueryComp = kitex.FC("ChildQueryComp", func(props ChildProps) kitex.Nod
 
 func TestRequestDeduping(t *testing.T) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 
@@ -111,7 +111,7 @@ func TestRequestDeduping(t *testing.T) {
 
 func TestQueryInvalidation(t *testing.T) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 
@@ -170,7 +170,7 @@ func TestQueryInvalidation(t *testing.T) {
 
 func TestMutation(t *testing.T) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 
@@ -258,7 +258,7 @@ func BenchmarkClient_InvalidateQueries(b *testing.B) {
 
 func BenchmarkUseQuery(b *testing.B) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	defer kitex.Render(nil, container)
 
 	client := NewClient()
@@ -281,7 +281,7 @@ func BenchmarkUseQuery(b *testing.B) {
 
 func BenchmarkUseMutation(b *testing.B) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	defer kitex.Render(nil, container)
 
 	client := NewClient()

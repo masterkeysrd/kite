@@ -11,6 +11,18 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+func instOne(n Node, doc dom.Document) dom.Node {
+	reals := n.Instantiate(doc)
+	if len(reals) == 0 {
+		return nil
+	}
+	return reals[0]
+}
+
+func upd(n Node, el dom.Node, old Node) {
+	n.Update([]dom.Node{el}, old)
+}
+
 func TestFactoryFunctions(t *testing.T) {
 	// Test Text node factory
 	textNode := Text("hello")
@@ -68,7 +80,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Active:   true,
 		}
 		btnNode := Button(btnProps)
-		realNode := btnNode.Instantiate(doc)
+		realNode := instOne(btnNode, doc)
 
 		btnEl, ok := realNode.(*element.ButtonElement)
 		if !ok {
@@ -97,7 +109,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Active:   false,
 		}
 		newBtnNode := Button(newBtnProps)
-		newBtnNode.Update(realNode, btnNode)
+		upd(newBtnNode, realNode, btnNode)
 
 		if btnEl.ID() != "btn2" {
 			t.Errorf("expected updated ID btn2, got %s", btnEl.ID())
@@ -121,7 +133,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			CheckedGlyph:   "[on]",
 		}
 		cbNode := Checkbox(cbProps)
-		realNode := cbNode.Instantiate(doc)
+		realNode := instOne(cbNode, doc)
 
 		cbEl, ok := realNode.(*element.CheckboxElement)
 		if !ok {
@@ -140,7 +152,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			CheckedGlyph:   "[on]",
 		}
 		newCbNode := Checkbox(newCbProps)
-		newCbNode.Update(realNode, cbNode)
+		upd(newCbNode, realNode, cbNode)
 
 		if !cbEl.Checked() {
 			t.Errorf("expected checkbox to be checked after update")
@@ -153,7 +165,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "initial input",
 		}
 		inpNode := Input(inpProps)
-		realInp := inpNode.Instantiate(doc).(*element.InputElement)
+		realInp := instOne(inpNode, doc).(*element.InputElement)
 
 		if realInp.Value() != "initial input" {
 			t.Errorf("expected value 'initial input', got %s", realInp.Value())
@@ -164,7 +176,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "updated input",
 		}
 		newInpNode := Input(newInpProps)
-		newInpNode.Update(realInp, inpNode)
+		upd(newInpNode, realInp, inpNode)
 
 		if realInp.Value() != "updated input" {
 			t.Errorf("expected updated value 'updated input', got %s", realInp.Value())
@@ -176,7 +188,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "initial text",
 		}
 		txaNode := TextArea(txaProps)
-		realTxa := txaNode.Instantiate(doc).(*element.TextAreaElement)
+		realTxa := instOne(txaNode, doc).(*element.TextAreaElement)
 
 		if realTxa.Value() != "initial text" {
 			t.Errorf("expected value 'initial text', got %s", realTxa.Value())
@@ -187,7 +199,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "updated text",
 		}
 		newTxaNode := TextArea(newTxaProps)
-		newTxaNode.Update(realTxa, txaNode)
+		upd(newTxaNode, realTxa, txaNode)
 
 		if realTxa.Value() != "updated text" {
 			t.Errorf("expected updated value 'updated text', got %s", realTxa.Value())
@@ -200,7 +212,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "val1",
 		}
 		rNode := Radio(rProps)
-		realRadio := rNode.Instantiate(doc).(*element.RadioElement)
+		realRadio := instOne(rNode, doc).(*element.RadioElement)
 
 		if realRadio.Value() != "val1" {
 			t.Errorf("expected value val1, got %s", realRadio.Value())
@@ -212,7 +224,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "val2",
 		}
 		newRNode := Radio(newRProps)
-		newRNode.Update(realRadio, rNode)
+		upd(newRNode, realRadio, rNode)
 
 		if realRadio.Value() != "val2" {
 			t.Errorf("expected updated value val2, got %s", realRadio.Value())
@@ -226,7 +238,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "val1",
 		}
 		optNode := Option(optProps)
-		realOpt := optNode.Instantiate(doc).(*element.OptionElement)
+		realOpt := instOne(optNode, doc).(*element.OptionElement)
 
 		// Reflection updates text/value
 		newOptProps := OptionProps{
@@ -235,7 +247,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "val1_new",
 		}
 		newOptNode := Option(newOptProps)
-		newOptNode.Update(realOpt, optNode)
+		upd(newOptNode, realOpt, optNode)
 
 		// Check unexported fields using reflection in test
 		optVal := reflect.ValueOf(realOpt).Elem()
@@ -252,7 +264,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "val1",
 		}
 		selNode := Select(selProps)
-		realSel := selNode.Instantiate(doc).(*element.SelectElement)
+		realSel := instOne(selNode, doc).(*element.SelectElement)
 
 		if realSel.Value() != "val1" {
 			t.Errorf("expected select value val1, got %s", realSel.Value())
@@ -264,7 +276,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Value: "val2",
 		}
 		newSelNode := Select(newSelProps)
-		newSelNode.Update(realSel, selNode)
+		upd(newSelNode, realSel, selNode)
 
 		if realSel.Value() != "val2" {
 			t.Errorf("expected updated select value val2, got %s", realSel.Value())
@@ -272,7 +284,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 	})
 
 	t.Run("Select VDOM children option synchronization", func(t *testing.T) {
-		container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+		container := instOne(Div(BoxProps{}), doc).(dom.Element)
 
 		selNode := Select(SelectProps{
 			Name:  "role",
@@ -308,7 +320,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			RowSpan: 3,
 		}
 		tdNode := TD(tdProps)
-		realTd := tdNode.Instantiate(doc).(*element.TableCellElement)
+		realTd := instOne(tdNode, doc).(*element.TableCellElement)
 
 		if realTd.ColSpan() != 2 {
 			t.Errorf("expected colSpan 2, got %d", realTd.ColSpan())
@@ -323,7 +335,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			RowSpan: 1,
 		}
 		newTdNode := TD(newTdProps)
-		newTdNode.Update(realTd, tdNode)
+		upd(newTdNode, realTd, tdNode)
 
 		if realTd.ColSpan() != 1 {
 			t.Errorf("expected updated colSpan 1, got %d", realTd.ColSpan())
@@ -341,7 +353,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Flip:      true,
 		}
 		overlayNode := Overlay(overlayProps, nil)
-		realOverlay := overlayNode.Instantiate(doc).(*element.OverlayElement)
+		realOverlay := instOne(overlayNode, doc).(*element.OverlayElement)
 
 		if realOverlay.Placement() != geom.PlacementTop {
 			t.Errorf("expected overlay placement top")
@@ -354,7 +366,7 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			Flip:      false,
 		}
 		newOverlayNode := Overlay(newOverlayProps, nil)
-		newOverlayNode.Update(realOverlay, overlayNode)
+		upd(newOverlayNode, realOverlay, overlayNode)
 
 		if realOverlay.Placement() != geom.PlacementBottom {
 			t.Errorf("expected updated overlay placement bottom")
@@ -366,14 +378,14 @@ func TestInstantiateAndUpdate(t *testing.T) {
 			ZIndex: 50,
 		}
 		dialogNode := Dialog(dialogProps, nil)
-		realDialog := dialogNode.Instantiate(doc).(*element.DialogElement)
+		realDialog := instOne(dialogNode, doc).(*element.DialogElement)
 
 		newDialogProps := DialogProps{
 			ID:     "dial1",
 			ZIndex: 100,
 		}
 		newDialogNode := Dialog(newDialogProps, nil)
-		newDialogNode.Update(realDialog, dialogNode)
+		upd(newDialogNode, realDialog, dialogNode)
 
 		dialVal := reflect.ValueOf(realDialog).Elem()
 		if dialVal.FieldByName("zIndex").Int() != 100 {
@@ -392,7 +404,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	btnNode1 := Button(ButtonProps{
 		OnClick: fn1,
 	})
-	realBtn := btnNode1.Instantiate(doc).(*element.ButtonElement)
+	realBtn := instOne(btnNode1, doc).(*element.ButtonElement)
 
 	// Trigger click on realBtn
 	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
@@ -404,7 +416,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	btnNode2 := Button(ButtonProps{
 		OnClick: fn2,
 	})
-	btnNode2.Update(realBtn, btnNode1)
+	upd(btnNode2, realBtn, btnNode1)
 
 	// Trigger click on realBtn again
 	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
@@ -419,7 +431,7 @@ func TestEventListenersUpdate(t *testing.T) {
 	btnNode3 := Button(ButtonProps{
 		OnClick: nil,
 	})
-	btnNode3.Update(realBtn, btnNode2)
+	upd(btnNode3, realBtn, btnNode2)
 
 	// Trigger click on realBtn again
 	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
@@ -440,7 +452,7 @@ func TestElementRefWiring(t *testing.T) {
 		Ref: boxRef,
 		ID:  "my-box",
 	})
-	realBox := boxNode.Instantiate(doc)
+	realBox := instOne(boxNode, doc)
 	if boxRef.Current == nil {
 		t.Fatalf("expected boxRef.Current to be populated")
 	}
@@ -454,7 +466,7 @@ func TestElementRefWiring(t *testing.T) {
 		Ref: btnRef,
 		ID:  "my-btn",
 	})
-	realBtn := btnNode.Instantiate(doc)
+	realBtn := instOne(btnNode, doc)
 	if btnRef.Current == nil {
 		t.Fatalf("expected btnRef.Current to be populated")
 	}
@@ -463,7 +475,7 @@ func TestElementRefWiring(t *testing.T) {
 	}
 
 	// 3. Test Ref with reconciler Render()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := instOne(Div(BoxProps{}), doc).(dom.Element)
 	reconcileRef := CreateRef[dom.Element]()
 
 	Render(Box(BoxProps{
@@ -488,7 +500,7 @@ func TestSimpleComponents(t *testing.T) {
 			return Box(BoxProps{ID: "simple-box"})
 		})
 		node := simple()
-		realNode := node.Instantiate(doc).(*element.BoxElement)
+		realNode := instOne(node, doc).(*element.BoxElement)
 		if realNode.ID() != "simple-box" {
 			t.Errorf("expected ID simple-box, got %s", realNode.ID())
 		}
@@ -500,7 +512,7 @@ func TestSimpleComponents(t *testing.T) {
 		})
 		child := Text("hello")
 		nodeWithChildren := simpleWithChildren(child)
-		realContainer := nodeWithChildren.Instantiate(doc).(*element.BoxElement)
+		realContainer := instOne(nodeWithChildren, doc).(*element.BoxElement)
 		if realContainer.ID() != "container" {
 			t.Errorf("expected ID container, got %s", realContainer.ID())
 		}
@@ -519,7 +531,7 @@ func TestBuildDevToolsSnapshot(t *testing.T) {
 	defer func() { EnableDevMode = false }()
 
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := instOne(Div(BoxProps{}), doc).(dom.Element)
 
 	type MyProps struct {
 		Val string
@@ -808,7 +820,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 
 	// Initial render (renderCount = 1)
 	node1 := myComp(RichProps{Title: "hello"})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 	if renderCount != 1 {
 		t.Fatalf("expected renderCount=1 after Instantiate, got %d", renderCount)
 	}
@@ -822,7 +834,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 
 	// Update with identical props → memoization should kick in, no RenderFn call.
 	node2 := myComp(RichProps{Title: "hello"})
-	node2.Update(realNode, node1)
+	upd(node2, realNode, node1)
 	if renderCount != 1 {
 		t.Errorf("expected renderCount=1 after memo hit, got %d (RenderFn was called unexpectedly)", renderCount)
 	}
@@ -834,7 +846,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 
 	// Update with changed props → RenderFn must be called.
 	node3 := myComp(RichProps{Title: "world"})
-	node3.Update(realNode, node2)
+	upd(node3, realNode, node2)
 	if renderCount != 2 {
 		t.Errorf("expected renderCount=2 after prop change, got %d", renderCount)
 	}
@@ -853,7 +865,7 @@ func TestMemoDoesNotActivateForSmallTree(t *testing.T) {
 	})
 
 	node1 := myComp(P{V: "a"})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 
 	comp := node1.(*ComponentNode[P])
 	if comp.shouldMemo {
@@ -861,7 +873,7 @@ func TestMemoDoesNotActivateForSmallTree(t *testing.T) {
 	}
 
 	node2 := myComp(P{V: "a"}) // identical props but small tree
-	node2.Update(realNode, node1)
+	upd(node2, realNode, node1)
 	if renderCount != 2 {
 		t.Errorf("small tree should always re-render, expected renderCount=2, got %d", renderCount)
 	}
@@ -911,14 +923,14 @@ func TestUseMemoReturnsCachedValueWhenDepsUnchanged(t *testing.T) {
 
 	// Initial render: dep=5
 	node1 := myComp(P{Dep: 5})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 	if callCount != 1 || lastVal != 50 {
 		t.Fatalf("initial render: callCount=%d lastVal=%d, want 1 / 50", callCount, lastVal)
 	}
 
 	// Re-render with same dep → factory should NOT be called.
 	node2 := myComp(P{Dep: 5})
-	node2.Update(realNode, node1)
+	upd(node2, realNode, node1)
 	if callCount != 1 {
 		t.Errorf("same deps: factory should not be called again, got callCount=%d", callCount)
 	}
@@ -928,7 +940,7 @@ func TestUseMemoReturnsCachedValueWhenDepsUnchanged(t *testing.T) {
 
 	// Re-render with changed dep → factory MUST be called.
 	node3 := myComp(P{Dep: 7})
-	node3.Update(realNode, node2)
+	upd(node3, realNode, node2)
 	if callCount != 2 {
 		t.Errorf("changed deps: factory should be called, got callCount=%d", callCount)
 	}
@@ -956,21 +968,21 @@ func TestUseMemoMultipleDeps(t *testing.T) {
 	})
 
 	node1 := myComp(P{A: 1, B: "x"})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 	if callCount != 1 {
 		t.Fatalf("initial: callCount=%d, want 1", callCount)
 	}
 
 	// Same deps → no re-eval.
 	node2 := myComp(P{A: 1, B: "x"})
-	node2.Update(realNode, node1)
+	upd(node2, realNode, node1)
 	if callCount != 1 {
 		t.Errorf("same deps: callCount=%d, want 1", callCount)
 	}
 
 	// Changing B only → re-eval.
 	node3 := myComp(P{A: 1, B: "y"})
-	node3.Update(realNode, node2)
+	upd(node3, realNode, node2)
 	if callCount != 2 {
 		t.Errorf("changed B: callCount=%d, want 2", callCount)
 	}
@@ -991,15 +1003,15 @@ func TestUseMemoEmptyDeps(t *testing.T) {
 	})
 
 	node1 := myComp(struct{}{})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 	if callCount != 1 {
 		t.Fatalf("initial: callCount=%d, want 1", callCount)
 	}
 
 	node2 := myComp(struct{}{})
-	node2.Update(realNode, node1)
+	upd(node2, realNode, node1)
 	node3 := myComp(struct{}{})
-	node3.Update(realNode, node2)
+	upd(node3, realNode, node2)
 	if callCount != 1 {
 		t.Errorf("empty deps: factory should run only once, got callCount=%d", callCount)
 	}
@@ -1102,11 +1114,11 @@ func BenchmarkComponentUpdate(b *testing.B) {
 
 	// Initial render
 	node1 := myCounter(struct{}{})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 
 	for b.Loop() {
 		node2 := myCounter(struct{}{})
-		node2.Update(realNode, node1)
+		upd(node2, realNode, node1)
 		node1 = node2
 	}
 }
@@ -1144,7 +1156,7 @@ func BenchmarkMemoizedUpdateIdenticalProps(b *testing.B) {
 	})
 
 	node1 := myComp(RichProps{Label: "hello"})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 
 	// Confirm memoization is active.
 	comp := node1.(*ComponentNode[RichProps])
@@ -1154,7 +1166,7 @@ func BenchmarkMemoizedUpdateIdenticalProps(b *testing.B) {
 
 	for b.Loop() {
 		node2 := myComp(RichProps{Label: "hello"}) // identical props
-		node2.Update(realNode, node1)
+		upd(node2, realNode, node1)
 		node1 = node2
 	}
 }
@@ -1171,7 +1183,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 	})
 
 	node1 := myComp(RichProps{Label: "hello"})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 
 	for i := 0; b.Loop(); i++ {
 		// Alternate labels so props always differ, defeating the memo.
@@ -1180,7 +1192,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 			label = "world"
 		}
 		node2 := myComp(RichProps{Label: label})
-		node2.Update(realNode, node1)
+		upd(node2, realNode, node1)
 		ReleaseTree(node1)
 		node1 = node2
 	}
@@ -1204,11 +1216,11 @@ func BenchmarkUseMemoHitRate(b *testing.B) {
 	})
 
 	node1 := myComp(struct{}{})
-	realNode := node1.Instantiate(doc)
+	realNode := instOne(node1, doc)
 
 	for b.Loop() {
 		node2 := myComp(struct{}{})
-		node2.Update(realNode, node1)
+		upd(node2, realNode, node1)
 		node1 = node2
 	}
 }
