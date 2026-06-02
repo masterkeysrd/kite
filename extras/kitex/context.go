@@ -137,7 +137,6 @@ func CreateContext[T comparable](defaultValue T) *Context[T] {
 	return ctx
 }
 
-
 func (c *Context[T]) push(entry *contextEntry[T]) {
 	c.stack = append(c.stack, entry)
 }

@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
@@ -960,5 +961,92 @@ func TestDrawBorder_NestedClipRestrictsBorder(t *testing.T) {
 		if fb.CellAt(x, 5).BorderStyle != BorderNone {
 			t.Errorf("NestedClip: unexpected border outside outer at (%d,5)", x)
 		}
+	}
+}
+
+func TestFrameBuffer_ColorBlending(t *testing.T) {
+	red := color.RGBA{255, 0, 0, 255}
+	blue := color.RGBA{0, 0, 255, 255}
+	transparent := color.Transparent
+	semiRed := color.RGBA{255, 0, 0, 128}
+
+	tests := []struct {
+		name   string
+		parent color.Color
+		child  color.Color
+		want   color.Color
+	}{
+		{
+			name:   "Solid parent, Solid child",
+			parent: blue,
+			child:  red,
+			want:   red,
+		},
+		{
+			name:   "Solid parent, Semi-transparent child",
+			parent: blue,
+			child:  semiRed,
+			want:   color.RGBA{128, 0, 127, 255}, // Blended blue and red
+		},
+		{
+			name:   "Transparent parent, Semi-transparent child",
+			parent: transparent,
+			child:  semiRed,
+			want:   color.RGBA{128, 0, 0, 255}, // Blended with black fallback
+		},
+		{
+			name:   "TerminalDefault child",
+			parent: blue,
+			child:  style.TerminalDefault,
+			want:   blue,
+		},
+		{
+			name:   "TerminalDefault parent, Semi-transparent child",
+			parent: style.TerminalDefault,
+			child:  semiRed,
+			want:   color.RGBA{128, 0, 0, 255}, // Blended with black fallback
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fb := NewFrameBuffer(0, 0, 1, 1)
+			// Write the parent color first
+			fb.Set(0, 0, Cell{
+				Cell: backend.Cell{
+					Bg: tt.parent,
+				},
+			})
+			// Write the child color on top
+			fb.Set(0, 0, Cell{
+				Cell: backend.Cell{
+					Bg: tt.child,
+				},
+			})
+			got := fb.CellAt(0, 0).Bg
+			if got != tt.want {
+				t.Errorf("blend result = %v; want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func BenchmarkFrameBuffer_ColorBlending(b *testing.B) {
+	fb := NewFrameBuffer(0, 0, 1, 1)
+	parent := color.RGBA{0, 0, 255, 255}
+	child := color.RGBA{255, 0, 0, 128}
+
+	// Warm cache
+	fb.Set(0, 0, Cell{Cell: backend.Cell{Bg: parent}})
+	fb.Set(0, 0, Cell{Cell: backend.Cell{Bg: child}})
+
+	cell := Cell{Cell: backend.Cell{Bg: child}}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		// Set parent first, then overlay child
+		fb.cells[0].Bg = parent
+		fb.Set(0, 0, cell)
 	}
 }

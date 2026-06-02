@@ -66,23 +66,23 @@ var (
 
 // ElementProps holds common fields and event listeners present on all DOM element nodes.
 type ElementProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	Disabled    bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	Disabled     bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
 	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
@@ -777,32 +777,32 @@ func Span(props SpanProps, children ...Node) Node {
 
 // ButtonProps specifies attributes for Button elements.
 type ButtonProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Disabled    bool
-	Active      bool
-	Type        string
+	Disabled     bool
+	Active       bool
+	Type         string
 }
 
 func (p ButtonProps) elementProps() ElementProps {
@@ -1227,31 +1227,31 @@ func Select(props SelectProps, children ...Node) Node {
 
 // OptionProps specifies attributes for Option elements.
 type OptionProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Text        string
-	Value       string
+	Text         string
+	Value        string
 }
 
 func (p OptionProps) elementProps() ElementProps {
@@ -1303,32 +1303,32 @@ func Option(props OptionProps) Node {
 
 // InputProps specifies attributes for Input elements.
 type InputProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	Disabled    bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	Disabled     bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Value       string
-	Name        string
+	Value        string
+	Name         string
 }
 
 func (p InputProps) elementProps() ElementProps {
@@ -1381,32 +1381,32 @@ func Input(props InputProps) Node {
 
 // TextAreaProps specifies attributes for TextArea elements.
 type TextAreaProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	Disabled    bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	Disabled     bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Value       string
-	Name        string
+	Value        string
+	Name         string
 }
 
 func (p TextAreaProps) elementProps() ElementProps {
@@ -1559,31 +1559,31 @@ func TR(props TRProps, children ...Node) Node {
 
 // TDProps specifies attributes for TD elements.
 type TDProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	ColSpan     int
-	RowSpan     int
+	ColSpan      int
+	RowSpan      int
 }
 
 func (p TDProps) elementProps() ElementProps {
@@ -1651,33 +1651,33 @@ func Br(props BrProps) Node {
 
 // OverlayProps specifies attributes for Overlay elements.
 type OverlayProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Anchor      dom.Element
-	ZIndex      int
-	Placement   geom.Placement
-	Flip        bool
+	Anchor       dom.Element
+	ZIndex       int
+	Placement    geom.Placement
+	Flip         bool
 }
 
 func (p OverlayProps) elementProps() ElementProps {
@@ -1739,30 +1739,30 @@ func Overlay(props OverlayProps, content Node) Node {
 
 // DialogProps specifies attributes for Dialog elements.
 type DialogProps struct {
-	Key         string
-	ID          string
-	Class       string
-	Style       style.Style
-	Hidden      bool
-	OnKeyDown   func(event.Event)
-	OnKeyUp     func(event.Event)
-	OnKeyPress  func(event.Event)
-	OnMouseDown func(event.Event)
-	OnMouseUp   func(event.Event)
-	OnMouseMove func(event.Event)
-	OnClick     func(event.Event)
-	OnDrag      func(event.Event)
-	OnWheel     func(event.Event)
-	OnFocus     func(event.Event)
-	OnBlur      func(event.Event)
-	OnChange    func(event.Event)
+	Key          string
+	ID           string
+	Class        string
+	Style        style.Style
+	Hidden       bool
+	OnKeyDown    func(event.Event)
+	OnKeyUp      func(event.Event)
+	OnKeyPress   func(event.Event)
+	OnMouseDown  func(event.Event)
+	OnMouseUp    func(event.Event)
+	OnMouseMove  func(event.Event)
+	OnClick      func(event.Event)
+	OnDrag       func(event.Event)
+	OnWheel      func(event.Event)
+	OnFocus      func(event.Event)
+	OnBlur       func(event.Event)
+	OnChange     func(event.Event)
 	OnScroll     func(event.Event)
 	OnMouseEnter func(event.Event)
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	ZIndex      int
+	ZIndex       int
 }
 
 func (p DialogProps) elementProps() ElementProps {
@@ -2130,7 +2130,6 @@ func (c *ComponentNode[P]) restoreContexts() func() {
 }
 
 func noopCleanup() {}
-
 
 // ClearDirty clears the dirty flag of the component.
 func (c *ComponentNode[P]) ClearDirty() {

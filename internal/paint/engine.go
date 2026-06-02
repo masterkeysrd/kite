@@ -44,7 +44,7 @@ func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin 
 	p.rootSurface = surface
 	p.clipStack = p.clipStack[:0]
 	p.clipStack = append(p.clipStack, surface.Bounds())
-	p.paintFragment(ctx, frag, origin)
+	p.paintFragment(ctx, frag, origin, color.Transparent)
 }
 
 // ResolveBorders resolves border junctions across the entire surface.
@@ -123,7 +123,7 @@ func (p *PaintEngine) setCell(x, y int, c Cell) {
 	}
 }
 
-func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin geom.Point) {
+func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin geom.Point, blockBg color.Color) {
 	if frag == nil {
 		return
 	}
@@ -136,8 +136,23 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 		return
 	}
 
-	// 1. Draw self (background and border).
+	isTextNode := false
+	if frag.Node != nil && frag.Node.LogicalNode() != nil {
+		if frag.Node.LogicalNode().Kind() == dom.KindText {
+			isTextNode = true
+		}
+	}
+
+	currentBlockBg := blockBg
 	if frag.Node != nil && frag.Node.Style() != nil {
+		s := frag.Node.Style()
+		if s.Background != nil && !isTransparent(s.Background) {
+			currentBlockBg = s.Background
+		}
+	}
+
+	// 1. Draw self (background and border).
+	if !isTextNode && frag.Node != nil && frag.Node.Style() != nil {
 		s := frag.Node.Style()
 
 		// Optimization: Skip rendering if no visual content and no clipping.
@@ -146,7 +161,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			len(frag.Text) > 0
 
 		if hasVisuals {
-			if s.Background != nil && !isTransparent(s.Background) {
+			if s.Background != nil && !isTransparent(s.Background) && !colorsEqual(s.Background, blockBg) {
 				p.fillRect(geom.Rect{
 					Origin: origin,
 					Size:   frag.Size,
@@ -155,11 +170,10 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 
 			// Render border.
 			if s.Border.Edges.Top || s.Border.Edges.Bottom || s.Border.Edges.Left || s.Border.Edges.Right {
-				_, bg := p.getInheritedStyle(frag)
 				p.drawBorder(geom.Rect{
 					Origin: origin,
 					Size:   frag.Size,
-				}, s.Border, bg)
+				}, s.Border, color.Transparent)
 			}
 		}
 	}
@@ -167,6 +181,10 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 	// 2. Render text clusters for THIS fragment.
 	if len(frag.Text) > 0 {
 		fg, bg := p.getInheritedStyle(frag)
+		textBg := bg
+		if colorsEqual(bg, blockBg) {
+			textBg = color.Transparent
+		}
 
 		currentX := origin.X
 		for _, cluster := range frag.Text {
@@ -180,7 +198,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 					Content: content,
 					Width:   cluster.CellWidth,
 					Fg:      fg,
-					Bg:      bg,
+					Bg:      textBg,
 				},
 			})
 			currentX += cluster.CellWidth
@@ -215,7 +233,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
-		p.paintFragment(ctx, childLink.Fragment, childOrigin)
+		p.paintFragment(ctx, childLink.Fragment, childOrigin, currentBlockBg)
 	}
 
 	// Pop child clip.
@@ -254,10 +272,7 @@ func (p *PaintEngine) paintScrollbars(frag *layout.Fragment, origin geom.Point) 
 	if thumbFG == style.TerminalDefault {
 		thumbFG = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	}
-	bg := s.Background
-	if isTransparent(bg) {
-		bg = color.Transparent
-	}
+	bg := color.Transparent
 
 	// Vertical Scrollbar
 	if frag.HasScrollbarY && maxSY > 0 {
