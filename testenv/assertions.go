@@ -2,7 +2,9 @@ package testenv
 
 import (
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
@@ -425,4 +427,253 @@ func (ea *EventAssertion) ToFireWhen(action func()) {
 	if sub != nil {
 		sub.Cancel()
 	}
+}
+
+// ToHaveTextContent asserts that the node's TextContent() equals the expected string.
+func (a *ElementAssertion) ToHaveTextContent(expected string, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+	got := a.node.TextContent()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected text content %q, got %q%s", expected, got, suffix)
+	}
+	return a
+}
+
+// ToBeChecked asserts that the node (or its underlying unwrapped node) is a Checkbox or Radio element and matches the expected checked state.
+func (a *ElementAssertion) ToBeChecked(expected bool, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+	type checkedProvider interface {
+		Checked() bool
+	}
+	var provider checkedProvider
+	if p, ok := a.node.(checkedProvider); ok {
+		provider = p
+	} else if un := a.node.Unwrap(); un != nil {
+		if p2, ok2 := un.(checkedProvider); ok2 {
+			provider = p2
+		}
+	}
+	if provider == nil {
+		a.t.Fatalf("expected node to support Checked state, but it does not")
+	}
+	got := provider.Checked()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected checked = %t, got %t%s", expected, got, suffix)
+	}
+	return a
+}
+
+// ToBeDisabled asserts that the node (or its underlying unwrapped node) is a form control or interactive element and matches the expected disabled state.
+func (a *ElementAssertion) ToBeDisabled(expected bool, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+	type disabledProvider interface {
+		IsDisabled() bool
+	}
+	var provider disabledProvider
+	if p, ok := a.node.(disabledProvider); ok {
+		provider = p
+	} else if un := a.node.Unwrap(); un != nil {
+		if p2, ok2 := un.(disabledProvider); ok2 {
+			provider = p2
+		}
+	}
+	if provider == nil {
+		a.t.Fatalf("expected node to support IsDisabled check, but it does not")
+	}
+	got := provider.IsDisabled()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected disabled = %t, got %t%s", expected, got, suffix)
+	}
+	return a
+}
+
+// ToHaveValue asserts that the node is a FormControl (or its underlying unwrapped node) and its Value() equals the expected value.
+func (a *ElementAssertion) ToHaveValue(expected any, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+	var control dom.FormControl
+	if p, ok := a.node.(dom.FormControl); ok {
+		control = p
+	} else if un := a.node.Unwrap(); un != nil {
+		if p2, ok2 := un.(dom.FormControl); ok2 {
+			control = p2
+		}
+	}
+	if control == nil {
+		a.t.Fatalf("expected node to be a dom.FormControl, but it is not")
+	}
+	got := control.Value()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected value %v, got %v%s", expected, got, suffix)
+	}
+	return a
+}
+
+// ToHaveID asserts that the node is a dom.Element (or its underlying unwrapped node) and has the expected ID.
+func (a *ElementAssertion) ToHaveID(expected string, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+	var el dom.Element
+	if e, ok := a.node.(dom.Element); ok {
+		el = e
+	} else if un := a.node.Unwrap(); un != nil {
+		if e2, ok2 := un.(dom.Element); ok2 {
+			el = e2
+		}
+	}
+	if el == nil {
+		a.t.Fatalf("node is not an Element (cannot check ID)")
+	}
+	got := el.ID()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected ID %q, got %q%s", expected, got, suffix)
+	}
+	return a
+}
+
+// ToHaveClass asserts that the node is a dom.Element (or its underlying unwrapped node) and has the expected Class.
+func (a *ElementAssertion) ToHaveClass(expected string, msgs ...any) *ElementAssertion {
+	a.t.Helper()
+	if a.node == nil {
+		a.t.Fatalf("node is nil")
+	}
+	var el dom.Element
+	if e, ok := a.node.(dom.Element); ok {
+		el = e
+	} else if un := a.node.Unwrap(); un != nil {
+		if e2, ok2 := un.(dom.Element); ok2 {
+			el = e2
+		}
+	}
+	if el == nil {
+		a.t.Fatalf("node is not an Element (cannot check Class)")
+	}
+	got := el.Class()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		a.t.Fatalf("expected Class %q, got %q%s", expected, got, suffix)
+	}
+	return a
+}
+
+// Eventually polls the given predicate function until it returns true or the timeout is reached.
+// If the timeout is reached, the test fails with a description.
+func Eventually(t *testing.T, predicate func() bool, timeout time.Duration, pollInterval ...time.Duration) {
+	t.Helper()
+	interval := 10 * time.Millisecond
+	if len(pollInterval) > 0 {
+		interval = pollInterval[0]
+	}
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if predicate() {
+			return
+		}
+		time.Sleep(interval)
+	}
+
+	// Try one last time
+	if predicate() {
+		return
+	}
+
+	t.Fatalf("condition not met within %v", timeout)
+}
+
+// EventSpy records occurrences of a specific event type on a target.
+type EventSpy struct {
+	t      *testing.T
+	events []event.Event
+	mu     sync.Mutex
+}
+
+// SpyEvents attaches a listener to target for the given eventType and returns an EventSpy.
+func SpyEvents(t *testing.T, target event.EventTarget, eventType event.EventType) *EventSpy {
+	spy := &EventSpy{t: t}
+	target.AddEventListener(eventType, func(e event.Event) {
+		spy.mu.Lock()
+		defer spy.mu.Unlock()
+		spy.events = append(spy.events, e)
+	})
+	return spy
+}
+
+// Count returns the number of events captured.
+func (s *EventSpy) Count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.events)
+}
+
+// Events returns the captured events.
+func (s *EventSpy) Events() []event.Event {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	copied := make([]event.Event, len(s.events))
+	copy(copied, s.events)
+	return copied
+}
+
+// AssertFired asserts that the event was fired at least once.
+func (s *EventSpy) AssertFired(msgs ...any) *EventSpy {
+	s.t.Helper()
+	if s.Count() == 0 {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		s.t.Fatalf("expected event to fire, but it did not%s", suffix)
+	}
+	return s
+}
+
+// AssertFiredCount asserts that the event was fired exactly expected times.
+func (s *EventSpy) AssertFiredCount(expected int, msgs ...any) *EventSpy {
+	s.t.Helper()
+	got := s.Count()
+	if got != expected {
+		suffix := ""
+		if len(msgs) > 0 {
+			suffix = ": " + fmt.Sprint(msgs...)
+		}
+		s.t.Fatalf("expected event to fire %d times, got %d%s", expected, got, suffix)
+	}
+	return s
 }

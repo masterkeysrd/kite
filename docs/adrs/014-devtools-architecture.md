@@ -22,8 +22,8 @@ To solve immediate layout bugs visually, the core `paint` engine will add an opt
 - When toggled (via a devtools integration hotkey), the engine will draw explicit bounding boxes over components.
 - Coloring semantics: Content Box (Blue), Padding Box (Green), Margin Box (Red).
 
-### 3. Headless Test Environment (`devtools/testenv`)
-We will build a high-level wrapper around the existing `backend/mock`. 
+### 3. Headless Test Environment (`testenv`)
+We will build a high-level wrapper around the existing `backend/mock` (located at `/testenv`). 
 - **DOM Queries:** Methods like `GetNodeByID` to traverse the logical DOM directly in tests.
 - **Event Simulation:** Methods like `Type()` and `Click()` that dispatch through Kite's standard synthetic event pipeline.
 - **Golden Testing:** It will snapshot the `paint.FrameBuffer` into `.golden` files to catch unintended visual regressions in automated tests.

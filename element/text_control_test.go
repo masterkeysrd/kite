@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend/mock"
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
@@ -22,6 +21,7 @@ import (
 	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 // ---------------------------------------------------------------------------

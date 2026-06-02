@@ -3,11 +3,11 @@ package element_test
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 func TestButton_Click_Mouse(t *testing.T) {

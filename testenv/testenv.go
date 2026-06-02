@@ -19,6 +19,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/style"
 )
 
 var (
@@ -175,6 +176,12 @@ func (e *Environment) KeyPress(keyOrChar string, mods ...key.Mod) {
 			k.Code = key.KeyDelete
 		case "enter":
 			k.Code = key.KeyEnter
+		case "esc", "escape":
+			k.Code = key.KeyEscape
+		case "tab":
+			k.Code = key.KeyTab
+		case "space":
+			k.Code = key.KeySpace
 		default:
 			// Fallback to literal if it's longer than 1 but not matched
 			if len(keyOrChar) > 0 {
@@ -307,6 +314,7 @@ func (e *Environment) MatchGolden(t *testing.T, filename string) {
 	if string(actual) != string(expected) {
 		t.Errorf("framebuffer does not match golden file %s", goldenPath)
 		t.Errorf("actual output written to %s", actualPath)
+		t.Errorf("Side-by-side diff (Expected vs Actual):%s", renderSideBySide(expected, actual))
 	}
 
 	if *print {
@@ -394,7 +402,13 @@ func colorToHex(c color.Color) string {
 	if c == nil {
 		return ""
 	}
-	r, g, b, _ := c.RGBA()
+	if style.IsTerminalDefault(c) {
+		return "default"
+	}
+	r, g, b, a := c.RGBA()
+	if a == 0 {
+		return "transparent"
+	}
 	return fmt.Sprintf("#%02x%02x%02x", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 }
 
@@ -413,11 +427,11 @@ func (e *Environment) DumpANSI() string {
 		for x := 0; x < bounds.Size.Width; x++ {
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
 			// ANSI Escape codes
-			if cell.Fg != nil {
+			if cell.Fg != nil && !style.IsTerminalDefault(cell.Fg) {
 				r, g, b, _ := cell.Fg.RGBA()
 				fmt.Fprintf(&sb, "\x1b[38;2;%d;%d;%dm", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 			}
-			if cell.Bg != nil {
+			if cell.Bg != nil && !style.IsTerminalDefault(cell.Bg) {
 				r, g, b, _ := cell.Bg.RGBA()
 				fmt.Fprintf(&sb, "\x1b[48;2;%d;%d;%dm", uint8(r>>8), uint8(g>>8), uint8(b>>8))
 			}
@@ -466,26 +480,29 @@ func (e *Environment) DumpHTML() string {
 	for y := 0; y < bounds.Size.Height; y++ {
 		for x := 0; x < bounds.Size.Width; x++ {
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
-			style := ""
-			if cell.Fg != nil {
-				style += fmt.Sprintf("color: %s; ", colorToHex(cell.Fg))
+			cellStyle := ""
+			if cell.Fg != nil && !style.IsTerminalDefault(cell.Fg) {
+				cellStyle += fmt.Sprintf("color: %s; ", colorToHex(cell.Fg))
 			}
-			if cell.Bg != nil {
-				style += fmt.Sprintf("background-color: %s; ", colorToHex(cell.Bg))
+			if cell.Bg != nil && !style.IsTerminalDefault(cell.Bg) {
+				bgHex := colorToHex(cell.Bg)
+				if bgHex != "transparent" {
+					cellStyle += fmt.Sprintf("background-color: %s; ", bgHex)
+				}
 			}
 			if cell.Style&backend.CellBold != 0 {
-				style += "font-weight: bold; "
+				cellStyle += "font-weight: bold; "
 			}
 			if cell.Style&backend.CellItalic != 0 {
-				style += "font-style: italic; "
+				cellStyle += "font-style: italic; "
 			}
 			if cell.Style&backend.CellUnderline != 0 {
-				style += "text-decoration: underline; "
+				cellStyle += "text-decoration: underline; "
 			}
 			// Inverse is hard in HTML without knowing original colors, but we can swap them if both are set
 			if cell.Style&backend.CellReverse != 0 {
 				// Simplified inverse
-				style += "filter: invert(100%); "
+				cellStyle += "filter: invert(100%); "
 			}
 
 			content := cell.Content
@@ -497,8 +514,8 @@ func (e *Environment) DumpHTML() string {
 			content = strings.ReplaceAll(content, "<", "&lt;")
 			content = strings.ReplaceAll(content, ">", "&gt;")
 
-			if style != "" {
-				fmt.Fprintf(&sb, "<span style=\"%s\">%s</span>", strings.TrimSpace(style), content)
+			if cellStyle != "" {
+				fmt.Fprintf(&sb, "<span style=\"%s\">%s</span>", strings.TrimSpace(cellStyle), content)
 			} else {
 				sb.WriteString(content)
 			}
@@ -529,6 +546,174 @@ func (e *Environment) DumpText() string {
 				content = " "
 			}
 			sb.WriteString(content)
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// Play simulates a sequence of keyboard actions.
+// Actions enclosed in brackets (e.g., "<Down>", "<Enter>", "<Ctrl+a>", "<Shift+Left>")
+// are simulated as special keypresses with optional modifiers.
+// All other actions are typed literally.
+func (e *Environment) Play(actions ...string) {
+	for _, action := range actions {
+		if strings.HasPrefix(action, "<") && strings.HasSuffix(action, ">") {
+			keyStr := action[1 : len(action)-1]
+			parts := strings.Split(keyStr, "+")
+			var mods []key.Mod
+			keyName := parts[len(parts)-1]
+			for _, modStr := range parts[:len(parts)-1] {
+				switch strings.ToLower(strings.TrimSpace(modStr)) {
+				case "ctrl", "control":
+					mods = append(mods, key.ModCtrl)
+				case "alt", "option":
+					mods = append(mods, key.ModAlt)
+				case "shift":
+					mods = append(mods, key.ModShift)
+				case "meta", "super", "cmd", "command":
+					mods = append(mods, key.ModMeta)
+				}
+			}
+			e.KeyPress(keyName, mods...)
+		} else {
+			e.Type(action)
+		}
+	}
+}
+
+// DoubleClick simulates a double mouse click at (x, y).
+func (e *Environment) DoubleClick(x, y int) {
+	e.Click(x, y)
+	e.Click(x, y)
+}
+
+// DragAndDrop simulates dragging from (startX, startY) to (endX, endY).
+func (e *Environment) DragAndDrop(startX, startY, endX, endY int) {
+	e.MouseDown(startX, startY, event.ButtonLeft)
+	// Simulate intermediate move to make it realistic
+	midX := (startX + endX) / 2
+	midY := (startY + endY) / 2
+	e.MouseMove(midX, midY)
+	e.MouseMove(endX, endY)
+	e.MouseUp(endX, endY, event.ButtonLeft)
+}
+
+func renderSideBySide(expectedJSON, actualJSON []byte) string {
+	type goldenCell struct {
+		Content string `json:"c"`
+		FG      string `json:"fg,omitempty"`
+		BG      string `json:"bg,omitempty"`
+		Attrs   uint16 `json:"a,omitempty"`
+	}
+	type goldenFrame struct {
+		Width  int            `json:"width"`
+		Height int            `json:"height"`
+		Cells  [][]goldenCell `json:"cells"`
+	}
+
+	var exp, act goldenFrame
+	if err := json.Unmarshal(expectedJSON, &exp); err != nil {
+		return fmt.Sprintf("\n[cannot parse expected JSON: %v]", err)
+	}
+	if err := json.Unmarshal(actualJSON, &act); err != nil {
+		return fmt.Sprintf("\n[cannot parse actual JSON: %v]", err)
+	}
+
+	h := max(exp.Height, act.Height)
+	wExp := exp.Width
+	wAct := act.Width
+
+	var sb strings.Builder
+	sb.WriteString("\n")
+
+	// Headers
+	expHeader := "EXPECTED"
+	actHeader := "ACTUAL"
+	paddingExp := max(0, wExp-len(expHeader))
+	paddingAct := max(0, wAct-len(actHeader))
+	sb.WriteString(expHeader + strings.Repeat(" ", paddingExp) + "  ┃  " + actHeader + strings.Repeat(" ", paddingAct) + "\n")
+	sb.WriteString(strings.Repeat("━", wExp) + "━━╋━━" + strings.Repeat("━", wAct) + "\n")
+
+	formatCell := func(cell goldenCell) string {
+		var cellSb strings.Builder
+		if cell.FG != "" && cell.FG != "default" && cell.FG != "transparent" {
+			var r, g, b uint8
+			if _, err := fmt.Sscanf(cell.FG, "#%02x%02x%02x", &r, &g, &b); err == nil {
+				fmt.Fprintf(&cellSb, "\x1b[38;2;%d;%d;%dm", r, g, b)
+			}
+		}
+		if cell.BG != "" && cell.BG != "default" && cell.BG != "transparent" {
+			var r, g, b uint8
+			if _, err := fmt.Sscanf(cell.BG, "#%02x%02x%02x", &r, &g, &b); err == nil {
+				fmt.Fprintf(&cellSb, "\x1b[48;2;%d;%d;%dm", r, g, b)
+			}
+		}
+		if cell.Attrs&uint16(backend.CellBold) != 0 {
+			cellSb.WriteString("\x1b[1m")
+		}
+		if cell.Attrs&uint16(backend.CellItalic) != 0 {
+			cellSb.WriteString("\x1b[3m")
+		}
+		if cell.Attrs&uint16(backend.CellUnderline) != 0 {
+			cellSb.WriteString("\x1b[4m")
+		}
+		if cell.Attrs&uint16(backend.CellReverse) != 0 {
+			cellSb.WriteString("\x1b[7m")
+		}
+		content := cell.Content
+		if content == "" {
+			content = " "
+		}
+		cellSb.WriteString(content)
+		cellSb.WriteString("\x1b[0m")
+		return cellSb.String()
+	}
+
+	for y := 0; y < h; y++ {
+		lineDiff := false
+		if y < exp.Height && y < act.Height {
+			for x := 0; x < min(wExp, wAct); x++ {
+				cExp := exp.Cells[y][x]
+				cAct := act.Cells[y][x]
+				if cExp.Content != cAct.Content || cExp.FG != cAct.FG || cExp.BG != cAct.BG || cExp.Attrs != cAct.Attrs {
+					lineDiff = true
+					break
+				}
+			}
+			if wExp != wAct {
+				lineDiff = true
+			}
+		} else {
+			lineDiff = true
+		}
+
+		// Expected line
+		if y < exp.Height {
+			for x := 0; x < wExp; x++ {
+				cell := exp.Cells[y][x]
+				sb.WriteString(formatCell(cell))
+			}
+		} else {
+			sb.WriteString(strings.Repeat(" ", wExp))
+		}
+
+		// Divider
+		if lineDiff {
+			sb.WriteString("  ≠  ")
+		} else {
+			sb.WriteString("  ┃  ")
+		}
+
+		// Actual line
+		if y < act.Height {
+			for x := 0; x < wAct; x++ {
+				cell := act.Cells[y][x]
+				sb.WriteString(formatCell(cell))
+			}
+		} else {
+			sb.WriteString(strings.Repeat(" ", wAct))
 		}
 		sb.WriteString("\n")
 	}

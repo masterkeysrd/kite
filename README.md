@@ -84,7 +84,7 @@ func main() {
 
 ## 🧪 Headless Testing
 
-Kite provides a headless testing environment via the `devtools/testenv` package. This allows you to simulate user input and assert on the DOM state without a physical terminal.
+Kite provides a headless testing environment via the `testenv` package. This allows you to simulate user input and assert on the DOM state without a physical terminal.
 
 ```go
 func TestMyApp(t *testing.T) {

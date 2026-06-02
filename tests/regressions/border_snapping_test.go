@@ -3,9 +3,9 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 func TestBorderSnapping_Integration(t *testing.T) {

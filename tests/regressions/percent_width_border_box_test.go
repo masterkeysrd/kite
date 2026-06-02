@@ -9,9 +9,9 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 var colorGreen = color.RGBA{0, 200, 0, 255}

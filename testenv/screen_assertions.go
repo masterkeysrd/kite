@@ -91,7 +91,7 @@ func (r *RegionAssertion) ToHaveBackground(expected color.Color) *ScreenAssertio
 	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
 		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
 			actual := fb.CellAt(cx, cy).Bg
-			if actual != expected {
+			if !colorEqual(actual, expected) {
 				r.screen.t.Errorf("cell (%d,%d) expected bg %v, got %v", cx, cy, expected, actual)
 			}
 		}
@@ -106,7 +106,7 @@ func (r *RegionAssertion) ToNotHaveBackground(unexpected color.Color) *ScreenAss
 	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
 		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
 			actual := fb.CellAt(cx, cy).Bg
-			if actual == unexpected {
+			if colorEqual(actual, unexpected) {
 				r.screen.t.Errorf("cell (%d,%d) was clipped but had unexpected bg %v", cx, cy, actual)
 			}
 		}
@@ -122,7 +122,7 @@ func (r *RegionAssertion) ToHaveBackgroundCountGreaterThan(expected color.Color,
 	count := 0
 	for cy := r.rect.Origin.Y; cy < r.rect.Origin.Y+r.rect.Size.Height; cy++ {
 		for cx := r.rect.Origin.X; cx < r.rect.Origin.X+r.rect.Size.Width; cx++ {
-			if fb.CellAt(cx, cy).Bg == expected {
+			if colorEqual(fb.CellAt(cx, cy).Bg, expected) {
 				count++
 			}
 		}
@@ -131,4 +131,16 @@ func (r *RegionAssertion) ToHaveBackgroundCountGreaterThan(expected color.Color,
 		r.screen.t.Errorf("expected more than %d cells with bg %v, got %d", min, expected, count)
 	}
 	return r.screen
+}
+
+func colorEqual(c1, c2 color.Color) bool {
+	if c1 == nil && c2 == nil {
+		return true
+	}
+	if c1 == nil || c2 == nil {
+		return false
+	}
+	r1, g1, b1, a1 := c1.RGBA()
+	r2, g2, b2, a2 := c2.RGBA()
+	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
 }

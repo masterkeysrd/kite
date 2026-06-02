@@ -3,10 +3,10 @@ package tests
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 func TestSelectionInteraction(t *testing.T) {

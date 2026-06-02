@@ -3,11 +3,11 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/devtools/testenv"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/testenv"
 )
 
 func TestScroll_PreservedAcrossMoves(t *testing.T) {
