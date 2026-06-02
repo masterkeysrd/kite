@@ -10,7 +10,7 @@ import (
 
 func TestForm_VDOM_Instantiation_AndUpdate(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	submitCount1 := 0
 	submitCount2 := 0

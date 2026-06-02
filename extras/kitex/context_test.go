@@ -9,7 +9,7 @@ import (
 
 func TestCreateContext_DefaultValue(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -27,7 +27,7 @@ func TestCreateContext_DefaultValue(t *testing.T) {
 
 func TestProvider_ProvidesValue(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -47,7 +47,7 @@ func TestProvider_ProvidesValue(t *testing.T) {
 
 func TestProvider_NestedProviders(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -77,7 +77,7 @@ func TestProvider_NestedProviders(t *testing.T) {
 
 func TestProvider_ValueChange_TriggersConsumerReRender(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -107,7 +107,7 @@ func TestProvider_ValueChange_TriggersConsumerReRender(t *testing.T) {
 
 func TestProvider_ValueChange_BypassesMemoization(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -152,7 +152,7 @@ func TestProvider_ValueChange_BypassesMemoization(t *testing.T) {
 
 func TestProvider_Deduplication(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -182,7 +182,7 @@ func TestProvider_Deduplication(t *testing.T) {
 
 func TestProvider_MultipleConsumers(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -219,7 +219,7 @@ func TestProvider_MultipleConsumers(t *testing.T) {
 
 func TestProvider_Unmount_Unsubscribes(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -260,7 +260,7 @@ func TestProvider_Unmount_Unsubscribes(t *testing.T) {
 
 func TestUseContext_StableAcrossReRenders(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 
@@ -290,7 +290,7 @@ func TestUseContext_StableAcrossReRenders(t *testing.T) {
 
 func TestProvider_DifferentContextTypes(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 	countCtx := CreateContext(100)
@@ -322,7 +322,7 @@ func TestProvider_DifferentContextTypes(t *testing.T) {
 func BenchmarkContextRead(b *testing.B) {
 	EnableDevMode = false
 	doc := dom.NewDocument()
-	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	ctx := CreateContext("value")
 
@@ -351,7 +351,7 @@ func BenchmarkContextRead(b *testing.B) {
 func BenchmarkContextPropagation(b *testing.B) {
 	EnableDevMode = false
 	doc := dom.NewDocument()
-	container := Box(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	ctx := CreateContext("value")
 
@@ -382,7 +382,7 @@ func BenchmarkContextPropagation(b *testing.B) {
 
 func TestContextPropagation_DirtyComponentRerender(t *testing.T) {
 	doc := dom.NewDocument()
-	container := Div(BoxProps{}).Instantiate(doc).(dom.Element)
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	themeCtx := CreateContext("light")
 

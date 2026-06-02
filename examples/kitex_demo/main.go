@@ -248,7 +248,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}),
 		),
 
-		// Keyed list — kitex.Map(getItems(), renderItem)... passes the named
+		// Keyed list — kitex.Map(getItems(), renderItem) passes the named
 		// function directly; no intermediate slice variable needed.
 		kitex.Box(kitex.BoxProps{
 			Style: style.Style{
@@ -258,7 +258,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				Padding:       style.Some(style.Edges(1, 1)),
 				Background:    style.Some[color.Color](color.RGBA{R: 25, G: 25, B: 38, A: 255}),
 			},
-		}, kitex.Map(getItems(), renderItem)...),
+		}, kitex.Map(getItems(), renderItem)),
 	)
 })
 

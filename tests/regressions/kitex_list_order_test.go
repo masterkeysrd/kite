@@ -67,7 +67,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 			}, kitex.Text("Reverse")),
 			kitex.Box(kitex.BoxProps{
 				ID: "list-container",
-			}, kitex.Map(items(), renderItem)...),
+			}, kitex.Map(items(), renderItem)),
 		)
 	})
 
@@ -149,7 +149,7 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 			}, kitex.Text("Action")),
 			kitex.Box(kitex.BoxProps{
 				ID: "list-container",
-			}, kitex.Map(items(), renderItem)...),
+			}, kitex.Map(items(), renderItem)),
 		)
 	})
 

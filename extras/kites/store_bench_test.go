@@ -56,7 +56,7 @@ func BenchmarkStoreNotify(b *testing.B) {
 
 func BenchmarkUseHook(b *testing.B) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	defer kitex.Render(nil, container)
 
 	store := Create(BenchState{ValueA: 1, ValueB: "hello"})

@@ -1,61 +1,66 @@
 package kitex
 
+import (
+	"github.com/masterkeysrd/kite/dom"
+)
+
 // --- Rendering Utilities ------------------------------------------------------
 //
 // These helpers mirror the patterns commonly used in React/JSX to make building
 // VDOM trees more ergonomic in Go. They are all pure functions with no hidden
 // allocations beyond the returned slice or node.
 
-// Map converts a slice of data into a slice of Nodes using a mapping function.
-// The mapping function receives each item and its zero-based index, allowing
-// the caller to embed both data and position into the rendered node.
-//
-// The returned slice can be spread into any variadic children parameter using
-// the "..." spread syntax, or passed to [Nodes] to merge with other nodes.
+// Map converts a slice of data into a Node (a Fragment containing the mapped nodes)
+// using a mapping function. The mapping function receives each item and its
+// zero-based index, allowing the caller to embed both data and position into
+// the rendered node.
 //
 // Example — render a keyed list of items:
 //
 //	kitex.Box(kitex.BoxProps{},
 //	    kitex.Map(items, func(item Item, i int) kitex.Node {
 //	        return ItemCard(ItemCardProps{Key: item.ID, Title: item.Name})
-//	    })...,
+//	    }),
 //	)
-func Map[D any](items []D, fn func(item D, i int) Node) []Node {
+func Map[D any](items []D, fn func(item D, i int) Node) Node {
 	nodes := make([]Node, 0, len(items))
 	for i, item := range items {
 		if n := fn(item, i); n != nil {
 			nodes = append(nodes, n)
 		}
 	}
-	return nodes
+	return Fragment(nodes...)
 }
 
-// Nodes merges one or more Node slices and/or individual Nodes into a single
-// flat []Node. Nil entries are filtered out. Use this to combine the output of
-// [Map] with other nodes before spreading into a parent element.
+// Nodes merges one or more Nodes (which may be Fragments, individual nodes, or nil)
+// into a single flat Fragment. Nil entries are filtered out, and nested Fragments
+// are flattened into the returned Fragment.
 //
 // Example:
 //
 //	kitex.Box(kitex.BoxProps{},
 //	    kitex.Nodes(
 //	        kitex.Map(items, renderItem),
-//	        []kitex.Node{footer},
-//	    )...,
+//	        footer,
+//	    ),
 //	)
-func Nodes(groups ...[]Node) []Node {
-	total := 0
-	for _, g := range groups {
-		total += len(g)
-	}
-	out := make([]Node, 0, total)
-	for _, g := range groups {
-		for _, n := range g {
-			if n != nil {
-				out = append(out, n)
+func Nodes(nodes ...Node) Node {
+	var flat []Node
+	for _, n := range nodes {
+		if n == nil {
+			continue
+		}
+		if frag, ok := n.(*fragmentNode); ok {
+			for _, c := range frag.children {
+				if c != nil {
+					flat = append(flat, c)
+				}
 			}
+		} else {
+			flat = append(flat, n)
 		}
 	}
-	return out
+	return Fragment(flat...)
 }
 
 // If renders node when cond is true, otherwise returns nil.
@@ -93,30 +98,86 @@ func IfElse(cond bool, thenNode, elseNode Node) Node {
 	return elseNode
 }
 
-// Fragment returns its children as a flat []Node slice without introducing any
-// wrapper element into the DOM. Use the spread syntax ("...") to inline the
-// result into a parent's variadic children.
+// Fragment returns its children grouped together without introducing any
+// wrapper element into the DOM.
 //
-// Fragment is useful when a helper function needs to return multiple sibling
-// nodes but cannot or should not wrap them in a Box.
+// Fragment is useful when a component needs to return multiple sibling
+// nodes but cannot or should not wrap them in a Box, or when conditionally
+// rendering a group of nodes.
 //
 // Example:
 //
-//	func renderHeader(title, subtitle string) []kitex.Node {
+//	var MyComp = kitex.SimpleFC("MyComp", func() kitex.Node {
 //	    return kitex.Fragment(
-//	        kitex.Box(kitex.BoxProps{Style: boldStyle}, kitex.Text(title)),
-//	        kitex.Box(kitex.BoxProps{Style: mutedStyle}, kitex.Text(subtitle)),
+//	        kitex.Box(kitex.BoxProps{Style: boldStyle}, kitex.Text("Title")),
+//	        kitex.Box(kitex.BoxProps{Style: mutedStyle}, kitex.Text("Subtitle")),
 //	    )
-//	}
-//
-//	// In the parent:
-//	kitex.Box(kitex.BoxProps{}, renderHeader("Hello", "World")...)
-func Fragment(children ...Node) []Node {
-	out := make([]Node, 0, len(children))
-	for _, n := range children {
-		if n != nil {
-			out = append(out, n)
+//	})
+func Fragment(children ...Node) Node {
+	return &fragmentNode{children: children}
+}
+
+type fragmentNode struct {
+	children []Node
+	refs     []dom.Node
+}
+
+var _ Node = (*fragmentNode)(nil)
+var _ nodeInternal = (*fragmentNode)(nil)
+
+func (f *fragmentNode) Instantiate(doc dom.Document) []dom.Node {
+	var reals []dom.Node
+	for _, child := range f.children {
+		if child != nil {
+			reals = append(reals, child.Instantiate(doc)...)
 		}
 	}
-	return out
+	f.refs = reals
+	return reals
 }
+
+func (f *fragmentNode) Update(els []dom.Node, old Node) {
+	f.refs = els
+}
+
+func (f *fragmentNode) setRefs(els []dom.Node) {
+	f.refs = els
+}
+
+func (f *fragmentNode) Children() []Node { return f.children }
+func (f *fragmentNode) Props() any       { return nil }
+func (f *fragmentNode) TagName() string  { return "#fragment" }
+func (f *fragmentNode) Key() string      { return "" }
+func (f *fragmentNode) Release() {
+	f.refs = nil
+}
+
+func (f *fragmentNode) realNodes() []dom.Node {
+	return f.refs
+}
+
+func (f *fragmentNode) complexity() int {
+	score := 1
+	for _, child := range f.children {
+		if child != nil {
+			if ni, ok := child.(nodeInternal); ok {
+				score += ni.complexity()
+			}
+		}
+	}
+	return score
+}
+
+func (f *fragmentNode) containsProvider() bool {
+	for _, child := range f.children {
+		if child != nil {
+			if ni, ok := child.(nodeInternal); ok && ni.containsProvider() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (f *fragmentNode) isProvider() bool        { return false }
+func (f *fragmentNode) hasDirectProvider() bool { return false }

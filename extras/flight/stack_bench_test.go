@@ -14,7 +14,7 @@ func BenchmarkStack_PushPop(b *testing.B) {
 	fm := focus.NewManager(doc, event.NewDispatcher())
 	doc.SetFocusHandle(fm)
 
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 
@@ -64,7 +64,7 @@ func BenchmarkStack_Init(b *testing.B) {
 		fm := focus.NewManager(doc, event.NewDispatcher())
 		doc.SetFocusHandle(fm)
 
-		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 		doc.AppendChild(container)
 
 		HomeView := kitex.SimpleFC("HomeView", func() kitex.Node {

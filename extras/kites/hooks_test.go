@@ -15,7 +15,7 @@ type TestState struct {
 
 func TestUseHookIntegration(t *testing.T) {
 	doc := dom.NewDocument()
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	defer kitex.Render(nil, container) // Clean up on exit
 
 	store := Create(TestState{CountA: 10, CountB: 20})

@@ -102,7 +102,10 @@ func snapshotVDOMNode(eng *engine.Engine, node Node, container dom.Element, boun
 
 	var refNode dom.Node
 	if ni, ok := node.(nodeInternal); ok {
-		refNode = ni.realNode()
+		reals := ni.realNodes()
+		if len(reals) > 0 {
+			refNode = reals[0]
+		}
 	}
 
 	if refNode != nil {

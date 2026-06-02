@@ -17,7 +17,7 @@ func TestStackNavigation(t *testing.T) {
 	fm := focus.NewManager(doc, event.NewDispatcher())
 	doc.SetFocusHandle(fm)
 
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 
@@ -110,7 +110,7 @@ func TestFocusScopeIsolation(t *testing.T) {
 	fm := focus.NewManager(doc, event.NewDispatcher())
 	doc.SetFocusHandle(fm)
 
-	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc).(dom.Element)
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 

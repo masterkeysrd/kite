@@ -166,11 +166,11 @@ var UserForm = kitex.SimpleFC("UserForm", func() kitex.Node {
 
 Kitex provides several ergonomic helpers to make VDOM construction cleaner, especially for declarative rendering:
 
-- **`kitex.Map(items []D, fn func(D, int) Node) []Node`**: Transforms a slice of data into a slice of VDOM nodes. Excellent for rendering keyed lists.
-- **`kitex.Nodes(groups ...[]Node) []Node`**: Merges multiple slices of nodes or individual nodes into a single flat slice. Filters out `nil` values.
+- **`kitex.Map(items []D, fn func(D, int) Node) Node`**: Transforms a slice of data into a Node (a Fragment). Excellent for rendering keyed lists.
+- **`kitex.Nodes(nodes ...Node) Node`**: Merges multiple nodes (including Fragments and individual nodes) into a single flat Fragment. Filters out `nil` values.
 - **`kitex.If(cond bool, node Node) Node`**: Conditionally renders a node if `cond` is true; otherwise, returns `nil` (which is safely ignored by Kitex).
 - **`kitex.IfElse(cond bool, thenNode Node, elseNode Node) Node`**: Returns `thenNode` if true, or `elseNode` if false. Both branches are evaluated eagerly.
-- **`kitex.Fragment(children ...Node) []Node`**: Returns the provided children as a flat slice, filtering out `nil`. Useful for returning multiple sibling nodes from a helper function without wrapping them in an extra DOM element.
+- **`kitex.Fragment(children ...Node) Node`**: Returns the provided children grouped together as a single Node without introducing a wrapper element in the DOM.
 
 ### Example Utilities Usage
 
@@ -182,7 +182,7 @@ var ItemList = kitex.FC("ItemList", func(props struct{ Items []string }) kitex.N
         kitex.Box(kitex.BoxProps{}, 
             kitex.Map(props.Items, func(item string, idx int) kitex.Node {
                 return kitex.Text(fmt.Sprintf("%d: %s", idx, item))
-            })...
+            }),
         ),
     )
 })

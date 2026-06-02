@@ -18,11 +18,11 @@ var EnableDevMode bool
 // Node is the public interface representing a Virtual DOM node in the kitex framework.
 type Node interface {
 	// Instantiate constructs the corresponding real DOM node using the provided document.
-	Instantiate(doc dom.Document) dom.Node
+	Instantiate(doc dom.Document) []dom.Node
 
 	// Update applies properties from the current VDOM node onto the existing real DOM node,
 	// using the old VDOM node as reference to determine which properties changed.
-	Update(el dom.Node, old Node)
+	Update(els []dom.Node, old Node)
 
 	// Children returns the lightweight children of this VDOM node.
 	Children() []Node
@@ -44,7 +44,8 @@ type Node interface {
 // nodeInternal is an unexported interface for internal framework access to the real DOM node.
 type nodeInternal interface {
 	Node
-	realNode() dom.Node
+	realNodes() []dom.Node
+	setRefs([]dom.Node)
 	// complexity returns the approximate node-count of the subtree rooted at this
 	// node (including itself). It is computed bottom-up at construction time in
 	// O(N) and is used by ComponentNode to decide whether memoization is worth
@@ -101,6 +102,7 @@ type elementNode[P any] struct {
 	update      func(el dom.Node, old, new *P)
 	key         string
 	ref         dom.Node
+	refs        []dom.Node
 
 	// score is the pre-computed node count of the subtree rooted at this element
 	// (1 for self + sum of children's complexity). Set once at construction time.
@@ -119,11 +121,19 @@ type elementNode[P any] struct {
 	instLine int
 }
 
-func (n *elementNode[P]) TagName() string         { return n.tagName }
-func (n *elementNode[P]) Props() any              { return n.props }
-func (n *elementNode[P]) Children() []Node        { return n.children }
-func (n *elementNode[P]) Key() string             { return n.key }
-func (n *elementNode[P]) realNode() dom.Node      { return n.ref }
+func (n *elementNode[P]) TagName() string  { return n.tagName }
+func (n *elementNode[P]) Props() any       { return n.props }
+func (n *elementNode[P]) Children() []Node { return n.children }
+func (n *elementNode[P]) Key() string      { return n.key }
+func (n *elementNode[P]) realNodes() []dom.Node {
+	return n.refs
+}
+func (n *elementNode[P]) setRefs(els []dom.Node) {
+	n.refs = els
+	if len(els) > 0 {
+		n.ref = els[0]
+	}
+}
 func (n *elementNode[P]) complexity() int         { return n.score }
 func (n *elementNode[P]) containsProvider() bool  { return n.hasProvider }
 func (n *elementNode[P]) isProvider() bool        { return false }
@@ -136,6 +146,7 @@ func (n *elementNode[P]) Release() {
 	n.tagName = ""
 	n.children = nil
 	n.ref = nil
+	n.refs = nil
 	n.instantiate = nil
 	n.update = nil
 
@@ -144,23 +155,27 @@ func (n *elementNode[P]) Release() {
 	}
 }
 
-func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
+func (n *elementNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	n.ref = n.instantiate(doc)
 	n.update(n.ref, nil, &n.props)
 	if n.hasDirectP {
 		flatChildren := flattenNodes(n.children, nil, nil)
 		for _, childFlat := range flatChildren {
-			childReal := instantiateFlat(n.ref.(dom.Element), childFlat)
-			if childReal != nil {
-				n.ref.AppendChild(childReal)
+			childReals := instantiateFlat(n.ref.(dom.Element), childFlat)
+			for _, childReal := range childReals {
+				if childReal != nil {
+					n.ref.AppendChild(childReal)
+				}
 			}
 		}
 	} else {
 		for _, child := range n.children {
 			if child != nil {
-				childReal := child.Instantiate(doc)
-				if childReal != nil {
-					n.ref.AppendChild(childReal)
+				childReals := child.Instantiate(doc)
+				for _, childReal := range childReals {
+					if childReal != nil {
+						n.ref.AppendChild(childReal)
+					}
 				}
 			}
 		}
@@ -168,11 +183,15 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) dom.Node {
 	if setter := getRefSetter(&n.props); setter != nil {
 		setter.set(n.ref)
 	}
-	return n.ref
+	n.refs = []dom.Node{n.ref}
+	return n.refs
 }
 
-func (n *elementNode[P]) Update(el dom.Node, old Node) {
-	n.ref = el
+func (n *elementNode[P]) Update(els []dom.Node, old Node) {
+	n.refs = els
+	if len(els) > 0 {
+		n.ref = els[0]
+	}
 	var oldProps *P
 	if old != nil {
 		if oldEl, ok := old.(*elementNode[P]); ok {
@@ -189,6 +208,7 @@ func (n *elementNode[P]) Update(el dom.Node, old Node) {
 type textNode struct {
 	content string
 	ref     dom.Node
+	refs    []dom.Node
 
 	declFile string
 	declLine int
@@ -199,11 +219,19 @@ type textNode struct {
 // complexity for a text leaf is always 1.
 func (t *textNode) complexity() int { return 1 }
 
-func (t *textNode) TagName() string         { return "#text" }
-func (t *textNode) Props() any              { return t.content }
-func (t *textNode) Children() []Node        { return nil }
-func (t *textNode) Key() string             { return "" }
-func (t *textNode) realNode() dom.Node      { return t.ref }
+func (t *textNode) TagName() string  { return "#text" }
+func (t *textNode) Props() any       { return t.content }
+func (t *textNode) Children() []Node { return nil }
+func (t *textNode) Key() string      { return "" }
+func (t *textNode) realNodes() []dom.Node {
+	return t.refs
+}
+func (t *textNode) setRefs(els []dom.Node) {
+	t.refs = els
+	if len(els) > 0 {
+		t.ref = els[0]
+	}
+}
 func (t *textNode) containsProvider() bool  { return false }
 func (t *textNode) isProvider() bool        { return false }
 func (t *textNode) hasDirectProvider() bool { return false }
@@ -214,15 +242,20 @@ func (t *textNode) Release() {
 	}
 	t.content = ""
 	t.ref = nil
+	t.refs = nil
 	textNodePool.Put(t)
 }
-func (t *textNode) Instantiate(doc dom.Document) dom.Node {
+func (t *textNode) Instantiate(doc dom.Document) []dom.Node {
 	t.ref = element.NewText(doc, t.content)
-	return t.ref
+	t.refs = []dom.Node{t.ref}
+	return t.refs
 }
 
-func (t *textNode) Update(el dom.Node, old Node) {
-	t.ref = el
+func (t *textNode) Update(els []dom.Node, old Node) {
+	t.refs = els
+	if len(els) > 0 {
+		t.ref = els[0]
+	}
 	txt, ok := t.ref.(*element.TextElement)
 	if !ok {
 		return
@@ -1830,8 +1863,8 @@ type componentInstance interface {
 	IsDirty() bool
 	ClearDirty()
 	getRef() *componentRef
-	realNode() dom.Node
-	setRef(dom.Node)
+	realNodes() []dom.Node
+	setRefs([]dom.Node)
 	Rendered() Node
 	ReRender() Node
 	Destroy()
@@ -1847,7 +1880,7 @@ type ComponentNode[P any] struct {
 
 	// Internal state
 	rendered     Node
-	ref          dom.Node
+	refs         []dom.Node
 	hooks        []any
 	hookIndex    int
 	isFirst      bool
@@ -1974,7 +2007,7 @@ func (c *ComponentNode[P]) Children() []Node {
 	return []Node{c.rendered}
 }
 
-func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
+func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	cr := componentRefPool.Get().(*componentRef)
 	cr.node = c
 	c.componentRef = cr
@@ -1994,12 +2027,12 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) dom.Node {
 	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 
 	if c.rendered != nil {
-		c.ref = c.rendered.Instantiate(doc)
+		c.refs = c.rendered.Instantiate(doc)
 	}
-	return c.ref
+	return c.refs
 }
 
-func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
+func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	oldComp, ok := old.(*ComponentNode[P])
 	if !ok {
 		return
@@ -2007,7 +2040,7 @@ func (c *ComponentNode[P]) Update(el dom.Node, old Node) {
 	// Transfer state
 	c.hooks = oldComp.hooks
 	c.isFirst = false
-	c.ref = oldComp.ref
+	c.refs = oldComp.refs
 	c.complexityScore = oldComp.complexityScore
 	c.shouldMemo = oldComp.shouldMemo
 	c.componentRef = oldComp.componentRef
@@ -2072,12 +2105,12 @@ func (c *ComponentNode[P]) getRef() *componentRef {
 	return c.componentRef
 }
 
-func (c *ComponentNode[P]) realNode() dom.Node {
-	return c.ref
+func (c *ComponentNode[P]) realNodes() []dom.Node {
+	return c.refs
 }
 
-func (c *ComponentNode[P]) setRef(el dom.Node) {
-	c.ref = el
+func (c *ComponentNode[P]) setRefs(els []dom.Node) {
+	c.refs = els
 }
 
 func (c *ComponentNode[P]) Rendered() Node {
