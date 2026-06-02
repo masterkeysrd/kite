@@ -742,3 +742,125 @@ func typeNames(evts []event.Event) []event.EventType {
 	}
 	return names
 }
+
+type mockDomNode struct {
+	dom.Node
+	target event.EventTarget
+	parent dom.Node
+}
+
+func (m *mockDomNode) Parent() dom.Node {
+	return m.parent
+}
+
+func (m *mockDomNode) EventTarget() event.EventTarget {
+	return m
+}
+
+func (m *mockDomNode) AddEventListener(typ event.EventType, fn event.Listener, opts ...event.Option) event.Subscription {
+	return m.target.AddEventListener(typ, fn, opts...)
+}
+
+func (m *mockDomNode) DispatchTo(e event.Event) {
+	m.target.DispatchTo(e)
+}
+
+func (m *mockDomNode) DispatchToTarget(e event.Event) {
+	m.target.DispatchToTarget(e)
+}
+
+func (m *mockDomNode) RemoveRegistration(id uint64) {
+	m.target.RemoveRegistration(id)
+}
+
+func TestSynthesizer_HoverTransitions(t *testing.T) {
+	t.Parallel()
+
+	// Create three nodes: root -> parent -> child
+	root := &mockDomNode{target: event.NewTarget()}
+	parent := &mockDomNode{target: event.NewTarget(), parent: root}
+	child := &mockDomNode{target: event.NewTarget(), parent: parent}
+
+	// Another branch: root -> sibling
+	sibling := &mockDomNode{target: event.NewTarget(), parent: root}
+
+	hit := &stubHitTester{}
+	focus := &stubFocus{}
+	s := internal.NewSynthesizer(hit, focus, internal.SynthesizerOptions{})
+
+	// 1. Initial move to parent: should enter root and parent
+	hit.result = parent
+	evts := s.Process(&backend.RawMouseEvent{X: 1, Y: 1, Move: true})
+
+	// Expecting:
+	// - mouseover on parent (bubbles)
+	// - mouseenter on root
+	// - mouseenter on parent
+	// - mousemove on parent
+	expectedTypes := []event.EventType{
+		event.EventMouseOver,
+		event.EventMouseEnter,
+		event.EventMouseEnter,
+		event.EventMouseMove,
+	}
+	for i, typ := range expectedTypes {
+		if i >= len(evts) {
+			t.Fatalf("expected at least %d events, got %d", len(expectedTypes), len(evts))
+		}
+		if evts[i].Type() != typ {
+			t.Errorf("at index %d: expected %s, got %s", i, typ, evts[i].Type())
+		}
+	}
+
+	// 2. Move from parent to child: should enter child only
+	hit.result = child
+	evts = s.Process(&backend.RawMouseEvent{X: 1, Y: 2, Move: true})
+
+	// Expecting:
+	// - mouseout on parent
+	// - mouseover on child
+	// - mouseenter on child
+	// - mousemove on child
+	expectedTypes2 := []event.EventType{
+		event.EventMouseOut,
+		event.EventMouseOver,
+		event.EventMouseEnter,
+		event.EventMouseMove,
+	}
+	for i, typ := range expectedTypes2 {
+		if i >= len(evts) {
+			t.Fatalf("expected at least %d events, got %d", len(expectedTypes2), len(evts))
+		}
+		if evts[i].Type() != typ {
+			t.Errorf("at index %d: expected %s, got %s", i, typ, evts[i].Type())
+		}
+	}
+
+	// 3. Move from child to sibling: should leave child and parent, enter sibling
+	hit.result = sibling
+	evts = s.Process(&backend.RawMouseEvent{X: 2, Y: 1, Move: true})
+
+	// Expecting:
+	// - mouseout on child
+	// - mouseleave on child
+	// - mouseleave on parent
+	// - mouseover on sibling
+	// - mouseenter on sibling
+	// - mousemove on sibling
+	expectedTypes3 := []event.EventType{
+		event.EventMouseOut,
+		event.EventMouseLeave,
+		event.EventMouseLeave,
+		event.EventMouseOver,
+		event.EventMouseEnter,
+		event.EventMouseMove,
+	}
+	for i, typ := range expectedTypes3 {
+		if i >= len(evts) {
+			t.Fatalf("expected at least %d events, got %d", len(expectedTypes3), len(evts))
+		}
+		if evts[i].Type() != typ {
+			t.Errorf("at index %d: expected %s, got %s", i, typ, evts[i].Type())
+		}
+	}
+}

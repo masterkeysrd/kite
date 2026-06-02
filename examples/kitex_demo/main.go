@@ -29,6 +29,34 @@ type ItemProps struct {
 	OnDelete func()
 }
 
+type HoverButtonProps struct {
+	OnClick    func(event.Event)
+	Style      style.Style
+	HoverStyle style.Style
+	Text       string
+}
+
+// HoverButton is a functional component that wraps kitex.Button and adds hover style support.
+var HoverButton = kitex.FC("HoverButton", func(props HoverButtonProps) kitex.Node {
+	isHovered, setHovered := kitex.UseState(false)
+
+	s := props.Style
+	if isHovered() {
+		s = s.Merge(props.HoverStyle)
+	}
+
+	return kitex.Button(kitex.ButtonProps{
+		OnClick: props.OnClick,
+		OnMouseEnter: func(e event.Event) {
+			setHovered(true)
+		},
+		OnMouseLeave: func(e event.Event) {
+			setHovered(false)
+		},
+		Style: s,
+	}, kitex.Text(props.Text))
+})
+
 // ListItem is a functional component representing a single row in the list.
 // It maintains its own local counter state (clicks) using UseState.
 var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
@@ -52,7 +80,7 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 			},
 		}, kitex.Text(fmt.Sprintf("Item %s (Clicks: %d)", props.ID, getClicks()))),
 
-		kitex.Button(kitex.ButtonProps{
+		HoverButton(HoverButtonProps{
 			OnClick: func(e event.Event) {
 				setClicks(getClicks() + 1)
 			},
@@ -61,9 +89,13 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 				Foreground: style.Some[color.Color](color.White),
 				Margin:     style.Some(style.Edges(0, 1)),
 			},
-		}, kitex.Text(" +1 ")),
+			HoverStyle: style.Style{
+				Background: style.Some[color.Color](color.RGBA{R: 80, G: 140, B: 240, A: 255}),
+			},
+			Text: " +1 ",
+		}),
 
-		kitex.Button(kitex.ButtonProps{
+		HoverButton(HoverButtonProps{
 			OnClick: func(e event.Event) {
 				props.OnDelete()
 			},
@@ -72,7 +104,11 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 				Foreground: style.Some[color.Color](color.White),
 				Margin:     style.Some(style.Edges(0, 1)),
 			},
-		}, kitex.Text(" Delete ")),
+			HoverStyle: style.Style{
+				Background: style.Some[color.Color](color.RGBA{R: 240, G: 80, B: 80, A: 255}),
+			},
+			Text: " Delete ",
+		}),
 	)
 })
 
@@ -144,7 +180,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				Margin:        style.Some(style.Edges(0, 0, 1, 0)),
 			},
 		},
-			kitex.Button(kitex.ButtonProps{
+			HoverButton(HoverButtonProps{
 				OnClick: func(e event.Event) {
 					nid := getNextID()
 					label := string(rune('A' + (nid-1)%26))
@@ -162,9 +198,13 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					Foreground: style.Some[color.Color](color.White),
 					Margin:     style.Some(style.Edges(0, 1)),
 				},
-			}, kitex.Text(" Add Item ")),
+				HoverStyle: style.Style{
+					Background: style.Some[color.Color](color.RGBA{R: 70, G: 210, B: 120, A: 255}),
+				},
+				Text: " Add Item ",
+			}),
 
-			kitex.Button(kitex.ButtonProps{
+			HoverButton(HoverButtonProps{
 				OnClick: func(e event.Event) {
 					items := getItems()
 					n := len(items)
@@ -179,9 +219,13 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					Foreground: style.Some[color.Color](color.White),
 					Margin:     style.Some(style.Edges(0, 1)),
 				},
-			}, kitex.Text(" Reverse List ")),
+				HoverStyle: style.Style{
+					Background: style.Some[color.Color](color.RGBA{R: 190, G: 100, B: 250, A: 255}),
+				},
+				Text: " Reverse List ",
+			}),
 
-			kitex.Button(kitex.ButtonProps{
+			HoverButton(HoverButtonProps{
 				OnClick: func(e event.Event) {
 					items := getItems()
 					n := len(items)
@@ -197,7 +241,11 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					Foreground: style.Some[color.Color](color.White),
 					Margin:     style.Some(style.Edges(0, 1)),
 				},
-			}, kitex.Text(" Shuffle List ")),
+				HoverStyle: style.Style{
+					Background: style.Some[color.Color](color.RGBA{R: 250, G: 160, B: 60, A: 255}),
+				},
+				Text: " Shuffle List ",
+			}),
 		),
 
 		// Keyed list — kitex.Map(getItems(), renderItem)... passes the named

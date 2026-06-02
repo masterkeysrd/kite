@@ -44,6 +44,42 @@ func main() {
 		eng.RequestFrame()
 	})
 
+	// Add hover effects to btn1
+	btn1.OnEvent(event.EventMouseEnter, func(e event.Event) {
+		btn1.Style(style.Style{
+			Background: style.Some[color.Color](color.RGBA{R: 80, G: 80, B: 140, A: 255}),
+			Foreground: style.Some[color.Color](color.White),
+		})
+		eng.RequestFrame()
+	})
+	btn1.OnEvent(event.EventMouseLeave, func(e event.Event) {
+		btn1.Style(style.Style{
+			Background: style.Some[color.Color](color.RGBA{R: 60, G: 60, B: 100, A: 255}),
+			Foreground: style.Some[color.Color](color.White),
+		})
+		eng.RequestFrame()
+	})
+
+	// Create a default button showcasing hover styling (no initial background/foreground set)
+	btnDefault := element.Button("  Hover Me  ").Style(style.Style{
+		Margin: style.Some(style.Edges(1, 0, 0, 0)),
+	})
+
+	btnDefault.OnEvent(event.EventMouseEnter, func(e event.Event) {
+		btnDefault.Style(style.Style{
+			Background: style.Some[color.Color](color.RGBA{R: 70, G: 70, B: 70, A: 255}),
+			Foreground: style.Some[color.Color](color.White),
+			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
+		})
+		eng.RequestFrame()
+	})
+	btnDefault.OnEvent(event.EventMouseLeave, func(e event.Event) {
+		btnDefault.Style(style.Style{
+			Margin: style.Some(style.Edges(1, 0, 0, 0)),
+		})
+		eng.RequestFrame()
+	})
+
 	// Create a disabled button
 	btn2 := element.Button("Disabled").Disabled(true).Style(style.Style{
 		Margin: style.Some(style.Edges(1, 0, 0, 0)),
@@ -65,6 +101,30 @@ func main() {
 		eng.RequestFrame()
 	})
 
+	// Add hover effects to btn3
+	btn3.OnEvent(event.EventMouseEnter, func(e event.Event) {
+		btn3.Style(style.Style{
+			Background: style.Some[color.Color](color.RGBA{R: 200, G: 50, B: 50, A: 255}),
+			Foreground: style.Some[color.Color](color.White),
+			Bold:       style.Some(true),
+			Border:     style.DoubleBorder().Some(),
+			Padding:    style.Some(style.Edges(0, 2)),
+			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
+		})
+		eng.RequestFrame()
+	})
+	btn3.OnEvent(event.EventMouseLeave, func(e event.Event) {
+		btn3.Style(style.Style{
+			Background: style.Some[color.Color](color.RGBA{R: 150, G: 40, B: 40, A: 255}),
+			Foreground: style.Some[color.Color](color.White),
+			Bold:       style.Some(true),
+			Border:     style.DoubleBorder().Some(),
+			Padding:    style.Some(style.Edges(0, 2)),
+			Margin:     style.Some(style.Edges(1, 0, 0, 0)),
+		})
+		eng.RequestFrame()
+	})
+
 	root := element.Box(
 		element.Box(
 			element.Box("Button Component Demonstration").Style(style.Style{
@@ -79,6 +139,7 @@ func main() {
 			}),
 
 			btn1,
+			btnDefault,
 			btn2,
 			btn3,
 

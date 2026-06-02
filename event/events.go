@@ -18,6 +18,10 @@ const (
 	EventMouseDown       EventType = "mousedown"
 	EventMouseUp         EventType = "mouseup"
 	EventMouseMove       EventType = "mousemove"
+	EventMouseEnter      EventType = "mouseenter"
+	EventMouseLeave      EventType = "mouseleave"
+	EventMouseOver       EventType = "mouseover"
+	EventMouseOut        EventType = "mouseout"
 	EventClick           EventType = "click"
 	EventDrag            EventType = "drag"
 	EventWheel           EventType = "wheel"
@@ -224,8 +228,9 @@ type MouseEvent struct {
 
 // NewMouseEvent creates a MouseEvent of the given type.
 func NewMouseEvent(typ EventType, screen geom.Point, button MouseButton, mods Modifiers) *MouseEvent {
+	bubbles := typ != EventMouseEnter && typ != EventMouseLeave
 	return &MouseEvent{
-		BaseEvent: BaseEvent{typ: typ, bubbles: true},
+		BaseEvent: BaseEvent{typ: typ, bubbles: bubbles},
 		Screen:    screen,
 		Button:    button,
 		Mods:      mods,

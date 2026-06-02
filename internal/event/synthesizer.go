@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/dom"
 	pub "github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
@@ -39,11 +40,15 @@ type Synthesizer struct {
 	focus              FocusReader
 	clickRadius        int
 	scrollableResolver func(pub.EventTarget) pub.Scrollable
+	lastHovered        pub.EventTarget
 
 	// pendingDown is set when a mousedown is received; cleared on mouseup.
 	pendingDown *pub.MouseEvent
 	// pendingDownPos is the screen position of the pending mousedown.
 	pendingDownPos geom.Point
+
+	// outBuf is a reused buffer for returned events.
+	outBuf []pub.Event
 }
 
 // NewSynthesizer creates a Synthesizer with the given HitTester, FocusReader,
@@ -78,6 +83,7 @@ func (s *Synthesizer) ResolveScrollables(path []pub.EventTarget) map[pub.EventTa
 
 // Process converts a raw backend event into zero or more high-level events.
 func (s *Synthesizer) Process(raw backend.RawEvent) []pub.Event {
+	s.outBuf = s.outBuf[:0]
 	switch e := raw.(type) {
 	case *backend.RawMouseEvent:
 		return s.processMouse(e)
@@ -111,7 +117,8 @@ func (s *Synthesizer) processOsc52(e *backend.RawOscEvent) []pub.Event {
 					ie.SetTarget(s.focus.FocusedTarget())
 				}
 			}
-			return []pub.Event{ce}
+			s.outBuf = append(s.outBuf, ce)
+			return s.outBuf
 		}
 	}
 	return nil
@@ -134,8 +141,7 @@ func (s *Synthesizer) processKey(raw *backend.RawKeyEvent) []pub.Event {
 	}
 
 	// Clipboard synthesis.
-	var events []pub.Event
-	events = append(events, ke)
+	s.outBuf = append(s.outBuf, ke)
 
 	isPaste := !raw.Up && (raw.MatchString("ctrl+v") || raw.MatchString("cmd+v") || raw.MatchString("alt+v") || ke.Code == key.CtrlV)
 	isCopy := !raw.Up && (raw.MatchString("ctrl+c") || raw.MatchString("cmd+c") || raw.MatchString("alt+c") || ke.Code == key.CtrlC)
@@ -144,11 +150,11 @@ func (s *Synthesizer) processKey(raw *backend.RawKeyEvent) []pub.Event {
 	switch {
 	case isCopy:
 		if ce := s.synthesizeCopy(ke); ce != nil {
-			events = append(events, ce)
+			s.outBuf = append(s.outBuf, ce)
 		}
 	case isCut:
 		if ce := s.synthesizeCut(ke); ce != nil {
-			events = append(events, ce)
+			s.outBuf = append(s.outBuf, ce)
 		}
 	case isPaste:
 		// Emit a paste event. The engine or document will handle fetching
@@ -159,10 +165,10 @@ func (s *Synthesizer) processKey(raw *backend.RawKeyEvent) []pub.Event {
 				ie.SetTarget(s.focus.FocusedTarget())
 			}
 		}
-		events = append(events, ce)
+		s.outBuf = append(s.outBuf, ce)
 	}
 
-	return events
+	return s.outBuf
 }
 
 // synthesizeCopy creates a ClipboardEvent{Copy}.
@@ -211,7 +217,71 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 	pos := geom.Point{X: raw.X, Y: raw.Y}
 	hitTarget := s.hitTest(pos)
 
-	var events []pub.Event
+	// Pre-calculate count of hover events to make a single slice allocation
+	hoverCount := 0
+	var oldNode, newNode dom.Node
+	var commonAncestor dom.Node
+	if hitTarget != s.lastHovered {
+		if s.lastHovered != nil {
+			oldNode, _ = s.lastHovered.(dom.Node)
+		}
+		if hitTarget != nil {
+			newNode, _ = hitTarget.(dom.Node)
+		}
+
+		// Zero-allocation Lowest Common Ancestor (LCA)
+		depthA := 0
+		for cur := oldNode; cur != nil; cur = cur.Parent() {
+			depthA++
+		}
+		depthB := 0
+		for cur := newNode; cur != nil; cur = cur.Parent() {
+			depthB++
+		}
+
+		currA := oldNode
+		currB := newNode
+		for depthA > depthB {
+			currA = currA.Parent()
+			depthA--
+		}
+		for depthB > depthA {
+			currB = currB.Parent()
+			depthB--
+		}
+
+		for currA != currB {
+			currA = currA.Parent()
+			currB = currB.Parent()
+		}
+		commonAncestor = currA
+
+		if s.lastHovered != nil {
+			hoverCount++ // mouseout
+		}
+		for n := oldNode; n != nil && n != commonAncestor; n = n.Parent() {
+			hoverCount++
+		}
+		if hitTarget != nil {
+			hoverCount++ // mouseover
+		}
+		for n := newNode; n != nil && n != commonAncestor; n = n.Parent() {
+			hoverCount++
+		}
+	}
+
+	// Ensure capacity in s.outBuf
+	requiredCap := hoverCount + 2
+	if cap(s.outBuf) < requiredCap {
+		s.outBuf = make([]pub.Event, 0, requiredCap)
+	} else {
+		s.outBuf = s.outBuf[:0]
+	}
+
+	if hitTarget != s.lastHovered {
+		s.outBuf = s.appendHoverTransition(s.outBuf, s.lastHovered, hitTarget, pos, raw.Mod, oldNode, newNode, commonAncestor)
+		s.lastHovered = hitTarget
+	}
 
 	if raw.DeltaX != 0 || raw.DeltaY != 0 {
 		// Wheel event.
@@ -219,8 +289,8 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		if ie, ok := any(we).(pub.InternalEvent); ok {
 			ie.SetTarget(hitTarget)
 		}
-		events = append(events, we)
-		return events
+		s.outBuf = append(s.outBuf, we)
+		return s.outBuf
 	}
 
 	if !raw.Up && !raw.Move {
@@ -232,8 +302,8 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		}
 		s.pendingDown = me
 		s.pendingDownPos = pos
-		events = append(events, me)
-		return events
+		s.outBuf = append(s.outBuf, me)
+		return s.outBuf
 	}
 
 	if raw.Move {
@@ -243,7 +313,7 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		if ie, ok := any(me).(pub.InternalEvent); ok {
 			ie.SetTarget(hitTarget)
 		}
-		events = append(events, me)
+		s.outBuf = append(s.outBuf, me)
 
 		// Check for drag: down pending and movement beyond tolerance.
 		if s.pendingDown != nil && s.beyondTolerance(s.pendingDownPos, pos) {
@@ -252,10 +322,10 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 			if ie, ok := any(drag).(pub.InternalEvent); ok {
 				ie.SetTarget(hitTarget)
 			}
-			events = append(events, drag)
+			s.outBuf = append(s.outBuf, drag)
 			s.pendingDown = nil // drag cancels pending click
 		}
-		return events
+		return s.outBuf
 	}
 
 	if raw.Up {
@@ -265,7 +335,7 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 		if ie, ok := any(me).(pub.InternalEvent); ok {
 			ie.SetTarget(hitTarget)
 		}
-		events = append(events, me)
+		s.outBuf = append(s.outBuf, me)
 
 		// Synthesize click if we have a pending down on the same target and
 		// within tolerance.
@@ -276,19 +346,20 @@ func (s *Synthesizer) processMouse(raw *backend.RawMouseEvent) []pub.Event {
 				if ie, ok := any(click).(pub.InternalEvent); ok {
 					ie.SetTarget(hitTarget)
 				}
-				events = append(events, click)
+				s.outBuf = append(s.outBuf, click)
 			}
 			s.pendingDown = nil
 		}
-		return events
+		return s.outBuf
 	}
 
-	return events
+	return s.outBuf
 }
 
 func (s *Synthesizer) processResize(raw *backend.RawResizeEvent) []pub.Event {
 	re := pub.NewResizeEvent(raw.Width, raw.Height)
-	return []pub.Event{re}
+	s.outBuf = append(s.outBuf, re)
+	return s.outBuf
 }
 
 // processBracketedPaste converts a backend.RawBracketedPaste into a PasteEvent and
@@ -307,7 +378,8 @@ func (s *Synthesizer) processBracketedPaste(raw *backend.RawBracketedPaste) []pu
 		}
 	}
 	ce.Items["text/plain"] = []byte(raw.Text)
-	return []pub.Event{pe, ce}
+	s.outBuf = append(s.outBuf, pe, ce)
+	return s.outBuf
 }
 
 // processClipboard converts a backend.RawClipboardEvent into a ClipboardEvent.
@@ -336,7 +408,8 @@ func (s *Synthesizer) processClipboard(raw *backend.RawClipboardEvent) []pub.Eve
 	}
 	// We use the raw content to preserve any newlines or other whitespace.
 	ce.Items["text/plain"] = []byte(raw.Content)
-	return []pub.Event{ce}
+	s.outBuf = append(s.outBuf, ce)
+	return s.outBuf
 }
 
 // hitTest resolves the target at p, or nil if the hit tester is unset.
@@ -358,4 +431,71 @@ func (s *Synthesizer) beyondTolerance(a, b geom.Point) bool {
 		dy = -dy
 	}
 	return dx > s.clickRadius || dy > s.clickRadius
+}
+
+func (s *Synthesizer) appendHoverTransition(
+	events []pub.Event,
+	oldTarget, newTarget pub.EventTarget,
+	pos geom.Point,
+	mods pub.Modifiers,
+	oldNode, newNode, commonAncestor dom.Node,
+) []pub.Event {
+	// 1. Dispatch mouseout on oldTarget (bubbles)
+	if oldTarget != nil {
+		mo := pub.NewMouseEvent(pub.EventMouseOut, pos, pub.ButtonNone, mods)
+		mo.Hit = pub.HitResult{Target: oldTarget}
+		if ie, ok := any(mo).(pub.InternalEvent); ok {
+			ie.SetTarget(oldTarget)
+		}
+		events = append(events, mo)
+	}
+
+	// 2. Dispatch mouseleave on oldNode and its ancestors up to commonAncestor (does not bubble)
+	for n := oldNode; n != nil && n != commonAncestor; n = n.Parent() {
+		ml := pub.NewMouseEvent(pub.EventMouseLeave, pos, pub.ButtonNone, mods)
+		ml.Hit = pub.HitResult{Target: n}
+		if ie, ok := any(ml).(pub.InternalEvent); ok {
+			ie.SetTarget(n)
+		}
+		events = append(events, ml)
+	}
+
+	// 3. Dispatch mouseover on newTarget (bubbles)
+	if newTarget != nil {
+		mo := pub.NewMouseEvent(pub.EventMouseOver, pos, pub.ButtonNone, mods)
+		mo.Hit = pub.HitResult{Target: newTarget}
+		if ie, ok := any(mo).(pub.InternalEvent); ok {
+			ie.SetTarget(newTarget)
+		}
+		events = append(events, mo)
+	}
+
+	// 4. Dispatch mouseenter on newNode and its ancestors up to commonAncestor (does not bubble)
+	var enterBuf [64]dom.Node
+	enterNodes := enterBuf[:0]
+	for n := newNode; n != nil && n != commonAncestor; n = n.Parent() {
+		if len(enterNodes) < len(enterBuf) {
+			enterNodes = append(enterNodes, n)
+		} else {
+			// Fallback to heap allocation for extremely deep trees (should almost never happen)
+			if len(enterNodes) == len(enterBuf) {
+				temp := make([]dom.Node, len(enterNodes), len(enterNodes)+8)
+				copy(temp, enterNodes)
+				enterNodes = temp
+			}
+			enterNodes = append(enterNodes, n)
+		}
+	}
+	// Reverse so we dispatch from highest ancestor down to target
+	for i := len(enterNodes) - 1; i >= 0; i-- {
+		n := enterNodes[i]
+		me := pub.NewMouseEvent(pub.EventMouseEnter, pos, pub.ButtonNone, mods)
+		me.Hit = pub.HitResult{Target: n}
+		if ie, ok := any(me).(pub.InternalEvent); ok {
+			ie.SetTarget(n)
+		}
+		events = append(events, me)
+	}
+
+	return events
 }
