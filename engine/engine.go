@@ -1333,14 +1333,14 @@ func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
 	}
 	if node, ok := target.(dom.Node); ok {
 		e.setLocalMouseCoords(ev, node)
-		
+
 		var path []event.EventTarget
 		if ev.Type() == event.EventMouseEnter || ev.Type() == event.EventMouseLeave {
 			path = []event.EventTarget{node}
 		} else {
 			path = nodeAncestorPath(node)
 		}
-		
+
 		e.dispatcher.Dispatch(ev, path)
 
 		// Move focus to the clicked node if it is focusable and the event

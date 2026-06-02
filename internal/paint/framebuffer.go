@@ -4,6 +4,7 @@ import (
 	"image/color"
 
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/style"
 )
 
 // FrameBuffer is the concrete Surface implementation used by the paint engine.
@@ -12,10 +13,11 @@ import (
 //
 // FrameBuffer is not safe for concurrent use.
 type FrameBuffer struct {
-	cells   []Cell     // flat array: cells[y*width + x]
-	bounds  geom.Rect  // absolute position and size of this buffer
-	version uint64     // incremented by each Flush / BeginFrame call
-	dirty   *geom.Rect // nil when no cell has been written this frame
+	cells      []Cell     // flat array: cells[y*width + x]
+	bounds     geom.Rect  // absolute position and size of this buffer
+	version    uint64     // incremented by each Flush / BeginFrame call
+	dirty      *geom.Rect // nil when no cell has been written this frame
+	blendCache map[blendKey]color.Color
 }
 
 // NewFrameBuffer creates a FrameBuffer positioned at origin (ox, oy) with the
@@ -27,6 +29,7 @@ func NewFrameBuffer(ox, oy, width, height int) *FrameBuffer {
 			Origin: geom.Point{X: ox, Y: oy},
 			Size:   geom.Size{Width: width, Height: height},
 		},
+		blendCache: make(map[blendKey]color.Color),
 	}
 }
 
@@ -36,6 +39,9 @@ func (fb *FrameBuffer) Reset() {
 		fb.cells[i] = Cell{}
 	}
 	fb.dirty = nil
+	if len(fb.blendCache) > 1024 {
+		clear(fb.blendCache)
+	}
 }
 
 // Set writes cell c into position (x, y). The coordinates are absolute
@@ -54,6 +60,8 @@ func (fb *FrameBuffer) Set(x, y int, c Cell) {
 
 	if c.Bg == color.Transparent {
 		c.Bg = fb.cells[idx].Bg
+	} else if c.Bg != nil {
+		c.Bg = fb.blendColors(fb.cells[idx].Bg, c.Bg)
 	}
 
 	fb.cells[idx] = c
@@ -148,4 +156,75 @@ func (cs *clippedSurface) CellAt(x, y int) Cell {
 		return Cell{}
 	}
 	return cs.fb.CellAt(x, y)
+}
+
+type blendKey struct {
+	parent color.RGBA
+	child  color.RGBA
+}
+
+func toRGBA(c color.Color) color.RGBA {
+	if c == nil || isTransparent(c) {
+		return color.RGBA{R: 0, G: 0, B: 0, A: 0}
+	}
+	if style.IsTerminalDefault(c) {
+		return color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	}
+	if rgba, ok := c.(color.RGBA); ok {
+		return rgba
+	}
+	r, g, b, a := c.RGBA()
+	return color.RGBA{
+		R: uint8(r >> 8),
+		G: uint8(g >> 8),
+		B: uint8(b >> 8),
+		A: uint8(a >> 8),
+	}
+}
+
+func (fb *FrameBuffer) blendColors(parent, child color.Color) color.Color {
+	if child == nil || isTransparent(child) {
+		return parent
+	}
+	if style.IsTerminalDefault(child) {
+		return style.TerminalDefault
+	}
+	if parent == nil {
+		parent = color.Transparent
+	}
+
+	pRGBA := toRGBA(parent)
+	cRGBA := toRGBA(child)
+
+	if pRGBA.A == 0 {
+		pRGBA = color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	}
+
+	if cRGBA.A == 255 {
+		return child
+	}
+
+	if fb.blendCache == nil {
+		fb.blendCache = make(map[blendKey]color.Color)
+	}
+
+	key := blendKey{
+		parent: pRGBA,
+		child:  cRGBA,
+	}
+
+	if cached, ok := fb.blendCache[key]; ok {
+		return cached
+	}
+
+	a := uint16(cRGBA.A)
+	invA := 255 - a
+
+	r := uint8((uint16(cRGBA.R)*a + uint16(pRGBA.R)*invA) / 255)
+	g := uint8((uint16(cRGBA.G)*a + uint16(pRGBA.G)*invA) / 255)
+	b := uint8((uint16(cRGBA.B)*a + uint16(pRGBA.B)*invA) / 255)
+
+	blended := color.RGBA{R: r, G: g, B: b, A: 255}
+	fb.blendCache[key] = blended
+	return blended
 }

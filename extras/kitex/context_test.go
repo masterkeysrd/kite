@@ -418,4 +418,3 @@ func TestContextPropagation_DirtyComponentRerender(t *testing.T) {
 		t.Errorf("expected Consumer to receive 'dark' context, got %q", themeVal)
 	}
 }
-
