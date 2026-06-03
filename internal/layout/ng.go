@@ -436,7 +436,13 @@ func MaxScroll(frag *Fragment) (x, y int) {
 		}
 	}
 	if isCursorProvider && extentW >= viewport.Width {
-		maxSX++
+		canWrap := false
+		if comp := frag.Node.Style(); comp != nil {
+			canWrap = comp.WhiteSpace == style.WhiteSpaceNormal || comp.WhiteSpace == style.WhiteSpacePreWrap
+		}
+		if !canWrap || extentW > viewport.Width {
+			maxSX++
+		}
 	}
 
 	return maxSX, maxSY

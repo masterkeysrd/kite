@@ -38,6 +38,28 @@ type TextAreaElement struct {
 	disabled bool
 }
 
+// uaTextAreaRoot is the outer UA shadow root element.
+// It has Width:Content so it does not stretch to the host's width.
+type uaTextAreaRoot struct {
+	dom.Element
+}
+
+func (r *uaTextAreaRoot) Unwrap() dom.Node { return r.Element }
+
+var defaultUATextAreaRootStyle = style.S().Width(style.Content)
+
+func (r *uaTextAreaRoot) DefaultStyle() style.Style {
+	return defaultUATextAreaRootStyle
+}
+func (r *uaTextAreaRoot) RawStyle() style.Style       { return style.S() }
+func (r *uaTextAreaRoot) IntrinsicStyle() style.Style { return style.S() }
+func (r *uaTextAreaRoot) IsDirtyStyle() bool {
+	if de := internaldom.AsDirtyElement(r.Element); de != nil {
+		return de.IsDirtyStyle()
+	}
+	return false
+}
+
 // uaTextAreaDiv is the inner UA block element that wraps the text content.
 // It has Width:Content so it doesn't stretch to the host's width.
 type uaTextAreaDiv struct {
@@ -46,7 +68,7 @@ type uaTextAreaDiv struct {
 
 func (d *uaTextAreaDiv) Unwrap() dom.Node { return d.Element }
 
-var defaultUATextAreaDivStyle = style.S().Width(style.Auto)
+var defaultUATextAreaDivStyle = style.S().Width(style.Content)
 
 func (d *uaTextAreaDiv) DefaultStyle() style.Style {
 	return defaultUATextAreaDivStyle
@@ -103,7 +125,7 @@ func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	// Initialise the shared text-control base with the ua-div and buffer.
 	txa.initTextControlBase(txa, uaDiv, buf, true /* multi-line */, txa.syncText)
 
-	uaRoot := doc.CreateElement("ua-textarea-root", nil)
+	uaRoot := &uaTextAreaRoot{doc.CreateElement("ua-textarea-root", nil)}
 	uaRoot.AppendChild(uaDiv)
 	el.AttachUARoot(uaRoot)
 

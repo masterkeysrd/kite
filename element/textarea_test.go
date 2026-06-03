@@ -372,6 +372,90 @@ func BenchmarkTextArea_CursorMove(b *testing.B) {
 	}
 }
 
+func TestTextArea_NoHorizontalScrollIfFits(t *testing.T) {
+	b := mock.New(40, 10)
+	eng := engine.New(b, engine.Options{})
+	txa := element.NewTextArea(eng.Document(), "Short text")
+	doc := eng.Document()
+
+	// Make textarea wider than the text: width 20 cells, text is 10 chars.
+	txa.Style(style.S().
+		Width(style.Cells(20)).
+		Height(style.Cells(5)).
+		Padding(style.Edges(0, 1)))
+
+	eng.Mount(txa)
+	eng.Frame()
+
+	// Get computed max scroll.
+	v := doc.DefaultView()
+	maxSX, maxSY := v.GetMaxScroll(txa)
+
+	if maxSX != 0 {
+		t.Errorf("expected max horizontal scroll to be 0 since text fits, got %d", maxSX)
+	}
+	if maxSY != 0 {
+		t.Errorf("expected max vertical scroll to be 0 since text fits, got %d", maxSY)
+	}
+}
+
+func TestTextArea_NoHorizontalScrollIfFits_WithVerticalScrollbar(t *testing.T) {
+	b := mock.New(40, 10)
+	eng := engine.New(b, engine.Options{})
+	// Text with 7 lines (height is 5 cells) - so it will have a vertical scrollbar.
+	// The longest line is "LongestLine" (11 characters).
+	txa := element.NewTextArea(eng.Document(), "line1\nline2\nline3\nLongestLine\nline5\nline6\nline7")
+	doc := eng.Document()
+
+	// Make textarea wider than the longest line: width 20 cells, text is 11 chars.
+	// Height 5 cells.
+	txa.Style(style.S().
+		Width(style.Cells(20)).
+		Height(style.Cells(5)).
+		Padding(style.Edges(0, 1)))
+
+	eng.Mount(txa)
+	eng.Frame()
+
+	// Get computed max scroll.
+	v := doc.DefaultView()
+	maxSX, maxSY := v.GetMaxScroll(txa)
+
+	if maxSX != 0 {
+		t.Errorf("expected max horizontal scroll to be 0 since text fits horizontally, got %d", maxSX)
+	}
+	if maxSY <= 0 {
+		t.Errorf("expected max vertical scroll to be > 0 since text height exceeds viewport, got %d", maxSY)
+	}
+}
+
+func TestTextArea_NoHorizontalScrollIfWrapped(t *testing.T) {
+	b := mock.New(80, 24)
+	eng := engine.New(b, engine.Options{})
+	// A line of 60 characters, which exceeds the textarea content width of 48.
+	// Since wrapping is enabled, it should soft-wrap and maxSX should be 0.
+	text := "This line is extremely long and will definitely wrap to the next line"
+
+	txa := element.NewTextArea(eng.Document(), text)
+	doc := eng.Document()
+
+	txa.Style(style.S().
+		Width(style.Cells(50)).
+		Height(style.Cells(10)).
+		Padding(style.Edges(0, 1)))
+
+	eng.Mount(txa)
+	eng.Frame()
+
+	v := doc.DefaultView()
+	maxSX, _ := v.GetMaxScroll(txa)
+
+	if maxSX != 0 {
+		t.Errorf("expected max horizontal scroll to be 0 for wrapped line, got %d", maxSX)
+	}
+}
+
+
 func BenchmarkTextArea_Insert(b *testing.B) {
 	sizes := []int{50, 500}
 	for _, size := range sizes {
