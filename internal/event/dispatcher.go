@@ -115,14 +115,13 @@ func (d *Dispatcher) DispatchWheel(e *event.WheelEvent, path []event.EventTarget
 	// Check if target itself is Scrollable.
 	if sc, ok := scrollables[realTarget]; ok {
 		sc.OnWheel(e)
-		return
 	}
 
 	if e.PropagationStopped() {
 		return
 	}
 
-	// Bubble — stop at first Scrollable ancestor.
+	// Bubble — stop at first Scrollable ancestor that consumes it.
 	ie.SetPhase(event.PhaseBubble)
 	for i := len(path) - 2; i >= 0; i-- {
 		if e.PropagationStopped() {
@@ -133,7 +132,10 @@ func (d *Dispatcher) DispatchWheel(e *event.WheelEvent, path []event.EventTarget
 		if sc, ok := scrollables[et]; ok {
 			ie.SetCurrentTarget(et)
 			sc.OnWheel(e)
-			return
+			if e.PropagationStopped() {
+				return
+			}
+			continue
 		}
 		ie.SetCurrentTarget(et)
 		et.DispatchTo(e)

@@ -229,4 +229,3 @@ func TestOverflow_MinSizeScrollContainer(t *testing.T) {
 		t.Errorf("expected Footer to be positioned at row Y=4 (got row content %q)\nScreen:\n%s", rowContent, strings.Join(screenLines, "\n"))
 	}
 }
-
