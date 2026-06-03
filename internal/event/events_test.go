@@ -508,6 +508,77 @@ func TestWheel_RoutesToFirstScrollableAncestor(t *testing.T) {
 	}
 }
 
+type stubScrollableStopping struct {
+	stubScrollable
+}
+
+func (s *stubScrollableStopping) OnWheel(e *event.WheelEvent) {
+	s.stubScrollable.OnWheel(e)
+	e.StopPropagation()
+}
+
+func TestWheel_ScrollChaining(t *testing.T) {
+	t.Parallel()
+
+	root := newStub(geom.Rect{})
+	mid := newStub(geom.Rect{})
+	target := newStub(geom.Rect{})
+	addChild(root, mid)
+	addChild(mid, target)
+
+	d := event.NewDispatcher()
+
+	scMid := &stubScrollable{}
+	scRoot := &stubScrollable{}
+	scrollables := map[event.EventTarget]event.Scrollable{
+		mid:  scMid,
+		root: scRoot,
+	}
+
+	path := buildPath(root, mid, target)
+	e := event.NewWheelEvent(geom.Point{}, 0, 3, 0)
+	d.DispatchWheel(e, path, scrollables)
+
+	// Since mid did not call StopPropagation(), the event should bubble to root.
+	if len(scMid.calls) != 1 {
+		t.Errorf("expected 1 wheel call on mid scrollable, got %d", len(scMid.calls))
+	}
+	if len(scRoot.calls) != 1 {
+		t.Errorf("expected 1 wheel call on root scrollable due to chaining, got %d", len(scRoot.calls))
+	}
+}
+
+func TestWheel_ScrollChaining_Stopped(t *testing.T) {
+	t.Parallel()
+
+	root := newStub(geom.Rect{})
+	mid := newStub(geom.Rect{})
+	target := newStub(geom.Rect{})
+	addChild(root, mid)
+	addChild(mid, target)
+
+	d := event.NewDispatcher()
+
+	scMid := &stubScrollableStopping{}
+	scRoot := &stubScrollable{}
+	scrollables := map[event.EventTarget]event.Scrollable{
+		mid:  scMid,
+		root: scRoot,
+	}
+
+	path := buildPath(root, mid, target)
+	e := event.NewWheelEvent(geom.Point{}, 0, 3, 0)
+	d.DispatchWheel(e, path, scrollables)
+
+	// Since mid stopped propagation, the event should NOT bubble to root.
+	if len(scMid.calls) != 1 {
+		t.Errorf("expected 1 wheel call on mid scrollable, got %d", len(scMid.calls))
+	}
+	if len(scRoot.calls) != 0 {
+		t.Errorf("expected 0 wheel calls on root scrollable, got %d", len(scRoot.calls))
+	}
+}
+
 func TestWheel_NoScrollable_NoOp(t *testing.T) {
 	t.Parallel()
 

@@ -334,11 +334,37 @@ func splitLines(s string) []string {
 
 // OnWheel implements event.Scrollable.
 func (txa *TextAreaElement) OnWheel(e *event.WheelEvent) {
+	var maxSX, maxSY int
+	hasView := false
+	if doc := txa.OwnerDocument(); doc != nil {
+		if view := doc.DefaultView(); view != nil {
+			maxSX, maxSY = view.GetMaxScroll(txa)
+			hasView = true
+		}
+	}
+
+	if !hasView {
+		oldX, oldY := txa.Scroll()
+		txa.ScrollBy(e.DeltaX, e.DeltaY)
+		newX, newY := txa.Scroll()
+		if newX != oldX || newY != oldY {
+			e.StopPropagation()
+		}
+		return
+	}
+
 	oldX, oldY := txa.Scroll()
-	txa.ScrollBy(e.DeltaX, e.DeltaY)
-	newX, newY := txa.Scroll()
+	oldX = max(0, min(oldX, maxSX))
+	oldY = max(0, min(oldY, maxSY))
+
+	targetX := oldX + e.DeltaX
+	targetY := oldY + e.DeltaY
+
+	newX := max(0, min(targetX, maxSX))
+	newY := max(0, min(targetY, maxSY))
 
 	if newX != oldX || newY != oldY {
+		txa.ScrollTo(newX, newY)
 		e.StopPropagation()
 	}
 }
