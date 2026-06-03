@@ -332,8 +332,35 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 	builder.ComputeLines(contentMainSize, wrap)
 
 	// 4. Resolve Main Sizes (Grow/Shrink)
-	for i := range builder.Lines() {
-		builder.ResolveFlexibleLengths(i, contentMainSize)
+	isMainDefinite := true
+	if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
+		if !space.IsFixedInlineSize {
+			isContentOrInlineFlexAuto := comp.Width.Kind() == style.KindContent ||
+				(comp.Width.Kind() == style.KindAuto && comp.Display == style.DisplayInlineFlex)
+			if isContentOrInlineFlexAuto {
+				isMainDefinite = false
+			}
+		}
+	} else {
+		if !space.IsFixedBlockSize {
+			isAutoOrContent := comp.Height.Kind() == style.KindAuto || comp.Height.Kind() == style.KindContent
+			isIndefinitePercent := comp.Height.Kind() == style.KindPercent && space.ContainerSpace.Height >= InfiniteBlockSize
+			if isAutoOrContent || isIndefinitePercent {
+				isMainDefinite = false
+			}
+		}
+	}
+
+	if isMainDefinite && contentMainSize < InfiniteBlockSize {
+		for i := range builder.Lines() {
+			builder.ResolveFlexibleLengths(i, contentMainSize)
+		}
+	} else {
+		for _, line := range builder.Lines() {
+			for _, item := range line.Items {
+				item.MainSize = item.HypotheticalMainSize
+			}
+		}
 	}
 
 	// 5. Measure Final Dimensions
