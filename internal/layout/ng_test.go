@@ -49,8 +49,9 @@ func TestMaxScroll_CursorProvider(t *testing.T) {
 	node := &mockCursorNode{
 		mockNode: mockNode{
 			style: &style.Computed{
-				Width:  style.Cells(10),
-				Height: style.Cells(1),
+				Width:      style.Cells(10),
+				Height:     style.Cells(1),
+				WhiteSpace: style.WhiteSpacePre,
 			},
 		},
 	}
