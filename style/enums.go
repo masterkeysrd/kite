@@ -83,8 +83,10 @@ const (
 type Align uint8
 
 const (
+	// AlignAuto defers to the parent's AlignItems.
+	AlignAuto Align = iota
 	// AlignStart aligns items at the cross-start edge.
-	AlignStart Align = iota
+	AlignStart
 	// AlignEnd aligns items at the cross-end edge.
 	AlignEnd
 	// AlignCenter centers items along the cross axis.

@@ -10,7 +10,9 @@
 package regressions
 
 import (
+	"fmt"
 	"image/color"
+	"strings"
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend"
@@ -167,3 +169,64 @@ func TestOverflowClip_Asymmetric_HiddenX_VisibleY(t *testing.T) {
 	// At least some cells inside x<6 should have red background.
 	testenv.ExpectScreen(t, env).Region(0, 0, 6, 1).ToHaveBackgroundCountGreaterThan(colorRed, 0)
 }
+
+// TestOverflow_MinSizeScrollContainer verifies that scroll/clip containers
+// have an automatic minimum main size of 0, allowing them to shrink to fit
+// within the available space.
+func TestOverflow_MinSizeScrollContainer(t *testing.T) {
+	env := testenv.Default(40, 10)
+	defer env.Close()
+
+	// Parent has height 5.
+	// Contains a Header of height 1, a scrollable Body (overflow-y: scroll), and a Footer of height 1.
+	// The scrollable Body contains an inner item of height 10.
+	// Without the scroll container automatic min-size fix, the Body's minimum height would default to its content height (10),
+	// causing the parent to overflow (total height = 1 + 10 + 1 = 12, which is > 5).
+	// With the fix, the Body can shrink to 3 (so total height = 1 + 3 + 1 = 5).
+	root := element.Box(
+		element.Box(
+			element.Box("Head").Style(style.S().Height(style.Cells(1))),
+			element.Box(
+				element.Box("Body content").Style(style.S().Height(style.Cells(10))),
+			).Style(style.S().Flex(style.FlexItemValue{Grow: 1, Shrink: 1}).OverflowY(style.OverflowScroll)),
+			element.Box("Foot").Style(style.S().Height(style.Cells(1))),
+		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Height(style.Cells(5))),
+	)
+
+	env.Mount(root)
+	env.RenderFrame()
+
+	fr := env.Backend.LastFrame()
+	surf := fr.Surface
+	if surf == nil {
+		t.Fatal("no frame surface produced")
+	}
+
+	// The row Y=4 should contain the text "Foot".
+	var rowContent string
+	for x := 0; x < 40; x++ {
+		cell := surf.CellAt(x, 4)
+		if cell.Content != "" {
+			rowContent += cell.Content
+		}
+	}
+
+	if !strings.Contains(rowContent, "Foot") {
+		// Dump the screen buffer for debugging
+		var screenLines []string
+		for y := 0; y < 10; y++ {
+			var line string
+			for x := 0; x < 40; x++ {
+				cell := surf.CellAt(x, y)
+				if cell.Content == "" {
+					line += "."
+				} else {
+					line += cell.Content
+				}
+			}
+			screenLines = append(screenLines, fmt.Sprintf("Y=%d: %s", y, line))
+		}
+		t.Errorf("expected Footer to be positioned at row Y=4 (got row content %q)\nScreen:\n%s", rowContent, strings.Join(screenLines, "\n"))
+	}
+}
+

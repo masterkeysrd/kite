@@ -72,7 +72,8 @@ var defaultSelectStyle = style.S().
 	Width(style.Cells(20))
 
 var intrinsicSelectStyle = style.S().
-	Display(style.DisplayInlineBlock)
+	Display(style.DisplayInlineBlock).
+	AlignSelf(style.AlignStart)
 
 var selectButtonStyle = style.S().
 	Display(style.DisplayBlock).

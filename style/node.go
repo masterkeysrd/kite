@@ -17,7 +17,7 @@ func DefaultStyle() Computed {
 		JustifyContent: JustifyStart,     // pack toward main-start
 		AlignItems:     AlignStretch,     // stretch items by default (CSS parity)
 		AlignContent:   AlignStretch,     // stretch lines by default
-		AlignSelf:      AlignStart,       // defers to parent AlignItems
+		AlignSelf:      AlignAuto,        // defers to parent AlignItems
 		Gap:            GapValue{},       // no inter-child gap
 		Flex:           FlexItemValue{Grow: 0, Shrink: 1, Basis: Auto},
 		Order:          0, // default order

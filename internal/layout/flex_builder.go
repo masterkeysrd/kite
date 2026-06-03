@@ -84,6 +84,9 @@ type FlexItem struct {
 	// Cached measurement result.
 	Fragment *Fragment
 
+	// AlignSelf override for this item.
+	AlignSelf style.Align
+
 	// Physical offset relative to container content box.
 	Offset geometry.Point
 }
@@ -439,7 +442,7 @@ func (b *FlexLineBuilder) AlignCrossAxis(containerCrossSize int, alignContent st
 
 			itemActualCross := b.geom.CrossSize(item.Fragment.Size)
 			crossOffset := 0
-			switch alignItems {
+			switch item.AlignSelf {
 			case style.AlignStart:
 				crossOffset = 0
 			case style.AlignEnd:

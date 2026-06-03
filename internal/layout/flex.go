@@ -288,7 +288,11 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 
 			// Default min-size is min-content (CSS flexbox spec: min-width: auto)
 			if childStyle.MinWidth.Kind() == style.KindAuto {
-				minSize = IntrinsicMinMaxSizes(ctx, item.Node).Min + childMargin.Left + childMargin.Right
+				if childStyle.OverflowX != style.OverflowVisible {
+					minSize = childMargin.Left + childMargin.Right
+				} else {
+					minSize = IntrinsicMinMaxSizes(ctx, item.Node).Min + childMargin.Left + childMargin.Right
+				}
 			} else if childStyle.MinWidth.Kind() == style.KindCells {
 				minSize = childStyle.MinWidth.CellsValue() + childMargin.Left + childMargin.Right
 			}
@@ -301,7 +305,11 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 
 			// Default min-size is min-content (CSS flexbox spec: min-height: auto)
 			if childStyle.MinHeight.Kind() == style.KindAuto {
-				minSize = IntrinsicBlockSize(ctx, item.Node, contentCrossSizeForItems) + childMargin.Top + childMargin.Bottom
+				if childStyle.OverflowY != style.OverflowVisible {
+					minSize = childMargin.Top + childMargin.Bottom
+				} else {
+					minSize = IntrinsicBlockSize(ctx, item.Node, contentCrossSizeForItems) + childMargin.Top + childMargin.Bottom
+				}
 			} else if childStyle.MinHeight.Kind() == style.KindCells {
 				minSize = childStyle.MinHeight.CellsValue() + childMargin.Top + childMargin.Bottom
 			}
@@ -311,7 +319,12 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 			}
 		}
 
+		childAlign := comp.AlignItems
+		if childStyle.AlignSelf != style.AlignAuto {
+			childAlign = childStyle.AlignSelf
+		}
 		builder.AddItem(item.Node, baseSize, minSize, maxSize, item.Grow, item.Shrink, item.Order)
+		builder.items[len(builder.items)-1].AlignSelf = childAlign
 	}
 
 	// 3. Line Breaking
@@ -342,30 +355,41 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 			}
 
 			measureCrossSize := contentCrossSizeForItems
+			var childSpace ConstraintSpace
 			flexContainingSpace := geometry.Size{Width: resolvedWidth, Height: resolvedHeight}
 			flexContainerSpace := geometry.Size{Width: contentWidth, Height: contentHeight}
 
-			childSpace := ConstraintSpace{
-				AvailableSize:     geom.MakeSize(childMainSize, measureCrossSize),
-				ContainingSpace:   flexContainingSpace,
-				ContainerSpace:    flexContainerSpace,
-				IsFixedInlineSize: true,
-				IsFixedBlockSize:  false,
-			}
+			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
+				isFixedInline := true
+				isFixedBlock := false
 
-			if geom.direction == style.FlexColumn || geom.direction == style.FlexColumnReverse {
-				childSpace.IsFixedInlineSize = false
-				childSpace.IsFixedBlockSize = false
+				if item.AlignSelf == style.AlignStretch && childStyle.Height.Kind() == style.KindAuto && space.IsFixedBlockSize {
+					isFixedBlock = true
+				}
 
-				if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
+				childSpace = ConstraintSpace{
+					AvailableSize:     geometry.Size{Width: childMainSize, Height: measureCrossSize},
+					ContainingSpace:   flexContainingSpace,
+					ContainerSpace:    flexContainerSpace,
+					IsFixedInlineSize: isFixedInline,
+					IsFixedBlockSize:  isFixedBlock,
+				}
+			} else {
+				isFixedInline := false
+				isFixedBlock := true
+
+				if item.AlignSelf == style.AlignStretch && childStyle.Width.Kind() == style.KindAuto && space.IsFixedInlineSize {
+					isFixedInline = true
+				} else if item.AlignSelf != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(ctx, item.Node).Max, contentCrossSizeForItems)
-					childSpace = ConstraintSpace{
-						AvailableSize:     geom.MakeSize(childMainSize, measureCrossSize),
-						ContainingSpace:   flexContainingSpace,
-						ContainerSpace:    flexContainerSpace,
-						IsFixedInlineSize: true,
-						IsFixedBlockSize:  false,
-					}
+				}
+
+				childSpace = ConstraintSpace{
+					AvailableSize:     geometry.Size{Width: measureCrossSize, Height: childMainSize},
+					ContainingSpace:   flexContainingSpace,
+					ContainerSpace:    flexContainerSpace,
+					IsFixedInlineSize: isFixedInline,
+					IsFixedBlockSize:  isFixedBlock,
 				}
 			}
 

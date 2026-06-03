@@ -551,9 +551,9 @@ lineEnded:
 		itemAlign := l.verticalAlign
 
 		// Check the item itself, then its parent inline (for text fragments)
-		if li.node != nil && li.node.Style() != nil && li.node.Style().AlignSelf != style.AlignStart {
+		if li.node != nil && li.node.Style() != nil && li.node.Style().AlignSelf != style.AlignAuto {
 			itemAlign = li.node.Style().AlignSelf
-		} else if li.parent != nil && li.parent.Style() != nil && li.parent.Style().AlignSelf != style.AlignStart {
+		} else if li.parent != nil && li.parent.Style() != nil && li.parent.Style().AlignSelf != style.AlignAuto {
 			itemAlign = li.parent.Style().AlignSelf
 		}
 
