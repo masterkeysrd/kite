@@ -1333,3 +1333,45 @@ func TestFlexLayout_CenteringWithText(t *testing.T) {
 		t.Errorf("expected anonymous block offset X 45, got %d", frag.Children[0].Offset.X)
 	}
 }
+
+func TestFlexLayout_IndefiniteGrowShrink(t *testing.T) {
+	// A column flex container with indefinite height (Height: Auto), containing a growing child.
+	// The child has flex-grow: 1, and the parent is laid out in an indefinite/infinite space.
+	// The child should NOT grow to InfiniteBlockSize.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Height = style.Cells(10)
+	childStyle.Flex = style.FlexItemValue{Grow: 1, Shrink: 1}
+	child := &mockNode{style: &childStyle}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Width = style.Cells(100)
+	parentStyle.Height = style.Auto
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{100, InfiniteBlockSize}).
+		SetContainerSpace(geometry.Size{100, InfiniteBlockSize}).
+		SetContainingSpace(geometry.Size{100, InfiniteBlockSize}).
+		ToConstraintSpace()
+
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	// Since height is indefinite, the child should not grow.
+	// Its height should remain its hypothetical main size (10).
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+	childFrag := frag.Children[0].Fragment
+	if childFrag.Size.Height != 10 {
+		t.Errorf("expected child height 10 (no grow in indefinite container), got %d", childFrag.Size.Height)
+	}
+	if frag.Size.Height != 10 {
+		t.Errorf("expected parent height 10, got %d", frag.Size.Height)
+	}
+}
