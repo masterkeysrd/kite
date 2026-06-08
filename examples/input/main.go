@@ -81,10 +81,12 @@ func main() {
 	// correct document and get adopted cleanly on Mount.
 	const fieldWidth = 30
 
-	usernameInp := element.NewInput(eng.Document(), "")
+	usernameInp := element.NewInput(eng.Document(), "").WithPlaceholder("Type username...")
 	usernameInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
 
-	passwordInp := element.NewInput(eng.Document(), "")
+	passwordInp := element.NewInput(eng.Document(), "").
+		WithPlaceholder("Type password...").
+		WithPlaceholderStyle(style.S().Foreground(color.RGBA{R: 120, G: 100, B: 150, A: 255}).Italic(true))
 	passwordInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
 
 	// ── live echo text node ──────────────────────────────────────────────────

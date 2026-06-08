@@ -34,8 +34,14 @@ type TextAreaElement struct {
 	elementBase[TextAreaElement]
 	textControlBase[*TextAreaElement]
 
-	name     string
-	disabled bool
+	name             string
+	placeholder      string
+	placeholderStyle style.Style
+	disabled         bool
+
+	// uaPlaceholder is the element showing the placeholder text.
+	// Created lazily when needed.
+	uaPlaceholder *uaPlaceholderElement
 }
 
 // uaTextAreaRoot is the outer UA shadow root element.
@@ -109,7 +115,9 @@ var defaultTextAreaStyle = style.S().
 func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	buf := text.NewBuffer(initialValue)
 
-	txa := &TextAreaElement{}
+	txa := &TextAreaElement{
+		placeholderStyle: style.S().Foreground(DefaultPlaceholderGray),
+	}
 
 	// Create the host DOM element.
 	el := doc.CreateElement("textarea", txa)
@@ -154,6 +162,22 @@ func (txa *TextAreaElement) WithName(name string) *TextAreaElement {
 	return txa
 }
 
+// WithPlaceholder sets the placeholder text and returns the TextAreaElement.
+func (txa *TextAreaElement) WithPlaceholder(p string) *TextAreaElement {
+	txa.placeholder = p
+	txa.syncText()
+	return txa
+}
+
+// WithPlaceholderStyle sets the style for the placeholder and returns the TextAreaElement.
+func (txa *TextAreaElement) WithPlaceholderStyle(s style.Style) *TextAreaElement {
+	txa.placeholderStyle = style.S().Foreground(DefaultPlaceholderGray).Merge(s)
+	if txa.uaPlaceholder != nil {
+		txa.uaPlaceholder.Style(txa.placeholderStyle)
+	}
+	return txa
+}
+
 // Name returns the form control name.
 func (txa *TextAreaElement) Name() string {
 	return txa.name
@@ -167,6 +191,7 @@ func (txa *TextAreaElement) TextContent() string {
 // SetValue replaces the buffer content.
 func (txa *TextAreaElement) SetValue(v string) *TextAreaElement {
 	txa.buf = text.NewBuffer(v)
+	txa.lastSyncedVersion = -1
 	txa.syncText()
 	return txa
 }
@@ -249,9 +274,20 @@ func (txa *TextAreaElement) rebuildUASubtree() {
 		doc = orphanDocument
 	}
 
+	var newChildren []dom.Node
+
+	// If empty and placeholder is set, prepend the placeholder element.
+	if value == "" && txa.placeholder != "" {
+		if txa.uaPlaceholder == nil || txa.uaPlaceholder.TextContent() != txa.placeholder {
+			txa.uaPlaceholder = newPlaceholder(doc, txa.placeholder, txa.placeholderStyle)
+		}
+		newChildren = append(newChildren, txa.uaPlaceholder)
+	}
+
 	// Empty buffer: just a placeholder <br> so the textarea has height.
 	if value == "" {
-		txa.syncChildren([]dom.Node{NewPlaceholderBr(doc)})
+		newChildren = append(newChildren, NewPlaceholderBr(doc))
+		txa.syncChildren(newChildren)
 		return
 	}
 
@@ -259,7 +295,6 @@ func (txa *TextAreaElement) rebuildUASubtree() {
 	lines := splitLines(value)
 	endsWithNewline := value[len(value)-1] == '\n'
 
-	var newChildren []dom.Node
 	for i, line := range lines {
 		if line != "" {
 			newChildren = append(newChildren, doc.CreateTextNode(line, nil))
@@ -278,14 +313,6 @@ func (txa *TextAreaElement) rebuildUASubtree() {
 
 func (txa *TextAreaElement) syncChildren(newChildren []dom.Node) {
 	uaDiv := txa.uaDiv
-
-	// Strategy:
-	// 1. Iterate over newChildren.
-	// 2. If an existing child at index i exists:
-	//    - If it's the same kind, update it (for TextNode).
-	//    - If different kind, replace it.
-	// 3. If no existing child, append.
-	// 4. Remove any remaining trailing existing children.
 
 	currentChild := uaDiv.FirstChild()
 	for _, newNode := range newChildren {
@@ -315,6 +342,22 @@ func (txa *TextAreaElement) tryUpdateNode(existing, newNode dom.Node) bool {
 	// Also check if BrElement is placeholder vs content.
 	if existing.NodeName() != newNode.NodeName() {
 		return false
+	}
+
+	// Placeholder element check.
+	if e, ok := existing.(*uaPlaceholderElement); ok {
+		n, ok := newNode.(*uaPlaceholderElement)
+		if !ok {
+			return false
+		}
+		if e.TextContent() != n.TextContent() {
+			// Replace text content of placeholder.
+			if first := e.FirstChild(); first != nil {
+				e.RemoveChild(first)
+			}
+			e.AppendChild(e.OwnerDocument().CreateTextNode(n.TextContent(), nil))
+		}
+		return true
 	}
 
 	switch e := existing.(type) {

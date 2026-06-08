@@ -73,14 +73,7 @@ func main() {
 	})
 
 	// ── textarea ─────────────────────────────────────────────────────────────
-	initialText := "Welcome to Kite TextArea!\n\n" +
-		"This component supports:\n" +
-		" • Multi-line editing\n" +
-		" • 2D Arrow navigation\n" +
-		" • Automatic soft-wrap\n" +
-		" • LongUnbreakableRunsThatEmergencyWrap"
-
-	txa := element.NewTextArea(eng.Document(), initialText)
+	txa := element.NewTextArea(eng.Document(), "").WithPlaceholder("Type your message here...")
 	txa.Style(style.S().Width(style.Cells(50)).Height(style.Cells(10)).Background(colCard).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
 
 	// ── status bar ───────────────────────────────────────────────────────────

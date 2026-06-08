@@ -15,6 +15,8 @@ package element
 //     concrete element can rebuild its UA subtree and mark the render tree dirty.
 
 import (
+	"image/color"
+
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
@@ -652,11 +654,20 @@ func (b *textControlBase[T]) isNodeInUASubtree(n dom.Node) bool {
 	return dom.IsUANode(n)
 }
 
+type isPlaceholderElement interface {
+	IsPlaceholder() bool
+}
+
 func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int) {
 	currByte := 0
 	childIdx := 0
 
 	for child := b.uaDiv.FirstChild(); child != nil; child = child.NextSibling() {
+		// Skip visual placeholder elements (e.g. gray placeholder text).
+		if p, ok := child.(isPlaceholderElement); ok && p.IsPlaceholder() {
+			continue
+		}
+
 		if t, ok := child.(dom.TextNode); ok {
 			data := t.Data()
 			byteLen := len(data)
@@ -677,12 +688,12 @@ func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int)
 		} else if el, ok := child.(dom.Element); ok && el.TagName() == "br" {
 			// Content <br> represents exactly 1 byte (\n).
 			// Placeholder <br> is 0 bytes.
-			isPlaceholder := false
+			isPlaceholderBr := false
 			if p, ok := el.(interface{ IsPlaceholderBr() bool }); ok {
-				isPlaceholder = p.IsPlaceholderBr()
+				isPlaceholderBr = p.IsPlaceholderBr()
 			}
 
-			if !isPlaceholder {
+			if !isPlaceholderBr {
 				if currByte == targetByteOffset {
 					// Position before this \n.
 					return b.uaDiv, childIdx
@@ -731,4 +742,28 @@ func (b *textControlBase[T]) moveDown() {
 		offset = maxLen
 	}
 	b.buf.SetOffset(offset)
+}
+
+// uaPlaceholderElement is a UA-internal element used to display placeholder
+// text in InputElement and TextAreaElement.
+type uaPlaceholderElement struct {
+	elementBase[uaPlaceholderElement]
+}
+
+func (p *uaPlaceholderElement) IsPlaceholder() bool { return true }
+
+var (
+	DefaultPlaceholderGray = color.RGBA{136, 136, 136, 255} // #888888
+
+	defaultPlaceholderStyle   = style.S().Display(style.DisplayInline)
+	intrinsicPlaceholderStyle = style.S().Display(style.DisplayInline)
+)
+
+func newPlaceholder(doc dom.Document, text string, s style.Style) *uaPlaceholderElement {
+	p := &uaPlaceholderElement{}
+	el := doc.CreateElement("ua-placeholder", p)
+	p.initBase(el, p, defaultPlaceholderStyle, intrinsicPlaceholderStyle)
+	p.Style(s)
+	el.AppendChild(doc.CreateTextNode(text, nil))
+	return p
 }

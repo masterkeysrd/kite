@@ -75,8 +75,14 @@ type InputElement struct {
 	// the shared geometry math; we keep a typed copy here for syncText.
 	uaInputDivEl *uaInputDiv
 
-	name     string
-	disabled bool
+	name             string
+	placeholder      string
+	placeholderStyle style.Style
+	disabled         bool
+
+	// uaPlaceholder is the element showing the placeholder text.
+	// Created lazily when needed.
+	uaPlaceholder *uaPlaceholderElement
 }
 
 // Compile-time interface assertions.
@@ -127,8 +133,9 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	uaInnerDiv.AppendChild(uaText) // appends to uaInnerDivEl via embedding
 
 	inp := &InputElement{
-		uaText:       uaText,
-		uaInputDivEl: uaInnerDiv,
+		uaText:           uaText,
+		uaInputDivEl:     uaInnerDiv,
+		placeholderStyle: style.S().Foreground(DefaultPlaceholderGray),
 	}
 
 	// Create the host DOM element. The self-pointer is the InputElement so
@@ -176,6 +183,22 @@ func (inp *InputElement) WithName(name string) *InputElement {
 	return inp
 }
 
+// WithPlaceholder sets the placeholder text and returns the InputElement.
+func (inp *InputElement) WithPlaceholder(p string) *InputElement {
+	inp.placeholder = p
+	inp.syncText()
+	return inp
+}
+
+// WithPlaceholderStyle sets the style for the placeholder and returns the InputElement.
+func (inp *InputElement) WithPlaceholderStyle(s style.Style) *InputElement {
+	inp.placeholderStyle = style.S().Foreground(DefaultPlaceholderGray).Merge(s)
+	if inp.uaPlaceholder != nil {
+		inp.uaPlaceholder.Style(inp.placeholderStyle)
+	}
+	return inp
+}
+
 // Name returns the form control name.
 func (inp *InputElement) Name() string {
 	return inp.name
@@ -190,6 +213,7 @@ func (inp *InputElement) TextContent() string {
 // the end of the new value.
 func (inp *InputElement) SetValue(v string) *InputElement {
 	inp.buf = text.NewBuffer(v)
+	inp.lastSyncedVersion = -1
 	inp.syncText()
 	return inp
 }
@@ -225,10 +249,12 @@ func (inp *InputElement) Blur() {}
 func (inp *InputElement) syncText() {
 	inp.needsScrollIntoView = true
 
+	val := inp.buf.Value()
+
 	// Only rebuild shadow DOM if the content actually changed.
 	v := inp.buf.Version()
 	if v != inp.lastSyncedVersion {
-		inp.uaText.SetData(inp.buf.Value())
+		inp.uaText.SetData(val)
 		inp.lastSyncedVersion = v
 
 		if d := internaldom.AsDirty(inp.uaInputDivEl); d != nil {
@@ -243,6 +269,23 @@ func (inp *InputElement) syncText() {
 			d.MarkNeedsSync()
 		}
 	}
+
+	// Update placeholder visibility.
+	if val == "" && inp.placeholder != "" {
+		if inp.uaPlaceholder == nil || inp.uaPlaceholder.TextContent() != inp.placeholder {
+			doc := inp.OwnerDocument()
+			if doc == nil {
+				doc = orphanDocument
+			}
+			inp.uaPlaceholder = newPlaceholder(doc, inp.placeholder, inp.placeholderStyle)
+		}
+		if inp.uaPlaceholder.Parent() == nil {
+			inp.uaInputDivEl.InsertBefore(inp.uaPlaceholder, inp.uaText)
+		}
+	} else if inp.uaPlaceholder != nil && inp.uaPlaceholder.Parent() != nil {
+		inp.uaInputDivEl.RemoveChild(inp.uaPlaceholder)
+	}
+
 	inp.UpdateSelectionRange()
 }
 

@@ -1360,8 +1360,10 @@ type InputProps struct {
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Value        string
-	Name         string
+	Value            string
+	Name             string
+	Placeholder      string
+	PlaceholderStyle style.Style
 }
 
 func (p InputProps) elementProps() ElementProps {
@@ -1384,7 +1386,9 @@ func Input(props InputProps) Node {
 		props:    props,
 		children: nil,
 		instantiate: func(doc dom.Document) dom.Node {
-			return element.NewInput(doc, props.Value)
+			return element.NewInput(doc, props.Value).
+				WithPlaceholder(props.Placeholder).
+				WithPlaceholderStyle(props.PlaceholderStyle)
 		},
 		update: func(el dom.Node, old, new *InputProps) {
 			inp := el.(*element.InputElement)
@@ -1404,6 +1408,12 @@ func Input(props InputProps) Node {
 			} else if old == nil {
 				inp.WithName(new.Name)
 			}
+			if old != nil && old.Placeholder != new.Placeholder {
+				inp.WithPlaceholder(new.Placeholder)
+			} else if old == nil {
+				inp.WithPlaceholder(new.Placeholder)
+			}
+			inp.WithPlaceholderStyle(new.PlaceholderStyle)
 		},
 		key:         props.Key,
 		score:       1,
@@ -1438,8 +1448,10 @@ type TextAreaProps struct {
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
 	Ref          refSetter
-	Value        string
-	Name         string
+	Value            string
+	Name             string
+	Placeholder      string
+	PlaceholderStyle style.Style
 }
 
 func (p TextAreaProps) elementProps() ElementProps {
@@ -1462,7 +1474,9 @@ func TextArea(props TextAreaProps) Node {
 		props:    props,
 		children: nil,
 		instantiate: func(doc dom.Document) dom.Node {
-			return element.NewTextArea(doc, props.Value)
+			return element.NewTextArea(doc, props.Value).
+				WithPlaceholder(props.Placeholder).
+				WithPlaceholderStyle(props.PlaceholderStyle)
 		},
 		update: func(el dom.Node, old, new *TextAreaProps) {
 			txa := el.(*element.TextAreaElement)
@@ -1482,6 +1496,12 @@ func TextArea(props TextAreaProps) Node {
 			} else if old == nil {
 				txa.WithName(new.Name)
 			}
+			if old != nil && old.Placeholder != new.Placeholder {
+				txa.WithPlaceholder(new.Placeholder)
+			} else if old == nil {
+				txa.WithPlaceholder(new.Placeholder)
+			}
+			txa.WithPlaceholderStyle(new.PlaceholderStyle)
 		},
 		key:         props.Key,
 		score:       1,
