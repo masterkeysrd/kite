@@ -390,7 +390,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 				isFixedInline := true
 				isFixedBlock := false
 
-				if item.AlignSelf == style.AlignStretch && childStyle.Height.Kind() == style.KindAuto && space.IsFixedBlockSize {
+				if !wrap && item.AlignSelf == style.AlignStretch && childStyle.Height.Kind() == style.KindAuto && space.IsFixedBlockSize {
 					isFixedBlock = true
 				}
 
@@ -405,7 +405,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 				isFixedInline := false
 				isFixedBlock := true
 
-				if item.AlignSelf == style.AlignStretch && childStyle.Width.Kind() == style.KindAuto && space.IsFixedInlineSize {
+				if !wrap && item.AlignSelf == style.AlignStretch && childStyle.Width.Kind() == style.KindAuto && space.IsFixedInlineSize {
 					isFixedInline = true
 				} else if item.AlignSelf != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(ctx, item.Node).Max, contentCrossSizeForItems)
@@ -500,6 +500,48 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 
 	// 6. Alignment & Positioning
 	builder.AlignCrossAxis(contentCrossSizeForItems, comp.AlignContent, comp.AlignItems)
+
+	// Second pass for stretching items in wrapping containers or when line cross size changed
+	flexContainingSpace := geometry.Size{Width: resolvedWidth, Height: resolvedHeight}
+	flexContainerSpace := geometry.Size{Width: contentWidth, Height: contentHeight}
+
+	hasStretch := false
+	for _, line := range builder.Lines() {
+		for _, item := range line.Items {
+			childStyle := item.Node.Style()
+			if item.AlignSelf == style.AlignStretch {
+				isRow := geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse
+				isAuto := (isRow && childStyle.Height.Kind() == style.KindAuto) || (!isRow && childStyle.Width.Kind() == style.KindAuto)
+				if isAuto {
+					childMargin := childStyle.Margin
+					targetCross := line.CrossSize
+					if isRow {
+						targetCross -= childMargin.Top + childMargin.Bottom
+					} else {
+						targetCross -= childMargin.Left + childMargin.Right
+					}
+
+					if geom.CrossSize(item.Fragment.Size) != targetCross {
+						hasStretch = true
+						measureMain := geom.MainSize(item.Fragment.Size)
+						childSpace := ConstraintSpace{
+							AvailableSize:     geom.MakeSize(measureMain, targetCross),
+							ContainingSpace:   flexContainingSpace,
+							ContainerSpace:    flexContainerSpace,
+							IsFixedInlineSize: true,
+							IsFixedBlockSize:  true,
+						}
+						item.Fragment = GetAlgorithm(item.Node).Layout(ctx, item.Node, childSpace)
+					}
+				}
+			}
+		}
+	}
+
+	if hasStretch {
+		builder.AlignCrossAxis(contentCrossSizeForItems, comp.AlignContent, comp.AlignItems)
+	}
+
 	isReverse := geom.direction == style.FlexRowReverse || geom.direction == style.FlexColumnReverse
 	for i := range builder.Lines() {
 		builder.AlignLine(i, contentMainSize, comp.JustifyContent, isReverse)

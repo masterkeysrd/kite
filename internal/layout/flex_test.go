@@ -591,6 +591,98 @@ func TestFlexLayout_AlignCenterRow(t *testing.T) {
 	}
 }
 
+func TestFlexLayout_WrapStretching(t *testing.T) {
+	// 2 items in a wrapping row flex.
+	// Line 1: Tall item (3h), Short item (1h).
+	// Short item should stretch to 3h.
+
+	tallStyle := style.DefaultStyle()
+	tallStyle.Width = style.Cells(10)
+	tallStyle.Height = style.Cells(3)
+	c1 := &mockNode{style: &tallStyle}
+
+	shortStyle := style.DefaultStyle()
+	shortStyle.Width = style.Cells(10)
+	shortStyle.Height = style.Auto
+	c2 := &mockNode{style: &shortStyle}
+	c1.nextSibling = c2
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.FlexWrap = style.FlexWrapOn
+	parentStyle.Width = style.Cells(30) // Enough for both (10+10=20)
+	parentStyle.Height = style.Auto
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{30, 10}).ToConstraintSpace()
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	if len(frag.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(frag.Children))
+	}
+
+	// c1 is 3h. c2 is auto height, should stretch to 3h.
+	if frag.Children[0].Fragment.Size.Height != 3 {
+		t.Errorf("expected c1 height 3, got %d", frag.Children[0].Fragment.Size.Height)
+	}
+	if frag.Children[1].Fragment.Size.Height != 3 {
+		t.Errorf("expected c2 height 3, got %d (stretch failure)", frag.Children[1].Fragment.Size.Height)
+	}
+}
+
+func TestFlexLayout_WrapItemsVisible(t *testing.T) {
+	// 3 items in a wrapping row flex, only 2 fit per line.
+	// Container width: 25. Items: 10 wide each.
+	// Line 1: Item 1, Item 2.
+	// Line 2: Item 3.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Width = style.Cells(10)
+	childStyle.Height = style.Cells(2)
+
+	c3 := &mockNode{style: &childStyle}
+	c2 := &mockNode{style: &childStyle, nextSibling: c3}
+	c1 := &mockNode{style: &childStyle, nextSibling: c2}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.FlexWrap = style.FlexWrapOn
+	parentStyle.Width = style.Cells(25)
+	parentStyle.Height = style.Cells(10) // Fixed height to trigger potential fragmentation bug
+
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: c1,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{25, 10}).
+		SetIsFixedInlineSize(true).
+		SetIsFixedBlockSize(true).
+		ToConstraintSpace()
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	// Before fix, Item 3 would be missing due to incorrect over-stretching and fragmentation.
+	if len(frag.Children) != 3 {
+		t.Fatalf("expected 3 children, got %d. Wrap might be broken or fragmentation occurred incorrectly.", len(frag.Children))
+	}
+
+	// Line 1 is Y=0. Line 2 is Y=2.
+	if frag.Children[0].Offset.Y != 0 {
+		t.Errorf("expected child 0 at Y=0, got %d", frag.Children[0].Offset.Y)
+	}
+	if frag.Children[2].Offset.Y < 2 {
+		t.Errorf("expected child 2 at Y>=2, got %d", frag.Children[2].Offset.Y)
+	}
+}
+
 func TestFlexLayout_SpaceBetweenRow(t *testing.T) {
 	// 2 items in a row flex with JustifyBetween.
 	childStyle := style.DefaultStyle()

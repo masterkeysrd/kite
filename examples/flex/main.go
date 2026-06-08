@@ -34,6 +34,8 @@ var (
 	orderItem2Style              = style.S().Background(color.RGBA{R: 0, G: 200, B: 0, A: 255}).Padding(style.Edges(0, 1)).Order(1).Flex(style.Flex(1)).Border(style.SingleBorder())
 	orderItem3Style              = style.S().Background(color.RGBA{R: 0, G: 0, B: 200, A: 255}).Padding(style.Edges(0, 1)).Order(2).Flex(style.Flex(1)).Border(style.SingleBorder())
 	flexOrderContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Background(color.RGBA{R: 30, G: 60, B: 30, A: 255}).Width(style.Percent(100)).Padding(style.Edges(0, 2)).Gap(style.Gap(2)).Border(style.SingleBorder())
+	flexWrapContainerStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Background(color.RGBA{R: 80, G: 30, B: 80, A: 255}).Padding(style.Edges(1, 2)).Gap(style.Gap(1, 1)).Margin(style.Edges(0, 0, 2, 0)).Width(style.Percent(100))
+	flexWrapItemStyle              = style.S().Background(color.RGBA{R: 120, G: 60, B: 180, A: 255}).Padding(style.Edges(0, 2)).Border(style.SingleBorder())
 	rootStyle                    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 15, A: 255}).Padding(style.Edges(1, 2)).FlexDirection(style.FlexColumn).Display(style.DisplayFlex)
 )
 
@@ -132,6 +134,17 @@ func main() {
 			element.Box("Second in DOM (Order 1)").Style(orderItem2Style),
 			element.Box("Third in DOM (Order 2)").Style(orderItem3Style),
 		).Style(flexOrderContainerStyle),
+
+		// 6. Flex Wrap Example
+		element.Box("6. Flex Wrap (Wrap items onto multiple lines)").Style(headerStyle),
+		element.Box(
+			element.Box("Long Item 1").Style(flexWrapItemStyle),
+			element.Box("Long Item 2").Style(flexWrapItemStyle),
+			element.Box("Long Item 3").Style(flexWrapItemStyle),
+			element.Box("Long Item 4").Style(flexWrapItemStyle),
+			element.Box("Long Item 5").Style(flexWrapItemStyle),
+			element.Box("Long Item 6").Style(flexWrapItemStyle),
+		).Style(flexWrapContainerStyle),
 	).Style(rootStyle)
 
 	eng.Mount(root)
