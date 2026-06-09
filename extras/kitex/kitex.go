@@ -1336,30 +1336,30 @@ func Option(props OptionProps) Node {
 
 // InputProps specifies attributes for Input elements.
 type InputProps struct {
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	Disabled     bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
-	Ref          refSetter
+	Key              string
+	ID               string
+	Class            string
+	Style            style.Style
+	Hidden           bool
+	Disabled         bool
+	OnKeyDown        func(event.Event)
+	OnKeyUp          func(event.Event)
+	OnKeyPress       func(event.Event)
+	OnMouseDown      func(event.Event)
+	OnMouseUp        func(event.Event)
+	OnMouseMove      func(event.Event)
+	OnClick          func(event.Event)
+	OnDrag           func(event.Event)
+	OnWheel          func(event.Event)
+	OnFocus          func(event.Event)
+	OnBlur           func(event.Event)
+	OnChange         func(event.Event)
+	OnScroll         func(event.Event)
+	OnMouseEnter     func(event.Event)
+	OnMouseLeave     func(event.Event)
+	OnMouseOver      func(event.Event)
+	OnMouseOut       func(event.Event)
+	Ref              refSetter
 	Value            string
 	Name             string
 	Placeholder      string
@@ -1424,30 +1424,30 @@ func Input(props InputProps) Node {
 
 // TextAreaProps specifies attributes for TextArea elements.
 type TextAreaProps struct {
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	Disabled     bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
-	Ref          refSetter
+	Key              string
+	ID               string
+	Class            string
+	Style            style.Style
+	Hidden           bool
+	Disabled         bool
+	OnKeyDown        func(event.Event)
+	OnKeyUp          func(event.Event)
+	OnKeyPress       func(event.Event)
+	OnMouseDown      func(event.Event)
+	OnMouseUp        func(event.Event)
+	OnMouseMove      func(event.Event)
+	OnClick          func(event.Event)
+	OnDrag           func(event.Event)
+	OnWheel          func(event.Event)
+	OnFocus          func(event.Event)
+	OnBlur           func(event.Event)
+	OnChange         func(event.Event)
+	OnScroll         func(event.Event)
+	OnMouseEnter     func(event.Event)
+	OnMouseLeave     func(event.Event)
+	OnMouseOver      func(event.Event)
+	OnMouseOut       func(event.Event)
+	Ref              refSetter
 	Value            string
 	Name             string
 	Placeholder      string

@@ -455,7 +455,6 @@ func TestTextArea_NoHorizontalScrollIfWrapped(t *testing.T) {
 	}
 }
 
-
 func BenchmarkTextArea_Insert(b *testing.B) {
 	sizes := []int{50, 500}
 	for _, size := range sizes {

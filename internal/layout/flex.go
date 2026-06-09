@@ -191,7 +191,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 	if !space.IsFixedInlineSize {
 		switch comp.Width.Kind() {
 		case style.KindPercent:
-			resolvedWidth = int(float32(space.ContainerSpace.Width) * comp.Width.PercentValue() / 100.0)
+			resolvedWidth = int(float32(space.ContainerSpace.Width)*comp.Width.PercentValue()/100.0 + 0.5)
 		case style.KindCells:
 			resolvedWidth = comp.Width.CellsValue()
 		case style.KindContent:
@@ -211,7 +211,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 		switch comp.Height.Kind() {
 		case style.KindPercent:
 			if space.ContainerSpace.Height < InfiniteBlockSize {
-				resolvedHeight = int(float32(space.ContainerSpace.Height) * comp.Height.PercentValue() / 100.0)
+				resolvedHeight = int(float32(space.ContainerSpace.Height)*comp.Height.PercentValue()/100.0 + 0.5)
 			}
 		case style.KindCells:
 			resolvedHeight = comp.Height.CellsValue()
@@ -255,6 +255,8 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 		basis := childStyle.Flex.Basis
 		if basis.Kind() == style.KindCells {
 			baseSize = basis.CellsValue()
+		} else if basis.Kind() == style.KindPercent && contentMainSize < InfiniteBlockSize {
+			baseSize = int(float32(contentMainSize)*basis.PercentValue()/100.0 + 0.5)
 		} else if basis.Kind() == style.KindContent {
 			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
 				baseSize = IntrinsicMinMaxSizes(ctx, item.Node).Max
@@ -266,12 +268,16 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 			if geom.direction == style.FlexRow || geom.direction == style.FlexRowReverse {
 				if childStyle.Width.Kind() == style.KindCells {
 					baseSize = childStyle.Width.CellsValue()
+				} else if childStyle.Width.Kind() == style.KindPercent && contentMainSize < InfiniteBlockSize {
+					baseSize = int(float32(contentMainSize)*childStyle.Width.PercentValue()/100.0 + 0.5)
 				} else {
 					baseSize = IntrinsicMinMaxSizes(ctx, item.Node).Max
 				}
 			} else {
 				if childStyle.Height.Kind() == style.KindCells {
 					baseSize = childStyle.Height.CellsValue()
+				} else if childStyle.Height.Kind() == style.KindPercent && contentMainSize < InfiniteBlockSize {
+					baseSize = int(float32(contentMainSize)*childStyle.Height.PercentValue()/100.0 + 0.5)
 				} else {
 					probeWidth := contentCrossSizeForItems
 					if comp.AlignItems != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {

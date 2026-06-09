@@ -142,8 +142,8 @@ func TestInlineItemsBuilder_SingleNode_BreakSoftWithinWord(t *testing.T) {
 // the fix. When node1 ends with a space and node2 starts with a non-space, the
 // first cluster of node2 must be promoted to BreakSoft.
 func TestInlineItemsBuilder_CrossItem_BreakSoftAfterSpace(t *testing.T) {
-	node1 := newTextNode("foo ")  // trailing space → lastWasSpace = true
-	node2 := newTextNode("bar")   // 'b' must become BreakSoft
+	node1 := newTextNode("foo ") // trailing space → lastWasSpace = true
+	node2 := newTextNode("bar")  // 'b' must become BreakSoft
 	parent := &mockNode{
 		style:      blockStyleW(40),
 		firstChild: chainTextNodes(node1, node2),
@@ -162,8 +162,8 @@ func TestInlineItemsBuilder_CrossItem_BreakSoftAfterSpace(t *testing.T) {
 // TestInlineItemsBuilder_CrossItem_NoBreakWhenNoTrailingSpace verifies that if
 // node1 does NOT end with a space, no BreakSoft is injected onto node2.
 func TestInlineItemsBuilder_CrossItem_NoBreakWhenNoTrailingSpace(t *testing.T) {
-	node1 := newTextNode("foo")  // no trailing space
-	node2 := newTextNode("bar")  // 'b' must remain BreakNone
+	node1 := newTextNode("foo") // no trailing space
+	node2 := newTextNode("bar") // 'b' must remain BreakNone
 	parent := &mockNode{
 		style:      blockStyleW(40),
 		firstChild: chainTextNodes(node1, node2),
@@ -232,7 +232,7 @@ func TestInlineItemsBuilder_CrossItem_ThreeNodes(t *testing.T) {
 // corrupt lastWasSpace — the BreakSoft is still injected on the next non-empty node.
 func TestInlineItemsBuilder_CrossItem_EmptyMiddleNode(t *testing.T) {
 	node1 := newTextNode("foo ")
-	empty := newTextNode("")    // Shape("") returns nil → collectText exits early
+	empty := newTextNode("") // Shape("") returns nil → collectText exits early
 	node3 := newTextNode("bar")
 	parent := &mockNode{
 		style:      blockStyleW(40),

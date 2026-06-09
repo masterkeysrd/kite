@@ -46,9 +46,9 @@ func TestFlexWrapItemsVisible(t *testing.T) {
 	// Item 1 top is 1 (padding). Height is 3 (1 text + 2 border).
 	// Item 5 top should be 1 (padding) + 3 (line 1) + 1 (gap) = 5.
 	// Check for "L" from "Long Item 5" at (2, 6) relative to container?
-    // Wait, Border is at (2, 5), text "Long Item 5" is at (3, 6).
-    // Actually, x=2 (container padding left) + 1 (item border left) = 3.
-    // y=5 (as calculated above) + 1 (item border top) = 6.
+	// Wait, Border is at (2, 5), text "Long Item 5" is at (3, 6).
+	// Actually, x=2 (container padding left) + 1 (item border left) = 3.
+	// y=5 (as calculated above) + 1 (item border top) = 6.
 	testenv.ExpectScreen(t, ev).CellAt(5, 6).ToHaveContent("L")
 }
 
