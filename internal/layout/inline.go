@@ -261,8 +261,32 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 	}
 
 	// Determine whether any clusters need collapsing before copying.
+	// Also determine whether a cross-item word-boundary break opportunity needs
+	// to be injected. The shaper operates per-text-node and cannot see across
+	// node boundaries, so a space at the end of one text node does not cause the
+	// first cluster of the next to be marked BreakSoft. We correct that here
+	// using the builder's lastWasSpace flag (copy-on-write to protect the cache).
 	needsCopy := false
 	lws := b.lastWasSpace
+
+	// crossItemBreakIdx is the index of the first non-space cluster that should
+	// be promoted to BreakSoft due to a trailing space on the previous text node.
+	// -1 means no injection is needed.
+	crossItemBreakIdx := -1
+	if b.lastWasSpace && (ws == style.WhiteSpaceNormal || ws == style.WhiteSpaceNoWrap) {
+		for i, c := range shaped {
+			if !isSpaceCluster(c) {
+				if c.BreakClass == text.BreakNone {
+					// This cluster is a word-boundary break point because the
+					// previous item ended with a space. Record it for fixup.
+					crossItemBreakIdx = i
+					needsCopy = true
+				}
+				break
+			}
+		}
+	}
+
 	for _, c := range shaped {
 		if isSpaceCluster(c) {
 			if lws {
@@ -281,6 +305,11 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 		copy(clusters, shaped)
 	} else {
 		clusters = shaped
+	}
+
+	// Apply the cross-item word-boundary break injection.
+	if crossItemBreakIdx >= 0 {
+		clusters[crossItemBreakIdx].BreakClass = text.BreakSoft
 	}
 
 	for i := range clusters {
