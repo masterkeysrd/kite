@@ -113,22 +113,34 @@ func (a *FlexAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes 
 	items := a.collectItems(ctx, node, ConstraintSpace{}, geom)
 
 	if isRow {
-		// Row: Min = sum(child.min), Max = sum(child.max) + gaps
+		// Row: Max = sum(child.max) + gaps.
+		// Min depends on wrapping: if wrapping is on, Min is max(child.min).
+		// If wrapping is off, Min is sum(child.min) + gaps.
 		totalMin := 0
+		maxChildMin := 0
 		totalMax := 0
 		count := 0
 		for _, item := range items {
 			childMinMax := IntrinsicMinMaxSizes(ctx, item.Node)
 			childMargin := item.Node.Style().Margin
-			totalMin += childMinMax.Min + childMargin.Left + childMargin.Right
-			totalMax += childMinMax.Max + childMargin.Left + childMargin.Right
+			childMin := childMinMax.Min + childMargin.Left + childMargin.Right
+			childMax := childMinMax.Max + childMargin.Left + childMargin.Right
+
+			totalMin += childMin
+			maxChildMin = max(maxChildMin, childMin)
+			totalMax += childMax
 			count++
 		}
 		if count > 1 {
 			totalMin += gap.Column * (count - 1)
 			totalMax += gap.Column * (count - 1)
 		}
-		result = MinMaxSizes{Min: totalMin, Max: totalMax}
+
+		if comp.FlexWrap == style.FlexWrapOn {
+			result = MinMaxSizes{Min: maxChildMin, Max: totalMax}
+		} else {
+			result = MinMaxSizes{Min: totalMin, Max: totalMax}
+		}
 	} else {
 		// Column: Min = max(child.min), Max = max(child.max)
 		maxMin := 0
