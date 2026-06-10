@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	statusRowStyle = style.S().Margin(style.Edges(1, 0, 0, 0))
+	statusRowStyle = style.S().Margin(1, 0, 0, 0)
 )
 
 // ── palette ──────────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ func main() {
 
 	// ── textarea ─────────────────────────────────────────────────────────────
 	txa := element.NewTextArea(eng.Document(), "").WithPlaceholder("Type your message here...")
-	txa.Style(style.S().Width(style.Cells(50)).Height(style.Cells(10)).Background(colCard).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
+	txa.Style(style.S().Width(style.Cells(50)).Height(style.Cells(10)).Background(colCard).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1))
 
 	// ── status bar ───────────────────────────────────────────────────────────
 	statusText := element.Text("Pos: (0, 0)")
@@ -93,7 +93,7 @@ func main() {
 	root := element.Box(
 		element.Box(
 			// Title
-			element.Box("  Kite Text Editor  ").Style(style.S().Foreground(colTitle).Bold(true).Margin(style.Edges(0, 0, 1, 0))),
+			element.Box("  Kite Text Editor  ").Style(style.S().Foreground(colTitle).Bold(true).Margin(0, 0, 1, 0)),
 
 			// Editor
 			txa,
@@ -106,14 +106,14 @@ func main() {
 
 			// Help Hints
 			element.Box(
-				element.Span(" Arrows").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(style.Edges(0, 1))),
+				element.Span(" Arrows").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(0, 1)),
 				element.Span(" navigate  ").Style(style.S().Foreground(colHint)),
-				element.Span(" Enter").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(style.Edges(0, 1))),
+				element.Span(" Enter").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(0, 1)),
 				element.Span(" newline  ").Style(style.S().Foreground(colHint)),
-				element.Span(" Q").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(style.Edges(0, 1))),
+				element.Span(" Q").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(0, 1)),
 				element.Span(" quit").Style(style.S().Foreground(colHint)),
 			).Style(statusRowStyle),
-		).Style(style.S().Padding(style.Edges(1, 2)).Background(colBG).Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart)),
+		).Style(style.S().Padding(1, 2).Background(colBG).Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart)),
 	)
 
 	// ── engine run ───────────────────────────────────────────────────────────

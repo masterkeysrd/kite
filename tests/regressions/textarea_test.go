@@ -82,7 +82,7 @@ func TestTextArea_Bug2_WithPadding(t *testing.T) {
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "abc\ndef")
-	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)).Padding(style.Edges(0, 1)).Border(style.SingleBorder()))
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(5)).Padding(0, 1).Border(style.SingleBorder()))
 	root := element.Box(txa)
 	e.Mount(root)
 	e.RenderFrame()
@@ -379,7 +379,7 @@ func TestTextArea_Regression_ScrollCursorPos(t *testing.T) {
 	// 5 lines of text
 	initialText := "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
 	txa := element.NewTextArea(e.Document(), initialText)
-	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(7)).Padding(style.Edges(1, 1)).Border(style.SingleBorder()))
+	txa.Style(style.S().Width(style.Cells(20)).Height(style.Cells(7)).Padding(1, 1).Border(style.SingleBorder()))
 
 	root := element.Box(txa)
 	e.Mount(root)

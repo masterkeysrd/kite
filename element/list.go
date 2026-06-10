@@ -15,7 +15,7 @@ var _ Element = (*UnorderedListElement)(nil)
 var defaultUnorderedListStyle = style.S().
 	Display(style.DisplayBlock).
 	ListStyleType(style.ListStyleDisc).
-	Padding(style.EdgeValues[int]{Left: 2})
+	PaddingLeft(2)
 
 // NewUnorderedList creates a new unordered list.
 func NewUnorderedList(doc dom.Document) *UnorderedListElement {
@@ -41,7 +41,7 @@ var _ Element = (*OrderedListElement)(nil)
 var defaultOrderedListStyle = style.S().
 	Display(style.DisplayBlock).
 	ListStyleType(style.ListStyleDecimal).
-	Padding(style.EdgeValues[int]{Left: 3})
+	PaddingLeft(3)
 
 // NewOrderedList creates a new ordered list.
 func NewOrderedList(doc dom.Document) *OrderedListElement {

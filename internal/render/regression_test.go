@@ -113,11 +113,11 @@ func TestRegression_FlexLayoutAfterDRY(t *testing.T) {
 	flex := render.NewBox(fNode, nil)
 	view.InsertChild(flex, nil)
 
-	c1Node := &stubNode{style: style.S().Flex(style.Flex(1, 1, style.Auto))}
+	c1Node := &stubNode{style: style.S().Flex(1, 1, style.Auto)}
 	child1 := render.NewBlock(c1Node, nil)
 	flex.InsertChild(child1, nil)
 
-	c2Node := &stubNode{style: style.S().Flex(style.Flex(1, 1, style.Auto))}
+	c2Node := &stubNode{style: style.S().Flex(1, 1, style.Auto)}
 	child2 := render.NewBlock(c2Node, nil)
 	flex.InsertChild(child2, nil)
 

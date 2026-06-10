@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	dialogHeaderStyle = style.S().TextAlign(style.TextAlignCenter).Padding(style.Edges(1))
+	dialogHeaderStyle = style.S().TextAlign(style.TextAlignCenter).Padding(1)
 	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
-	dialogBoxStyle    = style.S().Width(style.Cells(30)).Height(style.Cells(5)).Background(color.RGBA{R: 60, G: 60, B: 100, A: 255}).Border(style.SingleBorder()).Padding(style.Edges(1))
+	dialogBoxStyle    = style.S().Width(style.Cells(30)).Height(style.Cells(5)).Background(color.RGBA{R: 60, G: 60, B: 100, A: 255}).Border(style.SingleBorder()).Padding(1)
 )
 
 func main() {

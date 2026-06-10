@@ -188,7 +188,7 @@ func TestOverflow_MinSizeScrollContainer(t *testing.T) {
 			element.Box("Head").Style(style.S().Height(style.Cells(1))),
 			element.Box(
 				element.Box("Body content").Style(style.S().Height(style.Cells(10))),
-			).Style(style.S().Flex(style.FlexItemValue{Grow: 1, Shrink: 1}).OverflowY(style.OverflowScroll)),
+			).Style(style.S().Flex(1, 1).OverflowY(style.OverflowScroll)),
 			element.Box("Foot").Style(style.S().Height(style.Cells(1))),
 		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Height(style.Cells(5))),
 	)

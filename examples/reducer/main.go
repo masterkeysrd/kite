@@ -16,10 +16,10 @@ import (
 )
 
 var (
-	fieldRowStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Width(style.Percent(100)).Margin(style.Edges(0, 0, 1, 0))
-	rolesContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Flex(style.Flex(1))
-	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Margin(style.Edges(1, 0, 1, 0))
-	instructionsStyle   = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(style.Edges(1, 0, 0, 0))
+	fieldRowStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Width(style.Percent(100)).Margin(0, 0, 1, 0)
+	rolesContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Flex(1)
+	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Margin(1, 0, 1, 0)
+	instructionsStyle   = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(1, 0, 0, 0)
 	rootStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100))
 )
 
@@ -97,15 +97,15 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG).Padding(style.Edges(1, 2)),
+		Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG).Padding(1, 2),
 	},
 		// Main Card Container
 		kitex.Box(kitex.BoxProps{
-			Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(80)).Background(colCard).Border(style.DoubleBorder().Color(colBorder)).Padding(style.Edges(1, 2)),
+			Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(80)).Background(colCard).Border(style.DoubleBorder().Color(colBorder)).Padding(1, 2),
 		},
 			// Header
 			kitex.Box(kitex.BoxProps{
-				Style: style.S().Foreground(colHeader).Bold(true).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter),
+				Style: style.S().Foreground(colHeader).Bold(true).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter),
 			}, kitex.Text("⚡ Kitex VDOM UseReducer Form Demo ⚡")),
 
 			// Name Field
@@ -118,7 +118,7 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				kitex.Input(kitex.InputProps{
 					Value:     state.Name,
 					OnKeyDown: onNameKeyDown,
-					Style:     style.S().Flex(style.Flex(1)).Background(colInput).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)),
+					Style:     style.S().Flex(1).Background(colInput).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1),
 				}),
 			),
 
@@ -132,7 +132,7 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				kitex.Input(kitex.InputProps{
 					Value:     state.Email,
 					OnKeyDown: onEmailKeyDown,
-					Style:     style.S().Flex(style.Flex(1)).Background(colInput).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)),
+					Style:     style.S().Flex(1).Background(colInput).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1),
 				}),
 			),
 
@@ -153,7 +153,7 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 								return colHeader
 							}
 							return colInput
-						}()).Foreground(colText).Margin(style.Edges(0, 1, 0, 0)),
+						}()).Foreground(colText).Margin(0, 1, 0, 0),
 					}, kitex.Text(" Developer ")),
 					kitex.Button(kitex.ButtonProps{
 						OnClick: func(e event.Event) { dispatch(Action{Type: "SET_ROLE", Value: "Designer"}) },
@@ -162,7 +162,7 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 								return colHeader
 							}
 							return colInput
-						}()).Foreground(colText).Margin(style.Edges(0, 1, 0, 0)),
+						}()).Foreground(colText).Margin(0, 1, 0, 0),
 					}, kitex.Text(" Designer ")),
 					kitex.Button(kitex.ButtonProps{
 						OnClick: func(e event.Event) { dispatch(Action{Type: "SET_ROLE", Value: "Manager"}) },
@@ -182,7 +182,7 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 			},
 				kitex.Button(kitex.ButtonProps{
 					OnClick: func(e event.Event) { dispatch(Action{Type: "SUBMIT"}) },
-					Style:   style.S().Background(colButton).Foreground(colText).Margin(style.Edges(0, 2, 0, 0)),
+					Style:   style.S().Background(colButton).Foreground(colText).Margin(0, 2, 0, 0),
 				}, kitex.Text(" SUBMIT ")),
 				kitex.Button(kitex.ButtonProps{
 					OnClick: func(e event.Event) { dispatch(Action{Type: "RESET"}) },
@@ -191,10 +191,10 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 			),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.S().Background(colInput).Padding(style.Edges(1, 1)).Border(style.SingleBorder().Color(colBorder)).Width(style.Percent(100)),
+				Style: style.S().Background(colInput).Padding(1, 1).Border(style.SingleBorder().Color(colBorder)).Width(style.Percent(100)),
 			},
 				kitex.Box(kitex.BoxProps{
-					Style: style.S().Foreground(colHeader).Bold(true).Margin(style.Edges(0, 0, 1, 0)),
+					Style: style.S().Foreground(colHeader).Bold(true).Margin(0, 0, 1, 0),
 				}, kitex.Text("State Live Preview:")),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Name:  %s", state.Name))),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Email: %s", state.Email))),
@@ -202,7 +202,7 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				func() kitex.Node {
 					if state.Submitted {
 						return kitex.Box(kitex.BoxProps{
-							Style: style.S().Foreground(colSuccess).Bold(true).Margin(style.Edges(1, 0, 0, 0)),
+							Style: style.S().Foreground(colSuccess).Bold(true).Margin(1, 0, 0, 0),
 						}, kitex.Text("✓ Form Submitted Successfully!"))
 					}
 					return nil

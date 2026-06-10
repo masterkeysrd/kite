@@ -19,18 +19,18 @@ import (
 )
 
 var (
-	headerStyle          = style.S().Width(style.Percent(100)).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 100, G: 0, B: 200, A: 255})
+	headerStyle          = style.S().Width(style.Percent(100)).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 100, G: 0, B: 200, A: 255})
 	highlightSpanStyle   = style.S().Background(color.RGBA{R: 255, G: 255, B: 255, A: 255}).Foreground(color.Black)
-	atomicBoxStyle       = style.S().Display(style.DisplayInlineBlock).Width(style.Cells(10)).Height(style.Cells(3)).Background(color.RGBA{R: 0, G: 200, B: 100, A: 255}).Margin(style.Edges(0, 1)).Border(style.SingleBorder())
+	atomicBoxStyle       = style.S().Display(style.DisplayInlineBlock).Width(style.Cells(10)).Height(style.Cells(3)).Background(color.RGBA{R: 0, G: 200, B: 100, A: 255}).Margin(0, 1).Border(style.SingleBorder())
 	paragraphStyle       = style.S().AlignItems(style.AlignCenter)
-	featuresSectionStyle = style.S().Margin(style.Edges(1, 0)).Background(color.RGBA{R: 40, G: 40, B: 60, A: 255}).Padding(style.Edges(1))
-	flexContainerStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Width(style.Percent(100)).Margin(style.Edges(1, 0)).Padding(style.Edges(1)).Background(color.RGBA{R: 50, G: 50, B: 50, A: 255}).Gap(style.Gap(1, 2))
+	featuresSectionStyle = style.S().Margin(1, 0).Background(color.RGBA{R: 40, G: 40, B: 60, A: 255}).Padding(1)
+	flexContainerStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Width(style.Percent(100)).Margin(1, 0).Padding(1).Background(color.RGBA{R: 50, G: 50, B: 50, A: 255}).Gap(1, 2)
 	col1Style            = style.S().Width(style.Percent(30))
 	col2Style            = style.S().Width(style.Percent(70))
 	tableStyle           = style.S().Width(style.Percent(100)).Border(style.SingleBorder())
-	tableSectionStyle    = style.S().Margin(style.Edges(1, 0)).Padding(style.Edges(1)).Background(color.RGBA{R: 20, G: 60, B: 20, A: 255})
-	contentWrapperStyle  = style.S().Width(style.Percent(80)).Height(style.Auto).Margin(style.Edges(1, 2)).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 200, G: 200, B: 200, A: 255})).Padding(style.Edges(1, 2))
-	rootStyle            = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(style.Edges(2, 4)).Background(color.RGBA{R: 0, G: 0, B: 255, A: 255})
+	tableSectionStyle    = style.S().Margin(1, 0).Padding(1).Background(color.RGBA{R: 20, G: 60, B: 20, A: 255})
+	contentWrapperStyle  = style.S().Width(style.Percent(80)).Height(style.Auto).Margin(1, 2).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 200, G: 200, B: 200, A: 255})).Padding(1, 2)
+	rootStyle            = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(2, 4).Background(color.RGBA{R: 0, G: 0, B: 255, A: 255})
 )
 
 func main() {
@@ -77,7 +77,7 @@ func main() {
 	// Create items for flex section
 	flexItems := make([]any, 0, 6)
 	for i := 1; i <= 6; i++ {
-		item := element.Box(fmt.Sprintf("Flex Item %d", i)).Style(style.S().Width(style.Cells(12)).Height(style.Cells(3)).Background(color.RGBA{R: uint8(40 * i), G: 100, B: 150, A: 255}).Border(style.SingleBorder()).Flex(style.Flex(1, 1, style.Cells(10))))
+		item := element.Box(fmt.Sprintf("Flex Item %d", i)).Style(style.S().Width(style.Cells(12)).Height(style.Cells(3)).Background(color.RGBA{R: uint8(40 * i), G: 100, B: 150, A: 255}).Border(style.SingleBorder()).Flex(1, 1, style.Cells(10)))
 		flexItems = append(flexItems, item)
 	}
 

@@ -122,7 +122,7 @@ func TestPaint_ScrollbarWithBorderPadding(t *testing.T) {
 	// Create a box with border, padding and overflow.
 	box := element.Box(
 		element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(20))),
-	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).Border(style.SingleBorder()).Padding(style.Edges(1)).OverflowY(style.OverflowAuto)).ScrollbarY(true)
+	).Style(style.S().Width(style.Cells(10)).Height(style.Cells(5)).Border(style.SingleBorder()).Padding(1).OverflowY(style.OverflowAuto)).ScrollbarY(true)
 
 	env.Mount(box)
 	env.Flush()

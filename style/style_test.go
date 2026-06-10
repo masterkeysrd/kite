@@ -375,17 +375,17 @@ func TestStyle_IndividualBordersMarginsPaddings(t *testing.T) {
 
 	t.Run("borders", func(t *testing.T) {
 		s := S().
-			TopBorder(true).
-			RightBorder(false).
-			BottomBorder(true).
-			LeftBorder(false)
+			BorderTop(true).
+			BorderRight(false).
+			BorderBottom(true).
+			BorderLeft(false)
 
 		b := s.border.Value()
 		if !b.Edges.Top || b.Edges.Right || !b.Edges.Bottom || b.Edges.Left {
 			t.Errorf("got Edges %+v, want Top/Bottom set, Left/Right unset", b.Edges)
 		}
 
-		s2 := S().HorizontalBorder(true).VerticalBorder(false)
+		s2 := S().BorderHorizontal(true).BorderVertical(false)
 		b2 := s2.border.Value()
 		if b2.Edges.Top || !b2.Edges.Right || b2.Edges.Bottom || !b2.Edges.Left {
 			t.Errorf("got Edges %+v, want Horizontal (Left/Right) set, Vertical (Top/Bottom) unset", b2.Edges)
@@ -394,17 +394,17 @@ func TestStyle_IndividualBordersMarginsPaddings(t *testing.T) {
 
 	t.Run("margins", func(t *testing.T) {
 		s := S().
-			TopMargin(1).
-			RightMargin(2).
-			BottomMargin(3).
-			LeftMargin(4)
+			MarginTop(1).
+			MarginRight(2).
+			MarginBottom(3).
+			MarginLeft(4)
 
 		m := s.margin.Value()
 		if m.Top != 1 || m.Right != 2 || m.Bottom != 3 || m.Left != 4 {
 			t.Errorf("got margins %+v, want {1, 2, 3, 4}", m)
 		}
 
-		s2 := S().HorizontalMargin(5).VerticalMargin(6)
+		s2 := S().MarginHorizontal(5).MarginVertical(6)
 		m2 := s2.margin.Value()
 		if m2.Top != 6 || m2.Right != 5 || m2.Bottom != 6 || m2.Left != 5 {
 			t.Errorf("got margins %+v, want horizontal 5, vertical 6", m2)
@@ -413,20 +413,61 @@ func TestStyle_IndividualBordersMarginsPaddings(t *testing.T) {
 
 	t.Run("paddings", func(t *testing.T) {
 		s := S().
-			TopPadding(1).
-			RightPadding(2).
-			BottomPadding(3).
-			LeftPadding(4)
+			PaddingTop(1).
+			PaddingRight(2).
+			PaddingBottom(3).
+			PaddingLeft(4)
 
 		p := s.padding.Value()
 		if p.Top != 1 || p.Right != 2 || p.Bottom != 3 || p.Left != 4 {
 			t.Errorf("got paddings %+v, want {1, 2, 3, 4}", p)
 		}
 
-		s2 := S().HorizontalPadding(5).VerticalPadding(6)
+		s2 := S().PaddingHorizontal(5).PaddingVertical(6)
 		p2 := s2.padding.Value()
 		if p2.Top != 6 || p2.Right != 5 || p2.Bottom != 6 || p2.Left != 5 {
 			t.Errorf("got paddings %+v, want horizontal 5, vertical 6", p2)
+		}
+	})
+
+	t.Run("new border api", func(t *testing.T) {
+		red := color.RGBA{255, 0, 0, 255}
+		s := S().BorderTop(true, BorderDouble, red)
+		b := s.BorderOpt().Value()
+
+		if !b.Edges.Top {
+			t.Error("Expected Top edge to be true")
+		}
+		if b.Styles.Top != BorderDouble {
+			t.Errorf("Expected Top style to be BorderDouble, got %v", b.Styles.Top)
+		}
+		if b.Colors.Top != red {
+			t.Errorf("Expected Top color to be red, got %v", b.Colors.Top)
+		}
+
+		s2 := S().Border(true, BorderThick)
+		b2 := s2.BorderOpt().Value()
+		if !b2.Edges.Top || !b2.Edges.Bottom || !b2.Edges.Left || !b2.Edges.Right {
+			t.Error("Expected all edges to be true")
+		}
+		if b2.Styles.Top != BorderThick || b2.Styles.Bottom != BorderThick {
+			t.Error("Expected BorderThick style on all edges")
+		}
+
+		s3 := S().Border(true)
+		b3 := s3.BorderOpt().Value()
+		if b3.Styles.Top != BorderSingle {
+			t.Error("Expected default BorderSingle when calling Border(true)")
+		}
+
+		customGlyphs := BorderGlyphs{H: "#", V: "#", TL: "#", TR: "#", BL: "#", BR: "#"}
+		s4 := S().BorderTop(true, customGlyphs)
+		b4 := s4.BorderOpt().Value()
+		if b4.Styles.Top != BorderCustom {
+			t.Error("Expected BorderCustom when providing custom glyphs")
+		}
+		if b4.Glyphs.H != "#" {
+			t.Error("Expected custom glyphs to be applied")
 		}
 	})
 }

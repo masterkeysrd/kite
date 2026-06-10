@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	btnStyle          = style.S().Background(color.RGBA{R: 255, G: 69, B: 0, A: 255}).Foreground(color.White).Border(style.SingleBorder()).Bold(true).Padding(style.Edges(0, 2))
-	btnFocusStyle     = style.S().Background(color.RGBA{R: 255, G: 99, B: 71, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 215, B: 0, A: 255})).Foreground(color.White).Bold(true).Padding(style.Edges(0, 2))
-	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 2, 0))
-	btnWrapperStyle   = style.S().Margin(style.Edges(2, 0, 0, 0))
-	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(style.Edges(2, 0, 0, 0))
-	rootStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).Padding(style.Edges(2, 4))
+	btnStyle          = style.S().Background(color.RGBA{R: 255, G: 69, B: 0, A: 255}).Foreground(color.White).Border(style.SingleBorder()).Bold(true).Padding(0, 2)
+	btnFocusStyle     = style.S().Background(color.RGBA{R: 255, G: 99, B: 71, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 215, B: 0, A: 255})).Foreground(color.White).Bold(true).Padding(0, 2)
+	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(0, 0, 2, 0)
+	btnWrapperStyle   = style.S().Margin(2, 0, 0, 0)
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(2, 0, 0, 0)
+	rootStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).Padding(2, 4)
 )
 
 var eng *engine.Engine
@@ -60,7 +60,7 @@ func main() {
 	endCols := []style.GridTrackSize{style.Fr(3), style.Fr(1), style.Cells(10)}
 
 	updateGridStyle := func(cols []style.GridTrackSize) {
-		gridContainer.Style(style.S().Display(style.DisplayGrid).GridTemplateColumns(cols).GridTemplateRows(style.Repeat(2, style.Fr(1))).Height(style.Cells(10)).Border(style.SingleBorder()).Gap(style.Gap(1)).Padding(style.Edges(1)))
+		gridContainer.Style(style.S().Display(style.DisplayGrid).GridTemplateColumns(cols...).GridTemplateRows(style.Repeat(2, style.Fr(1))...).Height(style.Cells(10)).Border(style.SingleBorder()).Gap(1).Padding(1))
 		eng.RequestFrame()
 	}
 

@@ -409,7 +409,7 @@ func TestSelectionOverPaddingArea(t *testing.T) {
 	outer := element.Box(
 		element.Box("Header"),
 		element.Box("Target Text"),
-	).Style(style.S().Padding(style.Edges(2, 2)))
+	).Style(style.S().Padding(2, 2))
 	doc.AppendChild(outer)
 
 	env.Flush()

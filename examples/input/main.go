@@ -30,8 +30,8 @@ import (
 
 var (
 	spacerStyle        = style.S().Height(style.Cells(1))
-	footerRowStyle     = style.S().Margin(style.Edges(1, 0, 0, 0))
-	shortcutBadgeStyle = style.S().Background(color.RGBA{R: 60, G: 65, B: 90, A: 255}).Foreground(color.RGBA{R: 200, G: 210, B: 255, A: 255}).Padding(style.Edges(0, 1))
+	footerRowStyle     = style.S().Margin(1, 0, 0, 0)
+	shortcutBadgeStyle = style.S().Background(color.RGBA{R: 60, G: 65, B: 90, A: 255}).Foreground(color.RGBA{R: 200, G: 210, B: 255, A: 255}).Padding(0, 1)
 )
 
 // ── palette ──────────────────────────────────────────────────────────────────
@@ -82,12 +82,12 @@ func main() {
 	const fieldWidth = 30
 
 	usernameInp := element.NewInput(eng.Document(), "").WithPlaceholder("Type username...")
-	usernameInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
+	usernameInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1))
 
 	passwordInp := element.NewInput(eng.Document(), "").
 		WithPlaceholder("Type password...").
 		WithPlaceholderStyle(style.S().Foreground(color.RGBA{R: 120, G: 100, B: 150, A: 255}).Italic(true))
-	passwordInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)))
+	passwordInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1))
 
 	// ── live echo text node ──────────────────────────────────────────────────
 	// A Text node that displays the current username value in real time.
@@ -111,24 +111,24 @@ func main() {
 		element.Box(
 
 			// Title
-			element.Box("  Sign In  ").Style(style.S().Foreground(colTitle).Bold(true).TextAlign(style.TextAlignCenter).Width(style.Percent(100)).Margin(style.Edges(0, 0, 1, 0))),
+			element.Box("  Sign In  ").Style(style.S().Foreground(colTitle).Bold(true).TextAlign(style.TextAlignCenter).Width(style.Percent(100)).Margin(0, 0, 1, 0)),
 
 			// Separator
-			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(0, 0, 1, 0))),
+			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(0, 0, 1, 0)),
 
 			// Username label + field
-			element.Box("Username").Style(style.S().Foreground(colLabel).Margin(style.Edges(0, 0, 0, 0))),
+			element.Box("Username").Style(style.S().Foreground(colLabel).Margin(0, 0, 0, 0)),
 			usernameInp,
 
 			// Spacer
 			element.Box("").Style(spacerStyle),
 
 			// Password label + field
-			element.Box("Password").Style(style.S().Foreground(colLabel).Margin(style.Edges(0, 0, 0, 0))),
+			element.Box("Password").Style(style.S().Foreground(colLabel).Margin(0, 0, 0, 0)),
 			passwordInp,
 
 			// Separator
-			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(1, 0, 0, 0))),
+			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(1, 0, 0, 0)),
 
 			// Live echo row
 			element.Box(
@@ -145,7 +145,7 @@ func main() {
 				element.Span("Q").Style(shortcutBadgeStyle),
 				element.Span(" quit").Style(style.S().Foreground(colHint)),
 			).Style(footerRowStyle),
-		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Cells(fieldWidth + 6)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(1, 2))),
+		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Cells(fieldWidth+6)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(1, 2)),
 	).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG))
 
 	eng.Mount(root)

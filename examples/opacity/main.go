@@ -19,18 +19,18 @@ import (
 var (
 	hoverBtnBaseStyle     = style.S().Background(color.Transparent).Foreground(color.White)
 	hoverBtnHoverStyle    = style.S().Background(color.RGBA{R: 255, G: 255, B: 255, A: 60}).Foreground(color.White)
-	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 80, B: 200, A: 255}).Padding(style.Edges(1)).Bold(true)
-	redBandStyle          = style.S().Background(color.RGBA{R: 200, G: 50, B: 50, A: 255}).Padding(style.Edges(1, 2))
-	greenBandStyle        = style.S().Background(color.RGBA{R: 50, G: 180, B: 50, A: 255}).Padding(style.Edges(1, 2))
-	blueBandStyle         = style.S().Background(color.RGBA{R: 50, G: 50, B: 200, A: 255}).Padding(style.Edges(1, 2))
-	yellowBandStyle       = style.S().Background(color.RGBA{R: 200, G: 180, B: 50, A: 255}).Padding(style.Edges(1, 2))
-	bandsContainerStyle   = style.S().Margin(style.Edges(1, 0))
-	btnSectionHeaderStyle = style.S().Bold(true).Margin(style.Edges(1, 0, 0, 0))
-	btnRowStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
-	instructionsStyle     = style.S().Padding(style.Edges(1, 2)).Border(style.SingleBorder())
-	mainContainerStyle    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(style.Edges(2))
-	overlayTitleStyle     = style.S().TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Bold(true)
-	overlayFooterStyle    = style.S().Margin(style.Edges(1, 0, 0, 0)).TextAlign(style.TextAlignCenter).Foreground(color.RGBA{R: 100, G: 100, B: 100, A: 255})
+	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 80, B: 200, A: 255}).Padding(1).Bold(true)
+	redBandStyle          = style.S().Background(color.RGBA{R: 200, G: 50, B: 50, A: 255}).Padding(1, 2)
+	greenBandStyle        = style.S().Background(color.RGBA{R: 50, G: 180, B: 50, A: 255}).Padding(1, 2)
+	blueBandStyle         = style.S().Background(color.RGBA{R: 50, G: 50, B: 200, A: 255}).Padding(1, 2)
+	yellowBandStyle       = style.S().Background(color.RGBA{R: 200, G: 180, B: 50, A: 255}).Padding(1, 2)
+	bandsContainerStyle   = style.S().Margin(1, 0)
+	btnSectionHeaderStyle = style.S().Bold(true).Margin(1, 0, 0, 0)
+	btnRowStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
+	instructionsStyle     = style.S().Padding(1, 2).Border(style.SingleBorder())
+	mainContainerStyle    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(2)
+	overlayTitleStyle     = style.S().TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0).Bold(true)
+	overlayFooterStyle    = style.S().Margin(1, 0, 0, 0).TextAlign(style.TextAlignCenter).Foreground(color.RGBA{R: 100, G: 100, B: 100, A: 255})
 	overlayWrapperStyle   = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter)
 )
 
@@ -51,7 +51,7 @@ func createHoverButton(eng *engine.Engine, label string, baseBg color.RGBA) *ele
 	})
 
 	// A wrapper box that holds the solid base background color
-	wrapper := element.Box(btn).Style(style.S().Background(baseBg).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 1)).Border(style.SingleBorder().Color(color.RGBA{255, 255, 255, 80})))
+	wrapper := element.Box(btn).Style(style.S().Background(baseBg).Padding(0, 1).Margin(0, 1).Border(style.SingleBorder().Color(color.RGBA{255, 255, 255, 80})))
 
 	return wrapper
 }
@@ -116,7 +116,7 @@ func main() {
 			fmt.Sprintf("Current Alpha Opacity: %d / 255", alpha),
 			"\nNotice how the colored bands behind me\nblend through the dialog background!",
 			element.Box("Press '+' to increase opacity, '-' to decrease.").Style(overlayFooterStyle),
-		).Style(style.S().Width(style.Cells(45)).Height(style.Cells(10)).Background(color.RGBA{R: 255, G: 255, B: 255, A: alpha}).Foreground(color.RGBA{R: 0, G: 0, B: 0, A: 255}).Border(style.DoubleBorder().Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})).Padding(style.Edges(1, 2)))
+		).Style(style.S().Width(style.Cells(45)).Height(style.Cells(10)).Background(color.RGBA{R: 255, G: 255, B: 255, A: alpha}).Foreground(color.RGBA{R: 0, G: 0, B: 0, A: 255}).Border(style.DoubleBorder().Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})).Padding(1, 2))
 	}
 
 	// Full-screen overlay container

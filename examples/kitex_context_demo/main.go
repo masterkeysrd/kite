@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	btnStyle          = style.S().Background(color.RGBA{R: 70, G: 70, B: 90, A: 255}).Foreground(color.White).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 1))
-	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Padding(style.Edges(1, 2)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
-	appTitleStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 50, A: 255}).Bold(true).Margin(style.Edges(0, 0, 1, 0))
-	buttonRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
-	providerBoxStyle  = style.S().Border(style.SingleBorder()).Padding(style.Edges(1, 1)).Margin(style.Edges(1, 0))
-	instructionsStyle = style.S().Foreground(color.RGBA{R: 120, G: 120, B: 130, A: 255}).Margin(style.Edges(1, 0, 0, 0))
+	btnStyle          = style.S().Background(color.RGBA{R: 70, G: 70, B: 90, A: 255}).Foreground(color.White).Padding(0, 1).Margin(0, 1)
+	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Padding(1, 2).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
+	appTitleStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 50, A: 255}).Bold(true).Margin(0, 0, 1, 0)
+	buttonRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
+	providerBoxStyle  = style.S().Border(style.SingleBorder()).Padding(1, 1).Margin(1, 0)
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 120, G: 120, B: 130, A: 255}).Margin(1, 0, 0, 0)
 	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
 )
 
@@ -52,7 +52,7 @@ func getThemeStyle(theme Theme) style.Style {
 		fg = color.RGBA{R: 30, G: 30, B: 35, A: 255}
 	}
 
-	return style.S().Background(bg).Foreground(fg).Border(style.SingleBorder()).Padding(style.Edges(1, 2)).Margin(style.Edges(1, 0))
+	return style.S().Background(bg).Foreground(fg).Border(style.SingleBorder()).Padding(1, 2).Margin(1, 0)
 }
 
 // ConsumerComponent consumes ThemeContext and displays itself accordingly.

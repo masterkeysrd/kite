@@ -379,7 +379,7 @@ func TestInput_Regression_ScrollBackOnBackspace(t *testing.T) {
 
 	// Create an input with a fixed width of 10 cells.
 	inp := element.NewInput(eng.Document(), "")
-	inp.Style(style.S().Width(style.Cells(10)).Padding(style.EdgeValues[int]{}).Border(style.Border{}))
+	inp.Style(style.S().Width(style.Cells(10)).Padding(0).Border(style.Border{}))
 
 	root := element.Box(inp)
 	eng.Mount(root)

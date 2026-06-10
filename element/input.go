@@ -107,7 +107,7 @@ var intrinsicInputStyle = style.S().
 var defaultInputStyle = style.S().
 	Display(style.DisplayInlineBlock).
 	Width(style.Cells(20)).
-	Padding(style.EdgeValues[int]{})
+	Padding(0)
 
 // NewInput creates a new InputElement owned by doc with an optional initial
 // value.

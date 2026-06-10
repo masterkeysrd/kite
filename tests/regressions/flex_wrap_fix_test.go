@@ -21,11 +21,11 @@ func TestFlexWrapItemsVisible(t *testing.T) {
 		FlexDirection(style.FlexRow).
 		FlexWrap(style.FlexWrapOn).
 		Width(style.Percent(100)).
-		Padding(style.Edges(1, 2)).
-		Gap(style.Gap(1, 1))
+		Padding(1, 2).
+		Gap(1, 1)
 
 	flexWrapItemStyle := style.S().
-		Padding(style.Edges(0, 2)).
+		Padding(0, 2).
 		Border(style.SingleBorder())
 
 	root := element.Box(

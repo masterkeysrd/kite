@@ -110,7 +110,7 @@ func TestStyleSheet_Create_ValidatesEntries(t *testing.T) {
 
 	t.Run("NegativePaddingRejected", func(t *testing.T) {
 		_, err := style.NewSheet(map[string]style.Style{
-			"bad": style.S().Padding(style.Edges(-1)),
+			"bad": style.S().Padding(-1),
 		})
 		if err == nil {
 			t.Error("NewSheet with negative padding must return an error")

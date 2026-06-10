@@ -16,6 +16,31 @@ The `style` package manages the sparse `Style` definitions and the fully-resolve
     - `<textarea>`: `OverflowY: Auto`, `OverflowX: Clip`.
     - `<button>`: `Display: Flex`, `AlignItems: Center`, `JustifyContent: Center`.
 
+### Simplified Fluent API
+The `Style` type provides variadic methods for common layout properties to reduce boilerplate:
+
+- **`Gap(values ...int)`**: Sets row and column gaps. Expects 1 or 2 `int` values.
+    - `Gap(1)` sets both row and column gaps to 1.
+    - `Gap(1, 2)` sets row gap to 1 and column gap to 2.
+- **`Padding(values ...int)`** & **`Margin(values ...int)`**: Uses CSS-like shorthand. Expects 1, 2, or 4 `int` values.
+    - `Padding(1)` sets all sides to 1.
+    - `Padding(1, 2)` sets top/bottom to 1, left/right to 2.
+    - `Padding(1, 2, 3, 4)` sets top, right, bottom, left.
+- **`Flex(grow int, rest ...any)`**: Configures flex item properties. Expects a mandatory `grow (int)`, and optional `shrink (int)` and `basis (style.Dimension)`.
+    - `Flex(1)` sets grow to 1 (shrink=1, basis=auto).
+    - `Flex(1, 0)` sets grow to 1, shrink to 0.
+    - `Flex(1, 1, style.Cells(10))` sets grow, shrink, and basis.
+- **`GridTemplateColumns(v ...GridTrackSize)`** & **`GridTemplateRows(v ...GridTrackSize)`**: Variadic track definitions. Expects variadic `style.Dimension` values.
+    - `GridTemplateColumns(style.Cells(10), style.Fr(1))`
+- **`Border(args ...any)`**: Sets border properties globally. Accepts `bool`, `style.BorderStyle`, `color.Color`, `style.BorderGlyphs`, or `style.Border`.
+    - `Border(true)` enables all edges with `BorderSingle`.
+    - `Border(true, style.BorderDouble)` sets style for all edges.
+    - `Border(true, color.Red)` sets color for all edges.
+    - `Border(true, style.BorderGlyphs{H: "#"})` sets custom glyphs and switches to `BorderCustom`.
+- **`BorderTop`, `BorderRight`, `BorderBottom`, `BorderLeft`, `BorderHorizontal`, `BorderVertical`**: Variadic side-specific settings. Accepts optional `style.BorderStyle`, `color.Color`, or `style.BorderGlyphs`.
+    - `BorderTop(true, style.BorderDouble, color.Red)`
+    - `BorderLeft(true, style.BorderGlyphs{V: "!"})` // Switches to `BorderCustom` automatically.
+
 ## 📜 Scrollbars (Task 036)
 
 Scrollbars in a TUI consume precious cell space, so they are explicit opt-in decisions configured via the `Scrollbar` property.

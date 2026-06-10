@@ -84,7 +84,7 @@ var selectDropdownBaseStyle = style.S().
 	Display(style.DisplayFlex).
 	FlexDirection(style.FlexColumn).
 	MaxHeight(style.Cells(10)).
-	Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 150, A: 255})).
+	Border(style.SingleBorder(), color.RGBA{R: 100, G: 100, B: 150, A: 255}).
 	Background(color.RGBA{R: 25, G: 25, B: 35, A: 255}).
 	OverflowY(style.OverflowAuto)
 
@@ -92,7 +92,7 @@ var selectOptionButtonStyle = style.S().
 	Display(style.DisplayBlock).
 	Width(style.Percent(100)).
 	TextAlign(style.TextAlignLeft).
-	Padding(style.Edges(0, 1)).
+	PaddingHorizontal(1).
 	Border(style.EmptyBorder())
 
 // SelectElement implements a dropdown selection component.

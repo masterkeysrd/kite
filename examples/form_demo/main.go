@@ -20,12 +20,12 @@ import (
 
 var (
 	flexColStyle            = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn)
-	fieldWrapperStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Margin(style.Edges(0, 0, 1, 0))
+	fieldWrapperStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Margin(0, 0, 1, 0)
 	fullWidthStyle          = style.S().Width(style.Percent(100))
 	flexRowStyle            = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow)
-	radioOptionWrapperStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 2, 0, 0))
+	radioOptionWrapperStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(0, 2, 0, 0)
 	radioOptionAlignStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter)
-	checkboxWrapperStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(0, 0, 1, 0))
+	checkboxWrapperStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(0, 0, 1, 0)
 	hostContainerStyle      = style.S().Width(style.Percent(100)).Height(style.Percent(100))
 )
 
@@ -82,23 +82,23 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		Style: flexColStyle.JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG),
 	},
 		kitex.Box(kitex.BoxProps{
-			Style: flexColStyle.Width(style.Cells(50)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(1, 2)),
+			Style: flexColStyle.Width(style.Cells(50)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(1, 2),
 		},
 			// Success Notification
 			kitex.If(notification() != "",
 				kitex.Box(kitex.BoxProps{
-					Style: style.S().Background(colAccent).Foreground(colBG).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 0, 1, 0)).Bold(true).TextAlign(style.TextAlignCenter),
+					Style: style.S().Background(colAccent).Foreground(colBG).Padding(0, 1).Margin(0, 0, 1, 0).Bold(true).TextAlign(style.TextAlignCenter),
 				}, kitex.Text(notification())),
 			),
 
 			// Title
 			kitex.Box(kitex.BoxProps{
-				Style: style.S().Foreground(colText).Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)),
+				Style: style.S().Foreground(colText).Bold(true).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0),
 			}, kitex.Text("   Create Cyber Profile   ")),
 
 			// Divider
 			kitex.Box(kitex.BoxProps{
-				Style: fullWidthStyle.Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(0, 0, 1, 0)),
+				Style: fullWidthStyle.Height(style.Cells(1)).Background(colSeparator).Margin(0, 0, 1, 0),
 			}),
 
 			// Form Wrapper
@@ -117,7 +117,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Name:     "username",
 						Value:    s.Values.Username,
 						Disabled: s.IsSubmitting,
-						Style:    fullWidthStyle.Background(colInputBG).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 1)),
+						Style:    fullWidthStyle.Background(colInputBG).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1),
 					}),
 					kitex.If(s.Errors["username"] != "",
 						kitex.Span(kitex.SpanProps{
@@ -162,7 +162,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						},
 							kitex.Radio(kitex.RadioProps{Name: "theme", Value: "emerald"}),
 							kitex.Span(kitex.SpanProps{
-								Style: style.S().Foreground(colText).Margin(style.Edges(0, 0, 0, 1)),
+								Style: style.S().Foreground(colText).Margin(0, 0, 0, 1),
 							}, kitex.Text("Emerald")),
 						),
 						kitex.Box(kitex.BoxProps{
@@ -170,7 +170,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						},
 							kitex.Radio(kitex.RadioProps{Name: "theme", Value: "amber"}),
 							kitex.Span(kitex.SpanProps{
-								Style: style.S().Foreground(colText).Margin(style.Edges(0, 0, 0, 1)),
+								Style: style.S().Foreground(colText).Margin(0, 0, 0, 1),
 							}, kitex.Text("Amber")),
 						),
 					),
@@ -186,7 +186,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Disabled: s.IsSubmitting,
 					}),
 					kitex.Span(kitex.SpanProps{
-						Style: style.S().Foreground(colText).Margin(style.Edges(0, 0, 0, 1)),
+						Style: style.S().Foreground(colText).Margin(0, 0, 0, 1),
 					}, kitex.Text("Subscribe to intel feed")),
 				),
 
@@ -194,7 +194,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				kitex.Button(kitex.ButtonProps{
 					Type:     "submit",
 					Disabled: s.IsSubmitting,
-					Style:    style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Background(colButtonBG).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(style.Edges(0, 2)).Height(style.Cells(3)).Margin(style.Edges(1, 0, 0, 0)),
+					Style:    style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Background(colButtonBG).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(0, 2).Height(style.Cells(3)).Margin(1, 0, 0, 0),
 				}, kitex.Text(func() string {
 					if s.IsSubmitting {
 						return "Processing..."
@@ -205,7 +205,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 			// Divider
 			kitex.Box(kitex.BoxProps{
-				Style: fullWidthStyle.Height(style.Cells(1)).Background(colSeparator).Margin(style.Edges(1, 0, 1, 0)),
+				Style: fullWidthStyle.Height(style.Cells(1)).Background(colSeparator).Margin(1, 0, 1, 0),
 			}),
 
 			// Submitted Data Preview
@@ -218,7 +218,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 				kitex.IfElse(hasSubmitted() || s.IsSubmitting,
 					kitex.Span(kitex.SpanProps{
-						Style: style.S().Foreground(colAccent).Bold(true).Margin(style.Edges(0, 0, 0, 0)),
+						Style: style.S().Foreground(colAccent).Bold(true).Margin(0, 0, 0, 0),
 					}, kitex.Text(func() string {
 						if s.IsSubmitting {
 							return "Encrypting packet..."

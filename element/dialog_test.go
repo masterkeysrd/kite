@@ -60,7 +60,7 @@ func TestDialog_Lifecycle(t *testing.T) {
 	if activeScope == nil {
 		t.Fatal("expected active focus scope")
 	}
-	if activeScope != nil && activeScope.Root == dialog {
+	if activeScope.Root == dialog {
 		t.Error("dialog focus scope should have been popped")
 	}
 }

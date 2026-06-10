@@ -23,15 +23,15 @@ func TestFlexWrapMinWidthAuto(t *testing.T) {
 	// 35 < 64, so they should fit.
 	flexItems := make([]any, 0, 6)
 	for i := 1; i <= 6; i++ {
-		item := element.Box(fmt.Sprintf("Flex Item %d", i)).Style(style.S().Width(style.Cells(13)).Height(style.Cells(3)).Border(style.SingleBorder()).Flex(style.Flex(1, 1, style.Cells(10)))).WithID(fmt.Sprintf("item-%d", i))
+		item := element.Box(fmt.Sprintf("Flex Item %d", i)).Style(style.S().Width(style.Cells(13)).Height(style.Cells(3)).Border(style.SingleBorder()).Flex(1, 1, style.Cells(10))).WithID(fmt.Sprintf("item-%d", i))
 		flexItems = append(flexItems, item)
 	}
 
 	root := element.Box(
 		element.Box(
 			flexItems...,
-		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Width(style.Percent(100)).Padding(style.Edges(1)).Gap(style.Gap(1, 2))).WithID("container"),
-	).Style(style.S().Width(style.Percent(80)).Margin(style.Edges(1, 2)))
+		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Width(style.Percent(100)).Padding(1).Gap(1, 2)).WithID("container"),
+	).Style(style.S().Width(style.Percent(80)).Margin(1, 2))
 
 	env.Mount(root)
 	env.Flush()

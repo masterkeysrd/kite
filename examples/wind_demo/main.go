@@ -19,16 +19,16 @@ import (
 )
 
 var (
-	podCardStyle      = style.S().Padding(style.Edges(1, 2)).Background(color.RGBA{R: 25, G: 35, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(90)).Margin(style.Edges(1, 0))
-	keyInfoStyle      = style.S().Margin(style.Edges(0, 0, 1, 0))
-	statusRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
+	podCardStyle      = style.S().Padding(1, 2).Background(color.RGBA{R: 25, G: 35, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(90)).Margin(1, 0)
+	keyInfoStyle      = style.S().Margin(0, 0, 1, 0)
+	statusRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
 	bgFetchTextStyle  = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-	buttonsRowStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Gap(style.Gap(2))
+	buttonsRowStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Gap(2)
 	restartBtnStyle   = style.S().Background(color.RGBA{R: 200, G: 60, B: 60, A: 255}).Foreground(color.White)
 	refetchBtnStyle   = style.S().Background(color.RGBA{R: 50, G: 120, B: 220, A: 255}).Foreground(color.White)
-	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(style.Edges(1, 2))
-	appHeaderStyle    = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
-	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(style.Edges(0, 0, 1, 0)).TextAlign(style.TextAlignCenter)
+	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(1, 2)
+	appHeaderStyle    = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
+	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
 	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
 )
 

@@ -479,18 +479,27 @@ func (s Style) AlignSelf(v Align) Style {
 // GapOpt returns the optional value of Gap.
 func (s Style) GapOpt() Optional[GapValue] { return s.gap }
 
-// Gap sets the Gap property.
-func (s Style) Gap(v GapValue) Style {
-	s.gap = Some(v)
+// Gap sets the row and column gaps between flex/grid children.
+// It expects 1 or 2 int values:
+//
+//   - Gap(n)    -> sets both row and column gap to n
+//   - Gap(r, c) -> sets row gap to r and column gap to c
+func (s Style) Gap(values ...int) Style {
+	s.gap = Some(Gap(values...))
 	return s
 }
 
 // FlexOpt returns the optional value of Flex.
 func (s Style) FlexOpt() Optional[FlexItemValue] { return s.flex }
 
-// Flex sets the Flex property.
-func (s Style) Flex(v FlexItemValue) Style {
-	s.flex = Some(v)
+// Flex sets the grow, shrink, and basis for a flex item.
+// It expects a mandatory grow (int), followed by optional shrink (int) and basis (Dimension):
+//
+//   - Flex(g)           -> grow=g, shrink=1, basis=Auto
+//   - Flex(g, s)        -> grow=g, shrink=s, basis=Auto
+//   - Flex(g, s, basis) -> grow=g, shrink=s, basis=basis
+func (s Style) Flex(grow int, rest ...any) Style {
+	s.flex = Some(Flex(grow, rest...))
 	return s
 }
 
@@ -506,8 +515,9 @@ func (s Style) Order(v int) Style {
 // GridTemplateColumnsOpt returns the optional value of GridTemplateColumns.
 func (s Style) GridTemplateColumnsOpt() Optional[[]GridTrackSize] { return s.gridTemplateColumns }
 
-// GridTemplateColumns sets the GridTemplateColumns property.
-func (s Style) GridTemplateColumns(v []GridTrackSize) Style {
+// GridTemplateColumns sets the column track sizing functions.
+// It expects variadic GridTrackSize values.
+func (s Style) GridTemplateColumns(v ...GridTrackSize) Style {
 	s.gridTemplateColumns = Some(v)
 	return s
 }
@@ -515,8 +525,9 @@ func (s Style) GridTemplateColumns(v []GridTrackSize) Style {
 // GridTemplateRowsOpt returns the optional value of GridTemplateRows.
 func (s Style) GridTemplateRowsOpt() Optional[[]GridTrackSize] { return s.gridTemplateRows }
 
-// GridTemplateRows sets the GridTemplateRows property.
-func (s Style) GridTemplateRows(v []GridTrackSize) Style {
+// GridTemplateRows sets the row track sizing functions.
+// It expects variadic GridTrackSize values.
+func (s Style) GridTemplateRows(v ...GridTrackSize) Style {
 	s.gridTemplateRows = Some(v)
 	return s
 }
@@ -614,27 +625,231 @@ func (s Style) MaxHeight(v Dimension) Style {
 // PaddingOpt returns the optional value of Padding.
 func (s Style) PaddingOpt() Optional[EdgeValues[int]] { return s.padding }
 
-// Padding sets the Padding property.
-func (s Style) Padding(v EdgeValues[int]) Style {
-	s.padding = Some(v)
+// Padding sets the inner spacing between the element's content and its border.
+// It expects 1, 2, or 4 int values (CSS shorthand):
+//
+//   - Padding(all)             -> all four sides equal
+//   - Padding(vert, horiz)     -> top/bottom = vert, left/right = horiz
+//   - Padding(top, right, bot, left)
+func (s Style) Padding(values ...int) Style {
+	s.padding = Some(Edges(values...))
+	return s
+}
+
+// PaddingTop sets the top padding.
+func (s Style) PaddingTop(v int) Style {
+	p, _ := s.padding.Get()
+	p.Top = v
+	s.padding = Some(p)
+	return s
+}
+
+// PaddingRight sets the right padding.
+func (s Style) PaddingRight(v int) Style {
+	p, _ := s.padding.Get()
+	p.Right = v
+	s.padding = Some(p)
+	return s
+}
+
+// PaddingBottom sets the bottom padding.
+func (s Style) PaddingBottom(v int) Style {
+	p, _ := s.padding.Get()
+	p.Bottom = v
+	s.padding = Some(p)
+	return s
+}
+
+// PaddingLeft sets the left padding.
+func (s Style) PaddingLeft(v int) Style {
+	p, _ := s.padding.Get()
+	p.Left = v
+	s.padding = Some(p)
+	return s
+}
+
+// PaddingHorizontal sets the left and right paddings.
+func (s Style) PaddingHorizontal(v int) Style {
+	p, _ := s.padding.Get()
+	p.Left = v
+	p.Right = v
+	s.padding = Some(p)
+	return s
+}
+
+// PaddingVertical sets the top and bottom paddings.
+func (s Style) PaddingVertical(v int) Style {
+	p, _ := s.padding.Get()
+	p.Top = v
+	p.Bottom = v
+	s.padding = Some(p)
 	return s
 }
 
 // MarginOpt returns the optional value of Margin.
 func (s Style) MarginOpt() Optional[EdgeValues[int]] { return s.margin }
 
-// Margin sets the Margin property.
-func (s Style) Margin(v EdgeValues[int]) Style {
-	s.margin = Some(v)
+// Margin sets the outer spacing between the element's border and its siblings.
+// It expects 1, 2, or 4 int values (CSS shorthand):
+//
+//   - Margin(all)             -> all four sides equal
+//   - Margin(vert, horiz)     -> top/bottom = vert, left/right = horiz
+//   - Margin(top, right, bot, left)
+func (s Style) Margin(values ...int) Style {
+	s.margin = Some(Edges(values...))
+	return s
+}
+
+// MarginTop sets the top margin.
+func (s Style) MarginTop(v int) Style {
+	m, _ := s.margin.Get()
+	m.Top = v
+	s.margin = Some(m)
+	return s
+}
+
+// MarginRight sets the right margin.
+func (s Style) MarginRight(v int) Style {
+	m, _ := s.margin.Get()
+	m.Right = v
+	s.margin = Some(m)
+	return s
+}
+
+// MarginBottom sets the bottom margin.
+func (s Style) MarginBottom(v int) Style {
+	m, _ := s.margin.Get()
+	m.Bottom = v
+	s.margin = Some(m)
+	return s
+}
+
+// MarginLeft sets the left margin.
+func (s Style) MarginLeft(v int) Style {
+	m, _ := s.margin.Get()
+	m.Left = v
+	s.margin = Some(m)
+	return s
+}
+
+// MarginHorizontal sets the left and right margins.
+func (s Style) MarginHorizontal(v int) Style {
+	m, _ := s.margin.Get()
+	m.Left = v
+	m.Right = v
+	s.margin = Some(m)
+	return s
+}
+
+// MarginVertical sets the top and bottom margins.
+func (s Style) MarginVertical(v int) Style {
+	m, _ := s.margin.Get()
+	m.Top = v
+	m.Bottom = v
+	s.margin = Some(m)
 	return s
 }
 
 // BorderOpt returns the optional value of Border.
 func (s Style) BorderOpt() Optional[Border] { return s.border }
 
-// Border sets the Border property.
-func (s Style) Border(v Border) Style {
-	s.border = Some(v)
+// Border sets the border properties. It accepts variadic arguments of types:
+//   - bool: toggles all edges on/off
+//   - BorderStyle: sets the style for all edges
+//   - color.Color: sets the color for all edges
+//   - BorderGlyphs: sets the glyphs for the entire border and switches to BorderCustom
+//   - Border: replaces the entire border definition
+func (s Style) Border(args ...any) Style {
+	b, _ := s.border.Get()
+	hasStyle := false
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case bool:
+			b.Edges = EdgeAll(v)
+		case BorderStyle:
+			b.Styles = EdgeAll(v)
+			hasStyle = true
+		case BorderGlyphs:
+			b.Glyphs = v
+			b.Styles = EdgeAll(BorderCustom)
+			hasStyle = true
+		case color.Color:
+			b.Colors = EdgeAll(v)
+		case Border:
+			b = v
+			hasStyle = true
+		}
+	}
+	if !hasStyle {
+		applyDefaultStyleIfVisible(&b, "all")
+	}
+	s.border = Some(b)
+	return s
+}
+
+// BorderTop toggles the visibility of the top border edge and optionally sets its style and color.
+// It accepts optional arguments of types BorderStyle, BorderGlyphs, or color.Color:
+//
+//   - BorderTop(true)                 -> enables top edge with BorderSingle
+//   - BorderTop(true, BorderDouble)    -> enables top edge with BorderDouble
+//   - BorderTop(true, BorderDouble, c) -> enables top edge with BorderDouble and color c
+func (s Style) BorderTop(visible bool, args ...any) Style {
+	b, _ := s.border.Get()
+	b.Edges.Top = visible
+	applyBorderSideArgs(&b, "top", args...)
+	s.border = Some(b)
+	return s
+}
+
+// BorderRight toggles the visibility of the right border edge and optionally sets its style and color.
+// It accepts optional arguments of types BorderStyle, BorderGlyphs, or color.Color.
+func (s Style) BorderRight(visible bool, args ...any) Style {
+	b, _ := s.border.Get()
+	b.Edges.Right = visible
+	applyBorderSideArgs(&b, "right", args...)
+	s.border = Some(b)
+	return s
+}
+
+// BorderBottom toggles the visibility of the bottom border edge and optionally sets its style and color.
+// It accepts optional arguments of types BorderStyle, BorderGlyphs, or color.Color.
+func (s Style) BorderBottom(visible bool, args ...any) Style {
+	b, _ := s.border.Get()
+	b.Edges.Bottom = visible
+	applyBorderSideArgs(&b, "bottom", args...)
+	s.border = Some(b)
+	return s
+}
+
+// BorderLeft toggles the visibility of the left border edge and optionally sets its style and color.
+// It accepts optional arguments of types BorderStyle, BorderGlyphs, or color.Color.
+func (s Style) BorderLeft(visible bool, args ...any) Style {
+	b, _ := s.border.Get()
+	b.Edges.Left = visible
+	applyBorderSideArgs(&b, "left", args...)
+	s.border = Some(b)
+	return s
+}
+
+// BorderHorizontal toggles the visibility of the left and right border edges and optionally sets their style and color.
+// It accepts optional arguments of types BorderStyle, BorderGlyphs, or color.Color.
+func (s Style) BorderHorizontal(visible bool, args ...any) Style {
+	b, _ := s.border.Get()
+	b.Edges.Left = visible
+	b.Edges.Right = visible
+	applyBorderSideArgs(&b, "horizontal", args...)
+	s.border = Some(b)
+	return s
+}
+
+// BorderVertical toggles the visibility of the top and bottom border edges and optionally sets their style and color.
+// It accepts optional arguments of types BorderStyle, BorderGlyphs, or color.Color.
+func (s Style) BorderVertical(visible bool, args ...any) Style {
+	b, _ := s.border.Get()
+	b.Edges.Top = visible
+	b.Edges.Bottom = visible
+	applyBorderSideArgs(&b, "vertical", args...)
+	s.border = Some(b)
 	return s
 }
 
@@ -809,152 +1024,88 @@ func (s Style) Cursor(v Cursor) Style {
 	return s
 }
 
-// TopBorder toggles the visibility of the top border edge.
-func (s Style) TopBorder(visible bool) Style {
-	b, _ := s.border.Get()
-	b.Edges.Top = visible
-	s.border = Some(b)
-	return s
+// --- Border helpers ---------------------------------------------------------
+
+// applyBorderSideArgs updates the border properties for a specific side or group of sides.
+func applyBorderSideArgs(b *Border, side string, args ...any) {
+	hasStyle := false
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case BorderStyle:
+			hasStyle = true
+			setSideStyle(b, side, v)
+		case BorderGlyphs:
+			hasStyle = true
+			b.Glyphs = v
+			setSideStyle(b, side, BorderCustom)
+		case color.Color:
+			setSideColor(b, side, v)
+		}
+	}
+
+	// Default to BorderSingle if visible and no style was specified and current style is BorderNone
+	if !hasStyle {
+		applyDefaultStyleIfVisible(b, side)
+	}
 }
 
-// RightBorder toggles the visibility of the right border edge.
-func (s Style) RightBorder(visible bool) Style {
-	b, _ := s.border.Get()
-	b.Edges.Right = visible
-	s.border = Some(b)
-	return s
+func setSideStyle(b *Border, side string, v BorderStyle) {
+	switch side {
+	case "top":
+		b.Styles.Top = v
+	case "right":
+		b.Styles.Right = v
+	case "bottom":
+		b.Styles.Bottom = v
+	case "left":
+		b.Styles.Left = v
+	case "horizontal":
+		b.Styles.Left, b.Styles.Right = v, v
+	case "vertical":
+		b.Styles.Top, b.Styles.Bottom = v, v
+	case "all":
+		b.Styles = EdgeAll(v)
+	}
 }
 
-// BottomBorder toggles the visibility of the bottom border edge.
-func (s Style) BottomBorder(visible bool) Style {
-	b, _ := s.border.Get()
-	b.Edges.Bottom = visible
-	s.border = Some(b)
-	return s
+func setSideColor(b *Border, side string, v color.Color) {
+	switch side {
+	case "top":
+		b.Colors.Top = v
+	case "right":
+		b.Colors.Right = v
+	case "bottom":
+		b.Colors.Bottom = v
+	case "left":
+		b.Colors.Left = v
+	case "horizontal":
+		b.Colors.Left, b.Colors.Right = v, v
+	case "vertical":
+		b.Colors.Top, b.Colors.Bottom = v, v
+	case "all":
+		b.Colors = EdgeAll(v)
+	}
 }
 
-// LeftBorder toggles the visibility of the left border edge.
-func (s Style) LeftBorder(visible bool) Style {
-	b, _ := s.border.Get()
-	b.Edges.Left = visible
-	s.border = Some(b)
-	return s
-}
-
-// HorizontalBorder toggles the visibility of the left and right border edges.
-func (s Style) HorizontalBorder(visible bool) Style {
-	b, _ := s.border.Get()
-	b.Edges.Left = visible
-	b.Edges.Right = visible
-	s.border = Some(b)
-	return s
-}
-
-// VerticalBorder toggles the visibility of the top and bottom border edges.
-func (s Style) VerticalBorder(visible bool) Style {
-	b, _ := s.border.Get()
-	b.Edges.Top = visible
-	b.Edges.Bottom = visible
-	s.border = Some(b)
-	return s
-}
-
-// TopMargin sets the top margin.
-func (s Style) TopMargin(v int) Style {
-	m, _ := s.margin.Get()
-	m.Top = v
-	s.margin = Some(m)
-	return s
-}
-
-// RightMargin sets the right margin.
-func (s Style) RightMargin(v int) Style {
-	m, _ := s.margin.Get()
-	m.Right = v
-	s.margin = Some(m)
-	return s
-}
-
-// BottomMargin sets the bottom margin.
-func (s Style) BottomMargin(v int) Style {
-	m, _ := s.margin.Get()
-	m.Bottom = v
-	s.margin = Some(m)
-	return s
-}
-
-// LeftMargin sets the left margin.
-func (s Style) LeftMargin(v int) Style {
-	m, _ := s.margin.Get()
-	m.Left = v
-	s.margin = Some(m)
-	return s
-}
-
-// HorizontalMargin sets the left and right margins.
-func (s Style) HorizontalMargin(v int) Style {
-	m, _ := s.margin.Get()
-	m.Left = v
-	m.Right = v
-	s.margin = Some(m)
-	return s
-}
-
-// VerticalMargin sets the top and bottom margins.
-func (s Style) VerticalMargin(v int) Style {
-	m, _ := s.margin.Get()
-	m.Top = v
-	m.Bottom = v
-	s.margin = Some(m)
-	return s
-}
-
-// TopPadding sets the top padding.
-func (s Style) TopPadding(v int) Style {
-	p, _ := s.padding.Get()
-	p.Top = v
-	s.padding = Some(p)
-	return s
-}
-
-// RightPadding sets the right padding.
-func (s Style) RightPadding(v int) Style {
-	p, _ := s.padding.Get()
-	p.Right = v
-	s.padding = Some(p)
-	return s
-}
-
-// BottomPadding sets the bottom padding.
-func (s Style) BottomPadding(v int) Style {
-	p, _ := s.padding.Get()
-	p.Bottom = v
-	s.padding = Some(p)
-	return s
-}
-
-// LeftPadding sets the left padding.
-func (s Style) LeftPadding(v int) Style {
-	p, _ := s.padding.Get()
-	p.Left = v
-	s.padding = Some(p)
-	return s
-}
-
-// HorizontalPadding sets the left and right paddings.
-func (s Style) HorizontalPadding(v int) Style {
-	p, _ := s.padding.Get()
-	p.Left = v
-	p.Right = v
-	s.padding = Some(p)
-	return s
-}
-
-// VerticalPadding sets the top and bottom paddings.
-func (s Style) VerticalPadding(v int) Style {
-	p, _ := s.padding.Get()
-	p.Top = v
-	p.Bottom = v
-	s.padding = Some(p)
-	return s
+func applyDefaultStyleIfVisible(b *Border, side string) {
+	if side == "top" || side == "vertical" || side == "all" {
+		if b.Edges.Top && b.Styles.Top == BorderNone {
+			b.Styles.Top = BorderSingle
+		}
+	}
+	if side == "right" || side == "horizontal" || side == "all" {
+		if b.Edges.Right && b.Styles.Right == BorderNone {
+			b.Styles.Right = BorderSingle
+		}
+	}
+	if side == "bottom" || side == "vertical" || side == "all" {
+		if b.Edges.Bottom && b.Styles.Bottom == BorderNone {
+			b.Styles.Bottom = BorderSingle
+		}
+	}
+	if side == "left" || side == "horizontal" || side == "all" {
+		if b.Edges.Left && b.Styles.Left == BorderNone {
+			b.Styles.Left = BorderSingle
+		}
+	}
 }

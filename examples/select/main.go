@@ -17,14 +17,14 @@ import (
 
 var (
 	selectDropdownStyle     = style.S().Width(style.Cells(25))
-	instructionLineStyle    = style.S().Display(style.DisplayBlock).Foreground(color.RGBA{R: 150, G: 150, B: 180, A: 255}).Margin(style.Edges(0, 0, 0, 0))
-	titleStyle              = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Background(color.RGBA{R: 60, G: 60, B: 120, A: 255}).Foreground(color.White)
+	instructionLineStyle    = style.S().Display(style.DisplayBlock).Foreground(color.RGBA{R: 150, G: 150, B: 180, A: 255}).Margin(0, 0, 0, 0)
+	titleStyle              = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0).Background(color.RGBA{R: 60, G: 60, B: 120, A: 255}).Foreground(color.White)
 	pickLabelStyle          = style.S().Bold(true)
-	pickerRowStyle          = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(style.Edges(1, 0, 2, 0)).Gap(style.Gap(0, 1))
+	pickerRowStyle          = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(1, 0, 2, 0).Gap(0, 1)
 	selectedStatusStyle     = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Bold(true)
-	statusRowStyle          = style.S().Margin(style.Edges(0, 0, 2, 0)).Border(style.SingleBorder().Left(false).Right(false).Top(false).Color(color.RGBA{R: 50, G: 50, B: 50, A: 255}))
-	instructionsHeaderStyle = style.S().Bold(true).Margin(style.Edges(0, 0, 1, 0))
-	cardContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart).JustifyContent(style.JustifyStart).Width(style.Cells(50)).Height(style.Auto).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(style.Edges(1, 3)).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 100, A: 255}))
+	statusRowStyle          = style.S().Margin(0, 0, 2, 0).Border(style.SingleBorder().Left(false).Right(false).Top(false).Color(color.RGBA{R: 50, G: 50, B: 50, A: 255}))
+	instructionsHeaderStyle = style.S().Bold(true).Margin(0, 0, 1, 0)
+	cardContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart).JustifyContent(style.JustifyStart).Width(style.Cells(50)).Height(style.Auto).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(1, 3).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 100, A: 255}))
 	rootStyle               = style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
 )
 

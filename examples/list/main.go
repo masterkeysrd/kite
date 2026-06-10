@@ -18,11 +18,11 @@ import (
 )
 
 var (
-	listHeaderStyle       = style.S().Margin(style.Edges(1, 0, 0, 0)).Underline(true)
-	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0)).Bold(true)
+	listHeaderStyle       = style.S().Margin(1, 0, 0, 0).Underline(true)
+	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0).Bold(true)
 	squareListStyle       = style.S().ListStyleType(style.ListStyleSquare)
-	contentContainerStyle = style.S().Width(style.Percent(90)).Margin(style.Edges(1, 0)).Padding(style.Edges(1, 2)).Border(style.SingleBorder())
-	rootStyle             = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(style.Edges(1, 2)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+	contentContainerStyle = style.S().Width(style.Percent(90)).Margin(1, 0).Padding(1, 2).Border(style.SingleBorder())
+	rootStyle             = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(1, 2).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
 )
 
 func main() {

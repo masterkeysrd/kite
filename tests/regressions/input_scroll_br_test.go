@@ -64,7 +64,7 @@ func TestInput_Regression_CursorState_AccountsForBorderAndPadding(t *testing.T) 
 	defer eng.Stop()
 
 	inp := element.NewInput(eng.Document(), "abc")
-	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(style.Edges(0, 1)))
+	inp.Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(0, 1))
 	root := element.Box(inp)
 	eng.Mount(root)
 	eng.Frame()

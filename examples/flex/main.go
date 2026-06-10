@@ -19,24 +19,24 @@ import (
 )
 
 var (
-	headerStyle                  = style.S().Foreground(color.RGBA{R: 255, G: 255, B: 0, A: 255}).Margin(style.Edges(0, 0, 1, 0))
-	inlineFlexItemStyle          = style.S().Background(color.RGBA{R: 150, G: 0, B: 0, A: 255}).Padding(style.Edges(0, 1))
-	columnFlexItemStyle          = style.S().Background(color.RGBA{R: 180, G: 80, B: 0, A: 255}).Padding(style.Edges(0, 2)).Width(style.Auto)
-	inlineFlexContainerStyle     = style.S().Display(style.DisplayInlineFlex).Background(color.RGBA{R: 0, G: 80, B: 150, A: 255}).Border(style.SingleBorder()).Gap(style.Gap(0, 1)).Padding(style.Edges(0, 1))
-	inlineFlexWrapperStyle       = style.S().Margin(style.Edges(0, 0, 2, 0))
-	flexRowContainerStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyBetween).AlignItems(style.AlignCenter).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}).Height(style.Cells(5)).Padding(style.Edges(0, 2)).Margin(style.Edges(0, 0, 2, 0))
-	flexColContainerStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignEnd).Background(color.RGBA{R: 30, G: 30, B: 60, A: 255}).Width(style.Percent(50)).Padding(style.Edges(1, 2)).Gap(style.Gap(1, 0)).Margin(style.Edges(0, 0, 2, 0))
-	reverseItemRedStyle          = style.S().Background(color.RGBA{200, 0, 0, 255}).Padding(style.Edges(0, 1))
-	reverseItemGreenStyle        = style.S().Background(color.RGBA{0, 200, 0, 255}).Padding(style.Edges(0, 1))
-	reverseItemBlueStyle         = style.S().Background(color.RGBA{0, 0, 200, 255}).Padding(style.Edges(0, 1))
-	flexRowReverseContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRowReverse).Background(color.RGBA{R: 60, G: 30, B: 30, A: 255}).Padding(style.Edges(0, 2)).Margin(style.Edges(0, 0, 2, 0)).Gap(style.Gap(0, 2))
-	orderItem1Style              = style.S().Background(color.RGBA{R: 200, G: 0, B: 0, A: 255}).Padding(style.Edges(0, 1)).Order(3).Flex(style.Flex(1)).Border(style.SingleBorder())
-	orderItem2Style              = style.S().Background(color.RGBA{R: 0, G: 200, B: 0, A: 255}).Padding(style.Edges(0, 1)).Order(1).Flex(style.Flex(1)).Border(style.SingleBorder())
-	orderItem3Style              = style.S().Background(color.RGBA{R: 0, G: 0, B: 200, A: 255}).Padding(style.Edges(0, 1)).Order(2).Flex(style.Flex(1)).Border(style.SingleBorder())
-	flexOrderContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Background(color.RGBA{R: 30, G: 60, B: 30, A: 255}).Width(style.Percent(100)).Padding(style.Edges(0, 2)).Gap(style.Gap(2)).Border(style.SingleBorder())
-	flexWrapContainerStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Background(color.RGBA{R: 80, G: 30, B: 80, A: 255}).Padding(style.Edges(1, 2)).Gap(style.Gap(1, 1)).Margin(style.Edges(0, 0, 2, 0)).Width(style.Percent(100))
-	flexWrapItemStyle            = style.S().Background(color.RGBA{R: 120, G: 60, B: 180, A: 255}).Padding(style.Edges(0, 2)).Border(style.SingleBorder())
-	rootStyle                    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 15, A: 255}).Padding(style.Edges(1, 2)).FlexDirection(style.FlexColumn).Display(style.DisplayFlex)
+	headerStyle                  = style.S().Foreground(color.RGBA{R: 255, G: 255, B: 0, A: 255}).Margin(0, 0, 1, 0)
+	inlineFlexItemStyle          = style.S().Background(color.RGBA{R: 150, G: 0, B: 0, A: 255}).Padding(0, 1)
+	columnFlexItemStyle          = style.S().Background(color.RGBA{R: 180, G: 80, B: 0, A: 255}).Padding(0, 2).Width(style.Auto)
+	inlineFlexContainerStyle     = style.S().Display(style.DisplayInlineFlex).Background(color.RGBA{R: 0, G: 80, B: 150, A: 255}).Border(style.SingleBorder()).Gap(0, 1).Padding(0, 1)
+	inlineFlexWrapperStyle       = style.S().Margin(0, 0, 2, 0)
+	flexRowContainerStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyBetween).AlignItems(style.AlignCenter).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}).Height(style.Cells(5)).Padding(0, 2).Margin(0, 0, 2, 0)
+	flexColContainerStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignEnd).Background(color.RGBA{R: 30, G: 30, B: 60, A: 255}).Width(style.Percent(50)).Padding(1, 2).Gap(1, 0).Margin(0, 0, 2, 0)
+	reverseItemRedStyle          = style.S().Background(color.RGBA{200, 0, 0, 255}).Padding(0, 1)
+	reverseItemGreenStyle        = style.S().Background(color.RGBA{0, 200, 0, 255}).Padding(0, 1)
+	reverseItemBlueStyle         = style.S().Background(color.RGBA{0, 0, 200, 255}).Padding(0, 1)
+	flexRowReverseContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRowReverse).Background(color.RGBA{R: 60, G: 30, B: 30, A: 255}).Padding(0, 2).Margin(0, 0, 2, 0).Gap(0, 2)
+	orderItem1Style              = style.S().Background(color.RGBA{R: 200, G: 0, B: 0, A: 255}).Padding(0, 1).Order(3).Flex(1).Border(style.SingleBorder())
+	orderItem2Style              = style.S().Background(color.RGBA{R: 0, G: 200, B: 0, A: 255}).Padding(0, 1).Order(1).Flex(1).Border(style.SingleBorder())
+	orderItem3Style              = style.S().Background(color.RGBA{R: 0, G: 0, B: 200, A: 255}).Padding(0, 1).Order(2).Flex(1).Border(style.SingleBorder())
+	flexOrderContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Background(color.RGBA{R: 30, G: 60, B: 30, A: 255}).Width(style.Percent(100)).Padding(0, 2).Gap(2).Border(style.SingleBorder())
+	flexWrapContainerStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).FlexWrap(style.FlexWrapOn).Background(color.RGBA{R: 80, G: 30, B: 80, A: 255}).Padding(1, 2).Gap(1, 1).Margin(0, 0, 2, 0).Width(style.Percent(100))
+	flexWrapItemStyle            = style.S().Background(color.RGBA{R: 120, G: 60, B: 180, A: 255}).Padding(0, 2).Border(style.SingleBorder())
+	rootStyle                    = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 15, A: 255}).Padding(1, 2).FlexDirection(style.FlexColumn).Display(style.DisplayFlex)
 )
 
 func main() {
@@ -89,7 +89,7 @@ func main() {
 	rowFlexItems := make([]any, 0, 4)
 	for i := 1; i <= 4; i++ {
 		rowFlexItems = append(rowFlexItems,
-			element.Box(fmt.Sprintf("Row Item %d", i)).Style(style.S().Background(color.RGBA{R: 0, G: 120, B: 0, A: 255}).Padding(style.Edges(0, 2)).Height(style.Cells(1+i%2))),
+			element.Box(fmt.Sprintf("Row Item %d", i)).Style(style.S().Background(color.RGBA{R: 0, G: 120, B: 0, A: 255}).Padding(0, 2).Height(style.Cells(1+i%2))),
 		)
 	}
 

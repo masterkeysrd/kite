@@ -43,7 +43,7 @@ var defaultButtonStyle = style.S().
 	JustifyContent(style.JustifyCenter).
 	WhiteSpace(style.WhiteSpacePre).
 	TextAlign(style.TextAlignCenter).
-	Padding(style.Edges(0, 1)).
+	PaddingHorizontal(1).
 	Border(style.SingleBorder()).
 	Background(style.TerminalDefault).
 	Foreground(style.TerminalDefault)

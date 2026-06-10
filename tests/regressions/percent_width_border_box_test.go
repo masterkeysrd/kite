@@ -60,7 +60,7 @@ func TestRegression_PercentWidth100_NoOverflow(t *testing.T) {
 	// content = x=1..14); the border at x=19 must still be a border glyph (not green).
 	inner := element.Box().Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colorGreen))
 
-	outer := element.Box(inner).Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(style.Edges(2)))
+	outer := element.Box(inner).Style(style.S().Width(style.Cells(20)).Border(style.SingleBorder()).Padding(2))
 
 	env.Mount(element.Box(outer))
 	env.RenderFrame()

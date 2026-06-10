@@ -284,7 +284,7 @@ func TestTextArea_WrapConsistency(t *testing.T) {
 	// Line 2: "BCDEFGHIJ"
 	text := " • ABCDEFGHIJ"
 	txa := element.NewTextArea(eng.Document(), text)
-	txa.Style(style.S().Width(style.Cells(10)).Padding(style.Edges(0, 0)))
+	txa.Style(style.S().Width(style.Cells(10)).Padding(0, 0))
 	root := element.Box(txa)
 	eng.Mount(root)
 	eng.Frame()
@@ -317,7 +317,7 @@ func TestTextArea_CursorVisibilityAtBoundary(t *testing.T) {
 	// 10 cells wide.
 	// "1234567890" is 10 cells.
 	txa := element.NewTextArea(eng.Document(), "1234567890")
-	txa.Style(style.S().Width(style.Cells(10)).Padding(style.Edges(0, 0)))
+	txa.Style(style.S().Width(style.Cells(10)).Padding(0, 0))
 	eng.Mount(txa)
 	txa.Focus()
 	eng.Frame()
@@ -382,7 +382,7 @@ func TestTextArea_NoHorizontalScrollIfFits(t *testing.T) {
 	txa.Style(style.S().
 		Width(style.Cells(20)).
 		Height(style.Cells(5)).
-		Padding(style.Edges(0, 1)))
+		Padding(0, 1))
 
 	eng.Mount(txa)
 	eng.Frame()
@@ -412,7 +412,7 @@ func TestTextArea_NoHorizontalScrollIfFits_WithVerticalScrollbar(t *testing.T) {
 	txa.Style(style.S().
 		Width(style.Cells(20)).
 		Height(style.Cells(5)).
-		Padding(style.Edges(0, 1)))
+		Padding(0, 1))
 
 	eng.Mount(txa)
 	eng.Frame()
@@ -442,7 +442,7 @@ func TestTextArea_NoHorizontalScrollIfWrapped(t *testing.T) {
 	txa.Style(style.S().
 		Width(style.Cells(50)).
 		Height(style.Cells(10)).
-		Padding(style.Edges(0, 1)))
+		Padding(0, 1))
 
 	eng.Mount(txa)
 	eng.Frame()

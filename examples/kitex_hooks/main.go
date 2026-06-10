@@ -20,9 +20,9 @@ import (
 
 var (
 	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
-	cardStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Gap(style.Gap(1)).AlignItems(style.AlignCenter)
+	cardStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Gap(1).AlignItems(style.AlignCenter)
 	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255})
-	lastKeyBoxStyle   = style.S().Margin(style.Edges(1, 0)).Padding(style.Edges(0, 1)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255}).Border(style.SingleBorder())
+	lastKeyBoxStyle   = style.S().Margin(1, 0).Padding(0, 1).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255}).Border(style.SingleBorder())
 	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
 )
 
@@ -65,7 +65,7 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 
 				kitex.Button(kitex.ButtonProps{
 					Ref:   buttonRef,
-					Style: style.S().Border(style.SingleBorder().Color(borderColor)).Padding(style.Edges(0, 1)).Width(style.Cells(25)).Height(style.Cells(3)).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}),
+					Style: style.S().Border(style.SingleBorder().Color(borderColor)).Padding(0, 1).Width(style.Cells(25)).Height(style.Cells(3)).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}),
 				}, kitex.Text(fmt.Sprintf("Focused: %v", isFocused))),
 			),
 		)

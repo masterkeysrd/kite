@@ -24,7 +24,7 @@ func TestTableBorders(t *testing.T) {
 				element.TD("D").Style(style.S().Border(style.SingleBorder())),
 			),
 		).Style(style.S().Width(style.Percent(100)).Border(style.SingleBorder())),
-	).Style(style.S().Padding(style.Edges(1)))
+	).Style(style.S().Padding(1))
 
 	env.Mount(root)
 	env.RenderFrame()

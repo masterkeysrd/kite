@@ -20,17 +20,17 @@ import (
 
 var (
 	stageStyle          = style.S().Display(style.DisplayFlex).Width(style.Percent(100)).Height(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 60, G: 60, B: 70, A: 255})).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter)
-	titleStyle          = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(style.Edges(0, 0, 1, 0))
-	sectionLabelStyle   = style.S().Bold(true).Margin(style.Edges(0, 0, 0, 1))
-	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(style.Edges(0, 0, 1, 0))
-	spacerStyle         = style.S().Flex(style.Flex(1))
+	titleStyle          = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0)
+	sectionLabelStyle   = style.S().Bold(true).Margin(0, 0, 0, 1)
+	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
+	spacerStyle         = style.S().Flex(1)
 	statusTextStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 0, A: 255}).Bold(true)
-	sidebarStyle        = style.S().Width(style.Cells(45)).Height(style.Percent(100)).Background(color.RGBA{R: 25, G: 25, B: 35, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 80, G: 80, B: 90, A: 255})).Padding(style.Edges(1, 2)).Display(style.DisplayFlex).FlexDirection(style.FlexColumn)
+	sidebarStyle        = style.S().Width(style.Cells(45)).Height(style.Percent(100)).Background(color.RGBA{R: 25, G: 25, B: 35, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 80, G: 80, B: 90, A: 255})).Padding(1, 2).Display(style.DisplayFlex).FlexDirection(style.FlexColumn)
 	separatorStyle      = style.S().Width(style.Cells(2))
-	stageContainerStyle = style.S().Flex(style.Flex(1)).Height(style.Percent(100)).Display(style.DisplayFlex)
-	mainLayoutStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Width(style.Percent(100)).Flex(style.Flex(1)).JustifyContent(style.JustifyBetween)
-	instructionsStyle   = style.S().Foreground(color.RGBA{R: 130, G: 130, B: 140, A: 255}).Margin(style.Edges(1, 0, 0, 0)).TextAlign(style.TextAlignCenter)
-	rootStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255}).Padding(style.Edges(1, 2))
+	stageContainerStyle = style.S().Flex(1).Height(style.Percent(100)).Display(style.DisplayFlex)
+	mainLayoutStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Width(style.Percent(100)).Flex(1).JustifyContent(style.JustifyBetween)
+	instructionsStyle   = style.S().Foreground(color.RGBA{R: 130, G: 130, B: 140, A: 255}).Margin(1, 0, 0, 0).TextAlign(style.TextAlignCenter)
+	rootStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255}).Padding(1, 2)
 )
 
 // GroupAnimator runs multiple animations in parallel.
@@ -389,7 +389,7 @@ func applyButtonStyle(btn *element.ButtonElement, selected bool, focused bool) {
 		borderCol = color.RGBA{R: 255, G: 165, B: 0, A: 255} // Orange focus ring
 	}
 
-	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.SingleBorder().Color(borderCol)).Padding(style.Edges(0, 1)).Margin(style.Edges(0, 1, 0, 0)))
+	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.SingleBorder().Color(borderCol)).Padding(0, 1).Margin(0, 1, 0, 0))
 }
 
 func applyTriggerButtonStyle(btn *element.ButtonElement, focused bool) {
@@ -406,7 +406,7 @@ func applyTriggerButtonStyle(btn *element.ButtonElement, focused bool) {
 		borderCol = color.RGBA{R: 255, G: 215, B: 0, A: 255}       // Gold focus ring
 	}
 
-	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.DoubleBorder().Color(borderCol)).Bold(true).Padding(style.Edges(0, 3)).Margin(style.Edges(1, 0, 1, 0)).TextAlign(style.TextAlignCenter))
+	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.DoubleBorder().Color(borderCol)).Bold(true).Padding(0, 3).Margin(1, 0, 1, 0).TextAlign(style.TextAlignCenter))
 }
 
 func getTriggerText() string {

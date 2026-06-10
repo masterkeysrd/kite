@@ -107,7 +107,7 @@ var defaultTextAreaStyle = style.S().
 	Display(style.DisplayInlineBlock).
 	Width(style.Cells(20)).
 	Height(style.Cells(5)).
-	Padding(style.EdgeValues[int]{}).
+	Padding(0).
 	Scrollbar(style.Scrollbar{Y: style.Some(true)})
 
 // NewTextArea creates a new TextAreaElement owned by doc with an optional

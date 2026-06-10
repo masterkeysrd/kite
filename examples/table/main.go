@@ -25,13 +25,13 @@ var (
 	nameColumnStyle        = style.S().Width(style.Cells(15)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}))
 	roleColumnStyle        = style.S().Width(style.Cells(20)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255}))
 	wellFormedTableStyle   = style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255}))
-	sectionHeaderStyle     = style.S().Margin(style.Edges(1, 0))
+	sectionHeaderStyle     = style.S().Margin(1, 0)
 	col1WidthStyle         = style.S().Width(style.Cells(15))
 	col2WidthStyle         = style.S().Width(style.Cells(20))
 	malformedTableStyle    = style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255}))
 	tableHeaderBorderStyle = style.S().Border(style.SingleBorder().Top(false).Right(false).Left(false))
 	tableFooterBorderStyle = style.S().Border(style.SingleBorder().Bottom(false).Right(false).Left(false))
-	rootStyle              = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(style.Edges(2, 4)).Gap(style.Gap(2, 0))
+	rootStyle              = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(2, 4).Gap(2, 0)
 )
 
 var styles = map[string]style.Style{
