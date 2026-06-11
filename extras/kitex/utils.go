@@ -63,19 +63,19 @@ func Nodes(nodes ...Node) Node {
 	return Fragment(flat...)
 }
 
-// If renders node when cond is true, otherwise returns nil.
+// If renders node returned by fn when cond is true, otherwise returns nil.
 // Nil children are safely ignored by all kitex element factories and the
 // reconciler, so this can be used inline without wrapping in a slice.
 //
 // Example:
 //
 //	kitex.Box(kitex.BoxProps{},
-//	    kitex.If(isLoggedIn, UserMenu(UserMenuProps{})),
+//	    kitex.If(isLoggedIn, func() kitex.Node { return UserMenu(UserMenuProps{}) }),
 //	    kitex.Text("Welcome"),
 //	)
-func If(cond bool, node Node) Node {
+func If(cond bool, fn func() Node) Node {
 	if cond {
-		return node
+		return fn()
 	}
 	return nil
 }

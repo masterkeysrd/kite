@@ -212,7 +212,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		TimerComponent(),
 
 		// Subscription component is toggleable
-		kitex.If(getShowSub(), SubscriptionComponent()),
+		kitex.If(getShowSub(), SubscriptionComponent),
 	)
 })
 

@@ -168,7 +168,7 @@ Kitex provides several ergonomic helpers to make VDOM construction cleaner, espe
 
 - **`kitex.Map(items []D, fn func(D, int) Node) Node`**: Transforms a slice of data into a Node (a Fragment). Excellent for rendering keyed lists.
 - **`kitex.Nodes(nodes ...Node) Node`**: Merges multiple nodes (including Fragments and individual nodes) into a single flat Fragment. Filters out `nil` values.
-- **`kitex.If(cond bool, node Node) Node`**: Conditionally renders a node if `cond` is true; otherwise, returns `nil` (which is safely ignored by Kitex).
+- **`kitex.If(cond bool, fn func() Node) Node`**: Conditionally renders a node if `cond` is true; otherwise, returns `nil` (which is safely ignored by Kitex).
 - **`kitex.IfElse(cond bool, thenNode Node, elseNode Node) Node`**: Returns `thenNode` if true, or `elseNode` if false. Both branches are evaluated eagerly.
 - **`kitex.Fragment(children ...Node) Node`**: Returns the provided children grouped together as a single Node without introducing a wrapper element in the DOM.
 
@@ -177,7 +177,9 @@ Kitex provides several ergonomic helpers to make VDOM construction cleaner, espe
 ```go
 var ItemList = kitex.FC("ItemList", func(props struct{ Items []string }) kitex.Node {
     return kitex.Box(kitex.BoxProps{},
-        kitex.If(len(props.Items) == 0, kitex.Text("No items found.")),
+        kitex.If(len(props.Items) == 0, func() kitex.Node {
+            return kitex.Text("No items found.")
+        }),
         
         kitex.Box(kitex.BoxProps{}, 
             kitex.Map(props.Items, func(item string, idx int) kitex.Node {

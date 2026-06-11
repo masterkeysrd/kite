@@ -415,7 +415,7 @@ func TestReconcilerConditionalNilChildren(t *testing.T) {
 
 		return Box(BoxProps{ID: "parent"},
 			Span(SpanProps{ID: "always-here"}),
-			If(cond(), Span(SpanProps{ID: "conditional-span"})),
+			If(cond(), func() Node { return Span(SpanProps{ID: "conditional-span"}) }),
 			Span(SpanProps{ID: "also-always-here"}),
 		)
 	})

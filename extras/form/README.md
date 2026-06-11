@@ -73,7 +73,9 @@ Use `kitex.Form` or manually wire form elements to the `HandleSubmit` function:
 				Name:  "name",
 				Value: state.Values.Name,
 			}),
-			kitex.If(state.Errors["name"] != "", kitex.Text(state.Errors["name"])),
+			kitex.If(state.Errors["name"] != "", func() kitex.Node {
+				return kitex.Text(state.Errors["name"])
+			}),
 		),
 		
 		kitex.Box(kitex.BoxProps{},
@@ -88,7 +90,9 @@ Use `kitex.Form` or manually wire form elements to the `HandleSubmit` function:
 			Disabled: state.IsSubmitting || !state.IsValid,
 		}, kitex.IfElse(state.IsSubmitting, kitex.Text("Saving..."), kitex.Text("Save"))),
 
-		kitex.If(state.Errors["root"] != "", kitex.Text(state.Errors["root"])),
+		kitex.If(state.Errors["root"] != "", func() kitex.Node {
+			return kitex.Text(state.Errors["root"])
+		}),
 	)
 })
 ```

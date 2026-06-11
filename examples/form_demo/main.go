@@ -85,11 +85,11 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			Style: flexColStyle.Width(style.Cells(50)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(1, 2),
 		},
 			// Success Notification
-			kitex.If(notification() != "",
-				kitex.Box(kitex.BoxProps{
+			kitex.If(notification() != "", func() kitex.Node {
+				return kitex.Box(kitex.BoxProps{
 					Style: style.S().Background(colAccent).Foreground(colBG).Padding(0, 1).Margin(0, 0, 1, 0).Bold(true).TextAlign(style.TextAlignCenter),
-				}, kitex.Text(notification())),
-			),
+				}, kitex.Text(notification()))
+			}),
 
 			// Title
 			kitex.Box(kitex.BoxProps{
@@ -119,11 +119,11 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 						Disabled: s.IsSubmitting,
 						Style:    fullWidthStyle.Background(colInputBG).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1),
 					}),
-					kitex.If(s.Errors["username"] != "",
-						kitex.Span(kitex.SpanProps{
+					kitex.If(s.Errors["username"] != "", func() kitex.Node {
+						return kitex.Span(kitex.SpanProps{
 							Style: style.S().Foreground(colError),
-						}, kitex.Text(s.Errors["username"])),
-					),
+						}, kitex.Text(s.Errors["username"]))
+					}),
 				),
 
 				// Field: Role (Select Dropdown) Box

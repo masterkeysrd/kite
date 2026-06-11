@@ -120,24 +120,24 @@ func TestNodes_Empty(t *testing.T) {
 // --- If ---
 
 func TestIf_True(t *testing.T) {
-	n := If(true, Text("visible"))
+	n := If(true, func() Node { return Text("visible") })
 	if n == nil {
-		t.Fatal("If(true, node) should return node")
+		t.Fatal("If(true, fn) should return node")
 	}
 }
 
 func TestIf_False(t *testing.T) {
-	n := If(false, Text("hidden"))
+	n := If(false, func() Node { return Text("hidden") })
 	if n != nil {
-		t.Fatal("If(false, node) should return nil")
+		t.Fatal("If(false, fn) should return nil")
 	}
 }
 
 func TestIf_NilNodePassthrough(t *testing.T) {
-	// Even if the node itself is nil, the function should still pass it through.
-	n := If(true, nil)
+	// Even if the returned node is nil, the function should still return it.
+	n := If(true, func() Node { return nil })
 	if n != nil {
-		t.Fatal("If(true, nil) should return nil")
+		t.Fatal("If(true, returns nil) should return nil")
 	}
 }
 
@@ -217,7 +217,7 @@ func TestIf_SpreadIntoBox(t *testing.T) {
 	render := func(show bool) dom.Element {
 		vdom := Box(BoxProps{},
 			Text("always"),
-			If(show, Text("conditional")),
+			If(show, func() Node { return Text("conditional") }),
 		)
 		return vdom.Instantiate(doc)[0].(dom.Element)
 	}
