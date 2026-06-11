@@ -23,7 +23,7 @@ func TestFlexWrapMinSize(t *testing.T) {
 		Display(style.DisplayFlex).
 		FlexDirection(style.FlexRow).
 		FlexWrap(style.FlexWrapOn).
-		Gap(style.GapValue{Column: 1, Row: 1}),
+		Gap(1),
 	)
 
 	for i := 0; i < 5; i++ {
@@ -75,7 +75,7 @@ func TestFlexWrapMinSizeFail(t *testing.T) {
 	inner := element.Box().Style(style.S().
 		Display(style.DisplayFlex).
 		FlexDirection(style.FlexColumn).
-		Flex(style.FlexItemValue{Shrink: 1}),
+		Flex(0, 1),
 	)
 
 	// Tools box inside Inner.
@@ -83,7 +83,7 @@ func TestFlexWrapMinSizeFail(t *testing.T) {
 		Display(style.DisplayFlex).
 		FlexDirection(style.FlexRow).
 		FlexWrap(style.FlexWrapOn).
-		Gap(style.GapValue{Column: 1, Row: 1}),
+		Gap(1),
 	)
 	for i := 0; i < 5; i++ {
 		tools.AddChild(element.Box().Style(style.S().
