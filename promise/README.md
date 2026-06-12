@@ -22,6 +22,21 @@ p.Then(func(data string) {
 })
 ```
 
+## Wrapping Synchronous Functions
+
+If you have existing synchronous functions, you can easily convert them into asynchronous functions that return a `*Promise` using the `Wrap` and `WrapWithProps` utility functions. This is especially useful for creating reusable fetchers for the `wind` package.
+
+```go
+// 1. A function that only takes a context
+func fetchConfigSync(ctx context.Context) (Config, error) { /* ... */ }
+var FetchConfigAsync = promise.Wrap(fetchConfigSync)
+
+// 2. A function that takes a context and an arguments/properties struct
+type UserProps struct { ID int }
+func fetchUserSync(ctx context.Context, props UserProps) (User, error) { /* ... */ }
+var FetchUserAsync = promise.WrapWithProps(fetchUserSync)
+```
+
 ## Thread Safety
 
 - **Background Execution**: The executor function runs in the engine's background worker pool, preventing UI freezes during expensive operations.
