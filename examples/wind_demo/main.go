@@ -61,9 +61,9 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 	key := PodKey{Namespace: "prod", ID: "nginx-web-app"}
 
 	// Use wind query hook
-	query := wind.Use(key, func(ctx context.Context) *promise.Promise[string] {
+	query := wind.Use(key, func(ctx context.Context, k PodKey) *promise.Promise[string] {
 		return promise.New(func(ctx context.Context) (string, error) {
-			return fetchPodStatus(ctx, key)
+			return fetchPodStatus(ctx, k)
 		})
 	})
 

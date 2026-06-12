@@ -20,7 +20,7 @@ func TestContextCancellationOnUnmount(t *testing.T) {
 	client := NewClient()
 
 	ctxCancelled := make(chan struct{})
-	fetcher := func(windCtx context.Context) *promise.Promise[string] {
+	fetcher := func(windCtx context.Context, key string) *promise.Promise[string] {
 		return promise.New(func(schedCtx context.Context) (string, error) {
 			select {
 			case <-windCtx.Done():
@@ -59,7 +59,7 @@ func TestContextCancellationOnUnmount(t *testing.T) {
 
 type ChildProps struct {
 	Key     string
-	Fetcher func(context.Context) *promise.Promise[string]
+	Fetcher func(context.Context, string) *promise.Promise[string]
 }
 
 var ChildQueryComp = kitex.FC("ChildQueryComp", func(props ChildProps) kitex.Node {
@@ -78,7 +78,7 @@ func TestRequestDeduping(t *testing.T) {
 	var fetchCount int
 	var mu sync.Mutex
 
-	fetcher := func(ctx context.Context) *promise.Promise[string] {
+	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
 		mu.Lock()
 		fetchCount++
 		mu.Unlock()
@@ -120,7 +120,7 @@ func TestQueryInvalidation(t *testing.T) {
 	var fetchCount int
 	var mu sync.Mutex
 
-	fetcher := func(ctx context.Context) *promise.Promise[string] {
+	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
 		mu.Lock()
 		fetchCount++
 		currentCount := fetchCount
@@ -262,7 +262,7 @@ func BenchmarkUseQuery(b *testing.B) {
 	defer kitex.Render(nil, container)
 
 	client := NewClient()
-	fetcher := func(ctx context.Context) *promise.Promise[string] {
+	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
 		return promise.New(func(ctx context.Context) (string, error) {
 			return "data", nil
 		})

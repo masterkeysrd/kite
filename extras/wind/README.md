@@ -54,9 +54,9 @@ type PodInfo struct {
 
 var PodViewer = kitex.FC("PodViewer", func(props PodKey) kitex.Node {
 	// res holds Data, IsLoading, IsFetching, IsError, Error, and Refetch()
-	res := wind.Use(props, func(ctx context.Context) *promise.Promise[PodInfo] {
+	res := wind.Use(props, func(ctx context.Context, key PodKey) *promise.Promise[PodInfo] {
 		return promise.New(func(ctx context.Context) (PodInfo, error) {
-			return fetchPodDetails(ctx, props.Namespace, props.PodName)
+			return fetchPodDetails(ctx, key.Namespace, key.PodName)
 		})
 	})
 
@@ -130,7 +130,7 @@ var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node 
 
 ### Hooks
 
-- **`Use[K comparable, T any](key K, fetcher func(context.Context) *promise.Promise[T], opts ...Options) Result[T]`**:
+- **`Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.Promise[T], opts ...Options) Result[T]`**:
   - `Options.Enabled`: Set to `false` to disable automatic fetching on mount.
   - `Options.StaleTime`: Max age before the cache entry is considered stale and re-fetched on mount/dependency change.
 - **`UseMutation[V, R any](mutationFn func(context.Context, V) *promise.Promise[R], opts ...MutationOptions[V, R]) MutationResult[V]`**:

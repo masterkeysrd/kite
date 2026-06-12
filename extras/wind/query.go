@@ -22,7 +22,7 @@ type Options struct {
 	StaleTime time.Duration
 }
 
-func Use[K comparable, T any](key K, fetcher func(context.Context) *promise.Promise[T], opts ...Options) Result[T] {
+func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.Promise[T], opts ...Options) Result[T] {
 	client := UseClient()
 	if client == nil {
 		panic("wind.Use must be used inside a wind.Provider")
@@ -58,7 +58,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context) *promise.Prom
 	// Register refetch implementation
 	entry.mu.Lock()
 	typeEraser := func(ctx context.Context) *promise.Promise[any] {
-		p := fetcher(ctx)
+		p := fetcher(ctx, key)
 		return promise.New(func(ctx context.Context) (any, error) {
 			return p.Await(ctx)
 		})
