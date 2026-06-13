@@ -68,13 +68,14 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}
 			return errs
 		},
-		OnSubmit: func(d ProfileData) error {
-			// Set success message and flag
-			setNotification(fmt.Sprintf("SUCCESS: Profile for '%s' initialized.", d.Username))
-			setHasSubmitted(true)
-			return nil
-		},
 	})
+
+	onSubmit := func(d ProfileData) error {
+		// Set success message and flag
+		setNotification(fmt.Sprintf("SUCCESS: Profile for '%s' initialized.", d.Username))
+		setHasSubmitted(true)
+		return nil
+	}
 
 	s := f.State()
 
@@ -103,7 +104,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 			// Form Wrapper
 			kitex.Form(kitex.FormProps{
-				OnSubmit: f.HandleSubmit,
+				OnSubmit: f.HandleSubmit(onSubmit),
 				Style:    flexColStyle,
 			},
 				// Field: Username Box

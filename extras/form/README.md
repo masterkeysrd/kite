@@ -48,12 +48,13 @@ var MyForm = kitex.SimpleFC("MyForm", func() kitex.Node {
 			}
 			return errors
 		},
-		OnSubmit: func(values UserForm) error {
-			// Handle API request or state update here
-			fmt.Printf("Submitting: %+v\n", values)
-			return nil // returning an error populates the "root" error
-		},
 	})
+
+	onSubmit := func(values UserForm) error {
+		// Handle API request or state update here
+		fmt.Printf("Submitting: %+v\n", values)
+		return nil // returning an error populates the "root" error
+	}
 
 	state := formAPI.State()
 
@@ -66,7 +67,7 @@ Use `kitex.Form` or manually wire form elements to the `HandleSubmit` function:
 
 ```go
 	return kitex.Form(kitex.FormProps{
-		OnSubmit: formAPI.HandleSubmit,
+		OnSubmit: formAPI.HandleSubmit(onSubmit),
 	},
 		kitex.Box(kitex.BoxProps{},
 			kitex.Input(kitex.InputProps{
@@ -107,17 +108,16 @@ Initializes the form hook with configuration options and returns the API interfa
 
 - **`InitialValues T`**: The starting values of the form struct.
 - **`Validate func(T) map[string]string`**: A callback executed before submission. Should return a map of field names to error messages. Return an empty map or `nil` if there are no errors.
-- **`OnSubmit func(T) error`**: The function invoked when validation passes. It receives the fully parsed struct. Returning an error populates `Errors["root"]`.
 
 ### `API[T]`
 
 - **`State() State[T]`**: Returns the current snapshot of the form.
-- **`HandleSubmit(map[string]any)`**: An event handler that accepts a map of raw values (typically from `kitex.Form` `OnSubmit`), parses it into struct `T`, validates, and potentially invokes `OnSubmit`.
+- **`HandleSubmit(onSubmit func(T) error) func(map[string]any)`**: Wraps a submit handler function and returns a DOM event handler that parses raw form values into struct `T`, validates them, and invokes `onSubmit`.
 - **`SetError(key string, message string)`**: Manually set an error for a given field key. Passing an empty message `""` clears the error for that key.
 
 ### `State[T]`
 
 - **`Values T`**: The current fully parsed values.
 - **`Errors map[string]string`**: Current validation or manual errors.
-- **`IsSubmitting bool`**: `true` while the `OnSubmit` function is executing.
+- **`IsSubmitting bool`**: `true` while the `onSubmit` function is executing.
 - **`IsValid bool`**: `true` if `Errors` map is empty.

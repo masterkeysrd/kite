@@ -21,6 +21,12 @@ func TestFormHook(t *testing.T) {
 	var onSubmitCalled bool
 	var submittedValues TestData
 
+	onSubmit := func(d TestData) error {
+		onSubmitCalled = true
+		submittedValues = d
+		return nil
+	}
+
 	myComp := kitex.SimpleFC("TestComp", func() kitex.Node {
 		formAPI = Use(Options[TestData]{
 			InitialValues: TestData{Name: "Default", Age: 18},
@@ -30,11 +36,6 @@ func TestFormHook(t *testing.T) {
 					errs["name"] = "Too short"
 				}
 				return errs
-			},
-			OnSubmit: func(d TestData) error {
-				onSubmitCalled = true
-				submittedValues = d
-				return nil
 			},
 		})
 		return kitex.Box(kitex.BoxProps{})
@@ -54,7 +55,7 @@ func TestFormHook(t *testing.T) {
 	}
 
 	// 1. Test Validation Failure
-	formAPI.HandleSubmit(map[string]any{
+	formAPI.HandleSubmit(onSubmit)(map[string]any{
 		"name":      "Jo",
 		"age":       25,
 		"is_active": true,
@@ -75,7 +76,7 @@ func TestFormHook(t *testing.T) {
 
 	// 2. Test Successful Submission (Sync)
 	onSubmitCalled = false
-	formAPI.HandleSubmit(map[string]any{
+	formAPI.HandleSubmit(onSubmit)(map[string]any{
 		"name":      "John",
 		"age":       30,
 		"is_active": true,
@@ -117,18 +118,17 @@ func TestFormSubmitError(t *testing.T) {
 	var formAPI API[TestData]
 
 	myComp := kitex.SimpleFC("TestComp", func() kitex.Node {
-		formAPI = Use(Options[TestData]{
-			OnSubmit: func(d TestData) error {
-				return errors.New("submission failed")
-			},
-		})
+		formAPI = Use(Options[TestData]{})
 		return kitex.Box(kitex.BoxProps{})
 	})
 
 	node := myComp()
 	_ = node.Instantiate(doc)
 
-	formAPI.HandleSubmit(map[string]any{"name": "test"})
+	onSubmit := func(d TestData) error {
+		return errors.New("submission failed")
+	}
+	formAPI.HandleSubmit(onSubmit)(map[string]any{"name": "test"})
 
 	state := formAPI.State()
 	if state.Errors["root"] != "submission failed" {

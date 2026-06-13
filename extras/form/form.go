@@ -18,13 +18,12 @@ type State[T any] struct {
 type Options[T any] struct {
 	InitialValues T
 	Validate      func(T) map[string]string
-	OnSubmit      func(T) error
 }
 
 // API provides methods to interact with the form state.
 type API[T any] struct {
 	State        func() State[T]
-	HandleSubmit func(map[string]any)
+	HandleSubmit func(onSubmit func(T) error) func(map[string]any)
 	SetError     func(string, string)
 }
 
@@ -53,63 +52,65 @@ func Use[T any](opts Options[T]) API[T] {
 		setState(s)
 	}
 
-	handleSubmit := func(rawData map[string]any) {
-		var values T
+	handleSubmit := func(onSubmit func(T) error) func(map[string]any) {
+		return func(rawData map[string]any) {
+			var values T
 
-		// 1. Map raw map data into struct T using JSON trick
-		data, err := json.Marshal(rawData)
-		if err == nil {
-			err = json.Unmarshal(data, &values)
-		}
+			// 1. Map raw map data into struct T using JSON trick
+			data, err := json.Marshal(rawData)
+			if err == nil {
+				err = json.Unmarshal(data, &values)
+			}
 
-		if err != nil {
-			setError("root", "Form data mapping failed: "+err.Error())
-			return
-		}
+			if err != nil {
+				setError("root", "Form data mapping failed: "+err.Error())
+				return
+			}
 
-		// 2. Run validation
-		var errors map[string]string
-		if opts.Validate != nil {
-			errors = opts.Validate(values)
-		}
+			// 2. Run validation
+			var errors map[string]string
+			if opts.Validate != nil {
+				errors = opts.Validate(values)
+			}
 
-		if len(errors) > 0 {
+			if len(errors) > 0 {
+				s := getState()
+				s.Values = values
+				s.Errors = errors
+				s.IsValid = false
+				setState(s)
+				return
+			}
+
+			// 3. Transition to submitting state
 			s := getState()
 			s.Values = values
-			s.Errors = errors
-			s.IsValid = false
+			s.Errors = make(map[string]string)
+			s.IsSubmitting = true
+			s.IsValid = true
 			setState(s)
-			return
-		}
 
-		// 3. Transition to submitting state
-		s := getState()
-		s.Values = values
-		s.Errors = make(map[string]string)
-		s.IsSubmitting = true
-		s.IsValid = true
-		setState(s)
-
-		// 4. Run OnSubmit
-		var submitErr error
-		if opts.OnSubmit != nil {
-			submitErr = opts.OnSubmit(values)
-		}
-
-		// 5. Update state after completion
-		s = getState()
-		s.IsSubmitting = false
-		if submitErr != nil {
-			// Clone errors again just in case
-			newErrors := make(map[string]string)
-			for k, v := range s.Errors {
-				newErrors[k] = v
+			// 4. Run OnSubmit callback
+			var submitErr error
+			if onSubmit != nil {
+				submitErr = onSubmit(values)
 			}
-			newErrors["root"] = submitErr.Error()
-			s.Errors = newErrors
-			s.IsValid = false
+
+			// 5. Update state after completion
+			s = getState()
+			s.IsSubmitting = false
+			if submitErr != nil {
+				// Clone errors again just in case
+				newErrors := make(map[string]string)
+				for k, v := range s.Errors {
+					newErrors[k] = v
+				}
+				newErrors["root"] = submitErr.Error()
+				s.Errors = newErrors
+				s.IsValid = false
+			}
+			setState(s)
 		}
-		setState(s)
 	}
 
 	return API[T]{
