@@ -1467,3 +1467,44 @@ func TestFlexLayout_IndefiniteGrowShrink(t *testing.T) {
 		t.Errorf("expected parent height 10, got %d", frag.Size.Height)
 	}
 }
+
+func TestFlexLayout_ClampedContainerLaysOutChildrenWithinClampedSpace(t *testing.T) {
+	// A column flex container with percentage height (Height: 100%) and MaxHeight: 10.
+	// It has a child with height: 100% (or flex: 1).
+	// The child should be laid out with a clamped height of 10.
+
+	childStyle := style.DefaultStyle()
+	childStyle.Height = style.Percent(100)
+	childStyle.Flex = style.FlexItemValue{Grow: 1, Shrink: 1}
+	child := &mockNode{style: &childStyle}
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexColumn
+	parentStyle.Height = style.Percent(100)
+	parentStyle.MaxHeight = style.Cells(10)
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).
+		SetContainerSpace(geometry.Size{100, 100}).
+		SetContainingSpace(geometry.Size{100, 100}).
+		ToConstraintSpace()
+
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	if frag.Size.Height != 10 {
+		t.Errorf("expected parent height clamped to MaxHeight 10, got %d", frag.Size.Height)
+	}
+
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+	childFrag := frag.Children[0].Fragment
+	if childFrag.Size.Height != 10 {
+		t.Errorf("expected child height to be clamped to parent MaxHeight 10, got %d", childFrag.Size.Height)
+	}
+}

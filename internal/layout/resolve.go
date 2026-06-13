@@ -73,3 +73,49 @@ func BuildChildSpace(child Node, containerSpace geometry.Size, containingSpace g
 
 	return space
 }
+
+// ClampWidth clamps the width according to the node's style min/max constraints.
+func ClampWidth(node Node, width int, parentSpace ConstraintSpace) int {
+	comp := node.Style()
+	if comp == nil || comp.Foreground == nil {
+		return width
+	}
+	// Clamp MinWidth
+	if comp.MinWidth.Kind() == style.KindCells {
+		width = max(width, comp.MinWidth.CellsValue())
+	} else if comp.MinWidth.Kind() == style.KindPercent {
+		ref := parentSpace.ContainerSpace.Width
+		width = max(width, int(float32(ref)*comp.MinWidth.PercentValue()/100.0+0.5))
+	}
+	// Clamp MaxWidth
+	if comp.MaxWidth.Kind() == style.KindCells {
+		width = min(width, comp.MaxWidth.CellsValue())
+	} else if comp.MaxWidth.Kind() == style.KindPercent {
+		ref := parentSpace.ContainerSpace.Width
+		width = min(width, int(float32(ref)*comp.MaxWidth.PercentValue()/100.0+0.5))
+	}
+	return width
+}
+
+// ClampHeight clamps the height according to the node's style min/max constraints.
+func ClampHeight(node Node, height int, parentSpace ConstraintSpace) int {
+	comp := node.Style()
+	if comp == nil || comp.Foreground == nil {
+		return height
+	}
+	// Clamp MinHeight
+	if comp.MinHeight.Kind() == style.KindCells {
+		height = max(height, comp.MinHeight.CellsValue())
+	} else if comp.MinHeight.Kind() == style.KindPercent && parentSpace.ContainerSpace.Height < InfiniteBlockSize {
+		ref := parentSpace.ContainerSpace.Height
+		height = max(height, int(float32(ref)*comp.MinHeight.PercentValue()/100.0+0.5))
+	}
+	// Clamp MaxHeight
+	if comp.MaxHeight.Kind() == style.KindCells {
+		height = min(height, comp.MaxHeight.CellsValue())
+	} else if comp.MaxHeight.Kind() == style.KindPercent && parentSpace.ContainerSpace.Height < InfiniteBlockSize {
+		ref := parentSpace.ContainerSpace.Height
+		height = min(height, int(float32(ref)*comp.MaxHeight.PercentValue()/100.0+0.5))
+	}
+	return height
+}

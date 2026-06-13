@@ -291,6 +291,52 @@ func TestBlockLayout_FixedHeightRespected(t *testing.T) {
 	}
 }
 
+func TestBlockLayout_MinMaxDimensionsClamped(t *testing.T) {
+	nodeStyle := style.DefaultStyle()
+	nodeStyle.Width = style.Cells(100)
+	nodeStyle.Height = style.Cells(100)
+	nodeStyle.MinWidth = style.Cells(20)
+	nodeStyle.MaxWidth = style.Cells(80)
+	nodeStyle.MinHeight = style.Cells(30)
+	nodeStyle.MaxHeight = style.Cells(80)
+
+	node := &mockNode{
+		style: &nodeStyle,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 200, Height: 200}).ToConstraintSpace()
+	algo := GetAlgorithm(node)
+	frag := algo.Layout(nil, node, space)
+
+	if frag.Size.Width != 80 {
+		t.Errorf("expected width clamped to MaxWidth 80, got %d", frag.Size.Width)
+	}
+	if frag.Size.Height != 80 {
+		t.Errorf("expected height clamped to MaxHeight 80, got %d", frag.Size.Height)
+	}
+
+	// Test Min constraints
+	nodeStyle2 := style.DefaultStyle()
+	nodeStyle2.Width = style.Cells(10)
+	nodeStyle2.Height = style.Cells(10)
+	nodeStyle2.MinWidth = style.Cells(25)
+	nodeStyle2.MaxWidth = style.Content
+	nodeStyle2.MinHeight = style.Cells(35)
+	nodeStyle2.MaxHeight = style.Content
+
+	node2 := &mockNode{
+		style: &nodeStyle2,
+	}
+
+	frag2 := algo.Layout(nil, node2, space)
+	if frag2.Size.Width != 25 {
+		t.Errorf("expected width clamped to MinWidth 25, got %d", frag2.Size.Width)
+	}
+	if frag2.Size.Height != 35 {
+		t.Errorf("expected height clamped to MinHeight 35, got %d", frag2.Size.Height)
+	}
+}
+
 func TestBlockLayout_IntrinsicSizeCaching(t *testing.T) {
 	child := &mockNode{
 		style: &style.Computed{

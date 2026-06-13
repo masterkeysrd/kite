@@ -87,6 +87,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		}
 	}
 	resolvedInlineSize = max(resolvedInlineSize, decor.Insets.Left+decor.Insets.Right)
+	if !space.IsFixedInlineSize {
+		resolvedInlineSize = ClampWidth(node, resolvedInlineSize, space)
+	}
 
 	// 3. Setup Builder: Initialize BoxFragmentBuilder and resolve FragmentGeometry.
 	builder := AcquireBoxFragmentBuilder(node, space)

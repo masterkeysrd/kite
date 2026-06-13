@@ -215,6 +215,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 				resolvedWidth = space.AvailableSize.Width
 			}
 		}
+		resolvedWidth = ClampWidth(node, resolvedWidth, space)
 	}
 	resolvedWidth = max(resolvedWidth, decor.Insets.Left+decor.Insets.Right)
 
@@ -232,6 +233,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 		case style.KindContent:
 			// TODO: Resolve from content
 		}
+		resolvedHeight = ClampHeight(node, resolvedHeight, space)
 	}
 
 	contentWidth := max(0, resolvedWidth-decor.Insets.Left-decor.Insets.Right)
@@ -508,6 +510,13 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 			}
 			resolvedHeight = logicalHeight + decor.Insets.Top + decor.Insets.Bottom
 		}
+	}
+
+	if !space.IsFixedInlineSize {
+		resolvedWidth = ClampWidth(node, resolvedWidth, space)
+	}
+	if !space.IsFixedBlockSize {
+		resolvedHeight = ClampHeight(node, resolvedHeight, space)
 	}
 
 	containerSize := geometry.Size{Width: resolvedWidth, Height: resolvedHeight}

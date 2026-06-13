@@ -100,12 +100,46 @@ func (b *BoxFragmentBuilder) SetBreakToken(token *BreakToken) {
 
 // SetInlineSize sets the final inline size (width) of the fragment.
 func (b *BoxFragmentBuilder) SetInlineSize(width int) {
-	b.size.Width = width
+	b.size.Width = b.clampInlineSize(width)
 }
 
 // SetBlockSize sets the final block size (height) of the fragment.
 func (b *BoxFragmentBuilder) SetBlockSize(height int) {
-	b.size.Height = height
+	b.size.Height = b.clampBlockSize(height)
+}
+
+func isAnonymous(node Node) bool {
+	if node == nil {
+		return false
+	}
+	switch node.(type) {
+	case *AnonymousBlock, *anonymousTableSection, *anonymousTableRow:
+		return true
+	default:
+		return false
+	}
+}
+
+func (b *BoxFragmentBuilder) clampInlineSize(width int) int {
+	if b.node == nil || isAnonymous(b.node) {
+		return width
+	}
+	comp := b.node.Style()
+	if comp == nil || comp.Foreground == nil {
+		return width
+	}
+	return ClampWidth(b.node, width, b.space)
+}
+
+func (b *BoxFragmentBuilder) clampBlockSize(height int) int {
+	if b.node == nil || isAnonymous(b.node) {
+		return height
+	}
+	comp := b.node.Style()
+	if comp == nil || comp.Foreground == nil {
+		return height
+	}
+	return ClampHeight(b.node, height, b.space)
 }
 
 // SetHasScrollbarX sets whether the fragment has a horizontal scrollbar.
