@@ -159,6 +159,7 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 		c.Underline = parent.Underline
 		c.Strikethrough = parent.Strikethrough
 		c.TextWrap = parent.TextWrap
+		c.TextAlign = parent.TextAlign
 		c.TextOverflow = parent.TextOverflow
 		c.WhiteSpace = parent.WhiteSpace
 		c.WordBreak = parent.WordBreak

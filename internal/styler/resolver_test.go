@@ -116,6 +116,24 @@ func TestResolver_InheritsColor(t *testing.T) {
 	}
 }
 
+func TestResolver_InheritsTextAlign(t *testing.T) {
+	r := styler.NewResolver()
+
+	parentComputed := &style.Computed{
+		TextAlign: style.TextAlignCenter,
+	}
+
+	childNode := &fakeNode{kind: dom.KindElement}
+	childRO := render.NewBox(childNode, nil)
+	childRO.MarkDirty(render.DirtyStyle)
+
+	got := r.Resolve(childRO, parentComputed)
+
+	if got.TextAlign != style.TextAlignCenter {
+		t.Errorf("child: TextAlign = %v, want inherited TextAlignCenter", got.TextAlign)
+	}
+}
+
 func TestResolver_FullTreeWalk(t *testing.T) {
 	r := styler.NewResolver()
 

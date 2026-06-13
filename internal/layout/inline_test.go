@@ -994,3 +994,52 @@ func TestInlineLayout_EmergencyBreak(t *testing.T) {
 		t.Errorf("expected second line width 5, got %d", frag.Children[1].Fragment.Size.Width)
 	}
 }
+
+func TestInlineLayout_TextAlignCenterTwoLines(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{Display: style.DisplayInline},
+		},
+		data: "Hello World", // total 11 chars. If width is 8, wraps to:
+		// Line 1: "Hello" (width 5)
+		// Line 2: "World" (width 5)
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display:   style.DisplayBlock,
+			Width:     style.Cells(8),
+			TextAlign: style.TextAlignCenter,
+		},
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	// We expect 2 lines (LineBoxes).
+	if len(frag.Children) != 2 {
+		t.Fatalf("expected 2 lines, got %d", len(frag.Children))
+	}
+
+	// Line 1 (Hello): Center offset = (8-5)/2 = 1.
+	lineBox1 := frag.Children[0].Fragment
+	if len(lineBox1.Children) != 1 {
+		t.Fatalf("line 1: expected 1 child, got %d", len(lineBox1.Children))
+	}
+	textLink1 := lineBox1.Children[0]
+	if textLink1.Offset.X != 1 {
+		t.Errorf("line 1: expected offset.X 1, got %d", textLink1.Offset.X)
+	}
+
+	// Line 2 (World): Center offset = (8-5)/2 = 1.
+	lineBox2 := frag.Children[1].Fragment
+	if len(lineBox2.Children) != 1 {
+		t.Fatalf("line 2: expected 1 child, got %d", len(lineBox2.Children))
+	}
+	textLink2 := lineBox2.Children[0]
+	if textLink2.Offset.X != 1 {
+		t.Errorf("line 2: expected offset.X 1, got %d", textLink2.Offset.X)
+	}
+}
