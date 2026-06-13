@@ -307,3 +307,49 @@ func BenchmarkUseMutation(b *testing.B) {
 		kitex.Render(Provider(ProviderProps{Client: client}, comp()), container)
 	}
 }
+
+func TestQueryInitialLoadingState(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	client := NewClient()
+
+	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
+		return promise.New(func(ctx context.Context) (string, error) {
+			time.Sleep(10 * time.Millisecond)
+			return "data", nil
+		})
+	}
+
+	var capturedIsLoading bool
+	var capturedData string
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		res := Use("test_loading_key", fetcher)
+		capturedIsLoading = res.IsLoading
+		capturedData = res.Data
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+	})
+
+	// Render initially. On this very first render, the hook should report IsLoading as true.
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	if !capturedIsLoading {
+		t.Error("expected IsLoading to be true on the first render pass")
+	}
+	if capturedData != "" {
+		t.Errorf("expected initial data to be empty, got %q", capturedData)
+	}
+
+	// Wait for the fetch to complete
+	time.Sleep(20 * time.Millisecond)
+
+	// After completion, the state should update and report IsLoading as false.
+	if capturedIsLoading {
+		t.Error("expected IsLoading to be false after query settles")
+	}
+	if capturedData != "data" {
+		t.Errorf("expected settled data to be 'data', got %q", capturedData)
+	}
+}

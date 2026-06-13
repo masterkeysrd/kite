@@ -113,7 +113,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 
 	return Result[T]{
 		Data:       data,
-		IsLoading:  entry.state.status == "loading" && entry.state.isFetching,
+		IsLoading:  entry.state.status == "loading",
 		IsFetching: entry.state.isFetching,
 		IsError:    entry.state.status == "error",
 		Error:      entry.state.err,
