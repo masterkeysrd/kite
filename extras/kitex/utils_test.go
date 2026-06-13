@@ -127,9 +127,9 @@ func TestIf_True(t *testing.T) {
 }
 
 func TestIf_False(t *testing.T) {
-	n := If(false, func() Node { return Text("hidden") })
-	if n != nil {
-		t.Fatal("If(false, fn) should return nil")
+	nFalse := If(false, func() Node { return Text("hidden") })
+	if nFalse == nil || nFalse.TagName() != "#empty" {
+		t.Errorf("If(false, fn) should return an emptyNode, got %v", nFalse)
 	}
 }
 

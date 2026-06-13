@@ -631,13 +631,31 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			oldS[matchedIdx] = nil
 		} else {
 			newReals := newStartNode.Instantiate(parent.OwnerDocument())
-			var insertBeforeRef dom.Node
-			startNodes := nodeMap[oldStartNode]
-			if len(startNodes) > 0 {
-				insertBeforeRef = startNodes[0]
+			var refNode dom.Node
+			// We cannot just blindly use `insertBeforeRef` here. If the previous `oldStartNode`
+			// was an `emptyNode` (which generates no real DOM nodes), it would fail to provide
+			// a valid DOM anchor and default to `nil`, incorrectly appending the new nodes at the end.
+			// Instead, we scan forward through the remaining old nodes to find the first one
+			// that has actual real DOM nodes attached to it, and use that as our anchor.
+			for i := oldStartIdx; i <= oldEndIdx; i++ {
+				if oldS[i] != nil {
+					var oldReals []dom.Node
+					if nodeMap != nil {
+						oldReals = nodeMap[oldS[i]]
+					} else {
+						oldReals = oldChildren[i].(nodeInternal).realNodes()
+					}
+					if len(oldReals) > 0 {
+						refNode = oldReals[0]
+						break
+					}
+				}
+			}
+			if refNode == nil {
+				refNode = insertBeforeRef
 			}
 			for _, node := range newReals {
-				parent.InsertBefore(node, insertBeforeRef)
+				parent.InsertBefore(node, refNode)
 			}
 		}
 		newStartIdx++
@@ -929,13 +947,31 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			oldS[matchedIdx] = flatNode{}
 		} else {
 			newReals := instantiateFlat(parent, newStartNode)
-			var insertBeforeRef dom.Node
-			startNodes := nodeMap[oldStartNode.node]
-			if len(startNodes) > 0 {
-				insertBeforeRef = startNodes[0]
+			var refNode dom.Node
+			// We cannot just blindly use `insertBeforeRef` here. If the previous `oldStartNode`
+			// was an `emptyNode` (which generates no real DOM nodes), it would fail to provide
+			// a valid DOM anchor and default to `nil`, incorrectly appending the new nodes at the end.
+			// Instead, we scan forward through the remaining old nodes to find the first one
+			// that has actual real DOM nodes attached to it, and use that as our anchor.
+			for i := oldStartIdx; i <= oldEndIdx; i++ {
+				if oldS[i].node != nil {
+					var oldReals []dom.Node
+					if nodeMap != nil {
+						oldReals = nodeMap[oldS[i].node]
+					} else {
+						oldReals = flatOld[i].node.(nodeInternal).realNodes()
+					}
+					if len(oldReals) > 0 {
+						refNode = oldReals[0]
+						break
+					}
+				}
+			}
+			if refNode == nil {
+				refNode = insertBeforeRef
 			}
 			for _, node := range newReals {
-				parent.InsertBefore(node, insertBeforeRef)
+				parent.InsertBefore(node, refNode)
 			}
 		}
 		newStartIdx++

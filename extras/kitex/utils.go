@@ -77,7 +77,35 @@ func If(cond bool, fn func() Node) Node {
 	if cond {
 		return fn()
 	}
-	return nil
+	return Empty()
+}
+
+// emptyNode acts as a placeholder for conditionals to maintain positional VDOM integrity.
+// React natively uses `null` for this, but Kitex's reconciler specifically drops `nil` nodes
+// during tree flattening to reduce memory/slice overhead, and then uses `nil` internally
+// within its state machine to track nodes that have been processed/moved.
+// Using a tangible emptyNode preserves the structural array index of sibling components,
+// preventing unkeyed siblings from being incorrectly matched against each other when
+// conditional nodes mount or unmount.
+type emptyNode struct{}
+
+func (e emptyNode) Instantiate(doc dom.Document) []dom.Node { return nil }
+func (e emptyNode) Update(els []dom.Node, old Node)         {}
+func (e emptyNode) Children() []Node                        { return nil }
+func (e emptyNode) Props() any                              { return nil }
+func (e emptyNode) TagName() string                         { return "#empty" }
+func (e emptyNode) Key() string                             { return "" }
+func (e emptyNode) Release()                                {}
+func (e emptyNode) realNodes() []dom.Node                   { return nil }
+func (e emptyNode) setRefs(refs []dom.Node)                 {}
+func (e emptyNode) complexity() int                         { return 0 }
+func (e emptyNode) containsProvider() bool                  { return false }
+func (e emptyNode) isProvider() bool                        { return false }
+func (e emptyNode) hasDirectProvider() bool                 { return false }
+
+// Empty returns a placeholder node that renders nothing, used by conditionals like If.
+func Empty() Node {
+	return emptyNode{}
 }
 
 // IfElse renders thenNode when cond is true, elseNode otherwise.
