@@ -4,12 +4,12 @@ package style
 type DimensionKind uint8
 
 const (
+	// KindAuto lets the layout engine determine the dimension.
+	KindAuto DimensionKind = iota
 	// KindCells is a fixed number of terminal cells.
-	KindCells DimensionKind = iota
+	KindCells
 	// KindPercent is a percentage of the parent's dimension.
 	KindPercent
-	// KindAuto lets the layout engine determine the dimension.
-	KindAuto
 	// KindContent sizes the element to fit its content, capped at the available width.
 	KindContent
 	// KindFr is a fractional unit used in flex/grid contexts.

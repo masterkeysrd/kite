@@ -77,7 +77,7 @@ func BuildChildSpace(child Node, containerSpace geometry.Size, containingSpace g
 // ClampWidth clamps the width according to the node's style min/max constraints.
 func ClampWidth(node Node, width int, parentSpace ConstraintSpace) int {
 	comp := node.Style()
-	if comp == nil || comp.Foreground == nil {
+	if comp == nil {
 		return width
 	}
 	// Clamp MinWidth
@@ -100,7 +100,7 @@ func ClampWidth(node Node, width int, parentSpace ConstraintSpace) int {
 // ClampHeight clamps the height according to the node's style min/max constraints.
 func ClampHeight(node Node, height int, parentSpace ConstraintSpace) int {
 	comp := node.Style()
-	if comp == nil || comp.Foreground == nil {
+	if comp == nil {
 		return height
 	}
 	// Clamp MinHeight

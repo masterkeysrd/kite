@@ -125,7 +125,7 @@ func (b *BoxFragmentBuilder) clampInlineSize(width int) int {
 		return width
 	}
 	comp := b.node.Style()
-	if comp == nil || comp.Foreground == nil {
+	if comp == nil {
 		return width
 	}
 	return ClampWidth(b.node, width, b.space)
@@ -136,7 +136,7 @@ func (b *BoxFragmentBuilder) clampBlockSize(height int) int {
 		return height
 	}
 	comp := b.node.Style()
-	if comp == nil || comp.Foreground == nil {
+	if comp == nil {
 		return height
 	}
 	return ClampHeight(b.node, height, b.space)
