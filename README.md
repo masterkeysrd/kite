@@ -17,6 +17,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - ✈️ **Stack Navigation**: Type-safe stack-based navigation (push/pop) with automated focus isolation (via [`extras/flight`](extras/flight/)).
 - 🌀 **Async Fetching & Cache**: Ergonomic data fetching and caching with background refetches and mutations (via [`extras/wind`](extras/wind/)).
 - 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`promise`](promise/)).
+- 🎭 **Component Playground**: Interactive component development sandbox with live knobs and action logs (via [`extras/stage`](extras/stage/)).
 
 ## 🏗 Architecture Overview
 
@@ -131,6 +132,91 @@ Toggle colored bounding boxes directly on your running application for immediate
 
 ### Performance Profiler
 Analyze execution durations for the rendering pipeline phases and asynchronous background jobs with interactive flamecharts and Chrome Trace export.
+
+## 🎭 Stage – Component Playground
+
+[`extras/stage`](extras/stage/) is an interactive component development sandbox inspired by Storybook. It lets you build, tweak, and preview Kitex components in complete isolation — without running your main application.
+
+### Layout
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  📖 SCENES          │                                              │
+│  ─────────────────  │         Component Canvas (70%)               │
+│  Button / Default   │                                              │
+│  Button / Primary   │          ┌─────────────────────┐             │
+│  Text Input / Basic │          │   rendered scene    │             │
+│  Status Badges / …  │          └─────────────────────┘             │
+├─────────────────────┴──────────────────────────────────────────────┤
+│  🛠️ CONTROLS              │  📋 ACTION LOG                         │
+│  Label      Submit Form  │  12:01:05  Button clicked!              │
+│  Disabled   [ ]          │  12:01:07  Button clicked!              │
+└───────────────────────────────────────────────────────────────────-┘
+```
+
+### Controls
+
+Register interactive knobs in your scene's `Render` function via the `*stage.Context`:
+
+| Method | Control type | Description |
+|--------|-------------|-------------|
+| `c.Text(name, default)` | Text input | Free-form string value |
+| `c.Bool(name, default)` | Toggle button | `true` / `false` |
+| `c.Select(name, options, default)` | Cycle button | Cycles through a fixed list of options |
+
+Use `c.Log(msg)` to append entries to the **Action Log** panel at the bottom right.
+
+### Usage
+
+```go
+package main
+
+import (
+    "github.com/masterkeysrd/kite/event"
+    "github.com/masterkeysrd/kite/extras/kitex"
+    "github.com/masterkeysrd/kite/extras/stage"
+)
+
+func main() {
+    stg := stage.New()
+
+    stg.Register("Button", []stage.Scene{
+        {
+            Name: "Default",
+            Render: func(c *stage.Context) kitex.Node {
+                label    := c.Text("Label", "Click Me")
+                disabled := c.Bool("Disabled", false)
+
+                return kitex.Button(kitex.ButtonProps{
+                    Disabled: disabled,
+                    OnClick: func(e event.Event) {
+                        c.Log("Button clicked!")
+                    },
+                }, kitex.Text(label))
+            },
+        },
+    })
+
+    stg.Run()
+}
+```
+
+Run it:
+
+```bash
+go run ./examples/stage
+```
+
+See the full working example in [`examples/stage/`](examples/stage/).
+
+### Hotkeys
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate between scenes |
+| `Tab` | Move focus to the controls panel inputs |
+| `Ctrl+C` | Quit |
+| `F12` | Toggle web-inspector devtools |
 
 ## 📖 Documentation & Guides
 
