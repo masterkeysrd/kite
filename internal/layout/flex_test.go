@@ -1508,3 +1508,52 @@ func TestFlexLayout_ClampedContainerLaysOutChildrenWithinClampedSpace(t *testing
 		t.Errorf("expected child height to be clamped to parent MaxHeight 10, got %d", childFrag.Size.Height)
 	}
 }
+
+func TestFlexLayout_GrowWithMinWidth(t *testing.T) {
+	// Two children in a row flex container of width 80.
+	// Both have Flex: {Grow: 1, Shrink: 1, Basis: Cells(0)}
+	// Child 1 has MinWidth: 15.
+	// Child 2 has MinWidth: 0.
+	// In standard CSS flexbox, because grow starts from flex-basis (0) and the distributed size (40)
+	// is greater than the min-width constraint (15 and 0), they should both resolve to exactly 40 cells.
+
+	child1Style := style.DefaultStyle()
+	child1Style.Flex = style.Flex(1, 1, style.Cells(0))
+	child1Style.MinWidth = style.Cells(15)
+	child1 := &mockNode{style: &child1Style}
+
+	child2Style := style.DefaultStyle()
+	child2Style.Flex = style.Flex(1, 1, style.Cells(0))
+	child2Style.MinWidth = style.Cells(0)
+	child2 := &mockNode{style: &child2Style}
+
+	child1.nextSibling = child2
+
+	parentStyle := style.DefaultStyle()
+	parentStyle.Display = style.DisplayFlex
+	parentStyle.FlexDirection = style.FlexRow
+	parentStyle.Width = style.Cells(80)
+	parent := &mockNode{
+		style:      &parentStyle,
+		firstChild: child1,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{80, 10}).
+		SetContainerSpace(geometry.Size{80, 10}).
+		SetContainingSpace(geometry.Size{80, 10}).
+		ToConstraintSpace()
+
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	if len(frag.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(frag.Children))
+	}
+
+	c1Width := frag.Children[0].Fragment.Size.Width
+	c2Width := frag.Children[1].Fragment.Size.Width
+
+	if c1Width != 40 || c2Width != 40 {
+		t.Errorf("expected equal widths of 40/40, got child1=%d, child2=%d", c1Width, c2Width)
+	}
+}

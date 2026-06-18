@@ -235,7 +235,7 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 			if item.Frozen {
 				remainingFreeSpace -= item.MainSize
 			} else {
-				remainingFreeSpace -= item.HypotheticalMainSize
+				remainingFreeSpace -= item.BaseSize
 				if useGrow {
 					totalFlexFactor += item.Grow
 				} else {
@@ -273,7 +273,7 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 				amount = -(((-remainingToDistribute) * item.Shrink * item.BaseSize) / totalBaseSizeFactor)
 			}
 
-			item.MainSize = item.HypotheticalMainSize + amount
+			item.MainSize = item.BaseSize + amount
 
 			// Respect min/max bounds
 			if item.MainSize < item.MinMainSize {
