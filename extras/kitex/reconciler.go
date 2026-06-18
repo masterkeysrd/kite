@@ -75,7 +75,10 @@ func processDirtyLoop() {
 				continue
 			}
 			ref := comp.getRef()
-			if ref == nil || ref.node != comp {
+			if ref == nil {
+				continue
+			}
+			if ref.node != comp {
 				continue
 			}
 			parentEl := comp.getDOMParent()

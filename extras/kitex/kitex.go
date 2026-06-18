@@ -1376,6 +1376,16 @@ func Input(props InputProps) Node {
 			}
 			newEp := new.elementProps()
 			updateElementBase(inp, &oldEp, &newEp)
+			// Wire up EventInput to OnChange as well, since InputElement dispatches EventInput on keystrokes.
+			var oldChange, newChange func(event.Event)
+			if old != nil {
+				oldChange = old.OnChange
+			}
+			if new != nil {
+				newChange = new.OnChange
+			}
+			updateListener(inp, event.EventInput, oldChange, newChange)
+
 			if old != nil && old.Value != new.Value {
 				inp.SetValue(new.Value)
 			} else if old == nil {
@@ -1464,6 +1474,15 @@ func TextArea(props TextAreaProps) Node {
 			}
 			newEp := new.elementProps()
 			updateElementBase(txa, &oldEp, &newEp)
+			// Wire up EventInput to OnChange as well, since TextAreaElement dispatches EventInput on keystrokes.
+			var oldChange, newChange func(event.Event)
+			if old != nil {
+				oldChange = old.OnChange
+			}
+			if new != nil {
+				newChange = new.OnChange
+			}
+			updateListener(txa, event.EventInput, oldChange, newChange)
 			if old != nil && old.Value != new.Value {
 				txa.SetValue(new.Value)
 			} else if old == nil {
