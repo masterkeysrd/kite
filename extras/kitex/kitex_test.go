@@ -443,6 +443,41 @@ func TestEventListenersUpdate(t *testing.T) {
 	ClearAllSubscriptions(realBtn)
 }
 
+func TestEventListenersClosureUpdate(t *testing.T) {
+	doc := dom.NewDocument()
+
+	var calledWithVal int
+	makeBtn := func(val int) Node {
+		return Button(ButtonProps{
+			OnClick: func(e event.Event) {
+				calledWithVal = val
+			},
+		})
+	}
+
+	btnNode1 := makeBtn(10)
+	realBtn := instOne(btnNode1, doc).(*element.ButtonElement)
+
+	// Trigger click on realBtn
+	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 10 {
+		t.Errorf("expected calledWithVal to be 10, got %d", calledWithVal)
+	}
+
+	// Update to a new button rendering with a new closure capturing 20
+	btnNode2 := makeBtn(20)
+	upd(btnNode2, realBtn, btnNode1)
+
+	// Trigger click on realBtn again
+	realBtn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 20 {
+		t.Errorf("expected calledWithVal to be updated to 20, got %d (closure was not updated)", calledWithVal)
+	}
+
+	// Clear all subscriptions
+	ClearAllSubscriptions(realBtn)
+}
+
 func TestElementRefWiring(t *testing.T) {
 	doc := dom.NewDocument()
 

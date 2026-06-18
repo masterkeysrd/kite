@@ -25,7 +25,7 @@ func init() {
 		if !ok {
 			return
 		}
-		if len(compInstance.realNodes()) == 0 {
+		if compInstance.getDOMParent() == nil {
 			return
 		}
 
@@ -78,24 +78,11 @@ func processDirtyLoop() {
 			if ref == nil || ref.node != comp {
 				continue
 			}
+			parentEl := comp.getDOMParent()
+			if parentEl == nil {
+				continue
+			}
 			realNodes := comp.realNodes()
-			if len(realNodes) == 0 {
-				continue
-			}
-			var parent dom.Node
-			for _, rn := range realNodes {
-				if rn != nil {
-					parent = rn.Parent()
-					break
-				}
-			}
-			if parent == nil {
-				continue
-			}
-			parentEl, ok := parent.(dom.Element)
-			if !ok {
-				continue
-			}
 
 			oldRendered := comp.Rendered()
 			restoreCleanup := comp.restoreContexts()
@@ -149,6 +136,7 @@ func Render(root Node, container dom.Element) {
 	}
 
 	activeRoots[container] = root
+	setDOMParent(root, container)
 	if oldRoot != nil {
 		reconcile(container, oldRoot, root, oldRoot.(nodeInternal).realNodes())
 	} else {
@@ -169,8 +157,12 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 		return nil
 	}
 
+	setDOMParent(newNode, parent)
+
 	if oldNode == newNode {
-		return realNodes
+		if comp, ok := oldNode.(componentInstance); !ok || !comp.IsDirty() {
+			return realNodes
+		}
 	}
 
 	// 1. Mount
@@ -228,8 +220,8 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 	if oldProv, ok := oldNode.(providerInstance); ok {
 		newProv := newNode.(providerInstance)
 
-		newProv.pushEntry()
 		newProv.updateFrom(oldProv)
+		newProv.pushEntry()
 
 		reconcileChildren(parent, oldProv, newProv, oldProv.Children(), newProv.Children())
 		newProv.popEntry()
@@ -279,10 +271,11 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 	if oldComp, ok := oldNode.(componentInstance); ok {
 		newComp := newNode.(componentInstance)
 
+		oldRendered := oldComp.Rendered()
 		newNode.Update(realNodes, oldNode)
 		newComp.ClearDirty()
 
-		newReals := reconcile(parent, oldComp.Rendered(), newComp.Rendered(), realNodes)
+		newReals := reconcile(parent, oldRendered, newComp.Rendered(), realNodes)
 		newComp.setRefs(newReals)
 		return newReals
 	}
@@ -296,7 +289,11 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 	// Element Node:
 	newNode.Update(realNodes, oldNode)
 	if len(realNodes) > 0 && realNodes[0] != nil {
-		reconcileChildren(realNodes[0].(dom.Element), oldNode, newNode, oldNode.Children(), newNode.Children())
+		el := realNodes[0].(dom.Element)
+		for _, child := range newNode.Children() {
+			setDOMParent(child, el)
+		}
+		reconcileChildren(el, oldNode, newNode, oldNode.Children(), newNode.Children())
 	}
 	return realNodes
 }
@@ -354,6 +351,7 @@ func flattenNodesRec(nodes []Node, activeProviders []providerInstance, out []fla
 func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []dom.Node) {
 	for i := 0; i < len(newFlat.providers); i++ {
 		newProv := newFlat.providers[i]
+		setDOMParent(newProv, parent)
 		if i < len(oldFlat.providers) {
 			oldProv := oldFlat.providers[i]
 			newProv.updateFrom(oldProv)
@@ -373,6 +371,7 @@ func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []do
 
 func instantiateFlat(parent dom.Element, newFlat flatNode) []dom.Node {
 	for _, prov := range newFlat.providers {
+		setDOMParent(prov, parent)
 		prov.initEntry()
 		prov.pushEntry()
 	}
@@ -381,6 +380,7 @@ func instantiateFlat(parent dom.Element, newFlat flatNode) []dom.Node {
 			newFlat.providers[i].popEntry()
 		}
 	}()
+	setDOMParent(newFlat.node, parent)
 	return newFlat.node.Instantiate(parent.OwnerDocument())
 }
 
@@ -432,6 +432,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 	if len(oldChildren) == 0 {
 		for i := range newChildren {
 			if newChildren[i] != nil {
+				setDOMParent(newChildren[i], parent)
 				newReals := newChildren[i].Instantiate(parent.OwnerDocument())
 				for _, newReal := range newReals {
 					if newReal != nil {
@@ -630,6 +631,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			}
 			oldS[matchedIdx] = nil
 		} else {
+			setDOMParent(newStartNode, parent)
 			newReals := newStartNode.Instantiate(parent.OwnerDocument())
 			var refNode dom.Node
 			// We cannot just blindly use `insertBeforeRef` here. If the previous `oldStartNode`
@@ -683,6 +685,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		}
 		for newStartIdx <= newEndIdx {
 			if newChildren[newStartIdx] != nil {
+				setDOMParent(newChildren[newStartIdx], parent)
 				newReals := newChildren[newStartIdx].Instantiate(parent.OwnerDocument())
 				for _, newReal := range newReals {
 					parent.InsertBefore(newReal, refNode)
@@ -1036,4 +1039,17 @@ func sameNode(n1, n2 Node) bool {
 		return false
 	}
 	return n1.TagName() == n2.TagName() && n1.Key() == n2.Key()
+}
+
+type componentDOMParentSetter interface {
+	setDOMParent(dom.Element)
+}
+
+func setDOMParent(n Node, parent dom.Element) {
+	if n == nil {
+		return
+	}
+	if setter, ok := n.(componentDOMParentSetter); ok {
+		setter.setDOMParent(parent)
+	}
 }

@@ -9,12 +9,17 @@ import (
 
 // ProviderNode is a virtual/passthrough context provider node.
 type ProviderNode[T comparable] struct {
-	ctx      *Context[T]
-	value    T
-	children []Node
-	entry    *contextEntry[T]
-	pool     *sync.Pool
-	refs     []dom.Node
+	ctx       *Context[T]
+	value     T
+	children  []Node
+	entry     *contextEntry[T]
+	pool      *sync.Pool
+	refs      []dom.Node
+	domParent dom.Element
+}
+
+func (p *ProviderNode[T]) setDOMParent(parent dom.Element) {
+	p.domParent = parent
 }
 
 // Ensure compile-time interface compliance.
@@ -88,18 +93,8 @@ func (p *ProviderNode[T]) complexity() int {
 	return score
 }
 
-// Release releases resources back to the pool (or nils them).
-func (p *ProviderNode[T]) Release() {
-	if p.pool == nil {
-		return
-	}
-	p.children = nil
-	p.entry = nil
-	p.refs = nil
-	pool := p.pool
-	p.pool = nil
-	pool.Put(p)
-}
+// Release is a no-op as pooling is disabled.
+func (p *ProviderNode[T]) Release() {}
 
 // initEntry initializes the context entry for this provider.
 func (p *ProviderNode[T]) initEntry() {
@@ -156,6 +151,7 @@ func (p *ProviderNode[T]) Instantiate(doc dom.Document) []dom.Node {
 	var reals []dom.Node
 	for _, child := range p.children {
 		if child != nil {
+			setDOMParent(child, p.domParent)
 			reals = append(reals, child.Instantiate(doc)...)
 		}
 	}
@@ -166,19 +162,22 @@ func (p *ProviderNode[T]) Instantiate(doc dom.Document) []dom.Node {
 // Update is called when updating a provider node.
 func (p *ProviderNode[T]) Update(els []dom.Node, old Node) {
 	p.refs = els
-	p.initEntry()
-	p.pushEntry()
-	defer p.popEntry()
 
 	var oldProv *ProviderNode[T]
 	if old != nil {
 		if op, ok := old.(*ProviderNode[T]); ok {
 			oldProv = op
+			p.domParent = oldProv.domParent
 			p.updateFrom(oldProv)
 		}
 	}
 
+	p.initEntry()
+	p.pushEntry()
+	defer p.popEntry()
+
 	if len(p.children) == 1 && oldProv != nil && len(oldProv.children) == 1 {
+		setDOMParent(p.children[0], p.domParent)
 		p.children[0].Update(els, oldProv.children[0])
 	}
 }

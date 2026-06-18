@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
@@ -139,29 +140,20 @@ func (n *elementNode[P]) containsProvider() bool  { return n.hasProvider }
 func (n *elementNode[P]) isProvider() bool        { return false }
 func (n *elementNode[P]) hasDirectProvider() bool { return n.hasDirectP }
 
-func (n *elementNode[P]) Release() {
-	if n.tagName == "" {
-		return
-	}
-	n.tagName = ""
-	n.children = nil
-	n.ref = nil
-	n.refs = nil
-	n.instantiate = nil
-	n.update = nil
-
-	if p, ok := any(n).(*elementNode[ElementProps]); ok {
-		elementNodePool.Put(p)
-	}
-}
+func (n *elementNode[P]) Release() {}
 
 func (n *elementNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	n.ref = n.instantiate(doc)
 	n.update(n.ref, nil, &n.props)
+	parentEl := n.ref.(dom.Element)
 	if n.hasDirectP {
 		flatChildren := flattenNodes(n.children, nil, nil)
 		for _, childFlat := range flatChildren {
-			childReals := instantiateFlat(n.ref.(dom.Element), childFlat)
+			setDOMParent(childFlat.node, parentEl)
+			for _, prov := range childFlat.providers {
+				setDOMParent(prov, parentEl)
+			}
+			childReals := instantiateFlat(parentEl, childFlat)
 			for _, childReal := range childReals {
 				if childReal != nil {
 					n.ref.AppendChild(childReal)
@@ -171,6 +163,7 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	} else {
 		for _, child := range n.children {
 			if child != nil {
+				setDOMParent(child, parentEl)
 				childReals := child.Instantiate(doc)
 				for _, childReal := range childReals {
 					if childReal != nil {
@@ -236,15 +229,7 @@ func (t *textNode) containsProvider() bool  { return false }
 func (t *textNode) isProvider() bool        { return false }
 func (t *textNode) hasDirectProvider() bool { return false }
 
-func (t *textNode) Release() {
-	if t.content == "" && t.ref == nil {
-		return
-	}
-	t.content = ""
-	t.ref = nil
-	t.refs = nil
-	textNodePool.Put(t)
-}
+func (t *textNode) Release() {}
 func (t *textNode) Instantiate(doc dom.Document) []dom.Node {
 	t.ref = element.NewText(doc, t.content)
 	t.refs = []dom.Node{t.ref}
@@ -478,14 +463,6 @@ var (
 		New: func() any { return &elementNode[ElementProps]{} },
 	}
 
-	simpleComponentPool = sync.Pool{
-		New: func() any { return &ComponentNode[struct{}]{} },
-	}
-
-	simpleFCCComponentPool = sync.Pool{
-		New: func() any { return &ComponentNode[[]Node]{} },
-	}
-
 	componentRefPool = sync.Pool{
 		New: func() any { return &componentRef{} },
 	}
@@ -529,6 +506,11 @@ func ClearAllSubscriptions(node dom.Node) {
 	}
 }
 
+type eface struct {
+	_type unsafe.Pointer
+	data  unsafe.Pointer
+}
+
 func funcEquals(f1, f2 any) bool {
 	n1 := isNilFunc(f1)
 	n2 := isNilFunc(f2)
@@ -536,22 +518,18 @@ func funcEquals(f1, f2 any) bool {
 		return n1 == n2
 	}
 
-	// Try type assertion for common listener type to avoid reflection
-	if fn1, ok1 := f1.(func(event.Event)); ok1 {
-		if fn2, ok2 := f2.(func(event.Event)); ok2 {
-			// Functions are only equal if they are both nil or the same pointer.
-			// Comparison of non-nil functions is not allowed in Go directly,
-			// but we can use reflection pointer comparison.
-			return reflect.ValueOf(fn1).Pointer() == reflect.ValueOf(fn2).Pointer()
-		}
-	}
-
-	v1 := reflect.ValueOf(f1)
-	v2 := reflect.ValueOf(f2)
-	if v1.Kind() != reflect.Func || v2.Kind() != reflect.Func {
+	// Two functions are only equal if both their code (entry point) and
+	// closure context (captured variables data pointer) are identical.
+	// Since reflect.ValueOf(f).Pointer() returns the entry point of the function,
+	// and the eface data pointer points to the closure block containing captured
+	// values, we must compare both to detect stale/updated closures.
+	d1 := (*eface)(unsafe.Pointer(&f1)).data
+	d2 := (*eface)(unsafe.Pointer(&f2)).data
+	if d1 != d2 {
 		return false
 	}
-	return v1.Pointer() == v2.Pointer()
+
+	return reflect.ValueOf(f1).Pointer() == reflect.ValueOf(f2).Pointer()
 }
 
 func isNilFunc(f any) bool {
@@ -1889,6 +1867,7 @@ type componentInstance interface {
 	ReRender() Node
 	Destroy()
 	restoreContexts() func()
+	getDOMParent() dom.Element
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -1908,6 +1887,7 @@ type ComponentNode[P any] struct {
 	componentRef *componentRef
 	key          string
 	contextSnap  contextSnapshot
+	domParent    dom.Element
 
 	// Memoization: complexityScore holds the node count of the last rendered
 	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
@@ -1921,6 +1901,14 @@ type ComponentNode[P any] struct {
 	instLine int
 
 	pool *sync.Pool
+}
+
+func (c *ComponentNode[P]) setDOMParent(parent dom.Element) {
+	c.domParent = parent
+}
+
+func (c *ComponentNode[P]) getDOMParent() dom.Element {
+	return c.domParent
 }
 
 type componentNodeInspector interface {
@@ -2047,6 +2035,7 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 
 	if c.rendered != nil {
+		setDOMParent(c.rendered, c.domParent)
 		c.refs = c.rendered.Instantiate(doc)
 	}
 	return c.refs
@@ -2065,6 +2054,7 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	c.shouldMemo = oldComp.shouldMemo
 	c.componentRef = oldComp.componentRef
 	c.contextSnap = oldComp.contextSnap
+	c.domParent = oldComp.domParent
 	if c.componentRef == nil {
 		cr := componentRefPool.Get().(*componentRef)
 		cr.node = c
@@ -2092,6 +2082,7 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	popCurrentComponent()
 
 	c.rendered = newRendered
+	setDOMParent(c.rendered, c.domParent)
 
 	// Refresh the memoization score after re-rendering so it reflects the
 	// current subtree shape.
@@ -2142,6 +2133,7 @@ func (c *ComponentNode[P]) ReRender() Node {
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
 	popCurrentComponent()
+	setDOMParent(c.rendered, c.domParent)
 	c.complexityScore = computeComplexity(c.rendered)
 	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 	return c.rendered
@@ -2163,12 +2155,6 @@ func (c *ComponentNode[P]) Release() {
 	c.hooks = nil
 	c.componentRef = nil
 	c.contextSnap = contextSnapshot{}
-
-	if c.pool != nil {
-		p := c.pool
-		c.pool = nil
-		p.Put(c)
-	}
 }
 
 func (c *ComponentNode[P]) restoreContexts() func() {
@@ -2422,10 +2408,6 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 		declLine = line
 	}
 
-	pool := &sync.Pool{
-		New: func() any { return &ComponentNode[P]{} },
-	}
-
 	return func(props P) Node {
 		var instFile string
 		var instLine int
@@ -2436,7 +2418,7 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 			}
 		}
 
-		c := pool.Get().(*ComponentNode[P])
+		c := &ComponentNode[P]{}
 		*c = ComponentNode[P]{
 			Name:     name,
 			PropsVal: props,
@@ -2447,7 +2429,6 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
-			pool:     pool,
 		}
 		return c
 	}
@@ -2464,10 +2445,6 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 		declLine = line
 	}
 
-	pool := &sync.Pool{
-		New: func() any { return &ComponentNode[P]{} },
-	}
-
 	return func(props P, children ...Node) Node {
 		var instFile string
 		var instLine int
@@ -2479,7 +2456,7 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 		}
 
 		propsWithChildren := injectChildren(props, children)
-		c := pool.Get().(*ComponentNode[P])
+		c := &ComponentNode[P]{}
 		*c = ComponentNode[P]{
 			Name:     name,
 			PropsVal: propsWithChildren,
@@ -2490,7 +2467,6 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
-			pool:     pool,
 		}
 		return c
 	}
@@ -2556,7 +2532,7 @@ func SimpleFC(name string, render func() Node) func() Node {
 			}
 		}
 
-		c := simpleComponentPool.Get().(*ComponentNode[struct{}])
+		c := &ComponentNode[struct{}]{}
 		*c = ComponentNode[struct{}]{
 			Name:     name,
 			PropsVal: struct{}{},
@@ -2566,7 +2542,6 @@ func SimpleFC(name string, render func() Node) func() Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
-			pool:     &simpleComponentPool,
 		}
 		return c
 	}
@@ -2591,7 +2566,7 @@ func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
 			}
 		}
 
-		c := simpleFCCComponentPool.Get().(*ComponentNode[[]Node])
+		c := &ComponentNode[[]Node]{}
 		*c = ComponentNode[[]Node]{
 			Name:     name,
 			PropsVal: children,
@@ -2601,7 +2576,6 @@ func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
 			declLine: declLine,
 			instFile: instFile,
 			instLine: instLine,
-			pool:     &simpleFCCComponentPool,
 		}
 		return c
 	}

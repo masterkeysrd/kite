@@ -146,8 +146,13 @@ func Fragment(children ...Node) Node {
 }
 
 type fragmentNode struct {
-	children []Node
-	refs     []dom.Node
+	children  []Node
+	refs      []dom.Node
+	domParent dom.Element
+}
+
+func (f *fragmentNode) setDOMParent(parent dom.Element) {
+	f.domParent = parent
 }
 
 var _ Node = (*fragmentNode)(nil)
@@ -157,6 +162,7 @@ func (f *fragmentNode) Instantiate(doc dom.Document) []dom.Node {
 	var reals []dom.Node
 	for _, child := range f.children {
 		if child != nil {
+			setDOMParent(child, f.domParent)
 			reals = append(reals, child.Instantiate(doc)...)
 		}
 	}
@@ -166,6 +172,9 @@ func (f *fragmentNode) Instantiate(doc dom.Document) []dom.Node {
 
 func (f *fragmentNode) Update(els []dom.Node, old Node) {
 	f.refs = els
+	if oldFrag, ok := old.(*fragmentNode); ok {
+		f.domParent = oldFrag.domParent
+	}
 }
 
 func (f *fragmentNode) setRefs(els []dom.Node) {
