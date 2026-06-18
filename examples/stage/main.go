@@ -13,6 +13,42 @@ import (
 func main() {
 	stg := stage.New()
 
+	// Register global controls (toolbar items)
+	stg.GlobalSelect("Theme", []string{"Light", "Dark"}, "Dark")
+	stg.GlobalBool("Show Border", true)
+
+	// Context-aware decorator that wraps all rendered scene nodes
+	stg.WithContextDecorator(func(c *stage.Context, node kitex.Node) kitex.Node {
+		theme := c.GlobalString("Theme", "Dark")
+		showBorder := c.GlobalBool("Show Border", true)
+
+		// Stylize the decorator based on current global options
+		var bgColor, fgColor color.RGBA
+		if theme == "Light" {
+			bgColor = color.RGBA{R: 243, G: 244, B: 246, A: 255} // Light gray 100
+			fgColor = color.RGBA{R: 17, G: 24, B: 39, A: 255}    // Dark gray 900
+		} else {
+			bgColor = color.RGBA{R: 17, G: 24, B: 39, A: 255}    // Dark gray 900
+			fgColor = color.RGBA{R: 243, G: 244, B: 246, A: 255} // Light gray 100
+		}
+
+		wrapperStyle := style.S().
+			Background(bgColor).
+			Foreground(fgColor).
+			Padding(2)
+
+		if showBorder {
+			wrapperStyle = wrapperStyle.Border(true, style.BorderDouble, color.RGBA{R: 79, G: 70, B: 229, A: 255}) // Indigo 600
+		}
+
+		return kitex.Box(
+			kitex.BoxProps{
+				Style: wrapperStyle,
+			},
+			node,
+		)
+	})
+
 	// 1. Button component scenes
 	stg.Register("Button", []stage.Scene{
 		{

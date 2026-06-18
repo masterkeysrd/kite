@@ -31,12 +31,22 @@ var (
 				Height(style.Percent(100)).
 				MinHeight(style.Cells(0))
 
+	toolbarStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Cells(2)).
+			BorderBottom(true, style.BorderSingle, color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
+			Background(color.RGBA{R: 17, G: 24, B: 39, A: 255}).                             // Gray 900
+			Padding(0, 1)
+
 	canvasStyle = style.S().
 			Display(style.DisplayFlex).
 			AlignItems(style.AlignCenter).
 			JustifyContent(style.JustifyCenter).
 			Width(style.Percent(100)).
-			Height(style.Percent(70)).
+			Flex(1).
 			MinHeight(style.Cells(0)).
 			Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}) // Gray 800
 
@@ -87,9 +97,12 @@ type StageAppProps struct {
 
 // PlayableAreaProps is the properties for the PlayableArea component.
 type PlayableAreaProps struct {
-	Key       string
-	Scene     *Scene
-	Decorator func(kitex.Node) kitex.Node
+	Key          string
+	Scene        *Scene
+	Decorator    func(*Context, kitex.Node) kitex.Node
+	Globals      []Control
+	GlobalValues map[string]any
+	SetGlobalVal func(string, any)
 }
 
 // PlayableArea manages the active scene hooks, rendering, knobs context, and details panels.
@@ -111,17 +124,191 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 		setKnobValues(next)
 	}
 
-	// 3. Render the active scene inside a context
-	sceneContext := NewContext(knobValues(), setKnobValue, nil)
+	// 3. Render the active scene inside a context configured with globals
+	globalsMap := make(map[string]Control)
+	for _, ctrl := range props.Globals {
+		globalsMap[ctrl.Name] = ctrl
+	}
+
+	sceneContext := NewContext(knobValues(), setKnobValue, nil).
+		WithGlobals(globalsMap, props.GlobalValues)
+
 	sceneContext.onLogAdded = func() {
 		setLogs(sceneContext.Logs())
 	}
 	renderedScene := props.Scene.Render(sceneContext)
 	if renderedScene != nil && props.Decorator != nil {
-		renderedScene = props.Decorator(renderedScene)
+		renderedScene = props.Decorator(sceneContext, renderedScene)
 	}
 
-	// 4. Render controls panel rows
+	// 4. Render toolbar widgets (global controls)
+	var toolbarWidgets []kitex.Node
+	for _, ctrl := range props.Globals {
+		var inputWidget kitex.Node
+		switch ctrl.Type {
+		case ControlTypeText:
+			currentStr := ""
+			if val, ok := props.GlobalValues[ctrl.Name]; ok {
+				currentStr, _ = val.(string)
+			} else if ctrl.Default != nil {
+				currentStr, _ = ctrl.Default.(string)
+			}
+			capturedName := ctrl.Name
+			inputWidget = kitex.Input(kitex.InputProps{
+				Value: currentStr,
+				Style: style.S().
+					Width(style.Cells(15)).
+					Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
+					Padding(0, 1),
+				OnChange: func(e event.Event) {
+					if ie, ok := e.(*event.InputEvent); ok {
+						props.SetGlobalVal(capturedName, ie.Value)
+					} else if ce, ok := e.(*event.ChangeEvent); ok {
+						props.SetGlobalVal(capturedName, ce.Value)
+					}
+				},
+			})
+		case ControlTypeBool:
+			currentBool := false
+			if val, ok := props.GlobalValues[ctrl.Name]; ok {
+				currentBool, _ = val.(bool)
+			} else if ctrl.Default != nil {
+				currentBool, _ = ctrl.Default.(bool)
+			}
+			capturedName := ctrl.Name
+			checkboxLabel := "[ ]"
+			if currentBool {
+				checkboxLabel = "[x]"
+			}
+			inputWidget = kitex.Button(
+				kitex.ButtonProps{
+					Style: style.S().
+						Border(false).
+						Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
+						Padding(0, 1),
+					OnClick: func(e event.Event) {
+						props.SetGlobalVal(capturedName, !currentBool)
+					},
+				},
+				kitex.Text(checkboxLabel),
+			)
+		case ControlTypeSelect:
+			currentStr := ""
+			if val, ok := props.GlobalValues[ctrl.Name]; ok {
+				currentStr, _ = val.(string)
+			} else if ctrl.Default != nil {
+				currentStr, _ = ctrl.Default.(string)
+			}
+			capturedName := ctrl.Name
+			capturedOptions := ctrl.Options
+			cycleOptionsText := fmt.Sprintf("%s ▾", currentStr)
+			if currentStr == "" {
+				cycleOptionsText = "select..."
+			}
+			inputWidget = kitex.Button(
+				kitex.ButtonProps{
+					Style: style.S().
+						Border(false).
+						Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
+						Padding(0, 1),
+					OnClick: func(e event.Event) {
+						nextIdx := 0
+						for optIdx, opt := range capturedOptions {
+							if opt == currentStr {
+								nextIdx = (optIdx + 1) % len(capturedOptions)
+								break
+							}
+						}
+						if len(capturedOptions) > 0 {
+							props.SetGlobalVal(capturedName, capturedOptions[nextIdx])
+						}
+					},
+				},
+				kitex.Text(cycleOptionsText),
+			)
+		case ControlTypeInt:
+			currentInt := 0
+			if val, ok := props.GlobalValues[ctrl.Name]; ok {
+				switch v := val.(type) {
+				case int:
+					currentInt = v
+				case float64:
+					currentInt = int(v)
+				}
+			} else if ctrl.Default != nil {
+				switch v := ctrl.Default.(type) {
+				case int:
+					currentInt = v
+				case float64:
+					currentInt = int(v)
+				}
+			}
+			capturedName := ctrl.Name
+			stepperBtnStyle := style.S().
+				Border(false).
+				Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
+				Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}).
+				Padding(0, 1)
+			inputWidget = kitex.Box(
+				kitex.BoxProps{
+					Style: style.S().
+						Display(style.DisplayFlex).
+						FlexDirection(style.FlexRow).
+						AlignItems(style.AlignCenter).
+						Width(style.Cells(12)),
+				},
+				kitex.Button(
+					kitex.ButtonProps{
+						Style: stepperBtnStyle,
+						OnClick: func(e event.Event) {
+							props.SetGlobalVal(capturedName, currentInt-1)
+						},
+					},
+					kitex.Text("−"),
+				),
+				kitex.Box(
+					kitex.BoxProps{
+						Style: style.S().
+							Flex(1).
+							Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
+							Foreground(color.RGBA{R: 229, G: 231, B: 235, A: 255}).
+							Padding(0, 1),
+					},
+					kitex.Text(strconv.Itoa(currentInt)),
+				),
+				kitex.Button(
+					kitex.ButtonProps{
+						Style: stepperBtnStyle,
+						OnClick: func(e event.Event) {
+							props.SetGlobalVal(capturedName, currentInt+1)
+						},
+					},
+					kitex.Text("+"),
+				),
+			)
+		}
+
+		toolbarWidgets = append(toolbarWidgets, kitex.Box(
+			kitex.BoxProps{
+				Style: style.S().
+					Display(style.DisplayFlex).
+					FlexDirection(style.FlexRow).
+					AlignItems(style.AlignCenter).
+					MarginRight(2),
+			},
+			kitex.Box(
+				kitex.BoxProps{
+					Style: style.S().
+						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}).
+						MarginRight(1),
+				},
+				kitex.Text(ctrl.Name+":"),
+			),
+			inputWidget,
+		))
+	}
+
+	// 5. Render controls panel rows
 	var controlRows []kitex.Node
 	ctrls := sceneContext.Controls()
 	sort.Slice(ctrls, func(i, j int) bool {
@@ -301,7 +488,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 		))
 	}
 
-	// 5. Render action logs rows
+	// 6. Render action logs rows
 	var logRows []kitex.Node
 	for _, l := range logs() {
 		logRows = append(logRows, kitex.Box(
@@ -329,6 +516,18 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 		kitex.BoxProps{
 			Style: playableAreaStyle,
 		},
+		// Globals Toolbar (if any globals exist)
+		func() kitex.Node {
+			if len(props.Globals) > 0 {
+				return kitex.Box(
+					kitex.BoxProps{
+						Style: toolbarStyle,
+					},
+					toolbarWidgets...,
+				)
+			}
+			return nil
+		}(),
 		// Component Canvas area
 		kitex.Box(
 			kitex.BoxProps{
@@ -441,7 +640,18 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 
 	// 2. State Hooks
 	activeSceneIdx, setActiveSceneIdx := kitex.UseState(0)
+	globalValues, setGlobalValues := kitex.UseState(make(map[string]any))
 	rootRef := kitex.UseRef[dom.Node](nil)
+
+	setGlobalVal := func(name string, val any) {
+		prev := globalValues()
+		next := make(map[string]any)
+		for k, v := range prev {
+			next[k] = v
+		}
+		next[name] = val
+		setGlobalValues(next)
+	}
 
 	// Active scene reference
 	var activeScene *Scene
@@ -547,9 +757,12 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 			if activeScene != nil {
 				key := fmt.Sprintf("scene-%d", activeSceneIdx())
 				return PlayableArea(PlayableAreaProps{
-					Key:       key,
-					Scene:     activeScene,
-					Decorator: props.Stage.decorator,
+					Key:          key,
+					Scene:        activeScene,
+					Decorator:    props.Stage.decorator,
+					Globals:      props.Stage.globals,
+					GlobalValues: globalValues(),
+					SetGlobalVal: setGlobalVal,
 				})
 			}
 			return kitex.Box(

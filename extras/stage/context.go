@@ -31,12 +31,14 @@ type ActionLog struct {
 
 // Context is passed to each Scene's Render function to register/query knobs and log actions.
 type Context struct {
-	mu         sync.RWMutex
-	controls   map[string]Control
-	values     map[string]any
-	setVal     func(name string, val any)
-	logs       []ActionLog
-	onLogAdded func()
+	mu           sync.RWMutex
+	controls     map[string]Control
+	values       map[string]any
+	setVal       func(name string, val any)
+	globals      map[string]Control
+	globalValues map[string]any
+	logs         []ActionLog
+	onLogAdded   func()
 }
 
 // NewContext creates a new Context for scene execution.
@@ -182,4 +184,56 @@ func (c *Context) Controls() []Control {
 		res = append(res, ctrl)
 	}
 	return res
+}
+
+// WithGlobals assigns global controls and their current values to the Context.
+func (c *Context) WithGlobals(globals map[string]Control, globalValues map[string]any) *Context {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.globals = globals
+	c.globalValues = globalValues
+	return c
+}
+
+// Global returns the current value of a global control by name.
+func (c *Context) Global(name string) any {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if val, ok := c.globalValues[name]; ok {
+		return val
+	}
+	if ctrl, ok := c.globals[name]; ok {
+		return ctrl.Default
+	}
+	return nil
+}
+
+// GlobalString returns the value of a global control as a string.
+func (c *Context) GlobalString(name string, defaultValue string) string {
+	val := c.Global(name)
+	if s, ok := val.(string); ok {
+		return s
+	}
+	return defaultValue
+}
+
+// GlobalBool returns the value of a global control as a boolean.
+func (c *Context) GlobalBool(name string, defaultValue bool) bool {
+	val := c.Global(name)
+	if b, ok := val.(bool); ok {
+		return b
+	}
+	return defaultValue
+}
+
+// GlobalInt returns the value of a global control as an integer.
+func (c *Context) GlobalInt(name string, defaultValue int) int {
+	val := c.Global(name)
+	switch v := val.(type) {
+	case int:
+		return v
+	case float64:
+		return int(v)
+	}
+	return defaultValue
 }

@@ -25,7 +25,8 @@ type Scene struct {
 // Stage manages components and their scenes for isolation testing.
 type Stage struct {
 	components map[string][]Scene
-	decorator  func(kitex.Node) kitex.Node
+	decorator  func(*Context, kitex.Node) kitex.Node
+	globals    []Control
 }
 
 // New creates a new Stage manager.
@@ -46,7 +47,57 @@ func New() *Stage {
 //		return ThemeCtx.Provider(myTheme, n)
 //	})
 func (s *Stage) WithDecorator(fn func(kitex.Node) kitex.Node) *Stage {
+	s.decorator = func(c *Context, n kitex.Node) kitex.Node {
+		return fn(n)
+	}
+	return s
+}
+
+// WithContextDecorator sets a context-aware wrapper function that is applied
+// around every rendered scene node, exposing global controls to the decorator.
+func (s *Stage) WithContextDecorator(fn func(*Context, kitex.Node) kitex.Node) *Stage {
 	s.decorator = fn
+	return s
+}
+
+// GlobalText registers a global text control.
+func (s *Stage) GlobalText(name string, defaultValue string) *Stage {
+	s.globals = append(s.globals, Control{
+		Name:    name,
+		Type:    ControlTypeText,
+		Default: defaultValue,
+	})
+	return s
+}
+
+// GlobalBool registers a global boolean control.
+func (s *Stage) GlobalBool(name string, defaultValue bool) *Stage {
+	s.globals = append(s.globals, Control{
+		Name:    name,
+		Type:    ControlTypeBool,
+		Default: defaultValue,
+	})
+	return s
+}
+
+// GlobalSelect registers a global dropdown select control.
+func (s *Stage) GlobalSelect(name string, options []string, defaultValue string) *Stage {
+	s.globals = append(s.globals, Control{
+		Name:    name,
+		Type:    ControlTypeSelect,
+		Default: defaultValue,
+		Options: options,
+	})
+	return s
+}
+
+// GlobalInt registers a global integer control.
+func (s *Stage) GlobalInt(name string, defaultValue int) *Stage {
+	s.globals = append(s.globals, Control{
+		Name:    name,
+		Type:    ControlTypeInt,
+		Default: defaultValue,
+	})
 	return s
 }
 
