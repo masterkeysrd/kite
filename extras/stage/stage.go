@@ -25,6 +25,7 @@ type Scene struct {
 // Stage manages components and their scenes for isolation testing.
 type Stage struct {
 	components map[string][]Scene
+	decorator  func(kitex.Node) kitex.Node
 }
 
 // New creates a new Stage manager.
@@ -32,6 +33,21 @@ func New() *Stage {
 	return &Stage{
 		components: make(map[string][]Scene),
 	}
+}
+
+// WithDecorator sets a wrapper function that is applied around every rendered
+// scene node. Use it to inject global providers — theme contexts, store
+// providers, or any kitex.Node wrapper — without modifying individual scenes.
+//
+// Example:
+//
+//	stg := stage.New()
+//	stg.WithDecorator(func(n kitex.Node) kitex.Node {
+//		return ThemeCtx.Provider(myTheme, n)
+//	})
+func (s *Stage) WithDecorator(fn func(kitex.Node) kitex.Node) *Stage {
+	s.decorator = fn
+	return s
 }
 
 // Register registers a list of scenes for a component.

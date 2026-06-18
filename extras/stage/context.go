@@ -12,6 +12,7 @@ const (
 	ControlTypeText   ControlType = "text"
 	ControlTypeBool   ControlType = "bool"
 	ControlTypeSelect ControlType = "select"
+	ControlTypeInt    ControlType = "int"
 )
 
 // Control contains the metadata for a single scene knob.
@@ -110,6 +111,31 @@ func (c *Context) Select(name string, options []string, defaultValue string) str
 	if val, ok := c.values[name]; ok {
 		if s, ok := val.(string); ok {
 			return s
+		}
+	}
+	return defaultValue
+}
+
+// Int registers/returns an integer spinner knob.
+func (c *Context) Int(name string, defaultValue int) int {
+	c.mu.Lock()
+	if _, exists := c.controls[name]; !exists {
+		c.controls[name] = Control{
+			Name:    name,
+			Type:    ControlTypeInt,
+			Default: defaultValue,
+		}
+	}
+	c.mu.Unlock()
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if val, ok := c.values[name]; ok {
+		switch v := val.(type) {
+		case int:
+			return v
+		case float64:
+			return int(v)
 		}
 	}
 	return defaultValue
