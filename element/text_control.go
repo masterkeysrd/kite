@@ -403,6 +403,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 		b.selectionStart = b.buf.ByteOffset()
 		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
+		b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 		ke.PreventDefault()
 	case ke.MatchString("delete"):
 		if !b.maybeDeleteSelection(ke) {
@@ -411,6 +412,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 		b.selectionStart = b.buf.ByteOffset()
 		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
+		b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 		ke.PreventDefault()
 	case ke.Code == key.KeyLeft:
 		b.buf.MoveLeft()
@@ -499,6 +501,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 		b.selectionStart = b.buf.ByteOffset()
 		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
+		b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 		ke.PreventDefault()
 	case ke.MatchString("ctrl+k"):
 		// Delete from cursor to end of buffer.
@@ -508,6 +511,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 		b.selectionStart = b.buf.ByteOffset()
 		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
+		b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 		ke.PreventDefault()
 	case ke.MatchString("ctrl+u"):
 		// Delete from start of buffer to cursor.
@@ -517,6 +521,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 		b.selectionStart = b.buf.ByteOffset()
 		b.selectionEnd = b.buf.ByteOffset()
 		b.syncCallback()
+		b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 		ke.PreventDefault()
 	default:
 		// Printable character: insert if non-empty Text field and no ctrl/alt.
@@ -526,6 +531,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 			b.selectionStart = b.buf.ByteOffset()
 			b.selectionEnd = b.buf.ByteOffset()
 			b.syncCallback()
+			b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 			ke.PreventDefault()
 		}
 	}

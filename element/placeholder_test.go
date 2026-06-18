@@ -87,3 +87,46 @@ func TestPlaceholder(t *testing.T) {
 		}
 	})
 }
+
+// TestPlaceholder_Update_NoDuplicateInDOM is a regression test for the bug
+// where changing the placeholder text while the input is empty left the old
+// placeholder element in the DOM and inserted a new one beside it, causing
+// the placeholder text to appear duplicated/concatenated in the layout.
+func TestPlaceholder_Update_NoDuplicateInDOM(t *testing.T) {
+	doc := dom.NewDocument()
+	inp := element.NewInput(doc, "").WithPlaceholder("First")
+
+	uaRoot := dom.UARoot(inp)
+	uaDiv := uaRoot.FirstChild()
+
+	// Count ua-placeholder nodes in the UA div.
+	countPlaceholders := func() int {
+		n := 0
+		for child := uaDiv.FirstChild(); child != nil; child = child.NextSibling() {
+			if child.NodeName() == "ua-placeholder" {
+				n++
+			}
+		}
+		return n
+	}
+
+	if got := countPlaceholders(); got != 1 {
+		t.Fatalf("initial: expected 1 placeholder, got %d", got)
+	}
+
+	// Change placeholder text while buffer is still empty.
+	inp.WithPlaceholder("Second")
+
+	if got := countPlaceholders(); got != 1 {
+		t.Errorf("after update: expected 1 placeholder, got %d (duplication bug)", got)
+	}
+
+	// Verify it shows the new text.
+	first := uaDiv.FirstChild()
+	if first == nil || first.NodeName() != "ua-placeholder" {
+		t.Fatal("expected a placeholder node after update")
+	}
+	if got := first.(dom.Element).TextContent(); got != "Second" {
+		t.Errorf("expected placeholder text 'Second', got %q", got)
+	}
+}

@@ -273,6 +273,12 @@ func (inp *InputElement) syncText() {
 	// Update placeholder visibility.
 	if val == "" && inp.placeholder != "" {
 		if inp.uaPlaceholder == nil || inp.uaPlaceholder.TextContent() != inp.placeholder {
+			// Remove the old placeholder from the DOM before replacing it,
+			// otherwise both old and new elements remain in the tree and the
+			// placeholder text appears duplicated.
+			if inp.uaPlaceholder != nil && inp.uaPlaceholder.Parent() != nil {
+				inp.uaInputDivEl.RemoveChild(inp.uaPlaceholder)
+			}
 			doc := inp.OwnerDocument()
 			if doc == nil {
 				doc = orphanDocument
