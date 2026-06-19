@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend/mock"
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/geom"
@@ -180,3 +181,55 @@ func TestOverlay_HorizontalBestFit(t *testing.T) {
 		t.Errorf("overlay should have flipped to Right (more space): expected X=%d, got %d", expectedX, ovlOffset.X)
 	}
 }
+
+func TestOverlay_SetConfig_UpdatesZIndex(t *testing.T) {
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+
+	anchor := element.Box()
+	eng.Mount(anchor)
+
+	ovl1 := element.Overlay(
+		element.Box(),
+		element.OverlayConfig{
+			Anchor: anchor,
+			ZIndex: 100,
+		},
+	)
+	ovl2 := element.Overlay(
+		element.Box(),
+		element.OverlayConfig{
+			Anchor: anchor,
+			ZIndex: 150,
+		},
+	)
+
+	eng.Document().AppendChild(ovl1)
+	eng.Document().AppendChild(ovl2)
+	eng.Frame()
+
+	// Initial order should be ovl1 (100) then ovl2 (150)
+	var initial []dom.Element
+	for el := range eng.Document().Overlays() {
+		initial = append(initial, el)
+	}
+	if len(initial) != 2 || initial[0] != ovl1 || initial[1] != ovl2 {
+		t.Fatalf("unexpected initial overlay order: %v", initial)
+	}
+
+	// Update configuration with a new zIndex for ovl1
+	ovl1.SetConfig(element.OverlayConfig{
+		Anchor: anchor,
+		ZIndex: 200,
+	})
+
+	// Order should now be ovl2 (150) then ovl1 (200)
+	var updated []dom.Element
+	for el := range eng.Document().Overlays() {
+		updated = append(updated, el)
+	}
+	if len(updated) != 2 || updated[0] != ovl2 || updated[1] != ovl1 {
+		t.Errorf("unexpected updated overlay order: %v", updated)
+	}
+}
+

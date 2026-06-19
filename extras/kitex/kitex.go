@@ -462,10 +462,6 @@ var (
 	elementNodePool = sync.Pool{
 		New: func() any { return &elementNode[ElementProps]{} },
 	}
-
-	componentRefPool = sync.Pool{
-		New: func() any { return &componentRef{} },
-	}
 )
 
 func setSubscription(node dom.Node, typ event.EventType, sub event.Subscription) {
@@ -2035,7 +2031,7 @@ func (c *ComponentNode[P]) Children() []Node {
 }
 
 func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
-	cr := componentRefPool.Get().(*componentRef)
+	cr := &componentRef{}
 	cr.node = c
 	c.componentRef = cr
 
@@ -2075,7 +2071,7 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	c.contextSnap = oldComp.contextSnap
 	c.domParent = oldComp.domParent
 	if c.componentRef == nil {
-		cr := componentRefPool.Get().(*componentRef)
+		cr := &componentRef{}
 		cr.node = c
 		c.componentRef = cr
 		oldComp.componentRef = c.componentRef
@@ -2220,7 +2216,6 @@ func (c *ComponentNode[P]) Destroy() {
 		c.componentRef.mu.Lock()
 		c.componentRef.node = nil
 		c.componentRef.mu.Unlock()
-		componentRefPool.Put(c.componentRef)
 		c.componentRef = nil
 	}
 	if c.rendered != nil {

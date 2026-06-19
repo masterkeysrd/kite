@@ -43,6 +43,9 @@ func Overlay(content dom.Node, config OverlayConfig) *OverlayElement {
 // SetConfig updates the overlay element's configuration.
 func (o *OverlayElement) SetConfig(config OverlayConfig) *OverlayElement {
 	o.config = config
+	if doc := o.OwnerDocument(); doc != nil && o.IsConnected() {
+		doc.ShowOverlay(o, config.ZIndex)
+	}
 	if d := internaldom.AsDirty(o); d != nil {
 		d.MarkNeedsSync()
 	}
