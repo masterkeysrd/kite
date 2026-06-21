@@ -529,6 +529,62 @@ func (e *Engine) PostMacro(fn func()) {
 	e.scheduler.QueueMacrotask(fn)
 }
 
+// Timer represents a scheduled timeout or interval.
+type Timer struct {
+	stop func()
+}
+
+// Stop cancels the timer.
+func (t *Timer) Stop() {
+	if t.stop != nil {
+		t.stop()
+	}
+}
+
+// SetTimeout schedules fn to run on the main thread after the specified delay.
+// It is safe to call from any goroutine.
+func (e *Engine) SetTimeout(fn func(), delay time.Duration) *Timer {
+	var stopOnce sync.Once
+	t := time.AfterFunc(delay, func() {
+		e.Post(fn)
+	})
+	return &Timer{
+		stop: func() {
+			stopOnce.Do(func() {
+				t.Stop()
+			})
+		},
+	}
+}
+
+// SetInterval schedules fn to run on the main thread repeatedly at the specified interval.
+// It is safe to call from any goroutine.
+func (e *Engine) SetInterval(fn func(), interval time.Duration) *Timer {
+	var stopOnce sync.Once
+	ticker := time.NewTicker(interval)
+	done := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				e.Post(fn)
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	return &Timer{
+		stop: func() {
+			stopOnce.Do(func() {
+				ticker.Stop()
+				close(done)
+			})
+		},
+	}
+}
+
 // hitTestFragment walks the immutable layout Fragment tree and returns the deepest
 // render.Object whose computed bounds contain p. p is in the local coordinate space
 // of the given fragment.
@@ -828,6 +884,9 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 
 	var lastRO render.Object
 	for child := range internaldom.LayoutChildren(n) {
+		if el, ok := child.(dom.Element); ok && internaldom.IsOverlay(el) {
+			continue
+		}
 		childRO := e.RenderObject(child)
 		if childRO == nil {
 			childRO = e.createRenderObject(child)

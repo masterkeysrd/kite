@@ -66,6 +66,21 @@ func TestFactoryFunctions(t *testing.T) {
 	if boxNode.TagName() != "box" {
 		t.Errorf("expected tag name box, got %s", boxNode.TagName())
 	}
+
+	// Test list node factories
+	ulNode := UL(ULProps{ID: "list1"}, LI(LIProps{}, Text("item")))
+	if ulNode.TagName() != "ul" {
+		t.Errorf("expected tag name ul, got %s", ulNode.TagName())
+	}
+	if ulNode.Props().(ULProps).ID != "list1" {
+		t.Errorf("expected ID list1, got %s", ulNode.Props().(ULProps).ID)
+	}
+	if len(ulNode.Children()) != 1 {
+		t.Errorf("expected 1 child for ul, got %d", len(ulNode.Children()))
+	}
+	if ulNode.Children()[0].TagName() != "li" {
+		t.Errorf("expected child tag li, got %s", ulNode.Children()[0].TagName())
+	}
 }
 
 func TestInstantiateAndUpdate(t *testing.T) {
@@ -156,6 +171,49 @@ func TestInstantiateAndUpdate(t *testing.T) {
 
 		if !cbEl.Checked() {
 			t.Errorf("expected checkbox to be checked after update")
+		}
+	})
+
+	t.Run("List instantiation and update", func(t *testing.T) {
+		ulProps := ULProps{
+			ID:    "list1",
+			Class: "items",
+			Style: style.S().ListStyleType(style.ListStyleSquare),
+		}
+		ulNode := UL(ulProps, LI(LIProps{}, Text("one")))
+		realNode := instOne(ulNode, doc)
+
+		ulEl, ok := realNode.(*element.UnorderedListElement)
+		if !ok {
+			t.Fatalf("expected *element.UnorderedListElement, got %T", realNode)
+		}
+
+		if ulEl.ID() != "list1" {
+			t.Errorf("expected ID list1, got %s", ulEl.ID())
+		}
+		if ulEl.Class() != "items" {
+			t.Errorf("expected class items, got %s", ulEl.Class())
+		}
+		if ulEl.RawStyle().ListStyleTypeOpt().Value() != style.ListStyleSquare {
+			t.Errorf("expected list style square, got %v", ulEl.RawStyle().ListStyleTypeOpt().Value())
+		}
+
+		newULProps := ULProps{
+			ID:    "list2",
+			Class: "items-updated",
+			Style: style.S().ListStyleType(style.ListStyleCircle),
+		}
+		newULNode := UL(newULProps, LI(LIProps{}, Text("one")))
+		upd(newULNode, realNode, ulNode)
+
+		if ulEl.ID() != "list2" {
+			t.Errorf("expected updated ID list2, got %s", ulEl.ID())
+		}
+		if ulEl.Class() != "items-updated" {
+			t.Errorf("expected updated class items-updated, got %s", ulEl.Class())
+		}
+		if ulEl.RawStyle().ListStyleTypeOpt().Value() != style.ListStyleCircle {
+			t.Errorf("expected updated list style circle, got %v", ulEl.RawStyle().ListStyleTypeOpt().Value())
 		}
 	})
 

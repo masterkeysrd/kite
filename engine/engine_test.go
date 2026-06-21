@@ -485,3 +485,79 @@ func TestEngine_CustomRenderObject_Wrapped(t *testing.T) {
 		t.Error("wrapped node has no render object")
 	}
 }
+
+func TestEngine_SetTimeout(t *testing.T) {
+	e, _ := newTestEngine(t)
+	defer e.Stop()
+
+	var called atomic.Bool
+	timer := e.SetTimeout(func() {
+		called.Store(true)
+	}, 10*time.Millisecond)
+	defer timer.Stop()
+
+	// Initially not called
+	e.Frame()
+	if called.Load() {
+		t.Error("SetTimeout called prematurely")
+	}
+
+	// Wait for the timeout to elapse
+	time.Sleep(30 * time.Millisecond)
+
+	// Since callback is queued as a microtask, we need to run a frame to execute it
+	e.Frame()
+	if !called.Load() {
+		t.Error("SetTimeout callback was not executed after delay")
+	}
+}
+
+func TestEngine_SetTimeout_Cancel(t *testing.T) {
+	e, _ := newTestEngine(t)
+	defer e.Stop()
+
+	var called atomic.Bool
+	timer := e.SetTimeout(func() {
+		called.Store(true)
+	}, 20*time.Millisecond)
+
+	// Stop it immediately
+	timer.Stop()
+
+	// Wait for delay to pass
+	time.Sleep(40 * time.Millisecond)
+
+	e.Frame()
+	if called.Load() {
+		t.Error("SetTimeout callback was executed despite being stopped")
+	}
+}
+
+func TestEngine_SetInterval(t *testing.T) {
+	e, _ := newTestEngine(t)
+	defer e.Stop()
+
+	var count atomic.Int32
+	timer := e.SetInterval(func() {
+		count.Add(1)
+	}, 10*time.Millisecond)
+
+	// Wait for a few intervals
+	time.Sleep(35 * time.Millisecond)
+
+	e.Frame()
+	c := count.Load()
+	if c < 2 {
+		t.Errorf("expected at least 2 ticks, got %d", c)
+	}
+
+	// Stop the interval
+	timer.Stop()
+	time.Sleep(20 * time.Millisecond)
+
+	e.Frame()
+	c2 := count.Load()
+	if c2 != c {
+		t.Errorf("count changed after Stop: was %d, now %d", c, c2)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
@@ -568,4 +569,77 @@ func UseKeyboard(handler func(event.KeyEvent), deps []any) {
 			s.Cancel()
 		}
 	}, deps)
+}
+
+// UseTimeout schedules a callback to run after the specified delay.
+// The timer is automatically cancelled if the component is unmounted
+// or if the delay/dependencies change before the timeout elapses.
+func UseTimeout(handler func(), delay time.Duration, deps []any) {
+	getDoc := UseDocument()
+
+	UseEffectCleanup(func() func() {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+		var sched terminal.Scheduler
+		if doc.Terminal() != nil {
+			sched = doc.Terminal().Scheduler()
+		} else {
+			sched = scheduler
+		}
+		if sched == nil {
+			return nil
+		}
+
+		t := time.AfterFunc(delay, func() {
+			sched.QueueMicrotask(handler)
+		})
+
+		return func() {
+			t.Stop()
+		}
+	}, append([]any{delay}, deps...))
+}
+
+// UseInterval schedules a callback to run repeatedly at the specified interval.
+// The interval timer is automatically cancelled when the component is unmounted
+// or if the interval/dependencies change.
+func UseInterval(handler func(), interval time.Duration, deps []any) {
+	getDoc := UseDocument()
+
+	UseEffectCleanup(func() func() {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+		var sched terminal.Scheduler
+		if doc.Terminal() != nil {
+			sched = doc.Terminal().Scheduler()
+		} else {
+			sched = scheduler
+		}
+		if sched == nil {
+			return nil
+		}
+
+		ticker := time.NewTicker(interval)
+		done := make(chan struct{})
+
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					sched.QueueMicrotask(handler)
+				case <-done:
+					return
+				}
+			}
+		}()
+
+		return func() {
+			ticker.Stop()
+			close(done)
+		}
+	}, append([]any{interval}, deps...))
 }

@@ -76,3 +76,46 @@ func TestEngine_SyncOverlaySubtree(t *testing.T) {
 		t.Error("overlay child was not synced to render tree")
 	}
 }
+
+func TestEngine_OverlayNotRenderedInFlow(t *testing.T) {
+	e, _ := newTestEngine(t)
+	defer e.Stop()
+
+	doc := e.Document()
+	parentEl := doc.CreateElement("box", nil)
+	overlayEl := doc.CreateElement("dialog", nil)
+	parentEl.AppendChild(overlayEl)
+	doc.AppendChild(parentEl)
+	doc.ShowOverlay(overlayEl, 100)
+
+	e.Frame()
+
+	parentRO := e.RenderObject(parentEl)
+	if parentRO == nil {
+		t.Fatal("expected parent render object to exist")
+	}
+	for child := range parentRO.Children() {
+		if child.LogicalNode() == overlayEl {
+			t.Fatal("overlay should not remain in the normal render tree while shown in the top layer")
+		}
+	}
+
+	overlays := e.RenderView().Overlays()
+	if len(overlays) != 1 || overlays[0].LogicalNode() != overlayEl {
+		t.Fatal("overlay should be present in the render view top layer")
+	}
+
+	doc.HideOverlay(overlayEl)
+	e.Frame()
+
+	found := false
+	for child := range parentRO.Children() {
+		if child.LogicalNode() == overlayEl {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("overlay should return to the normal render tree after HideOverlay")
+	}
+}

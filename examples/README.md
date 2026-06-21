@@ -38,6 +38,7 @@ go run main.go
 - **[kitex_demo](kitex_demo/)**: demonstrates the VDOM reconciler, functional components, and hooks (`UseState`).
 - **[kitex_ref_demo](kitex_ref_demo/)**: demonstrates using `UseRef` and `CreateRef` within functional components.
 - **[kitex_hooks](kitex_hooks/)**: demonstrates terminal-specific hooks (`UseFocus` and `UseKeyboard`).
+- **[kitex_autocomplete_demo](kitex_autocomplete_demo/)**: demonstrates an input-driven autocomplete menu opened with `Ctrl+Space`.
 - **[form_demo](form_demo/)**: demonstrates form elements (Inputs, Checkbox, RadioGroup, Select) and VDOM submission handler via `kitex.Form`.
 
 

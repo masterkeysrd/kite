@@ -145,6 +145,9 @@ func (d *Document) ShowOverlay(el dom.Element, zIndex int) {
 	})
 	d.nextOrder++
 	d.sortOverlays()
+	if parent := el.Parent(); parent != nil {
+		asBase(parent).MarkNeedsSync()
+	}
 	d.MarkNeedsSync()
 }
 
@@ -152,6 +155,9 @@ func (d *Document) HideOverlay(el dom.Element) {
 	for i, o := range d.overlays {
 		if o.el == el {
 			d.overlays = append(d.overlays[:i], d.overlays[i+1:]...)
+			if parent := el.Parent(); parent != nil {
+				asBase(parent).MarkNeedsSync()
+			}
 			d.MarkNeedsSync()
 			return
 		}
@@ -166,6 +172,23 @@ func (d *Document) Overlays() iter.Seq[dom.Element] {
 			}
 		}
 	}
+}
+
+// IsOverlay reports whether el is currently registered in its owner document's top layer.
+func IsOverlay(el dom.Element) bool {
+	if el == nil {
+		return false
+	}
+	doc, ok := el.OwnerDocument().(*Document)
+	if !ok || doc == nil {
+		return false
+	}
+	for _, o := range doc.overlays {
+		if o.el == el {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *Document) Focus(el dom.Element) {

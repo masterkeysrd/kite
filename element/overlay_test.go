@@ -232,4 +232,3 @@ func TestOverlay_SetConfig_UpdatesZIndex(t *testing.T) {
 		t.Errorf("unexpected updated overlay order: %v", updated)
 	}
 }
-

@@ -218,14 +218,7 @@ func main() {
 			Name: "Progress Bar",
 			Render: func(c *stage.Context) kitex.Node {
 				progress := c.Int("Progress (0-100)", 42)
-
-				// Clamp to [0, 100]
-				if progress < 0 {
-					progress = 0
-				}
-				if progress > 100 {
-					progress = 100
-				}
+				progress = max(0, min(100, progress))
 
 				var barColor color.RGBA
 				switch {

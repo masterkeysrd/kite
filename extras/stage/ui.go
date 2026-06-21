@@ -46,7 +46,7 @@ var (
 			AlignItems(style.AlignCenter).
 			JustifyContent(style.JustifyCenter).
 			Width(style.Percent(100)).
-			Flex(1).
+			Height(style.Percent(70)).
 			MinHeight(style.Cells(0)).
 			Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}) // Gray 800
 

@@ -3,7 +3,9 @@ package kitex
 import (
 	"fmt"
 	"reflect"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
@@ -1199,5 +1201,89 @@ func TestUseState_UnmountedComponentNoop(t *testing.T) {
 	// Getter should return last known value
 	if getState() != 10 {
 		t.Errorf("expected getter to return last known value 10, got %d", getState())
+	}
+}
+
+func TestUseTimeout(t *testing.T) {
+	doc := dom.NewDocument()
+	container := doc.CreateElement("container", nil)
+
+	var called atomic.Bool
+	TimeoutApp := SimpleFC("TimeoutApp", func() Node {
+		UseTimeout(func() {
+			called.Store(true)
+		}, 10*time.Millisecond, nil)
+
+		return Box(BoxProps{}, Text("Timeout app"))
+	})
+
+	Render(TimeoutApp(), container)
+	testScheduler.flushMacrotasks()
+
+	// Wait for the timeout to elapse
+	time.Sleep(30 * time.Millisecond)
+
+	if !called.Load() {
+		t.Error("expected UseTimeout callback to be executed")
+	}
+
+	// Now test unmount cleanup
+	var called2 atomic.Bool
+	TimeoutApp2 := SimpleFC("TimeoutApp2", func() Node {
+		UseTimeout(func() {
+			called2.Store(true)
+		}, 20*time.Millisecond, nil)
+
+		return Box(BoxProps{}, Text("Timeout app 2"))
+	})
+
+	Render(TimeoutApp2(), container)
+	testScheduler.flushMacrotasks()
+
+	// Immediately unmount to trigger cleanup
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+
+	// Wait for the timeout duration
+	time.Sleep(40 * time.Millisecond)
+
+	if called2.Load() {
+		t.Error("expected UseTimeout callback NOT to be executed after unmount")
+	}
+}
+
+func TestUseInterval(t *testing.T) {
+	doc := dom.NewDocument()
+	container := doc.CreateElement("container", nil)
+
+	var ticks atomic.Int32
+	IntervalApp := SimpleFC("IntervalApp", func() Node {
+		UseInterval(func() {
+			ticks.Add(1)
+		}, 10*time.Millisecond, nil)
+
+		return Box(BoxProps{}, Text("Interval app"))
+	})
+
+	Render(IntervalApp(), container)
+	testScheduler.flushMacrotasks()
+
+	// Wait for a couple of ticks
+	time.Sleep(35 * time.Millisecond)
+
+	currentTicks := ticks.Load()
+	if currentTicks < 2 {
+		t.Errorf("expected at least 2 ticks, got %d", currentTicks)
+	}
+
+	// Unmount to stop interval
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+
+	// Wait more time
+	time.Sleep(20 * time.Millisecond)
+
+	if ticks.Load() != currentTicks {
+		t.Errorf("ticks continued after unmount: was %d, now %d", currentTicks, ticks.Load())
 	}
 }

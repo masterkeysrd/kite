@@ -5,6 +5,7 @@ Kitex is a lightweight, reactive Virtual DOM (VDOM) framework for Kite. It provi
 ## ✨ Features
 
 - 🧩 **Functional Components**: Define reusable UI logic using `kitex.FC` (or `kitex.FCC` for components with children). For components without props, use `kitex.SimpleFC` or `kitex.SimpleFCC`.
+- 🧱 **Typed Element Wrappers**: Build UIs with typed wrappers for Kite elements such as `Box`, `Span`, `Button`, `Table`, `UL`, `OL`, and `LI`.
 - 🪝 **Hooks**: Manage state and lifecycle with `UseState`, `UseRef`, `UseMemo`, `UseReducer`, and `UseCallback`.
 - 🔄 **Efficient Reconciliation**: A high-performance diffing algorithm that updates only what changed in the real DOM.
 - 🔑 **Keyed Lists**: Optimized list updates using unique keys to track element identity.

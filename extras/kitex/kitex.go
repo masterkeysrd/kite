@@ -575,6 +575,12 @@ func setStyle(el element.Element, s style.Style) {
 		x.Style(s)
 	case *element.TextAreaElement:
 		x.Style(s)
+	case *element.UnorderedListElement:
+		x.Style(s)
+	case *element.OrderedListElement:
+		x.Style(s)
+	case *element.ListItemElement:
+		x.Style(s)
 	case *element.TableElement:
 		x.Style(s)
 	case *element.TableHeaderElement:
@@ -618,6 +624,12 @@ func setHidden(el element.Element, h bool) {
 	case *element.InputElement:
 		x.Hidden(h)
 	case *element.TextAreaElement:
+		x.Hidden(h)
+	case *element.UnorderedListElement:
+		x.Hidden(h)
+	case *element.OrderedListElement:
+		x.Hidden(h)
+	case *element.ListItemElement:
 		x.Hidden(h)
 	case *element.TableElement:
 		x.Hidden(h)
@@ -706,6 +718,9 @@ func updateElementBase(el element.Element, old, new *ElementProps) {
 type BoxProps = ElementProps
 type SpanProps = ElementProps
 type BrProps = ElementProps
+type ULProps = ElementProps
+type OLProps = ElementProps
+type LIProps = ElementProps
 type TableProps = ElementProps
 type THeadProps = ElementProps
 type TBodyProps = ElementProps
@@ -1514,6 +1529,66 @@ func Table(props TableProps, children ...Node) Node {
 			return element.NewTable(doc)
 		},
 		update: func(el dom.Node, old, new *TableProps) {
+			updateElementBase(el.(element.Element), old, new)
+		},
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
+	}, 1)
+}
+
+// UL creates a VDOM representation of an UnorderedListElement (ul).
+func UL(props ULProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
+	return trackSource(&elementNode[ULProps]{
+		tagName:  "ul",
+		props:    props,
+		children: children,
+		instantiate: func(doc dom.Document) dom.Node {
+			return element.NewUnorderedList(doc)
+		},
+		update: func(el dom.Node, old, new *ULProps) {
+			updateElementBase(el.(element.Element), old, new)
+		},
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
+	}, 1)
+}
+
+// OL creates a VDOM representation of an OrderedListElement (ol).
+func OL(props OLProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
+	return trackSource(&elementNode[OLProps]{
+		tagName:  "ol",
+		props:    props,
+		children: children,
+		instantiate: func(doc dom.Document) dom.Node {
+			return element.NewOrderedList(doc)
+		},
+		update: func(el dom.Node, old, new *OLProps) {
+			updateElementBase(el.(element.Element), old, new)
+		},
+		key:         props.Key,
+		score:       score,
+		hasProvider: hasP,
+		hasDirectP:  hasDirectP,
+	}, 1)
+}
+
+// LI creates a VDOM representation of a ListItemElement (li).
+func LI(props LIProps, children ...Node) Node {
+	score, hasP, hasDirectP := buildElementInfo(children)
+	return trackSource(&elementNode[LIProps]{
+		tagName:  "li",
+		props:    props,
+		children: children,
+		instantiate: func(doc dom.Document) dom.Node {
+			return element.NewListItem(doc)
+		},
+		update: func(el dom.Node, old, new *LIProps) {
 			updateElementBase(el.(element.Element), old, new)
 		},
 		key:         props.Key,
