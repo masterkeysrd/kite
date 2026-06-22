@@ -3,6 +3,7 @@ package wind
 import (
 	"context"
 	"fmt"
+	"iter"
 	"sync"
 	"testing"
 	"time"
@@ -351,5 +352,305 @@ func TestQueryInitialLoadingState(t *testing.T) {
 	}
 	if capturedData != "data" {
 		t.Errorf("expected settled data to be 'data', got %q", capturedData)
+	}
+}
+
+func TestStream_UnmountCancellation(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+
+	client := NewClient()
+	ctxCancelled := make(chan struct{})
+
+	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		return func(yield func(string, error) bool) {
+			select {
+			case <-ctx.Done():
+				close(ctxCancelled)
+				return
+			case <-time.After(1 * time.Second):
+				yield("data", nil)
+			}
+		}
+	}
+
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		res := UseStream("stream_cancel", fetcher)
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+	})
+
+	// Mount
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Unmount
+	kitex.Render(nil, container)
+
+	select {
+	case <-ctxCancelled:
+		// Success!
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected stream context to be cancelled on unmount")
+	}
+}
+
+func TestStream_Deduplication(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	client := NewClient()
+	var streamCount int
+	var mu sync.Mutex
+
+	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		return func(yield func(string, error) bool) {
+			mu.Lock()
+			streamCount++
+			mu.Unlock()
+			yield("initial", nil)
+		}
+	}
+
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		return kitex.Box(kitex.BoxProps{},
+			ChildStreamComp(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
+			ChildStreamComp(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
+		)
+	})
+
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	time.Sleep(20 * time.Millisecond)
+
+	mu.Lock()
+	count := streamCount
+	mu.Unlock()
+
+	if count != 1 {
+		t.Errorf("expected stream to be created once, got %d", count)
+	}
+}
+
+type ChildStreamProps struct {
+	Key     string
+	Fetcher func(context.Context, string) iter.Seq2[string, error]
+}
+
+var ChildStreamComp = kitex.FC("ChildStreamComp", func(props ChildStreamProps) kitex.Node {
+	res := UseStream(props.Key, props.Fetcher)
+	return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+})
+
+func TestStream_Coalescing(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	// Set test scheduler
+	sched := &testScheduler{}
+	promise.SetScheduler(sched)
+	defer promise.SetScheduler(nil)
+
+	client := NewClient()
+
+	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		return func(yield func(string, error) bool) {
+			// Yield 10 values in a loop as fast as possible
+			for i := 0; i < 10; i++ {
+				yield(fmt.Sprintf("val_%d", i), nil)
+			}
+		}
+	}
+
+	var renderCount int
+	var mu sync.Mutex
+	var lastData string
+
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		res := UseStream("coalesce_key", fetcher)
+		mu.Lock()
+		renderCount++
+		lastData = res.Data
+		mu.Unlock()
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+	})
+
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	// Wait for background events to queue their microtasks
+	time.Sleep(30 * time.Millisecond)
+
+	// Flush queued microtasks (coalesced pass)
+	sched.Flush()
+
+	// Wait a tiny bit more for layout effects if any
+	time.Sleep(10 * time.Millisecond)
+
+	mu.Lock()
+	count := renderCount
+	data := lastData
+	mu.Unlock()
+
+	// 1 for initial render (connecting/loading state), and up to 3 for update and cleanup passes.
+	if count > 4 {
+		t.Errorf("expected render count to be coalesced (<= 4 passes), got %d", count)
+	}
+	if data != "val_9" {
+		t.Errorf("expected last data to be val_9, got %q", data)
+	}
+}
+
+func TestStream_InvalidationCoalescing(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	// Set test scheduler
+	sched := &testScheduler{}
+	promise.SetScheduler(sched)
+	defer promise.SetScheduler(nil)
+
+	client := NewClient()
+	var startCount int
+	var mu sync.Mutex
+
+	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		return func(yield func(string, error) bool) {
+			mu.Lock()
+			startCount++
+			mu.Unlock()
+			yield("value", nil)
+		}
+	}
+
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		res := UseStream("invalidate_key", fetcher)
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+	})
+
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	// Wait and flush initial connection
+	time.Sleep(20 * time.Millisecond)
+	sched.Flush()
+
+	mu.Lock()
+	initialStarts := startCount
+	mu.Unlock()
+
+	if initialStarts != 1 {
+		t.Fatalf("expected stream to start once initially, got %d", initialStarts)
+	}
+
+	// Trigger invalidations 10 times in a tight loop
+	for i := 0; i < 10; i++ {
+		client.InvalidateQueries("invalidate_key")
+	}
+
+	// Flush the coalesced invalidation microtask to trigger the reconnect/executeStream call
+	sched.Flush()
+
+	// Wait for the reconnected background stream to start and increment startCount
+	time.Sleep(20 * time.Millisecond)
+
+	mu.Lock()
+	finalStarts := startCount
+	mu.Unlock()
+
+	// It should have connected exactly once initially, and exactly once for the coalesced invalidations.
+	if finalStarts != 2 {
+		t.Errorf("expected exactly 2 starts total (1 initial + 1 coalesced invalidation), got %d", finalStarts)
+	}
+}
+
+func TestStream_ManualReconnection(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	client := NewClient()
+	var startCount int
+	var mu sync.Mutex
+
+	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		return func(yield func(string, error) bool) {
+			mu.Lock()
+			startCount++
+			mu.Unlock()
+			yield("val", nil)
+		}
+	}
+
+	var capturedResult StreamResult[string]
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		capturedResult = UseStream("reconnect_key", fetcher)
+		return kitex.Box(kitex.BoxProps{})
+	})
+
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+	time.Sleep(20 * time.Millisecond)
+
+	mu.Lock()
+	count1 := startCount
+	mu.Unlock()
+
+	if count1 != 1 {
+		t.Fatalf("expected stream to connect initially, got %d", count1)
+	}
+
+	// Trigger manual refetch (reconnection)
+	capturedResult.Refetch()
+
+	time.Sleep(20 * time.Millisecond)
+
+	mu.Lock()
+	count2 := startCount
+	mu.Unlock()
+
+	if count2 != 2 {
+		t.Errorf("expected stream to reconnect, total starts should be 2, got %d", count2)
+	}
+}
+
+type testScheduler struct {
+	mu         sync.Mutex
+	microtasks []func()
+}
+
+func (s *testScheduler) RunBackground(task func(ctx context.Context)) {
+	go task(context.Background())
+}
+
+func (s *testScheduler) QueueMicrotask(task func()) {
+	s.mu.Lock()
+	s.microtasks = append(s.microtasks, task)
+	s.mu.Unlock()
+}
+
+func (s *testScheduler) QueueMacrotask(task func()) {
+	s.QueueMicrotask(task)
+}
+
+func (s *testScheduler) Flush() {
+	for {
+		s.mu.Lock()
+		if len(s.microtasks) == 0 {
+			s.mu.Unlock()
+			break
+		}
+		tasks := s.microtasks
+		s.microtasks = nil
+		s.mu.Unlock()
+
+		for _, t := range tasks {
+			t()
+		}
 	}
 }
