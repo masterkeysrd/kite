@@ -7,6 +7,40 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+// TestTableFragmentBuilder_PercentWidthHints verifies that percentage width hints on
+// TD cells are honoured by distributeTableWidth:
+//   - Columns with a small hint (e.g. 1 %) shrink to their content max.
+//   - The column with the large hint (e.g. 100 %) absorbs all remaining space.
+func TestTableFragmentBuilder_PercentWidthHints(t *testing.T) {
+	// Two meta columns (content max = 10 each) and one name column (content max = 20).
+	// Table is 80 cells wide.
+	// Expected: meta cols → 10 each; name col → 80 - 10 - 10 = 60.
+	colMinMax := []MinMaxSizes{
+		{Min: 5, Max: 10},
+		{Min: 5, Max: 10},
+		{Min: 10, Max: 20},
+	}
+	colPercent := []float32{1, 1, 100}
+
+	node := &mockNode{style: &style.Computed{Display: style.DisplayTable}}
+	space := NewConstraintSpaceBuilder(geometry.Size{80, 20}).ToConstraintSpace()
+	builder := NewTableFragmentBuilder(node, space)
+	builder.colMinMax = colMinMax
+	builder.colPercent = colPercent
+
+	widths := builder.distributeTableWidth(colMinMax, colPercent, 80)
+
+	if widths[0] != 10 {
+		t.Errorf("meta col 0: expected 10, got %d", widths[0])
+	}
+	if widths[1] != 10 {
+		t.Errorf("meta col 1: expected 10, got %d", widths[1])
+	}
+	if widths[2] != 60 {
+		t.Errorf("name col: expected 60, got %d", widths[2])
+	}
+}
+
 func TestTableFragmentBuilder_DistributeSpan(t *testing.T) {
 	node := &mockNode{
 		style: &style.Computed{Display: style.DisplayTable},

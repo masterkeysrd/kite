@@ -24,6 +24,7 @@ type TableFragmentBuilder struct {
 	// Sizing and Grid
 	grid          tableGrid
 	colMinMax     []MinMaxSizes
+	colPercent    []float32 // per-column percentage width hint; -1 means no hint
 	resolvedWidth int
 	colWidths     []int
 
@@ -39,6 +40,7 @@ var tableBuilderPool = sync.Pool{
 			bodies:              make([]Node, 0, 1),
 			footers:             make([]Node, 0, 1),
 			colMinMax:           make([]MinMaxSizes, 0, 8),
+			colPercent:          make([]float32, 0, 8),
 			colWidths:           make([]int, 0, 8),
 			lastCellBorderRight: make(map[int]bool),
 		}
@@ -61,6 +63,7 @@ func AcquireTableFragmentBuilder(node Node, space ConstraintSpace) *TableFragmen
 	b.currentAnonBody = nil
 
 	b.colMinMax = b.colMinMax[:0]
+	b.colPercent = b.colPercent[:0]
 	b.resolvedWidth = 0
 	b.colWidths = b.colWidths[:0]
 	b.grid.Reset()
@@ -178,6 +181,27 @@ func (b *TableFragmentBuilder) BuildGrid(ctx *Context) {
 			}
 		}
 	}
+
+	// Third pass: collect per-column percentage width hints from single-span cells.
+	// The maximum hint across all rows wins for each column.
+	b.colPercent = make([]float32, b.grid.NumCols)
+	for i := range b.colPercent {
+		b.colPercent[i] = -1 // no hint
+	}
+	for _, row := range b.grid.Rows {
+		for _, cell := range row.Cells {
+			if cell.ColSpan != 1 {
+				continue
+			}
+			w := cell.Node.Style().Width
+			if w.Kind() == style.KindPercent {
+				pct := w.PercentValue()
+				if b.colPercent[cell.ColStart] < pct {
+					b.colPercent[cell.ColStart] = pct
+				}
+			}
+		}
+	}
 }
 
 // DistributeSpan handles the complex math of stretching minimum widths across multiple columns.
@@ -236,7 +260,7 @@ func (b *TableFragmentBuilder) ResolveWidths(resolvedInlineSize int, parentDecor
 	}
 
 	b.resolvedWidth = resolvedInlineSize
-	b.colWidths = b.distributeTableWidth(b.colMinMax, distributableWidth)
+	b.colWidths = b.distributeTableWidth(b.colMinMax, b.colPercent, distributableWidth)
 	b.boxBuilder.SetInlineSize(resolvedInlineSize)
 }
 
@@ -446,11 +470,22 @@ func (b *TableFragmentBuilder) buildTableGrid(rows []Node) tableGrid {
 	return grid
 }
 
-func (b *TableFragmentBuilder) distributeTableWidth(colMinMax []MinMaxSizes, availableWidth int) []int {
-	widths := make([]int, len(colMinMax))
+// distributeTableWidth allocates availableWidth among columns using a three-phase algorithm
+// that mirrors the CSS table-layout:auto behaviour for percentage-hinted columns:
+//
+//  1. Content phase: bring every column up to its max-content width (proportionally if
+//     the budget is too small).
+//  2. Grow phase: any space that remains after the content phase is handed entirely to
+//     "grow" columns — those whose percentage hint resolves to more than their
+//     max-content width — distributed proportionally by percentage weight.
+//  3. Equal fallback: when there are no grow columns the leftover is split equally,
+//     preserving the original behaviour for tables without percentage hints.
+func (b *TableFragmentBuilder) distributeTableWidth(colMinMax []MinMaxSizes, colPercent []float32, availableWidth int) []int {
+	n := len(colMinMax)
+	widths := make([]int, n)
+
 	totalMin := 0
 	totalMax := 0
-
 	for i, m := range colMinMax {
 		widths[i] = m.Min
 		totalMin += m.Min
@@ -462,33 +497,98 @@ func (b *TableFragmentBuilder) distributeTableWidth(colMinMax []MinMaxSizes, ava
 		return widths
 	}
 
-	distributableMax := totalMax - totalMin
-	if distributableMax > 0 {
-		// Distribute proportionally up to max
+	// Phase 1: bring all columns up to their content max.
+	contentPhase := totalMax - totalMin
+	if contentPhase >= extra {
+		// Not enough room for full content-max — distribute proportionally.
 		for i, m := range colMinMax {
 			maxDiff := m.Max - m.Min
 			if maxDiff > 0 {
-				portion := int(math.Round(float64(extra) * float64(maxDiff) / float64(distributableMax)))
-				// don't exceed max
+				portion := int(math.Round(float64(extra) * float64(maxDiff) / float64(contentPhase)))
 				added := min(portion, maxDiff)
 				widths[i] += added
 				extra -= added
 			}
 		}
+		// Assign any rounding remainder to the first column that still has headroom.
+		for i, m := range colMinMax {
+			if extra <= 0 {
+				break
+			}
+			if gap := m.Max - widths[i]; gap > 0 {
+				add := min(extra, gap)
+				widths[i] += add
+				extra -= add
+			}
+		}
+		return widths
 	}
 
-	// If still extra, distribute equally
-	if extra > 0 && len(widths) > 0 {
-		perCol := extra / len(widths)
-		rem := extra % len(widths)
-		for i := range widths {
-			widths[i] += perCol
-			if rem > 0 {
-				widths[i]++
-				rem--
-			}
+	// Everyone gets their content max.
+	for i, m := range colMinMax {
+		widths[i] = m.Max
+	}
+	extra -= contentPhase
+
+	if extra <= 0 || len(colPercent) == 0 {
+		if extra > 0 {
+			// No percent hints — fall back to equal distribution.
+			b.distributeEqually(widths, extra)
+		}
+		return widths
+	}
+
+	// Phase 2: distribute remaining space to "grow" percent columns.
+	// A grow column is one whose percentage target exceeds its content max.
+	type growEntry struct {
+		idx    int
+		weight float64
+	}
+	var growCols []growEntry
+	totalWeight := 0.0
+	for i, pct := range colPercent {
+		if pct < 0 {
+			continue
+		}
+		hint := float64(pct) / 100.0 * float64(availableWidth)
+		if hint > float64(colMinMax[i].Max) {
+			growCols = append(growCols, growEntry{i, float64(pct)})
+			totalWeight += float64(pct)
 		}
 	}
 
+	if len(growCols) > 0 {
+		allocated := 0
+		for _, gc := range growCols {
+			portion := int(math.Round(float64(extra) * gc.weight / totalWeight))
+			widths[gc.idx] += portion
+			allocated += portion
+		}
+		// Assign rounding remainder to the first grow column.
+		if rem := extra - allocated; rem != 0 {
+			widths[growCols[0].idx] += rem
+		}
+		return widths
+	}
+
+	// Phase 3: no grow columns — distribute equally.
+	b.distributeEqually(widths, extra)
 	return widths
+}
+
+// distributeEqually adds extra cells to widths one per column in round-robin order.
+func (b *TableFragmentBuilder) distributeEqually(widths []int, extra int) {
+	n := len(widths)
+	if n == 0 {
+		return
+	}
+	perCol := extra / n
+	rem := extra % n
+	for i := range widths {
+		widths[i] += perCol
+		if rem > 0 {
+			widths[i]++
+			rem--
+		}
+	}
 }
