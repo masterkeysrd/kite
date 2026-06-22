@@ -109,6 +109,10 @@ func (m *Manager) ActiveScope() *dom.FocusScope {
 // target and focus/focusin are dispatched on el. DirtyPaint is marked on
 // both the old and new nodes so painters can update focus rings.
 func (m *Manager) SetFocus(el dom.Element, reason Reason) bool {
+	if el == nil {
+		m.setFocus(nil, reason)
+		return true
+	}
 	if !m.IsFocusable(el, m.ActiveScopeInternal()) {
 		return false
 	}

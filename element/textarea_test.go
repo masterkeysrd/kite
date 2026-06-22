@@ -489,3 +489,31 @@ func BenchmarkTextArea_Frame(b *testing.B) {
 		})
 	}
 }
+
+func TestTextArea_ProgrammaticFocusBlur(t *testing.T) {
+	b := mock.New(80, 5)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	txa := element.NewTextArea(eng.Document(), "")
+	root := element.Box(txa)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Initial state: automatically focused by SetInitialFocus during Frame()
+	if !eng.Document().IsFocused(txa) {
+		t.Error("expected textarea to be focused initially due to SetInitialFocus")
+	}
+
+	// Programmatic Blur
+	txa.Blur()
+	if eng.Document().IsFocused(txa) {
+		t.Error("expected textarea to be unfocused after txa.Blur()")
+	}
+
+	// Programmatic Focus
+	txa.Focus()
+	if !eng.Document().IsFocused(txa) {
+		t.Error("expected textarea to be focused after txa.Focus()")
+	}
+}

@@ -337,5 +337,15 @@ func (e *Element) Focus() {
 }
 
 func (e *Element) Blur() {
-	// Base implementation is a no-op, but must satisfy dom.Element.
+	if doc := e.ownerDocument; doc != nil {
+		target := dom.Element(e)
+		if e.outer != nil {
+			if el, ok := e.outer.(dom.Element); ok {
+				target = el
+			}
+		}
+		if doc.IsFocused(target) {
+			doc.Focus(nil)
+		}
+	}
 }

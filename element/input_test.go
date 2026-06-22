@@ -357,3 +357,31 @@ func TestInput_EngineFrame_ProducesFrame(t *testing.T) {
 		t.Fatal("no surface in frame")
 	}
 }
+
+func TestInput_ProgrammaticFocusBlur(t *testing.T) {
+	b := mock.New(80, 5)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	inp := element.NewInput(eng.Document(), "")
+	root := element.Box(inp)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Initial state: automatically focused by SetInitialFocus during Frame()
+	if !eng.Document().IsFocused(inp) {
+		t.Error("expected input to be focused initially due to SetInitialFocus")
+	}
+
+	// Programmatic Blur
+	inp.Blur()
+	if eng.Document().IsFocused(inp) {
+		t.Error("expected input to be unfocused after inp.Blur()")
+	}
+
+	// Programmatic Focus
+	inp.Focus()
+	if !eng.Document().IsFocused(inp) {
+		t.Error("expected input to be focused after inp.Focus()")
+	}
+}

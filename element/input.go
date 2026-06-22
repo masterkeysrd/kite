@@ -236,13 +236,16 @@ func (inp *InputElement) SyncBuffer() {
 // IsFocusable always returns true for input elements.
 func (inp *InputElement) IsFocusable() bool { return true }
 
-// Focus is a no-op placeholder (focus management is handled by focus.Manager).
+// Focus programmatically moves focus to the input element.
 func (inp *InputElement) Focus() {
 	inp.needsScrollIntoView = true
+	inp.Element.Focus()
 }
 
-// Blur is a no-op placeholder (focus management is handled by focus.Manager).
-func (inp *InputElement) Blur() {}
+// Blur programmatically removes focus from the input element.
+func (inp *InputElement) Blur() {
+	inp.Element.Blur()
+}
 
 // syncText updates the UA text node to mirror the current buffer value and
 // marks the render object dirty for layout and paint.

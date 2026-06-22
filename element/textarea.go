@@ -211,8 +211,11 @@ func (txa *TextAreaElement) SyncBuffer() {
 func (txa *TextAreaElement) IsFocusable() bool { return true }
 func (txa *TextAreaElement) Focus() {
 	txa.needsScrollIntoView = true
+	txa.Element.Focus()
 }
-func (txa *TextAreaElement) Blur() {}
+func (txa *TextAreaElement) Blur() {
+	txa.Element.Blur()
+}
 
 // --- Style resolution overrides ----------------------------------------------
 

@@ -664,3 +664,45 @@ func TestFocusFilter_RespectsScopeBoundary(t *testing.T) {
 		t.Errorf("Next within inner scope: got %v, want inside", m.Current())
 	}
 }
+
+// TestManager_SetFocus_NilClearsFocus verifies that calling SetFocus(nil) clears the current focus.
+func TestManager_SetFocus_NilClearsFocus(t *testing.T) {
+	t.Parallel()
+
+	root := newNonFocusable()
+	a := newFocusable()
+	link(root, a)
+
+	m, captured := makeManager(root)
+
+	// Initial focus on a.
+	ok := m.SetFocus(a, focus.ReasonProgrammatic)
+	if !ok {
+		t.Fatal("failed to focus a")
+	}
+	if m.Current() != a {
+		t.Errorf("expected current focus to be a, got %v", m.Current())
+	}
+
+	// Clear focus using SetFocus(nil).
+	*captured = nil
+	ok = m.SetFocus(nil, focus.ReasonProgrammatic)
+	if !ok {
+		t.Error("SetFocus(nil) should return true")
+	}
+	if m.Current() != nil {
+		t.Errorf("expected current focus to be nil, got %v", m.Current())
+	}
+
+	// Verify blur events were fired.
+	hasBlur := false
+	for _, typ := range *captured {
+		if typ == event.EventBlur {
+			hasBlur = true
+			break
+		}
+	}
+	if !hasBlur {
+		t.Error("expected EventBlur to be fired on focus clear")
+	}
+}
