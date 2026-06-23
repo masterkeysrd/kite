@@ -121,3 +121,138 @@ func TestRange_String_AncestorStart(t *testing.T) {
 		t.Errorf("expected %q, got %q", want, got)
 	}
 }
+
+func TestComparePositions(t *testing.T) {
+	doc := NewDocument()
+	div := doc.CreateElement("div", nil)
+	t1 := doc.CreateTextNode("Hello", nil)
+	t2 := doc.CreateTextNode("World", nil)
+	div.AppendChild(t1)
+	div.AppendChild(t2)
+	doc.AppendChild(div)
+
+	// Test 1: Compare within same node
+	if cmp := doc.comparePositions(t1, 0, t1, 3); cmp >= 0 {
+		t.Errorf("expected negative comparison, got %d", cmp)
+	}
+	if cmp := doc.comparePositions(t1, 3, t1, 0); cmp <= 0 {
+		t.Errorf("expected positive comparison, got %d", cmp)
+	}
+
+	// Test 2: Compare across different nodes (t1 before t2 in preorder)
+	if cmp := doc.comparePositions(t1, 0, t2, 0); cmp >= 0 {
+		t.Errorf("expected negative comparison for t1 before t2, got %d", cmp)
+	}
+	if cmp := doc.comparePositions(t2, 0, t1, 0); cmp <= 0 {
+		t.Errorf("expected positive comparison for t2 after t1, got %d", cmp)
+	}
+
+	// Test 3: Element child comparisons (div before t2 in preorder)
+	if cmp := doc.comparePositions(div, 0, t2, 0); cmp >= 0 {
+		t.Errorf("expected negative comparison for parent div before child t2, got %d", cmp)
+	}
+
+	// Test 4: Invalidation test
+	doc.InvalidateTextNodeCache()
+	t3 := doc.CreateTextNode("!", nil)
+	div.AppendChild(t3)
+
+	if cmp := doc.comparePositions(t2, 0, t3, 0); cmp >= 0 {
+		t.Errorf("expected negative comparison for t2 before new child t3, got %d", cmp)
+	}
+
+	// Test 5: Detached node fallback (a node not connected to the document)
+	detached := doc.CreateTextNode("detached", nil)
+	if cmp := doc.comparePositions(t1, 0, detached, 0); cmp >= 0 {
+		// Should fall back gracefully and order them (usually detached is not found in walk, so it's placed after/before depending on search)
+		t.Logf("Comparison with detached node: %d", cmp)
+	}
+}
+
+func TestFindNodeAtByteOffset_Overlays(t *testing.T) {
+	doc := NewDocument()
+	body := doc.CreateElement("div", nil)
+	t1 := doc.CreateTextNode("Hello", nil) // 5 bytes: 0-5
+	body.AppendChild(t1)
+	doc.AppendChild(body)
+
+	overlay := doc.CreateElement("div", nil)
+	t2 := doc.CreateTextNode("World", nil) // 5 bytes: 5-10
+	overlay.AppendChild(t2)
+	doc.ShowOverlay(overlay, 1)
+
+	// Invalidate to make sure caches are clean
+	doc.InvalidateTextNodeCache()
+
+	// Find node at offset 2 (should be in t1, "Hello")
+	node, offset := doc.FindNodeAtByteOffset(doc, 2)
+	if node != t1 || offset != 2 {
+		t.Errorf("expected t1 at offset 2, got %v with offset %d", node, offset)
+	}
+
+	// Find node at offset 7 (should be in t2, "World", since t1 is 5 bytes and t2 starts at 5)
+	node, offset = doc.FindNodeAtByteOffset(doc, 7)
+	if node != t2 || offset != 2 {
+		t.Errorf("expected t2 at offset 2 (total offset 7), got %v with offset %d", node, offset)
+	}
+
+	// Compare t1 and t2 (t2 is in overlay, so should be after t1)
+	if cmp := doc.comparePositions(t1, 0, t2, 0); cmp >= 0 {
+		t.Errorf("expected t1 in body before t2 in overlay, got %d", cmp)
+	}
+}
+
+func TestTextNodeCacheInvalidation(t *testing.T) {
+	doc := NewDocument()
+	body := doc.CreateElement("div", nil)
+	doc.AppendChild(body)
+
+	// Step 1: Initial state with one text node
+	t1 := doc.CreateTextNode("Hello", nil) // 5 bytes: 0-5
+	body.AppendChild(t1)
+
+	// Trigger cache build
+	node, offset := doc.FindNodeAtByteOffset(doc, 2)
+	if node != t1 || offset != 2 {
+		t.Errorf("expected t1 at offset 2, got %v with offset %d", node, offset)
+	}
+
+	// Step 2: Structural change - Insert a new text node BEFORE t1
+	t0 := doc.CreateTextNode("AB", nil) // 2 bytes: 0-2
+	body.InsertBefore(t0, t1)
+
+	// Cache should be automatically invalidated by InsertBefore.
+	// Now t0 is bytes 0-2 ("AB"), t1 is bytes 2-7 ("Hello").
+	node, offset = doc.FindNodeAtByteOffset(doc, 1)
+	if node != t0 || offset != 1 {
+		t.Errorf("expected t0 at offset 1, got %v with offset %d", node, offset)
+	}
+
+	node, offset = doc.FindNodeAtByteOffset(doc, 4) // 4 is index 2 in "Hello"
+	if node != t1 || offset != 2 {
+		t.Errorf("expected t1 at offset 4, got %v with offset %d", node, offset)
+	}
+
+	// Step 3: Structural change - Remove t0
+	body.RemoveChild(t0)
+
+	// Cache should be invalidated by RemoveChild.
+	// t1 is back to being bytes 0-5.
+	node, offset = doc.FindNodeAtByteOffset(doc, 2)
+	if node != t1 || offset != 2 {
+		t.Errorf("expected t1 at offset 2 after removal, got %v with offset %d", node, offset)
+	}
+
+	// Step 4: Structural change - Overlay
+	overlay := doc.CreateElement("div", nil)
+	to := doc.CreateTextNode("World", nil) // 5 bytes
+	overlay.AppendChild(to)
+	doc.ShowOverlay(overlay, 1)
+
+	// Cache should be invalidated by ShowOverlay.
+	// t1 is bytes 0-5, to is bytes 5-10.
+	node, offset = doc.FindNodeAtByteOffset(doc, 6)
+	if node != to || offset != 1 {
+		t.Errorf("expected overlay node at offset 6, got %v with offset %d", node, offset)
+	}
+}

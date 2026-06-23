@@ -7,6 +7,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -48,7 +49,17 @@ type Document struct {
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
 	// subtree currently being walked.
-	mutating bool
+	mutating        bool
+	cachedTextNodes []TextNodeRecord
+	textNodesValid  bool
+	preorderOrders  map[any]render.NodeOrder
+	preorderValid   bool
+}
+
+type TextNodeRecord struct {
+	Node      dom.TextNode
+	StartByte int
+	EndByte   int
 }
 
 // Compile-time assertion.
@@ -132,6 +143,8 @@ func (d *Document) ShowOverlay(el dom.Element, zIndex int) {
 			}
 			d.overlays[i].zIndex = zIndex
 			d.sortOverlays()
+			d.InvalidatePreorderCache()
+			d.InvalidateTextNodeCache()
 			d.MarkNeedsSync()
 			return
 		}
@@ -145,6 +158,8 @@ func (d *Document) ShowOverlay(el dom.Element, zIndex int) {
 	})
 	d.nextOrder++
 	d.sortOverlays()
+	d.InvalidatePreorderCache()
+	d.InvalidateTextNodeCache()
 	if parent := el.Parent(); parent != nil {
 		asBase(parent).MarkNeedsSync()
 	}
@@ -155,6 +170,8 @@ func (d *Document) HideOverlay(el dom.Element) {
 	for i, o := range d.overlays {
 		if o.el == el {
 			d.overlays = append(d.overlays[:i], d.overlays[i+1:]...)
+			d.InvalidatePreorderCache()
+			d.InvalidateTextNodeCache()
 			if parent := el.Parent(); parent != nil {
 				asBase(parent).MarkNeedsSync()
 			}
@@ -350,7 +367,96 @@ func (d *Document) handleMouseUp(ev event.Event) {
 	}
 }
 
+func (d *Document) InvalidateTextNodeCache() {
+	d.textNodesValid = false
+	d.cachedTextNodes = nil
+}
+
+func (d *Document) InvalidatePreorderCache() {
+	d.preorderValid = false
+	d.preorderOrders = nil
+}
+
+func (d *Document) PreorderValid() bool {
+	return d.preorderValid
+}
+
 func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.Node, int) {
+	if root == d {
+		if !d.textNodesValid {
+			// Build the cache
+			var records []TextNodeRecord
+			currOffset := 0
+			var walkBuild func(dom.Node)
+			walkBuild = func(n dom.Node) {
+				if t, ok := n.(dom.TextNode); ok {
+					data := t.Data()
+					byteLen := len(data)
+					records = append(records, TextNodeRecord{
+						Node:      t,
+						StartByte: currOffset,
+						EndByte:   currOffset + byteLen,
+					})
+					currOffset += byteLen
+				}
+				for child := range LayoutChildren(n) {
+					walkBuild(child)
+				}
+				if n == d {
+					for el := range d.Overlays() {
+						walkBuild(el)
+					}
+				}
+			}
+			walkBuild(d)
+			d.cachedTextNodes = records
+			d.textNodesValid = true
+		}
+
+		// Perform binary search on d.cachedTextNodes
+		n := len(d.cachedTextNodes)
+		if n > 0 {
+			low, high := 0, n-1
+			var foundRecord *TextNodeRecord
+			for low <= high {
+				mid := (low + high) / 2
+				rec := &d.cachedTextNodes[mid]
+				if targetOffset < rec.StartByte {
+					high = mid - 1
+				} else if targetOffset > rec.EndByte {
+					low = mid + 1
+				} else {
+					foundRecord = rec
+					break
+				}
+			}
+
+			if foundRecord != nil {
+				t := foundRecord.Node
+				data := t.Data()
+				remaining := targetOffset - foundRecord.StartByte
+				runeOffset := 0
+				byteCount := 0
+				for _, r := range data {
+					if byteCount >= remaining {
+						break
+					}
+					byteCount += utf8.RuneLen(r)
+					runeOffset++
+				}
+				return t, runeOffset
+			}
+		}
+
+		// Fallback to the end of the last TextNode in the subtree
+		if len(d.cachedTextNodes) > 0 {
+			lastRec := &d.cachedTextNodes[len(d.cachedTextNodes)-1]
+			t := lastRec.Node
+			return t, utf8.RuneCountInString(t.Data())
+		}
+		return nil, 0
+	}
+
 	currOffset := 0
 	var walk func(dom.Node) (dom.Node, int, bool)
 	walk = func(n dom.Node) (dom.Node, int, bool) {
@@ -378,6 +484,13 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 				return node, offset, true
 			}
 		}
+		if n == d {
+			for el := range d.Overlays() {
+				if node, offset, found := walk(el); found {
+					return node, offset, true
+				}
+			}
+		}
 		return nil, 0, false
 	}
 	node, offset, found := walk(root)
@@ -394,6 +507,11 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 		for child := range LayoutChildren(n) {
 			walkLast(child)
 		}
+		if n == d {
+			for el := range d.Overlays() {
+				walkLast(el)
+			}
+		}
 	}
 	walkLast(root)
 	if lastText != nil {
@@ -402,19 +520,104 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 	return nil, 0
 }
 
+func (d *Document) computePreorderIndices() {
+	d.preorderOrders = make(map[any]render.NodeOrder)
+	d.preorderValid = true
+	count := 0
+	var walk func(dom.Node) int
+	walk = func(n dom.Node) int {
+		if n == nil {
+			return count
+		}
+		// Unwrap node to canonical base to support wrapping
+		identity := n
+		curr := n
+		for {
+			if u := curr.Unwrap(); u != nil && u != curr {
+				curr = u
+				identity = u
+				continue
+			}
+			break
+		}
+
+		first := count
+		if _, ok := d.preorderOrders[identity]; !ok {
+			count++
+			d.preorderOrders[identity] = render.NodeOrder{First: first, Last: first}
+		} else {
+			first = d.preorderOrders[identity].First
+		}
+
+		for child := range LayoutChildren(n) {
+			walk(child)
+		}
+		if n == d {
+			for el := range d.Overlays() {
+				walk(el)
+			}
+		}
+
+		last := count - 1
+		o := d.preorderOrders[identity]
+		o.Last = last
+		d.preorderOrders[identity] = o
+
+		return count
+	}
+	walk(d)
+}
+
+func (d *Document) PreorderOrders() map[any]render.NodeOrder {
+	if !d.preorderValid {
+		d.computePreorderIndices()
+	}
+	return d.preorderOrders
+}
+
 func (d *Document) comparePositions(nodeA dom.Node, offsetA int, nodeB dom.Node, offsetB int) int {
 	if nodeA == nodeB {
 		return offsetA - offsetB
 	}
 
+	// Unwrap nodes to get canonical pointers for comparison.
+	unwrap := func(n dom.Node) dom.Node {
+		curr := n
+		for {
+			if u := curr.Unwrap(); u != nil && u != curr {
+				curr = u
+				continue
+			}
+			break
+		}
+		return curr
+	}
+	uA := unwrap(nodeA)
+	uB := unwrap(nodeB)
+	if uA == uB {
+		return offsetA - offsetB
+	}
+
+	if !d.preorderValid {
+		d.computePreorderIndices()
+	}
+
+	ordA, okA := d.preorderOrders[uA]
+	ordB, okB := d.preorderOrders[uB]
+	if okA && okB {
+		return ordA.First - ordB.First
+	}
+
+	// Fallback in case either node is not in the cache (e.g. detached nodes).
 	var first dom.Node
 	var walk func(dom.Node) bool
 	walk = func(n dom.Node) bool {
-		if n == nodeA {
+		unwrapped := unwrap(n)
+		if unwrapped == uA {
 			first = nodeA
 			return false
 		}
-		if n == nodeB {
+		if unwrapped == uB {
 			first = nodeB
 			return false
 		}

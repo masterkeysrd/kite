@@ -321,6 +321,10 @@ func (b *BaseNode) CloneNode(deep bool) dom.Node {
 
 func (b *BaseNode) notifyStructureChange() {
 	b.MarkNeedsSync()
+	if d, ok := b.ownerDocument.(*Document); ok && d != nil {
+		d.InvalidatePreorderCache()
+		d.InvalidateTextNodeCache()
+	}
 }
 
 func (b *BaseNode) adopt(newDoc dom.Document) {

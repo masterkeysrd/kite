@@ -214,6 +214,9 @@ func (e *Element) AttachUARoot(root dom.Node) {
 	// queries collapse to the host (ADR-0036).
 	host := e.outer
 	setOuterRecursive(root, host)
+	if d, ok := e.ownerDocument.(*Document); ok && d != nil {
+		d.InvalidatePreorderCache()
+	}
 	// Mark the host so the engine syncs the new subtree on the next frame.
 	e.MarkNeedsSync()
 }

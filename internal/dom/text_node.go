@@ -42,6 +42,9 @@ func (t *TextNode) SetData(data string) {
 		return
 	}
 	t.data = data
+	if d, ok := t.ownerDocument.(*Document); ok && d != nil {
+		d.InvalidateTextNodeCache()
+	}
 	t.MarkNeedsSync()
 }
 

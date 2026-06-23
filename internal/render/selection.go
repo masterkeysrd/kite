@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"reflect"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/style"
@@ -44,25 +45,45 @@ type NodeOrder struct {
 // ResolveSelection maps the active selection to physical screen rectangles.
 func ResolveSelection(root *layout.Fragment, sel SelectionSource, nodeOrder map[any]NodeOrder) []SelectionRect {
 	var rects []SelectionRect
+	baseCache := make(map[any]any)
 	for i := 0; i < sel.RangeCount(); i++ {
 		rng := sel.GetRangeAt(i)
 		if rng == nil || rng.IsCollapsed() {
 			continue
 		}
 		nodeOffsets := make(map[any]int)
-		rects = append(rects, resolveRange(root, rng, nodeOrder, nodeOffsets)...)
+		rects = append(rects, resolveRange(root, rng, nodeOrder, nodeOffsets, baseCache)...)
 	}
 	return rects
 }
 
-func resolveRange(root *layout.Fragment, rng SelectionRange, nodeOrder map[any]NodeOrder, nodeOffsets map[any]int) []SelectionRect {
+func resolveRange(root *layout.Fragment, rng SelectionRange, nodeOrder map[any]NodeOrder, nodeOffsets map[any]int, baseCache map[any]any) []SelectionRect {
 	var rects []SelectionRect
+
+	startCont := rng.StartContainerAny()
+	baseStart, ok := baseCache[startCont]
+	if !ok {
+		baseStart = getBase(startCont)
+		baseCache[startCont] = baseStart
+	}
+
+	endCont := rng.EndContainerAny()
+	baseEnd, ok := baseCache[endCont]
+	if !ok {
+		baseEnd = getBase(endCont)
+		baseCache[endCont] = baseEnd
+	}
 
 	state := &walkState{
 		rng:         rng,
 		nodeOrder:   nodeOrder,
 		nodeOffsets: nodeOffsets,
+		baseCache:   baseCache,
 		rects:       &rects,
+		startIndex:  rng.StartIndex(),
+		endIndex:    rng.EndIndex(),
+		baseStart:   baseStart,
+		baseEnd:     baseEnd,
 	}
 
 	walkFragments(root, geom.Point{}, layout.InfiniteRect(), state)
@@ -73,9 +94,14 @@ type walkState struct {
 	rng         SelectionRange
 	nodeOrder   map[any]NodeOrder
 	nodeOffsets map[any]int
+	baseCache   map[any]any
 	rects       *[]SelectionRect
 
-	started bool
+	startIndex int
+	endIndex   int
+	baseStart  any
+	baseEnd    any
+
 	stopped bool
 }
 
@@ -94,38 +120,42 @@ func walkFragments(frag *layout.Fragment, origin geom.Point, clip geom.Rect, s *
 
 	// 2. Handle boundary markers and text accumulation.
 	if ln != nil {
-		base := getBase(ln)
-		order := s.nodeOrder[base]
-
-		// Check if we should stop: if this node starts at or after endIndex
-		if order.First >= s.rng.EndIndex() {
-			s.stopped = true
-			return
+		base, ok := s.baseCache[ln]
+		if !ok {
+			base = getBase(ln)
+			s.baseCache[ln] = base
 		}
 
-		// Check if we should start: if this text node is at or after startIndex
-		if !s.started && order.Last >= s.rng.StartIndex() {
-			if _, ok := ln.(interface{ Data() string }); ok {
-				// Text node start.
-				s.started = true
+		order, hasOrder := s.nodeOrder[base]
+		if hasOrder {
+			// Check if we should stop: if this node starts at or after endIndex
+			if order.First >= s.endIndex {
+				s.stopped = true
+				return
+			}
+
+			// Optimization: skip the entire subtree if it's strictly before the selection start.
+			if order.Last < s.startIndex {
+				return
 			}
 		}
 
 		// B. Handle text fragments.
 		if len(frag.Text) > 0 {
-			if s.started {
-				sr := calculateTextSelectionRect(frag, origin, clip, ln, s)
-				if sr != nil {
-					*s.rects = append(*s.rects, *sr)
-				}
+			sr := calculateTextSelectionRect(frag, origin, clip, ln, s)
+			if sr != nil {
+				*s.rects = append(*s.rects, *sr)
 			}
 
 			if frag.Node != nil && frag.Node.LogicalNode() != nil {
-				count := 0
-				for _, c := range frag.Text {
-					count += utf8.RuneCount(c.Bytes)
+				// Only accumulate nodeOffsets if we actually need them for boundary resolution.
+				if base == s.baseStart || base == s.baseEnd {
+					count := 0
+					for _, c := range frag.Text {
+						count += utf8.RuneCount(c.Bytes)
+					}
+					s.nodeOffsets[base] += count
 				}
-				s.nodeOffsets[base] += count
 			}
 		}
 	}
@@ -169,6 +199,21 @@ func getBase(n any) any {
 	if n == nil {
 		return nil
 	}
+	if dn, ok := n.(dom.Node); ok {
+		curr := dn
+		for {
+			if u := curr.Unwrap(); u != nil && u != curr {
+				curr = u
+			} else {
+				break
+			}
+		}
+		return curr
+	}
+	return getBaseReflect(n)
+}
+
+func getBaseReflect(n any) any {
 	v := reflect.ValueOf(n)
 	for {
 		method := v.MethodByName("Unwrap")
@@ -192,56 +237,67 @@ func getBase(n any) any {
 }
 
 func calculateTextSelectionRect(frag *layout.Fragment, origin geom.Point, clip geom.Rect, node any, s *walkState) *SelectionRect {
-	baseN := getBase(node)
-	baseStart := getBase(s.rng.StartContainerAny())
-	baseEnd := getBase(s.rng.EndContainerAny())
+	baseN, ok := s.baseCache[node]
+	if !ok {
+		baseN = getBase(node)
+		s.baseCache[node] = baseN
+	}
 
 	startSel := -1
-	if baseN == baseStart {
+	if baseN == s.baseStart {
 		startSel = s.rng.StartOffset()
 	}
 
 	endSel := 1000000000
-	if baseN == baseEnd {
+	if baseN == s.baseEnd {
 		endSel = s.rng.EndOffset()
 	}
 
 	firstSelectedX := -1
 	lastSelectedX := -1
 
-	x := 0
-	runesSeen := 0
-	currentRuneOffset := s.nodeOffsets[baseN]
-
-	for _, c := range frag.Text {
-		cRunes := utf8.RuneCount(c.Bytes)
-		cWidth := c.CellWidth
-
-		clusterStart := currentRuneOffset + runesSeen
-		clusterEnd := clusterStart + cRunes
-
-		isSelected := true
-		if startSel != -1 && clusterEnd <= startSel {
-			isSelected = false
+	// Fast path for fully selected nodes.
+	if startSel == -1 && endSel == 1000000000 {
+		firstSelectedX = 0
+		lastSelectedX = 0
+		for _, c := range frag.Text {
+			lastSelectedX += c.CellWidth
 		}
-		if endSel != 1000000000 && clusterStart >= endSel {
-			isSelected = false
-		}
+	} else {
+		x := 0
+		runesSeen := 0
+		currentRuneOffset := s.nodeOffsets[baseN]
 
-		if isSelected {
-			if firstSelectedX == -1 {
-				firstSelectedX = x
+		for _, c := range frag.Text {
+			cRunes := utf8.RuneCount(c.Bytes)
+			cWidth := c.CellWidth
+
+			clusterStart := currentRuneOffset + runesSeen
+			clusterEnd := clusterStart + cRunes
+
+			isSelected := true
+			if startSel != -1 && clusterEnd <= startSel {
+				isSelected = false
 			}
-			lastSelectedX = x + cWidth
-		}
+			if endSel != 1000000000 && clusterStart >= endSel {
+				isSelected = false
+			}
 
-		// If we reached the end boundary in this text node, mark walk as stopped.
-		if baseN == baseEnd && clusterEnd >= endSel {
-			s.stopped = true
-		}
+			if isSelected {
+				if firstSelectedX == -1 {
+					firstSelectedX = x
+				}
+				lastSelectedX = x + cWidth
+			}
 
-		x += cWidth
-		runesSeen += cRunes
+			// If we reached the end boundary in this text node, mark walk as stopped.
+			if baseN == s.baseEnd && clusterEnd >= endSel {
+				s.stopped = true
+			}
+
+			x += cWidth
+			runesSeen += cRunes
+		}
 	}
 
 	if firstSelectedX == -1 {

@@ -59,7 +59,6 @@ func (r *Resolver) ResolveTree(ro render.Object, parent *style.Computed, force b
 				ro.SetComputedStyle(computed)
 				styleChanged = true
 			}
-			ro.ClearDirty(render.DirtyStyle)
 		} else {
 			computed = ro.ComputedStyle()
 		}
@@ -70,6 +69,8 @@ func (r *Resolver) ResolveTree(ro render.Object, parent *style.Computed, force b
 			styleChanged = true
 		}
 	}
+
+	ro.ClearDirty(render.DirtyStyle)
 
 	// Recurse.
 	if force || styleChanged || flags&render.ChildNeedsStyle != 0 {

@@ -273,6 +273,10 @@ func New(b backend.Backend, opts Options) *Engine {
 		ScrollableResolver: e.resolveScrollable,
 	})
 
+	e.document.AddEventListener(event.EventSelectionChange, func(ev event.Event) {
+		e.RequestFrame()
+	})
+
 	// Probe capabilities from the backend.
 	e.caps = b.Caps()
 
@@ -842,7 +846,11 @@ func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
 		if de := internaldom.AsDirtyElement(n); de != nil {
 			de.MarkStyleDirty()
 		}
-		ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+		if _, ok := n.(dom.Document); ok {
+			ro.MarkDirty(render.DirtyPaint)
+		} else {
+			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+		}
 		e.diffChildren(n, ro)
 	} else if dn.ChildNeedsSync() {
 		for child := range dom.LayoutChildren(n) {
@@ -1506,7 +1514,11 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 		return nil
 	}
 
-	nodeOrder := e.computeNodeOrder()
+	doc, ok := e.document.(*internaldom.Document)
+	if !ok {
+		return nil
+	}
+	nodeOrder := doc.PreorderOrders()
 	source := &selectionSourceAdapter{sel: sel, nodeOrder: nodeOrder}
 	rs := render.ResolveSelection(root, source, nodeOrder)
 	if len(rs) == 0 {
@@ -1521,50 +1533,6 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 		}
 	}
 	return ps
-}
-
-func (e *Engine) computeNodeOrder() map[any]render.NodeOrder {
-	order := make(map[any]render.NodeOrder)
-	count := 0
-	var walk func(dom.Node) int
-	walk = func(n dom.Node) int {
-		if n == nil {
-			return count
-		}
-
-		// Consistently unwrap to the canonical base node for identity.
-		identity := any(n)
-		curr := n
-		for {
-			if u := curr.Unwrap(); u != nil && u != curr {
-				curr = u
-				identity = u
-				continue
-			}
-			break
-		}
-
-		first := count
-		if _, ok := order[identity]; !ok {
-			count++
-			order[identity] = render.NodeOrder{First: first, Last: first}
-		} else {
-			first = order[identity].First
-		}
-
-		for child := range internaldom.LayoutChildren(n) {
-			walk(child)
-		}
-
-		last := count - 1
-		o := order[identity]
-		o.Last = last
-		order[identity] = o
-
-		return count
-	}
-	walk(e.document)
-	return order
 }
 
 type selectionSourceAdapter struct {
@@ -1709,14 +1677,32 @@ func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
 
 func (e *Engine) shouldRunFrame() bool {
 	if e.frameRequested {
+		if e.logger != nil {
+			e.logger.Debug("shouldRunFrame returning true due to frameRequested")
+		}
 		return true
 	}
 	if !e.nextFrameAt.IsZero() && e.clock.Now().After(e.nextFrameAt) {
+		if e.logger != nil {
+			e.logger.Debug("shouldRunFrame returning true due to nextFrameAt", "nextFrameAt", e.nextFrameAt)
+		}
 		return true
 	}
 	// Check for dirty DOM or render tree.
 	dn := internaldom.AsDirty(e.document)
-	return dn.NeedsSync() || dn.ChildNeedsSync() || e.renderView.Flags() != 0 || e.scheduler.hasPendingTasks()
+	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
+	flags := e.renderView.Flags()
+	pending := e.scheduler.hasPendingTasks()
+
+	if needsSync || flags != 0 || pending {
+		// Log precisely why we are flushing
+		if e.logger != nil {
+			e.logger.Debug("shouldRunFrame returning true due to dirty state",
+				"needsSync", needsSync, "flags", flags, "pending", pending)
+		}
+		return true
+	}
+	return false
 }
 
 func unwrapProvider(n dom.Node) render.CustomObjectProvider {

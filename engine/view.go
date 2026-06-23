@@ -113,6 +113,7 @@ func (p *domViewProxy) MoveCursorVertically(n dom.Node, offset int, delta int, x
 }
 
 func (p *domViewProxy) ByteOffsetAtPoint(n dom.Node, x, y int) int {
+	p.e.EnsureFreshLayout()
 	ro := p.e.RenderObject(n)
 	if ro == nil {
 		return 0
@@ -125,6 +126,7 @@ func (p *domViewProxy) ByteOffsetAtPoint(n dom.Node, x, y int) int {
 }
 
 func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
+	p.e.EnsureFreshLayout()
 	root := p.e.renderView.Fragment()
 	if root == nil {
 		return nil, 0
