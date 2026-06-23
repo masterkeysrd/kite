@@ -130,7 +130,9 @@ func Render(root Node, container dom.Element) {
 			destroyNode(oldRoot)
 			for _, realNode := range realNodes {
 				if realNode != nil {
-					container.RemoveChild(realNode)
+					if isParent(realNode, container) {
+						container.RemoveChild(realNode)
+					}
 					ClearAllSubscriptions(realNode)
 				}
 			}
@@ -184,7 +186,9 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 		for _, realNode := range realNodes {
 			if realNode != nil {
 				destroyNode(oldNode)
-				parent.RemoveChild(realNode)
+				if isParent(realNode, parent) {
+					parent.RemoveChild(realNode)
+				}
 				ClearAllSubscriptions(realNode)
 			}
 		}
@@ -204,7 +208,9 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 			for _, oldReal := range realNodes {
 				if oldReal != nil {
 					destroyNode(oldNode)
-					parent.RemoveChild(oldReal)
+					if isParent(oldReal, parent) {
+						parent.RemoveChild(oldReal)
+					}
 					ClearAllSubscriptions(oldReal)
 				}
 			}
@@ -454,7 +460,9 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 				destroyNode(oldChildren[i])
 				for _, realNode := range realNodes {
 					if realNode != nil {
-						parent.RemoveChild(realNode)
+						if isParent(realNode, parent) {
+							parent.RemoveChild(realNode)
+						}
 						ClearAllSubscriptions(realNode)
 					}
 				}
@@ -710,7 +718,9 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			destroyNode(oldS[i])
 			for _, oldReal := range oldReals {
 				if oldReal != nil {
-					parent.RemoveChild(oldReal)
+					if isParent(oldReal, parent) {
+						parent.RemoveChild(oldReal)
+					}
 					ClearAllSubscriptions(oldReal)
 				}
 			}
@@ -786,7 +796,9 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			destroyNode(flatOld[i].node)
 			for _, realNode := range realNodes {
 				if realNode != nil {
-					parent.RemoveChild(realNode)
+					if isParent(realNode, parent) {
+						parent.RemoveChild(realNode)
+					}
 					ClearAllSubscriptions(realNode)
 				}
 			}
@@ -1024,7 +1036,9 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			destroyNode(oldS[i].node)
 			for _, oldReal := range oldReals {
 				if oldReal != nil {
-					parent.RemoveChild(oldReal)
+					if isParent(oldReal, parent) {
+						parent.RemoveChild(oldReal)
+					}
 					ClearAllSubscriptions(oldReal)
 				}
 			}
@@ -1055,4 +1069,30 @@ func setDOMParent(n Node, parent dom.Element) {
 	if setter, ok := n.(componentDOMParentSetter); ok {
 		setter.setDOMParent(parent)
 	}
+}
+
+func unwrapNode(n dom.Node) dom.Node {
+	if n == nil {
+		return nil
+	}
+	curr := n
+	for {
+		if u := curr.Unwrap(); u != nil && u != curr {
+			curr = u
+		} else {
+			break
+		}
+	}
+	return curr
+}
+
+func isParent(child dom.Node, parent dom.Node) bool {
+	if child == nil || parent == nil {
+		return false
+	}
+	p := child.Parent()
+	if p == nil {
+		return false
+	}
+	return unwrapNode(p) == unwrapNode(parent)
 }

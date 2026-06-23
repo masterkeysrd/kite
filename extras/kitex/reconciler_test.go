@@ -594,3 +594,33 @@ func TestFragmentComponentReconciliation(t *testing.T) {
 		t.Errorf("expected container to be empty after unmount, but has child %v", container.FirstChild())
 	}
 }
+
+func TestReconciler_UnmountAlreadyDetachedNode(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	// Mount a Box with two children
+	Render(Box(BoxProps{ID: "app"},
+		Span(SpanProps{ID: "child1"}, Text("Hello")),
+		Span(SpanProps{ID: "child2"}, Text("World")),
+	), container)
+
+	appReal := container.FirstChild().(dom.Element)
+	child1Real := appReal.FirstChild()
+
+	// Manually remove child1 from appReal outside of kitex (direct DOM manipulation)
+	appReal.RemoveChild(child1Real)
+
+	// Now render with child1 removed in VDOM
+	// This will trigger unmounting of child1 in reconciler. Since child1 is already detached,
+	// it should NOT panic.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("reconciler panicked when unmounting already detached node: %v", r)
+		}
+	}()
+
+	Render(Box(BoxProps{ID: "app"},
+		Span(SpanProps{ID: "child2"}, Text("World")),
+	), container)
+}
