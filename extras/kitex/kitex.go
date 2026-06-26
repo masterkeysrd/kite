@@ -493,15 +493,25 @@ func clearSubscription(node dom.Node, typ event.EventType) {
 }
 
 // ClearAllSubscriptions cancels all event subscriptions associated with a DOM node
-// and removes the node from the tracking map. Reconcilers should invoke this when deleting a node.
+// and removes the node (and all its descendants) from the tracking map. Reconcilers should invoke this when deleting a node.
 func ClearAllSubscriptions(node dom.Node) {
 	subMutex.Lock()
 	defer subMutex.Unlock()
+	clearAllSubscriptionsRec(node)
+}
+
+func clearAllSubscriptionsRec(node dom.Node) {
+	if node == nil {
+		return
+	}
 	if m, ok := subscriptions[node]; ok {
 		for _, sub := range m {
 			sub.Cancel()
 		}
 		delete(subscriptions, node)
+	}
+	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		clearAllSubscriptionsRec(child)
 	}
 }
 

@@ -95,6 +95,7 @@ func (s *defaultScheduler) drainMicrotasks() {
 			break
 		}
 		task := s.microQueue[0]
+		s.microQueue[0] = nil // Avoid memory leak by clearing reference
 		s.microQueue = s.microQueue[1:]
 		s.taskMu.Unlock()
 
@@ -112,6 +113,7 @@ func (s *defaultScheduler) drainMacrotasks(budget int) {
 			break
 		}
 		task := s.macroQueue[0]
+		s.macroQueue[0] = nil // Avoid memory leak by clearing reference
 		s.macroQueue = s.macroQueue[1:]
 		s.taskMu.Unlock()
 
@@ -140,6 +142,7 @@ func (s *defaultScheduler) runWorker(ctx context.Context, workerID int) {
 			return
 		case task := <-s.jobQueue:
 			s.executeTask(ctx, task, workerID)
+			task = nil
 		}
 	}
 }

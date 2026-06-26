@@ -79,7 +79,10 @@ func (t *Target) RemoveRegistration(id uint64) {
 	for typ, regs := range t.listeners {
 		for i, r := range regs {
 			if r.id == id {
-				t.listeners[typ] = append(regs[:i], regs[i+1:]...)
+				// Avoid memory leak by setting the last element to nil before slicing
+				copy(regs[i:], regs[i+1:])
+				regs[len(regs)-1] = nil
+				t.listeners[typ] = regs[:len(regs)-1]
 				return
 			}
 		}
@@ -130,6 +133,10 @@ func (t *Target) DispatchTo(e event.Event) {
 		if !reg.cancelled.Load() {
 			surviving = append(surviving, reg)
 		}
+	}
+	// Avoid memory leak by setting unused elements in the slice's tail to nil
+	for i := len(surviving); i < len(t.listeners[typ]); i++ {
+		t.listeners[typ][i] = nil
 	}
 	t.listeners[typ] = surviving
 }
@@ -188,6 +195,10 @@ func (t *Target) DispatchToTarget(e event.Event) {
 		if !reg.cancelled.Load() {
 			surviving = append(surviving, reg)
 		}
+	}
+	// Avoid memory leak by setting unused elements in the slice's tail to nil
+	for i := len(surviving); i < len(t.listeners[typ]); i++ {
+		t.listeners[typ][i] = nil
 	}
 	t.listeners[typ] = surviving
 }

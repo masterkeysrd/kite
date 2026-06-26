@@ -195,6 +195,27 @@ func UseContext[T comparable](ctx *Context[T]) T {
 	}
 
 	hs := stateVal.(*contextHookState[T])
+	currentEntry := ctx.top()
+
+	if hs.entry != currentEntry {
+		// Provider changed! Unsubscribe from old provider
+		if hs.entry != nil {
+			delete(hs.entry.subscribers, comp.getRef())
+		}
+		// Subscribe to new provider
+		hs.entry = currentEntry
+		if currentEntry != nil {
+			sub := &contextSubscription[T]{
+				hookIndex: idx,
+				lastValue: currentEntry.value,
+			}
+			currentEntry.subscribers[comp.getRef()] = sub
+			hs.lastValue = currentEntry.value
+		} else {
+			hs.lastValue = ctx.defaultValue
+		}
+	}
+
 	if hs.entry == nil {
 		return hs.lastValue
 	}

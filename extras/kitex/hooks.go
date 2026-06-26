@@ -273,6 +273,9 @@ func UseDocument() func() dom.Document {
 		if len(reals) > 0 && reals[0] != nil {
 			return reals[0].OwnerDocument()
 		}
+		if parent := activeNode.getDOMParent(); parent != nil {
+			return parent.OwnerDocument()
+		}
 		return nil
 	}
 }
@@ -486,6 +489,9 @@ func flushPendingEffects() {
 			state.pending = false
 		}
 	}
+	for i := range queue {
+		queue[i] = nil
+	}
 }
 
 // drainLayoutEffects runs all pending layout effect functions synchronously and registers their cleanups.
@@ -514,6 +520,9 @@ func drainLayoutEffects() {
 			}
 			state.pending = false
 		}
+	}
+	for i := range queue {
+		queue[i] = nil
 	}
 }
 

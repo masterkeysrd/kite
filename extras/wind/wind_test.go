@@ -654,3 +654,204 @@ func (s *testScheduler) Flush() {
 		}
 	}
 }
+
+func TestCacheEviction(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	client := NewClient()
+	client.GcTime = 10 * time.Millisecond
+
+	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
+		return promise.New(func(ctx context.Context) (string, error) {
+			return "data", nil
+		})
+	}
+
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		res := Use("evict_key", fetcher)
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+	})
+
+	// Mount & fetch
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+	time.Sleep(20 * time.Millisecond)
+
+	// Verify it's in the cache
+	client.mu.Lock()
+	_, foundBefore := client.cache["evict_key"]
+	client.mu.Unlock()
+	if !foundBefore {
+		t.Fatal("expected query entry to be in cache after mount")
+	}
+
+	// Unmount
+	kitex.Render(nil, container)
+
+	// Verify that the entry is NOT removed immediately if GcTime is not yet elapsed
+	client.mu.Lock()
+	_, foundAfterImmediate := client.cache["evict_key"]
+	client.mu.Unlock()
+	if !foundAfterImmediate {
+		t.Fatal("expected query entry to still be in cache immediately after unmount before GcTime")
+	}
+
+	// Wait for eviction timer to elapse
+	time.Sleep(30 * time.Millisecond)
+
+	// Verify it's evicted from the cache
+	client.mu.Lock()
+	_, foundAfterGc := client.cache["evict_key"]
+	client.mu.Unlock()
+	if foundAfterGc {
+		t.Error("expected query entry to be evicted from cache after GcTime has passed")
+	}
+}
+
+func TestInvalidateQueries_PrefixAndPredicateMatching(t *testing.T) {
+	client := NewClient()
+
+	var refetchCount1, refetchCount2, refetchCount3 int
+	var mu sync.Mutex
+
+	entry1 := &queryEntry{
+		key:         [2]string{"todos", "list"},
+		state:       queryState{status: "success"},
+		subscribers: map[int]func(){1: func() {}},
+	}
+	entry1.refetch = func() {
+		mu.Lock()
+		refetchCount1++
+		mu.Unlock()
+	}
+
+	entry2 := &queryEntry{
+		key:         [2]string{"todos", "detail"},
+		state:       queryState{status: "success"},
+		subscribers: map[int]func(){1: func() {}},
+	}
+	entry2.refetch = func() {
+		mu.Lock()
+		refetchCount2++
+		mu.Unlock()
+	}
+
+	entry3 := &queryEntry{
+		key:         [2]string{"users", "list"},
+		state:       queryState{status: "success"},
+		subscribers: map[int]func(){1: func() {}},
+	}
+	entry3.refetch = func() {
+		mu.Lock()
+		refetchCount3++
+		mu.Unlock()
+	}
+
+	client.cache[entry1.key] = entry1
+	client.cache[entry2.key] = entry2
+	client.cache[entry3.key] = entry3
+
+	// 1. Invalidate with Prefix []string{"todos"}
+	client.InvalidateQueries([]string{"todos"})
+	time.Sleep(10 * time.Millisecond)
+
+	mu.Lock()
+	c1, c2, c3 := refetchCount1, refetchCount2, refetchCount3
+	mu.Unlock()
+
+	if c1 != 1 || c2 != 1 {
+		t.Errorf("expected entry1 and entry2 to be refetched once, got c1=%d, c2=%d", c1, c2)
+	}
+	if c3 != 0 {
+		t.Errorf("expected entry3 to not be refetched, got %d", c3)
+	}
+
+	// 2. Invalidate with Predicate
+	var predCount1, predCount2, predCount3 int
+	entry1.refetch = func() { mu.Lock(); predCount1++; mu.Unlock() }
+	entry2.refetch = func() { mu.Lock(); predCount2++; mu.Unlock() }
+	entry3.refetch = func() { mu.Lock(); predCount3++; mu.Unlock() }
+
+	pred := func(k any) bool {
+		arr, ok := k.([2]string)
+		return ok && (arr[1] == "list")
+	}
+
+	client.InvalidateQueries(pred)
+	time.Sleep(10 * time.Millisecond)
+
+	mu.Lock()
+	p1, p2, p3 := predCount1, predCount2, predCount3
+	mu.Unlock()
+
+	if p1 != 1 || p3 != 1 {
+		t.Errorf("expected entry1 and entry3 (list keys) to be refetched once, got p1=%d, p3=%d", p1, p3)
+	}
+	if p2 != 0 {
+		t.Errorf("expected entry2 (detail key) to not be refetched, got %d", p2)
+	}
+}
+
+func TestInvalidateQueries_SequencesActiveFetch(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	client := NewClient()
+
+	var fetchStarted = make(chan struct{}, 5)
+	var fetchCount int
+	var mu sync.Mutex
+
+	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
+		mu.Lock()
+		fetchCount++
+		currentCount := fetchCount
+		mu.Unlock()
+		fetchStarted <- struct{}{}
+		return promise.New(func(ctx context.Context) (string, error) {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(15 * time.Millisecond):
+				return fmt.Sprintf("val_%d", currentCount), nil
+			}
+		})
+	}
+
+	var result Result[string]
+	app := kitex.SimpleFC("App", func() kitex.Node {
+		result = Use("test_cancel_key", fetcher)
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(result.Data))
+	})
+
+	// Mount initially
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	// Wait for the first fetch to start in background
+	<-fetchStarted
+
+	// Call InvalidateQueries while the first fetch is in progress
+	client.InvalidateQueries("test_cancel_key")
+
+	// Wait for the second fetch to start (starts after the first fetch finishes)
+	<-fetchStarted
+
+	// Wait for the second fetch to complete
+	time.Sleep(25 * time.Millisecond)
+
+	mu.Lock()
+	count := fetchCount
+	mu.Unlock()
+
+	if count != 2 {
+		t.Fatalf("expected fetch to be triggered exactly 2 times, got %d", count)
+	}
+
+	if result.Data != "val_2" {
+		t.Errorf("expected final data to be 'val_2' from the second fetch, got %q", result.Data)
+	}
+}

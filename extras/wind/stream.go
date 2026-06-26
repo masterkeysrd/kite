@@ -52,6 +52,14 @@ func UseStream[K comparable, T any](
 	}
 	client.mu.Unlock()
 
+	// Stop gcTimer if it was running
+	entry.mu.Lock()
+	if entry.gcTimer != nil {
+		entry.gcTimer.Stop()
+		entry.gcTimer = nil
+	}
+	entry.mu.Unlock()
+
 	// Register refetch/reconnect implementation
 	entry.mu.Lock()
 	typeEraser := func(ctx context.Context) iter.Seq2[any, error] {
@@ -78,10 +86,31 @@ func UseStream[K comparable, T any](
 		return func() {
 			entry.mu.Lock()
 			delete(entry.subscribers, id)
-			if len(entry.subscribers) == 0 && entry.cancel != nil {
-				entry.cancel()
-				entry.cancel = nil
+			if len(entry.subscribers) == 0 {
+				if entry.cancel != nil {
+					entry.cancel()
+					entry.cancel = nil
+				}
 				entry.state.isFetching = false
+				entry.refetch = nil
+
+				// Start eviction timer
+				gcTime := client.GcTime
+				if gcTime == 0 {
+					gcTime = 5 * time.Minute
+				}
+				if entry.gcTimer != nil {
+					entry.gcTimer.Stop()
+				}
+				entry.gcTimer = time.AfterFunc(gcTime, func() {
+					client.mu.Lock()
+					entry.mu.Lock()
+					if len(entry.subscribers) == 0 {
+						delete(client.cache, key)
+					}
+					entry.mu.Unlock()
+					client.mu.Unlock()
+				})
 			}
 			entry.mu.Unlock()
 		}

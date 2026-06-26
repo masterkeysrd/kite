@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 )
 
 func TestReconcilerMountAndUnmount(t *testing.T) {
@@ -694,4 +695,206 @@ func TestReconciler_ComponentNilRenderUnmount(t *testing.T) {
 	}()
 
 	triggerStateUpdate()
+}
+
+func TestReconciler_Case2InsertBeforeRefOutdated(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setCondition func(bool)
+
+	// Inner Component that returns either a Span or a Box based on a condition
+	DynamicComp := FC("DynamicComp", func(props struct{}) Node {
+		cond, setCond := UseState(true)
+		setCondition = setCond
+		if cond() {
+			return Span(SpanProps{ID: "child-span"})
+		}
+		return Box(BoxProps{ID: "child-box"})
+	})
+
+	// Initial render:
+	// A list: [DynamicComp]
+	// DynamicComp renders to a Span.
+	Render(Box(BoxProps{ID: "parent"}, DynamicComp(struct{}{})), container)
+
+	parentReal := container.FirstChild().(dom.Element)
+	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).TagName() != "span" {
+		t.Fatalf("expected span child initially")
+	}
+
+	// Update render:
+	// A list: [Span(ID: "new-span"), DynamicComp]
+	// In the same pass, setCondition is false, so DynamicComp renders to a Box.
+	// Since DynamicComp is at the end of both old and new lists, Case 2 matches:
+	// oldEndNode (DynamicComp) == newEndNode (DynamicComp).
+	// During Case 2's reconcile:
+	// DynamicComp updates from rendering Span to Box. The Span is replaced with a Box (Case 3 inside the nested reconcile).
+	// Thus, the old real node (the Span) is unmounted and removed.
+	// The new real node is a Box.
+	// Then, Case 2 finishes, and we have the remaining new child (new-span) to insert.
+	// The reconciler inserts it before the first real node of DynamicComp.
+	// If insertBeforeRef was not updated, it would try to insert before the old detached Span, causing a panic.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("reconciler panicked during insertion before updated end node: %v", r)
+		}
+	}()
+
+	// We trigger both: set condition to false AND prepend a new span.
+	setCondition(false)
+	Render(Box(BoxProps{ID: "parent"},
+		Span(SpanProps{ID: "new-span"}),
+		DynamicComp(struct{}{}),
+	), container)
+
+	// Verify the final DOM structure
+	var childIDs []string
+	for child := parentReal.FirstChild(); child != nil; child = child.NextSibling() {
+		childIDs = append(childIDs, child.(dom.Element).ID())
+	}
+	expectedIDs := []string{"new-span", "child-box"}
+	if !reflect.DeepEqual(childIDs, expectedIDs) {
+		t.Errorf("expected child IDs %v, got %v", expectedIDs, childIDs)
+	}
+}
+
+func TestReconciler_ClearAllSubscriptionsRecursive(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	innerRef := CreateRef[dom.Node]()
+	childRef := CreateRef[dom.Node]()
+
+	root := Box(BoxProps{},
+		Box(BoxProps{ID: "inner-box", OnClick: func(e event.Event) {}, Ref: innerRef},
+			Span(SpanProps{ID: "child-span", OnClick: func(e event.Event) {}, Ref: childRef}),
+		),
+	)
+
+	Render(root, container)
+
+	innerBoxReal := innerRef.Current
+	childSpanReal := childRef.Current
+
+	if innerBoxReal == nil || childSpanReal == nil {
+		t.Fatalf("expected real DOM elements to be captured via Ref")
+	}
+
+	// Lock the subMutex to safely read subscriptions
+	subMutex.Lock()
+	_, hasInner := subscriptions[innerBoxReal]
+	_, hasChild := subscriptions[childSpanReal]
+	subMutex.Unlock()
+
+	if !hasInner {
+		t.Error("expected inner box to have registered event subscriptions")
+	}
+	if !hasChild {
+		t.Error("expected child span to have registered event subscriptions")
+	}
+
+	// Now unmount the root
+	Render(nil, container)
+
+	// Verify that both have been removed from the global subscriptions map (no memory leak)
+	subMutex.Lock()
+	_, hasInnerAfter := subscriptions[innerBoxReal]
+	_, hasChildAfter := subscriptions[childSpanReal]
+	subMutex.Unlock()
+
+	if hasInnerAfter {
+		t.Error("expected inner box subscriptions to be cleaned up after unmount")
+	}
+	if hasChildAfter {
+		t.Error("expected child span subscriptions to be cleaned up after unmount")
+	}
+}
+
+func TestReconciler_Case4InsertBeforeRefFallback(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	EmptyComp := FC("EmptyComp", func(props struct{}) Node {
+		return nil
+	})
+
+	// Initial render: [EmptyComp, EndNode, FixedEnd]
+	Render(Box(BoxProps{ID: "parent"},
+		EmptyComp(struct{}{}),
+		Span(SpanProps{ID: "end"}),
+		Span(SpanProps{ID: "fixed-end"}),
+	), container)
+
+	parentReal := container.FirstChild().(dom.Element)
+	var initialIDs []string
+	for child := parentReal.FirstChild(); child != nil; child = child.NextSibling() {
+		initialIDs = append(initialIDs, child.(dom.Element).ID())
+	}
+	expectedInit := []string{"end", "fixed-end"}
+	if !reflect.DeepEqual(initialIDs, expectedInit) {
+		t.Fatalf("expected initial IDs %v, got %v", expectedInit, initialIDs)
+	}
+
+	// Reconcile to: [EndNode, NewNode, FixedEnd]
+	// This triggers Case 2 for FixedEnd (updating insertBeforeRef to FixedEnd).
+	// Then Case 4 for EndNode (oldEndNode == newStartNode).
+	// EndNode is moved before EmptyComp (which has no real DOM nodes).
+	// It must fall back to insertBeforeRef (FixedEnd).
+	// If it doesn't, EndNode is inserted at the end (after FixedEnd).
+	Render(Box(BoxProps{ID: "parent"},
+		Span(SpanProps{ID: "end"}),
+		Span(SpanProps{ID: "new-node"}),
+		Span(SpanProps{ID: "fixed-end"}),
+	), container)
+
+	var finalIDs []string
+	for child := parentReal.FirstChild(); child != nil; child = child.NextSibling() {
+		finalIDs = append(finalIDs, child.(dom.Element).ID())
+	}
+	expectedFinal := []string{"end", "new-node", "fixed-end"}
+	if !reflect.DeepEqual(finalIDs, expectedFinal) {
+		t.Errorf("expected final IDs %v, got %v", expectedFinal, finalIDs)
+	}
+}
+
+func TestReconciler_Case5InsertBeforeRefFallback(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	EmptyComp := FC("EmptyComp", func(props struct{}) Node {
+		return nil
+	})
+
+	// Initial render: [EmptyComp, MatchedNode, FixedEnd]
+	Render(Box(BoxProps{ID: "parent"},
+		EmptyComp(struct{}{}),
+		Span(SpanProps{ID: "matched", Key: "m"}),
+		Span(SpanProps{ID: "fixed-end"}),
+	), container)
+
+	parentReal := container.FirstChild().(dom.Element)
+	var initialIDs []string
+	for child := parentReal.FirstChild(); child != nil; child = child.NextSibling() {
+		initialIDs = append(initialIDs, child.(dom.Element).ID())
+	}
+	t.Logf("Initial DOM IDs: %v", initialIDs)
+
+	// Reconcile to: [MatchedNode, NewNode, FixedEnd]
+	Render(Box(BoxProps{ID: "parent"},
+		Span(SpanProps{ID: "matched", Key: "m"}),
+		Span(SpanProps{ID: "new-node"}),
+		Span(SpanProps{ID: "fixed-end"}),
+	), container)
+
+	var finalIDs []string
+	for child := parentReal.FirstChild(); child != nil; child = child.NextSibling() {
+		finalIDs = append(finalIDs, child.(dom.Element).ID())
+	}
+	t.Logf("Final DOM IDs: %v", finalIDs)
+
+	expectedFinal := []string{"matched", "new-node", "fixed-end"}
+	if !reflect.DeepEqual(finalIDs, expectedFinal) {
+		t.Errorf("expected final IDs %v, got %v", expectedFinal, finalIDs)
+	}
 }
