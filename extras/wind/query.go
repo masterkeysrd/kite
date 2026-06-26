@@ -55,6 +55,14 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 	}
 	client.mu.Unlock()
 
+	// Stop gcTimer if it was running
+	entry.mu.Lock()
+	if entry.gcTimer != nil {
+		entry.gcTimer.Stop()
+		entry.gcTimer = nil
+	}
+	entry.mu.Unlock()
+
 	// Register refetch implementation
 	entry.mu.Lock()
 	typeEraser := func(ctx context.Context) *promise.Promise[any] {
@@ -79,10 +87,31 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 		return func() {
 			entry.mu.Lock()
 			delete(entry.subscribers, id)
-			if len(entry.subscribers) == 0 && entry.cancel != nil {
-				entry.cancel()
-				entry.cancel = nil
+			if len(entry.subscribers) == 0 {
+				if entry.cancel != nil {
+					entry.cancel()
+					entry.cancel = nil
+				}
 				entry.state.isFetching = false
+				entry.refetch = nil
+
+				// Start eviction timer
+				gcTime := client.GcTime
+				if gcTime == 0 {
+					gcTime = 5 * time.Minute
+				}
+				if entry.gcTimer != nil {
+					entry.gcTimer.Stop()
+				}
+				entry.gcTimer = time.AfterFunc(gcTime, func() {
+					client.mu.Lock()
+					entry.mu.Lock()
+					if len(entry.subscribers) == 0 {
+						delete(client.cache, key)
+					}
+					entry.mu.Unlock()
+					client.mu.Unlock()
+				})
 			}
 			entry.mu.Unlock()
 		}
@@ -150,9 +179,16 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *
 			entry.state.err = nil
 			entry.state.status = "success"
 			entry.state.updatedAt = time.Now()
+
+			shouldRefetch := entry.invalidatedDuringFetch
+			entry.invalidatedDuringFetch = false
 			entry.mu.Unlock()
 
 			entry.notifySubscribers()
+
+			if shouldRefetch && entry.refetch != nil {
+				entry.refetch()
+			}
 		}, func(err error) {
 			entry.mu.Lock()
 			if ctx.Err() != nil {
@@ -164,8 +200,15 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *
 			entry.cancel = nil
 			entry.state.err = err
 			entry.state.status = "error"
+
+			shouldRefetch := entry.invalidatedDuringFetch
+			entry.invalidatedDuringFetch = false
 			entry.mu.Unlock()
 
 			entry.notifySubscribers()
+
+			if shouldRefetch && entry.refetch != nil {
+				entry.refetch()
+			}
 		})
 }

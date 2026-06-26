@@ -3,6 +3,7 @@ package wind
 import (
 	"context"
 	"iter"
+	"reflect"
 	"sync"
 	"time"
 
@@ -19,15 +20,17 @@ type queryState struct {
 }
 
 type queryEntry struct {
-	mu             sync.Mutex
-	key            any
-	state          queryState
-	subscribers    map[int]func()
-	nextSubID      int
-	refetch        func()
-	cancel         context.CancelFunc
-	updatePending  bool
-	refetchPending bool
+	mu                     sync.Mutex
+	key                    any
+	state                  queryState
+	subscribers            map[int]func()
+	nextSubID              int
+	refetch                func()
+	cancel                 context.CancelFunc
+	updatePending          bool
+	refetchPending         bool
+	gcTimer                *time.Timer
+	invalidatedDuringFetch bool
 }
 
 func (e *queryEntry) notifySubscribers() {
@@ -44,41 +47,15 @@ func (e *queryEntry) notifySubscribers() {
 }
 
 type Client struct {
-	mu    sync.Mutex
-	cache map[any]*queryEntry
+	mu     sync.Mutex
+	cache  map[any]*queryEntry
+	GcTime time.Duration
 }
 
 func NewClient() *Client {
 	return &Client{
-		cache: make(map[any]*queryEntry),
-	}
-}
-
-// InvalidateQueries invalidates query for key.
-func (c *Client) InvalidateQueries(key any) {
-	c.mu.Lock()
-	entry, ok := c.cache[key]
-	c.mu.Unlock()
-
-	if ok && entry != nil {
-		entry.mu.Lock()
-		if entry.refetchPending {
-			entry.mu.Unlock()
-			return
-		}
-		entry.refetchPending = true
-		refetch := entry.refetch
-		entry.mu.Unlock()
-
-		if refetch != nil {
-			promise.Resolved(any(nil)).Then(func(any) {
-				entry.mu.Lock()
-				entry.refetchPending = false
-				entry.mu.Unlock()
-
-				refetch()
-			}, nil)
-		}
+		cache:  make(map[any]*queryEntry),
+		GcTime: 5 * time.Minute,
 	}
 }
 
@@ -195,4 +172,90 @@ var Provider = kitex.FCC("WindProvider", func(props ProviderProps) kitex.Node {
 // UseClient extracts the client from the context.
 func UseClient() *Client {
 	return kitex.UseContext(clientContext)
+}
+
+func safeEqual(a, b any) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	ta := reflect.TypeOf(a)
+	tb := reflect.TypeOf(b)
+	if ta != tb || !ta.Comparable() {
+		return false
+	}
+	return a == b
+}
+
+func isMatch(cachedKey, searchKey any) bool {
+	if safeEqual(cachedKey, searchKey) {
+		return true
+	}
+	if pred, ok := searchKey.(func(any) bool); ok {
+		return pred(cachedKey)
+	}
+
+	sv := reflect.ValueOf(searchKey)
+	cv := reflect.ValueOf(cachedKey)
+
+	// Check if both are array/slice
+	if (sv.Kind() == reflect.Slice || sv.Kind() == reflect.Array) &&
+		(cv.Kind() == reflect.Slice || cv.Kind() == reflect.Array) {
+		sLen := sv.Len()
+		cLen := cv.Len()
+		if sLen > cLen {
+			return false
+		}
+		for i := 0; i < sLen; i++ {
+			se := sv.Index(i).Interface()
+			ce := cv.Index(i).Interface()
+			if !safeEqual(se, ce) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
+}
+
+// InvalidateQueries invalidates all queries matching the search key/predicate.
+func (c *Client) InvalidateQueries(key any) {
+	c.mu.Lock()
+	var entries []*queryEntry
+	for k, entry := range c.cache {
+		if isMatch(k, key) {
+			entries = append(entries, entry)
+		}
+	}
+	c.mu.Unlock()
+
+	for _, entry := range entries {
+		if entry != nil {
+			entry.mu.Lock()
+			if entry.state.isFetching {
+				entry.invalidatedDuringFetch = true
+				entry.mu.Unlock()
+				continue
+			}
+			if entry.refetchPending {
+				entry.mu.Unlock()
+				continue
+			}
+			refetch := entry.refetch
+			if refetch != nil {
+				entry.refetchPending = true
+				entry.mu.Unlock()
+
+				promise.Resolved(any(nil)).Then(func(any) {
+					entry.mu.Lock()
+					entry.refetchPending = false
+					entry.mu.Unlock()
+
+					refetch()
+				}, nil)
+			} else {
+				entry.mu.Unlock()
+			}
+		}
+	}
 }
