@@ -2357,6 +2357,7 @@ func popCurrentComponent() {
 	renderStackMutex.Lock()
 	defer renderStackMutex.Unlock()
 	if len(renderStack) > 0 {
+		renderStack[len(renderStack)-1] = nil
 		renderStack = renderStack[:len(renderStack)-1]
 	}
 }
