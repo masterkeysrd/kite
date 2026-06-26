@@ -185,6 +185,9 @@ func (n *elementNode[P]) Update(els []dom.Node, old Node) {
 	if len(els) > 0 {
 		n.ref = els[0]
 	}
+	if n.ref == nil {
+		return
+	}
 	var oldProps *P
 	if old != nil {
 		if oldEl, ok := old.(*elementNode[P]); ok {

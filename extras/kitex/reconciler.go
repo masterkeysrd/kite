@@ -183,9 +183,9 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 
 	// 2. Unmount
 	if oldNode != nil && newNode == nil {
+		destroyNode(oldNode)
 		for _, realNode := range realNodes {
 			if realNode != nil {
-				destroyNode(oldNode)
 				if isParent(realNode, parent) {
 					parent.RemoveChild(realNode)
 				}
@@ -197,6 +197,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 
 	// 3. Replace on tag mismatch
 	if oldNode.TagName() != newNode.TagName() {
+		destroyNode(oldNode)
 		newReals := newNode.Instantiate(parent.OwnerDocument())
 		if len(realNodes) > 0 {
 			insertBefore := realNodes[0]
@@ -207,7 +208,6 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 			}
 			for _, oldReal := range realNodes {
 				if oldReal != nil {
-					destroyNode(oldNode)
 					if isParent(oldReal, parent) {
 						parent.RemoveChild(oldReal)
 					}

@@ -624,3 +624,74 @@ func TestReconciler_UnmountAlreadyDetachedNode(t *testing.T) {
 		Span(SpanProps{ID: "child2"}, Text("World")),
 	), container)
 }
+
+func TestReconciler_ComponentNilRenderUnmount(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	var setRenderNil func(bool)
+	var triggerStateUpdate func()
+
+	InnerComp := FC("InnerComp", func(props struct{}) Node {
+		renderNil, setRN := UseState(false)
+		setRenderNil = setRN
+
+		// A dummy state update function to simulate async event on this component
+		_, setDummy := UseState(0)
+		triggerStateUpdate = func() {
+			setDummy(1)
+		}
+
+		if renderNil() {
+			return nil
+		}
+		return Span(SpanProps{ID: "child"})
+	})
+
+	var setShowParentComp func(bool)
+
+	ParentComp := FC("ParentComp", func(props struct{}) Node {
+		show, setShow := UseState(true)
+		setShowParentComp = setShow
+		if !show() {
+			return Box(BoxProps{ID: "empty-box"})
+		}
+		return Box(BoxProps{ID: "app"}, InnerComp(struct{}{}))
+	})
+
+	// 1. Initial Render
+	Render(ParentComp(struct{}{}), container)
+
+	appReal := container.FirstChild().(dom.Element)
+	if appReal.FirstChild() == nil {
+		t.Fatalf("expected child to be mounted initially")
+	}
+
+	// 2. Make InnerComp render nil
+	setRenderNil(true)
+
+	if appReal.FirstChild() != nil {
+		t.Fatalf("expected child to be unmounted when InnerComp renders nil")
+	}
+
+	// 3. Unmount the entire branch containing InnerComp
+	setShowParentComp(false)
+
+	// Verify that the tree updated
+	boxReal := container.FirstChild().(dom.Element)
+	if boxReal.ID() != "empty-box" {
+		t.Fatalf("expected empty-box, got %s", boxReal.ID())
+	}
+
+	// 4. Trigger state update on the now-unmounted InnerComp.
+	// Since destroyNode was called, InnerComp's componentRef has been cleared
+	// and its parent DOM is cleared (so OnComponentDirty returns early or has no effect).
+	// But even if processDirtyLoop runs, it should not panic.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("reconciler panicked after state update on unmounted nil-rendering component: %v", r)
+		}
+	}()
+
+	triggerStateUpdate()
+}
