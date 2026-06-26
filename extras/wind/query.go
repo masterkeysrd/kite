@@ -92,6 +92,10 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 					entry.cancel()
 					entry.cancel = nil
 				}
+				if entry.throttleTimer != nil {
+					entry.throttleTimer.Stop()
+					entry.throttleTimer = nil
+				}
 				entry.state.isFetching = false
 				entry.refetch = nil
 

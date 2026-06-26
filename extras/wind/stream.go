@@ -91,6 +91,10 @@ func UseStream[K comparable, T any](
 					entry.cancel()
 					entry.cancel = nil
 				}
+				if entry.throttleTimer != nil {
+					entry.throttleTimer.Stop()
+					entry.throttleTimer = nil
+				}
 				entry.state.isFetching = false
 				entry.refetch = nil
 

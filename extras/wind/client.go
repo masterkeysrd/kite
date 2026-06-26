@@ -31,6 +31,8 @@ type queryEntry struct {
 	refetchPending         bool
 	gcTimer                *time.Timer
 	invalidatedDuringFetch bool
+	lastNotifyTime         time.Time
+	throttleTimer          *time.Timer
 }
 
 func (e *queryEntry) notifySubscribers() {
@@ -96,6 +98,11 @@ func (c *Client) executeStream(entry *queryEntry, fetcher func(context.Context) 
 				entry.state.err = err
 				entry.state.isFetching = false
 				entry.cancel = nil
+				entry.updatePending = false
+				if entry.throttleTimer != nil {
+					entry.throttleTimer.Stop()
+					entry.throttleTimer = nil
+				}
 				entry.mu.Unlock()
 
 				promise.Resolved(any(nil)).Then(func(any) {
@@ -108,23 +115,46 @@ func (c *Client) executeStream(entry *queryEntry, fetcher func(context.Context) 
 			entry.state.data = data
 			entry.state.err = nil
 
-			// Microtask Coalescing: Only queue a main thread update if one is not already pending.
 			if !entry.updatePending {
 				entry.updatePending = true
-				entry.mu.Unlock()
 
-				promise.Resolved(any(nil)).Then(func(any) {
-					entry.mu.Lock()
-					entry.updatePending = false
-					if ctx.Err() != nil {
-						entry.mu.Unlock()
-						return
+				now := time.Now()
+				delay := 16*time.Millisecond - now.Sub(entry.lastNotifyTime)
+				if delay <= 0 {
+					entry.lastNotifyTime = now
+					if entry.throttleTimer != nil {
+						entry.throttleTimer.Stop()
+						entry.throttleTimer = nil
 					}
 					entry.mu.Unlock()
 
-					// Notify subscribers to trigger re-renders on the main UI thread
-					entry.notifySubscribers()
-				}, nil)
+					promise.Resolved(any(nil)).Then(func(any) {
+						entry.mu.Lock()
+						entry.updatePending = false
+						entry.mu.Unlock()
+						entry.notifySubscribers()
+					}, nil)
+				} else {
+					if entry.throttleTimer == nil {
+						entry.throttleTimer = time.AfterFunc(delay, func() {
+							entry.mu.Lock()
+							if ctx.Err() != nil {
+								entry.updatePending = false
+								entry.mu.Unlock()
+								return
+							}
+							entry.lastNotifyTime = time.Now()
+							entry.updatePending = false
+							entry.throttleTimer = nil
+							entry.mu.Unlock()
+
+							promise.Resolved(any(nil)).Then(func(any) {
+								entry.notifySubscribers()
+							}, nil)
+						})
+					}
+					entry.mu.Unlock()
+				}
 			} else {
 				entry.mu.Unlock()
 			}
@@ -138,6 +168,12 @@ func (c *Client) executeStream(entry *queryEntry, fetcher func(context.Context) 
 			if ctx.Err() != nil {
 				entry.mu.Unlock()
 				return
+			}
+
+			entry.updatePending = false
+			if entry.throttleTimer != nil {
+				entry.throttleTimer.Stop()
+				entry.throttleTimer = nil
 			}
 
 			shouldNotify := false
