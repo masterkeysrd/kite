@@ -17,11 +17,16 @@ func Use[T any, U comparable](s *Store[T], selector func(T) U) U {
 	// Register local state in kitex
 	getState, setState := kitex.UseState(initialSlice)
 
+	// Store selector in ref to avoid stale closures and unnecessary re-subscriptions
+	selectorRef := kitex.UseRef(selector)
+	selectorRef.Current = selector
+
 	// Subscribe to store changes. The effect runs on mount and cleans up on unmount.
 	kitex.UseLayoutEffectCleanup(func() func() {
 		unsubscribe := s.Subscribe(func(newVal T, oldVal T) {
-			newSlice := selector(newVal)
-			oldSlice := selector(oldVal)
+			currentSelector := selectorRef.Current
+			newSlice := currentSelector(newVal)
+			oldSlice := currentSelector(oldVal)
 			if newSlice != oldSlice {
 				setState(newSlice)
 			}

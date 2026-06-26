@@ -186,6 +186,11 @@ func (b *BoxFragmentBuilder) ToFragment() *Fragment {
 		HasScrollbarX: b.hasScrollbarX,
 		HasScrollbarY: b.hasScrollbarY,
 	}
+	b.node = nil
+	b.breakToken = nil
+	for i := range b.children {
+		b.children[i] = FragmentLink{}
+	}
 	boxBuilderPool.Put(b)
 	return frag
 }

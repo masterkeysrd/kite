@@ -17,6 +17,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/collections"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/focus"
@@ -669,7 +670,7 @@ func (e *Engine) Frame() {
 				return anim.Tick(dt)
 			}()
 			if finished {
-				e.activeAnimations = append(e.activeAnimations[:i], e.activeAnimations[i+1:]...)
+				e.activeAnimations = collections.DeleteAt(e.activeAnimations, i)
 			}
 		}
 
@@ -916,10 +917,21 @@ func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 
 	// Remove orphaned render objects.
 	for orphaned := range existing {
-		if ln := orphaned.LogicalNode(); ln != nil {
-			e.setRenderObject(ln, nil)
-		}
+		e.clearRenderMapRecursive(orphaned)
 		render.Unlink(orphaned)
+	}
+}
+
+func (e *Engine) clearRenderMapRecursive(ro render.Object) {
+	if ro == nil {
+		return
+	}
+	for child := range ro.Children() {
+		e.clearRenderMapRecursive(child)
+	}
+	if ln := ro.LogicalNode(); ln != nil {
+		e.setRenderObject(ln, nil)
+		e.resolver.Invalidate(ln)
 	}
 }
 
@@ -1144,9 +1156,11 @@ func (e *Engine) drainEvents() {
 
 	// 1. Coalesce raw events before synthesis to save allocations.
 	rawCoalesced := e.coalesceRawEvents(e.eventBuffer)
-	e.eventBuffer = e.eventBuffer[:0]
 
 	// 2. Synthesize coalesced raw events into structured events.
+	for i := range e.structuredBuf {
+		e.structuredBuf[i] = nil
+	}
 	e.structuredBuf = e.structuredBuf[:0]
 	for _, raw := range rawCoalesced {
 		e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
@@ -1159,6 +1173,27 @@ func (e *Engine) drainEvents() {
 	for _, ev := range coalesced {
 		e.dispatchEvent(ev)
 	}
+
+	// 5. Clean up all buffers to prevent leaks while idle.
+	for i := range e.eventBuffer {
+		e.eventBuffer[i] = nil
+	}
+	e.eventBuffer = e.eventBuffer[:0]
+
+	for i := range e.structuredBuf {
+		e.structuredBuf[i] = nil
+	}
+	e.structuredBuf = e.structuredBuf[:0]
+
+	for i := range e.rawCoalescedBuf {
+		e.rawCoalescedBuf[i] = nil
+	}
+	e.rawCoalescedBuf = e.rawCoalescedBuf[:0]
+
+	for i := range e.coalescedBuf {
+		e.coalescedBuf[i] = nil
+	}
+	e.coalescedBuf = e.coalescedBuf[:0]
 }
 
 func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent {
@@ -1171,6 +1206,9 @@ func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent
 	// - Accumulate consecutive Wheel events IF they are at the same coordinate and have same modifiers.
 	// - Keep all other events (clicks, keys) in order.
 
+	for i := range e.rawCoalescedBuf {
+		e.rawCoalescedBuf[i] = nil
+	}
 	e.rawCoalescedBuf = e.rawCoalescedBuf[:0]
 
 	// Find index of the absolute last mouse move in the whole batch.
@@ -1236,6 +1274,9 @@ func (e *Engine) coalesceEvents(events []event.Event) []event.Event {
 		}
 	}
 
+	for i := range e.coalescedBuf {
+		e.coalescedBuf[i] = nil
+	}
 	e.coalescedBuf = e.coalescedBuf[:0]
 	clear(e.wheelMap)
 

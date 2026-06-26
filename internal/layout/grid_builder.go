@@ -33,6 +33,10 @@ func AcquireGridBuilder(node Node, space ConstraintSpace) *GridBuilder {
 // ReleaseGridBuilder returns a builder to the pool.
 func ReleaseGridBuilder(b *GridBuilder) {
 	b.node = nil
+	for i := range b.items {
+		b.items[i].node = nil
+	}
+	b.items = b.items[:0]
 	gridBuilderPool.Put(b)
 }
 

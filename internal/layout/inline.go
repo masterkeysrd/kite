@@ -33,6 +33,16 @@ func AcquireInlineItemsBuilder(shaper *text.Shaper, block Node) *InlineItemsBuil
 func ReleaseInlineItemsBuilder(b *InlineItemsBuilder) {
 	b.shaper = nil
 	b.blockContainer = nil
+	for i := range b.items {
+		b.items[i].Node = nil
+		b.items[i].ParentNode = nil
+		b.items[i].Text = nil
+	}
+	b.items = b.items[:0]
+	for i := range b.parentStack {
+		b.parentStack[i] = nil
+	}
+	b.parentStack = b.parentStack[:0]
 	inlineBuilderPool.Put(b)
 }
 

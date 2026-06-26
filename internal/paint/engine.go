@@ -42,6 +42,9 @@ func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin 
 	}
 	defer ctx.Begin("Paint:PaintFragment")()
 	p.rootSurface = surface
+	defer func() {
+		p.rootSurface = nil
+	}()
 	p.clipStack = p.clipStack[:0]
 	p.clipStack = append(p.clipStack, surface.Bounds())
 	p.paintFragment(ctx, frag, origin, color.Transparent)
@@ -51,6 +54,9 @@ func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin 
 func (p *PaintEngine) ResolveBorders(ctx *Context, surface Surface) {
 	defer ctx.Begin("Paint:ResolveBorders")()
 	p.rootSurface = surface
+	defer func() {
+		p.rootSurface = nil
+	}()
 	p.resolveBorders(surface)
 }
 

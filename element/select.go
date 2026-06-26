@@ -7,6 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/collections"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/style"
@@ -156,7 +157,7 @@ func (s *SelectElement) RemoveChild(child dom.Node) dom.Node {
 	if opt, ok := child.EventTarget().(*OptionElement); ok {
 		for i, o := range s.options {
 			if o == opt {
-				s.options = append(s.options[:i], s.options[i+1:]...)
+				s.options = collections.DeleteAt(s.options, i)
 				break
 			}
 		}

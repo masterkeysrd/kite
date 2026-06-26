@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/masterkeysrd/kite/internal/collections"
 	"github.com/masterkeysrd/kite/promise"
 	"github.com/masterkeysrd/kite/terminal"
 )
@@ -99,7 +100,7 @@ func (c *ClipboardProxy) Read(mime string) *promise.Promise[[]byte] {
 			c.e.clipboard.mu.Lock()
 			for i, p := range c.e.clipboard.pending {
 				if p.ch == ch {
-					c.e.clipboard.pending = append(c.e.clipboard.pending[:i], c.e.clipboard.pending[i+1:]...)
+					c.e.clipboard.pending = collections.DeleteAt(c.e.clipboard.pending, i)
 					break
 				}
 			}

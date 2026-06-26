@@ -9,6 +9,7 @@ import (
 
 	"github.com/masterkeysrd/kite/devtools/inspector"
 	"github.com/masterkeysrd/kite/engine"
+	"github.com/masterkeysrd/kite/internal/collections"
 )
 
 //go:embed static/index.html
@@ -60,7 +61,7 @@ func (s *DevToolsServer) handleStream(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		for idx, c := range s.clients {
 			if c == ch {
-				s.clients = append(s.clients[:idx], s.clients[idx+1:]...)
+				s.clients = collections.DeleteAt(s.clients, idx)
 				break
 			}
 		}
