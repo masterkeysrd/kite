@@ -593,7 +593,7 @@ func UseTimeout(handler func(), delay time.Duration, deps []any) {
 		}
 
 		t := time.AfterFunc(delay, func() {
-			sched.QueueMicrotask(handler)
+			sched.QueueMacrotask(handler)
 		})
 
 		return func() {
@@ -630,7 +630,7 @@ func UseInterval(handler func(), interval time.Duration, deps []any) {
 			for {
 				select {
 				case <-ticker.C:
-					sched.QueueMicrotask(handler)
+					sched.QueueMacrotask(handler)
 				case <-done:
 					return
 				}

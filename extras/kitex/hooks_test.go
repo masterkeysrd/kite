@@ -1222,6 +1222,7 @@ func TestUseTimeout(t *testing.T) {
 
 	// Wait for the timeout to elapse
 	time.Sleep(30 * time.Millisecond)
+	testScheduler.flushMacrotasks()
 
 	if !called.Load() {
 		t.Error("expected UseTimeout callback to be executed")
@@ -1270,6 +1271,7 @@ func TestUseInterval(t *testing.T) {
 
 	// Wait for a couple of ticks
 	time.Sleep(35 * time.Millisecond)
+	testScheduler.flushMacrotasks()
 
 	currentTicks := ticks.Load()
 	if currentTicks < 2 {
