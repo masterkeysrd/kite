@@ -5,6 +5,7 @@ import (
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
+	kitelog "github.com/masterkeysrd/kite/log"
 )
 
 // Pipeline defines the core phases of the Kite rendering engine.
@@ -170,7 +171,7 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		}
 
 		if err := e.backend.EndFrame(); err != nil {
-			e.logger.Warn("failed to end frame", "error", err)
+			kitelog.Warn("failed to end frame", "error", err)
 		}
 		root.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
 		for _, overlay := range overlays {

@@ -150,6 +150,7 @@ func main() {
 	f, _ := os.Create("kitex_ref_demo.log")
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, nil))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	b, err := uv.New()
@@ -158,7 +159,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{})
 
 	container := element.NewBox(eng.Document())
 	container.Style(rootStyle)

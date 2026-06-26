@@ -3,7 +3,7 @@ package devtools
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -56,11 +56,11 @@ func LocateBrowser() string {
 // OpenFloatingInspector launches a Chromium-based browser in "app" mode if
 // available.
 func OpenFloatingInspector(ctx context.Context, url string) error {
-	slog.Info("devtools: OpenFloatingInspector called", "url", url)
+	kitelog.Info("devtools: OpenFloatingInspector called", "url", url)
 	browserPath := LocateBrowser()
 
 	if browserPath != "" {
-		slog.Info("devtools: launching Chromium in app mode", "path", browserPath, "url", url)
+		kitelog.Info("devtools: launching Chromium in app mode", "path", browserPath, "url", url)
 		cmd := exec.Command(browserPath, "--app="+url)
 
 		if runtime.GOOS != "windows" {
@@ -73,7 +73,7 @@ func OpenFloatingInspector(ctx context.Context, url string) error {
 
 		go func() {
 			<-ctx.Done()
-			slog.Info("devtools: context cancelled, killing browser process")
+			kitelog.Info("devtools: context cancelled, killing browser process")
 			if runtime.GOOS == "windows" {
 				_ = cmd.Process.Kill()
 			} else {
@@ -84,7 +84,7 @@ func OpenFloatingInspector(ctx context.Context, url string) error {
 		return nil
 	}
 
-	slog.Info("devtools: falling back to system default opener", "url", url)
+	kitelog.Info("devtools: falling back to system default opener", "url", url)
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":

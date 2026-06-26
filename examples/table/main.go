@@ -53,6 +53,8 @@ func main() {
 	defer f.Close()
 
 	logger := slog.New(slog.NewTextHandler(f, nil))
+
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	be, err := uv.New()
@@ -61,10 +63,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(be, engine.Options{
-		Logger:   logger,
-		Profiler: true,
-	})
+	eng := engine.New(be, engine.Options{})
 
 	// Build UI declaratively
 	ui := element.Box(

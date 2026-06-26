@@ -244,6 +244,7 @@ func main() {
 	}
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	// Create backend first
@@ -254,7 +255,7 @@ func main() {
 	}
 
 	// Create and start engine
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{})
 
 	// Create VDOM rendering container element
 	container := element.NewBox(eng.Document())

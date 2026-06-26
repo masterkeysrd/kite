@@ -14,6 +14,7 @@ import (
 
 func TestExampleApp_StartAndStop(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	_ = logger // prevent unused variable error
 	b := mock.New(80, 24)
 
 	ctx, cancel := context.WithCancel(context.Background())

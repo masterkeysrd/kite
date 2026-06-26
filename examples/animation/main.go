@@ -92,6 +92,7 @@ func main() {
 	f, _ := os.Create("kite-animation.log")
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, nil))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	b, err := uv.New()
@@ -109,7 +110,7 @@ func main() {
 }
 
 func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger, cancel context.CancelFunc) error {
-	eng = engine.New(b, engine.Options{Logger: logger, Profiler: true})
+	eng = engine.New(b, engine.Options{})
 
 	// 1. Create control buttons and register click/focus listeners
 	easings := []struct {

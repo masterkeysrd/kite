@@ -29,6 +29,7 @@ import (
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/internal/styler"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/trace"
 )
@@ -128,10 +129,6 @@ type Engine struct {
 	// RequestFrameAt). Zero means "as soon as possible".
 	nextFrameAt time.Time
 
-	// logger is the slog logger for lifecycle event, panics, and profiler
-	// spans. Defaults to io.Discard (silent) unless wired by the caller.
-	logger *slog.Logger
-
 	// macroTaskBudget caps macrotasks per frame (count).
 	macroTaskBudget int
 
@@ -185,9 +182,6 @@ type Options struct {
 	MacroTaskDuration time.Duration
 	// Clock is the injectable time source. Defaults to RealClock().
 	Clock Clock
-	// Logger receives structured log records from the engine. Defaults to a
-	// no-op logger (io.Discard).
-	Logger *slog.Logger
 	// ShutdownTimeout bounds how long Stop waits for pending jobs before
 	// forcing exit. Default is 5 seconds.
 	ShutdownTimeout time.Duration
@@ -216,10 +210,6 @@ func New(b backend.Backend, opts Options) *Engine {
 	if clk == nil {
 		clk = RealClock()
 	}
-	logger := opts.Logger
-	if logger == nil {
-		logger = slog.New(slog.DiscardHandler)
-	}
 	shutdownTimeout := opts.ShutdownTimeout
 	if shutdownTimeout <= 0 {
 		shutdownTimeout = 5 * time.Second
@@ -232,7 +222,6 @@ func New(b backend.Backend, opts Options) *Engine {
 		paintEngine:     paint.NewPaintEngine(),
 		backend:         b,
 		clock:           clk,
-		logger:          logger,
 		macroTaskBudget: macroTaskBudget,
 		shutdownTimeout: shutdownTimeout,
 		mouseMode:       MouseModeClick,
@@ -245,7 +234,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	size := b.Size()
 	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 
-	e.scheduler = newDefaultScheduler(numWorkers, clk, logger, macroTaskDuration, e.RequestFrame)
+	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, e.RequestFrame)
 	promise.SetScheduler(e.scheduler)
 
 	if opts.Profiler {
@@ -457,7 +446,7 @@ func (e *Engine) SetTitle(s string) {
 	if !e.caps.Title {
 		return
 	}
-	e.logger.Info("engine: set title", slog.String("title", s))
+	kitelog.Info("engine: set title", slog.String("title", s))
 }
 
 // Bell emits a BEL character. It is a no-op when Caps.Bell is false.
@@ -467,7 +456,7 @@ func (e *Engine) Bell() {
 	if !e.caps.Bell {
 		return
 	}
-	e.logger.Info("engine: bell")
+	kitelog.Info("engine: bell")
 }
 
 // SetDebugXRay toggles the visual layout debugging overlay.
@@ -737,7 +726,7 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 	next := cursorRecord{}
 	var ro render.Object
 	if focused != nil {
-		e.logger.Info("engine: determining cursor for focused target")
+		kitelog.Info("engine: determining cursor for focused target")
 		ro = e.RenderObject(focused.(dom.Node))
 		if ro != nil {
 			provider, ok := ro.(cursor.Provider)
@@ -971,16 +960,14 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 // It restores the terminal, logs the panic and stack trace, and re-panics so
 // the process exits with a usable terminal.
 func (e *Engine) recoverFrame() {
-	v := recover()
-	if v == nil {
-		return
+	if v := recover(); v != nil {
+		kitelog.Error("engine: panic in frame loop",
+			slog.Any("panic", v),
+			slog.String("stack", string(debug.Stack())),
+		)
+		e.backend.Restore()
+		panic(v)
 	}
-	e.backend.Restore()
-	e.logger.Error("engine: panic in frame loop",
-		slog.Any("panic", v),
-		slog.String("stack", string(debug.Stack())),
-	)
-	panic(v)
 }
 
 func noop() {}
@@ -1677,29 +1664,34 @@ func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
 
 func (e *Engine) shouldRunFrame() bool {
 	if e.frameRequested {
-		if e.logger != nil {
-			e.logger.Debug("shouldRunFrame returning true due to frameRequested")
-		}
+		kitelog.Debug("shouldRunFrame returning true due to frameRequested")
 		return true
 	}
-	if !e.nextFrameAt.IsZero() && e.clock.Now().After(e.nextFrameAt) {
-		if e.logger != nil {
-			e.logger.Debug("shouldRunFrame returning true due to nextFrameAt", "nextFrameAt", e.nextFrameAt)
-		}
+	now := e.clock.Now()
+	if !e.nextFrameAt.IsZero() && !now.Before(e.nextFrameAt) {
+		kitelog.Debug("shouldRunFrame returning true due to nextFrameAt", "nextFrameAt", e.nextFrameAt)
 		return true
 	}
 	// Check for dirty DOM or render tree.
 	dn := internaldom.AsDirty(e.document)
 	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
-	flags := e.renderView.Flags()
+	rootFlags := e.renderView.Flags()
 	pending := e.scheduler.hasPendingTasks()
-
-	if needsSync || flags != 0 || pending {
-		// Log precisely why we are flushing
-		if e.logger != nil {
-			e.logger.Debug("shouldRunFrame returning true due to dirty state",
-				"needsSync", needsSync, "flags", flags, "pending", pending)
+	anyOverlayDirty := false
+	for overlay := range e.document.Overlays() {
+		if od := internaldom.AsDirty(overlay); od.NeedsSync() || od.ChildNeedsSync() {
+			anyOverlayDirty = true
+			break
 		}
+	}
+
+	if needsSync || anyOverlayDirty || rootFlags&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 || pending {
+		kitelog.Debug("shouldRunFrame returning true due to dirty state",
+			"needsSync", needsSync,
+			"anyOverlayDirty", anyOverlayDirty,
+			"rootFlags", rootFlags,
+			"pending", pending,
+		)
 		return true
 	}
 	return false

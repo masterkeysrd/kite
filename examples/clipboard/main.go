@@ -34,6 +34,7 @@ func main() {
 	f, _ := os.Create("clipboard.log")
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	b, err := uv.New()
@@ -43,10 +44,7 @@ func main() {
 	}
 
 	// 1. Initialize engine
-	eng := engine.New(b, engine.Options{
-		Logger:   logger,
-		Profiler: true,
-	})
+	eng := engine.New(b, engine.Options{})
 
 	// 2. UI Components
 	statusText := element.Text("Ready. Try selecting text and pressing Ctrl+C.")

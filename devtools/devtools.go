@@ -3,7 +3,7 @@ package devtools
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"net"
 	"net/http"
 	"time"
@@ -36,7 +36,7 @@ type Options struct {
 func Install(eng *engine.Engine, opts Options) (*inspector.Inspector, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	eng.OnStop(func() {
-		slog.Info("devtools: engine stopping, cancelling context")
+		kitelog.Info("devtools: engine stopping, cancelling context")
 		cancel()
 		time.Sleep(100 * time.Millisecond)
 	})
@@ -48,7 +48,7 @@ func Install(eng *engine.Engine, opts Options) (*inspector.Inspector, error) {
 		opts.ServerAddr = DefaultServerAddr
 	}
 
-	slog.Info("devtools: installing with options", "xrayHotkey", opts.XRayHotkey, "serverAddr", opts.ServerAddr)
+	kitelog.Info("devtools: installing with options", "xrayHotkey", opts.XRayHotkey, "serverAddr", opts.ServerAddr)
 	var insp *inspector.Inspector
 	if opts.ServerAddr != "" {
 		insp = inspector.New(eng)
@@ -56,10 +56,10 @@ func Install(eng *engine.Engine, opts Options) (*inspector.Inspector, error) {
 		mux := http.NewServeMux()
 		srv.SetupRoutes(mux)
 
-		slog.Info("devtools: starting inspector server", "requestedAddr", opts.ServerAddr)
+		kitelog.Info("devtools: starting inspector server", "requestedAddr", opts.ServerAddr)
 		l, err := net.Listen("tcp", opts.ServerAddr)
 		if err != nil {
-			slog.Warn("devtools: requested address failed, trying random port", "addr", opts.ServerAddr, "err", err)
+			kitelog.Warn("devtools: requested address failed, trying random port", "addr", opts.ServerAddr, "err", err)
 			l, err = net.Listen("tcp", "127.0.0.1:0")
 			if err != nil {
 				return nil, fmt.Errorf("devtools: failed to find any available port: %w", err)
@@ -67,17 +67,17 @@ func Install(eng *engine.Engine, opts Options) (*inspector.Inspector, error) {
 		}
 
 		go func() {
-			slog.Info("devtools: starting HTTP server", "addr", l.Addr().String())
+			kitelog.Info("devtools: starting HTTP server", "addr", l.Addr().String())
 			if err := http.Serve(l, mux); err != nil {
-				slog.Error("devtools: server error", "err", err)
+				kitelog.Error("devtools: server error", "err", err)
 			}
 		}()
-		slog.Info("devtools: inspector server started", "addr", l.Addr().String())
+		kitelog.Info("devtools: inspector server started", "addr", l.Addr().String())
 		eng.OnFrameRendered(srv.Broadcast)
 
 		// Hook F12 to open inspector
 		inspectorHotkey := "f12"
-		slog.Info("devtools: setting up inspector hotkey", "hotkey", inspectorHotkey)
+		kitelog.Info("devtools: setting up inspector hotkey", "hotkey", inspectorHotkey)
 		eng.Document().AddEventListener(event.EventKeyDown, func(e event.Event) {
 			ke, ok := e.(*event.KeyEvent)
 			if !ok {
@@ -87,11 +87,11 @@ func Install(eng *engine.Engine, opts Options) (*inspector.Inspector, error) {
 			if !ke.MatchString(inspectorHotkey) {
 				return
 			}
-			slog.Info("devtools: inspector hotkey matched", "hotkey", inspectorHotkey)
-			slog.Info("devtools: opening floating inspector window")
+			kitelog.Info("devtools: inspector hotkey matched", "hotkey", inspectorHotkey)
+			kitelog.Info("devtools: opening floating inspector window")
 			go func() {
 				if err := OpenFloatingInspector(ctx, "http://"+l.Addr().String()); err != nil {
-					slog.Warn("devtools: failed to open floating inspector", "err", err)
+					kitelog.Warn("devtools: failed to open floating inspector", "err", err)
 				}
 			}()
 			e.StopPropagation()

@@ -33,6 +33,7 @@ func main() {
 	f, _ := os.Create("overlay_tweaks.log")
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, nil))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	defer func() {
@@ -51,7 +52,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
+	eng := engine.New(b, engine.Options{})
 
 	// State for overlay configuration
 	currentPlacement := geom.PlacementBottom

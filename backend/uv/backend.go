@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
-	"log/slog"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"os"
 	"strings"
 	"sync"
@@ -252,7 +252,7 @@ func (b *Backend) writeRaw(s string) {
 
 func (b *Backend) Write(p []byte) (n int, err error) {
 	s := strings.ReplaceAll(string(p), "\x1b", "\\x1b")
-	slog.Debug("UV TRACING: ", "message", fmt.Sprintf("output: %q", s))
+	kitelog.Debug("UV TRACING: ", "message", fmt.Sprintf("output: %q", s))
 	return b.terminal.Write(p)
 }
 
@@ -323,17 +323,17 @@ func (b *Backend) DumpState() {
 
 	f, err := os.Create(fmt.Sprintf("backend_dump_%d.txt", time.Now().Unix()))
 	if err != nil {
-		slog.Error("uv: failed to create dump file", "error", err)
+		kitelog.Error("uv: failed to create dump file", "error", err)
 		return
 	}
 	defer f.Close()
 
 	if _, err := f.WriteString(sb.String()); err != nil {
-		slog.Error("uv: failed to write dump file", "error", err)
+		kitelog.Error("uv: failed to write dump file", "error", err)
 		return
 	}
 
-	slog.Info("uv: backend state dumped to file")
+	kitelog.Info("uv: backend state dumped to file")
 }
 
 func (b *Backend) renderLoop() {
@@ -345,7 +345,7 @@ func (b *Backend) renderLoop() {
 
 func (b *Backend) loopEvents() {
 	for ev := range b.terminal.Events() {
-		slog.Info("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
+		kitelog.Info("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
 		KiteEv := translateEvent(ev)
 		if KiteEv != nil {
 			b.eventCh <- KiteEv
@@ -360,7 +360,7 @@ func (b *Backend) renderFrame(req renderRequest) {
 
 	buf := req.buffer
 	if buf.Width <= 0 || buf.Height <= 0 {
-		slog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", buf.Width, "height", buf.Height)
+		kitelog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", buf.Width, "height", buf.Height)
 		return
 	}
 
@@ -397,9 +397,9 @@ func (b *Backend) renderFrame(req renderRequest) {
 
 	b.screen.Render()
 	if err := b.screen.Flush(); err != nil {
-		slog.Error("uv: flush error", "error", err)
+		kitelog.Error("uv: flush error", "error", err)
 	} else {
-		slog.Info("uv: screen.Flush called")
+		kitelog.Info("uv: screen.Flush called")
 	}
 
 	// THE DOUBLE FLUSH WORKAROUND
@@ -421,9 +421,9 @@ func (b *Backend) renderFrame(req renderRequest) {
 		b.screen.SetCursorPosition(req.cursor.X, req.cursor.Y)
 		b.screen.Render()
 		if err := b.screen.Flush(); err != nil {
-			slog.Error("uv: flush error after cursor update", "error", err)
+			kitelog.Error("uv: flush error after cursor update", "error", err)
 		} else {
-			slog.Info("uv: screen.Flush called after cursor update")
+			kitelog.Info("uv: screen.Flush called after cursor update")
 		}
 	}
 }
@@ -491,5 +491,5 @@ type logWriter struct{}
 func (w logWriter) Printf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	msg = strings.ReplaceAll(msg, "\x1b", "\\x1b")
-	slog.Debug("UV TRACING: ", "message", msg)
+	kitelog.Debug("UV TRACING: ", "message", msg)
 }

@@ -2,7 +2,7 @@ package uv
 
 import (
 	"fmt"
-	"log/slog"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"strconv"
 	"strings"
 
@@ -103,19 +103,19 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		}
 	case uv.UnknownOscEvent:
 		s := string(e)
-		slog.Info("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))
+		kitelog.Info("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))
 		return parseOsc(s)
 	case *uv.UnknownOscEvent:
 		s := string(*e)
-		slog.Info("UV: Received Unknown OSC (ptr)", "raw", fmt.Sprintf("%q", s))
+		kitelog.Info("UV: Received Unknown OSC (ptr)", "raw", fmt.Sprintf("%q", s))
 		return parseOsc(s)
 	case uv.UnknownCsiEvent:
 		s := string(e)
-		slog.Info("UV: Received Unknown CSI", "raw", fmt.Sprintf("%q", s))
+		kitelog.Info("UV: Received Unknown CSI", "raw", fmt.Sprintf("%q", s))
 		return &backend.RawUnknownEvent{Payload: prefixCSI + s}
 	case uv.UnknownDcsEvent:
 		s := string(e)
-		slog.Info("UV: Received Unknown DCS", "raw", fmt.Sprintf("%q", s))
+		kitelog.Info("UV: Received Unknown DCS", "raw", fmt.Sprintf("%q", s))
 		return &backend.RawUnknownEvent{Payload: prefixDCS + s}
 	case uv.UnknownApcEvent:
 		s := string(e)
@@ -135,7 +135,7 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		return &backend.RawUnknownEvent{Payload: s}
 	}
 
-	slog.Info("UV: Unhandled event type", "type", fmt.Sprintf("%T", ev), "val", fmt.Sprintf("%#v", ev))
+	kitelog.Info("UV: Unhandled event type", "type", fmt.Sprintf("%T", ev), "val", fmt.Sprintf("%#v", ev))
 	return &backend.RawUnknownEvent{
 		Payload: ev,
 	}
@@ -156,7 +156,7 @@ func parseOsc(s string) backend.RawEvent {
 		var err error
 		code, err = strconv.Atoi(parts[0])
 		if err != nil {
-			slog.Warn("UV: Failed to parse OSC code", "raw", parts[0], "error", err)
+			kitelog.Warn("UV: Failed to parse OSC code", "raw", parts[0], "error", err)
 		}
 		data = parts[1]
 	} else {
@@ -224,7 +224,7 @@ func translateClipboardEvent(e uv.ClipboardEvent) (backend.RawEvent, bool) {
 	case 0:
 		selection = event.UnknownClipboard
 	default:
-		slog.Info("UV: Unknown clipboard selection", "selection", e.Selection)
+		kitelog.Info("UV: Unknown clipboard selection", "selection", e.Selection)
 		return nil, false
 	}
 	return &backend.RawClipboardEvent{

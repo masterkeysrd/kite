@@ -111,6 +111,7 @@ func (s *Stage) Run() {
 	f, _ := os.Create("stage.log")
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, nil))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	b, err := uv.New()
@@ -119,7 +120,7 @@ func (s *Stage) Run() {
 		os.Exit(1)
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger})
+	eng := engine.New(b, engine.Options{})
 
 	// Create root container element
 	root := element.NewBox(eng.Document())

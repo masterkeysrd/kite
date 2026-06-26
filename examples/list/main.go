@@ -31,6 +31,8 @@ func main() {
 	defer f.Close()
 
 	logger := slog.New(slog.NewTextHandler(f, nil))
+
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	if os.Getenv("USE_MOCK_BACKEND") == "1" {
@@ -44,7 +46,7 @@ func main() {
 		}
 	}
 
-	eng := engine.New(b, engine.Options{Logger: logger, Profiler: true})
+	eng := engine.New(b, engine.Options{})
 
 	headerStyle := listHeaderStyle
 

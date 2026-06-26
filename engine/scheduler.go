@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	kitelog "github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -22,7 +23,6 @@ type defaultScheduler struct {
 	jobQueue     chan func(ctx context.Context)
 
 	clock             Clock
-	logger            *slog.Logger
 	macroTaskDuration time.Duration
 	onRequestFrame    func()
 
@@ -33,7 +33,7 @@ type defaultScheduler struct {
 
 var _ terminal.Scheduler = (*defaultScheduler)(nil)
 
-func newDefaultScheduler(numWorkers int, clk Clock, logger *slog.Logger, macroTaskDuration time.Duration, onRequestFrame func()) *defaultScheduler {
+func newDefaultScheduler(numWorkers int, clk Clock, macroTaskDuration time.Duration, onRequestFrame func()) *defaultScheduler {
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	s := &defaultScheduler{
 		workerCtx:         workerCtx,
@@ -41,7 +41,6 @@ func newDefaultScheduler(numWorkers int, clk Clock, logger *slog.Logger, macroTa
 		workerSem:         make(chan struct{}, numWorkers),
 		jobQueue:          make(chan func(ctx context.Context), numWorkers*4),
 		clock:             clk,
-		logger:            logger,
 		macroTaskDuration: macroTaskDuration,
 		onRequestFrame:    onRequestFrame,
 	}
@@ -154,7 +153,7 @@ func (s *defaultScheduler) executeTask(ctx context.Context, task func(ctx contex
 	defer func() {
 		if v := recover(); v != nil {
 			stack := string(debug.Stack())
-			s.logger.Error("scheduler: panic in background task",
+			kitelog.Error("scheduler: panic in background task",
 				slog.Any("panic", v),
 				slog.String("stack", stack),
 			)

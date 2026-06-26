@@ -52,6 +52,7 @@ func main() {
 	}
 	defer f.Close()
 	logger := slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	// ── backend ──────────────────────────────────────────────────────────────
@@ -67,10 +68,7 @@ func main() {
 	}
 
 	// ── engine ───────────────────────────────────────────────────────────────
-	eng := engine.New(b, engine.Options{
-		Logger:   logger,
-		Profiler: true,
-	})
+	eng := engine.New(b, engine.Options{})
 
 	// ── textarea ─────────────────────────────────────────────────────────────
 	txa := element.NewTextArea(eng.Document(), "").WithPlaceholder("Type your message here...")

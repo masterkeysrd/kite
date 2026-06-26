@@ -125,6 +125,8 @@ func main() {
 	defer f.Close()
 
 	logger := slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	_ = logger // prevent unused variable error
 	slog.SetDefault(logger)
 
 	var b backend.Backend
@@ -139,10 +141,7 @@ func main() {
 		}
 	}
 
-	opts := engine.Options{
-		Logger:   slog.Default(),
-		Profiler: true,
-	}
+	opts := engine.Options{}
 	eng := engine.New(b, opts)
 
 	container := element.NewBox(eng.Document())
