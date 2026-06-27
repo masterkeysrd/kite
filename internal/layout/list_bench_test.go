@@ -1,74 +1,109 @@
-package layout_test
+package layout
 
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
 
 func BenchmarkListAlgorithm_Ordinal(b *testing.B) {
-	doc := dom.NewDocument()
-	parent := doc.CreateElement("ul", nil)
-
 	count := 100
-	var nodes []layout.Node
+	var nodes []Node
 
 	for i := 0; i < count; i++ {
-		el := doc.CreateElement("li", nil)
-		ro := render.NewBox(el, el)
-		ro.SetComputedStyle(&style.Computed{
-			Display:       style.DisplayListItem,
-			ListStyleType: style.ListStyleDecimal,
-		})
-		parent.AppendChild(el)
-		nodes = append(nodes, ro)
+		li := &mockNode{
+			style: &style.Computed{
+				Display:       style.DisplayListItem,
+				ListStyleType: style.ListStyleDecimal,
+			},
+		}
+		nodes = append(nodes, li)
 	}
 
-	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	// Link siblings to allow ordinal computation via previous siblings
+	var prev *mockNode
+	for _, n := range nodes {
+		curr := n.(*mockNode)
+		if prev != nil {
+			prev.nextSibling = curr
+		}
+		prev = curr
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	ctx := &Context{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Only benchmark the last node, which has the longest sibling walk (100 items)
-		lastNode := nodes[count-1]
-		algo := layout.GetAlgorithm(lastNode)
-		_ = algo.Layout(nil, lastNode, space)
-
-		// Also clear cache to force re-layout if necessary,
-		// though we want to benchmark the algorithm itself.
-		lastNode.ClearDirtyLayout()
+		lastNode := nodes[count-1].(*mockNode)
+		lastNode.cachedFragment = nil
+		algo := GetAlgorithm(lastNode)
+		_ = algo.Layout(ctx, lastNode, space)
 	}
 }
 
 func BenchmarkListAlgorithm_FullList(b *testing.B) {
-	doc := dom.NewDocument()
-	parent := doc.CreateElement("ul", nil)
-
 	count := 100
-	var nodes []layout.Node
+	var nodes []Node
 
 	for i := 0; i < count; i++ {
-		el := doc.CreateElement("li", nil)
-		ro := render.NewBox(el, el)
-		ro.SetComputedStyle(&style.Computed{
-			Display:       style.DisplayListItem,
-			ListStyleType: style.ListStyleDecimal,
-		})
-		parent.AppendChild(el)
-		nodes = append(nodes, ro)
+		li := &mockNode{
+			style: &style.Computed{
+				Display:       style.DisplayListItem,
+				ListStyleType: style.ListStyleDecimal,
+			},
+		}
+		nodes = append(nodes, li)
 	}
 
-	space := layout.NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	ctx := &Context{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, node := range nodes {
-			algo := layout.GetAlgorithm(node)
-			_ = algo.Layout(nil, node, space)
-			node.ClearDirtyLayout()
+			mn := node.(*mockNode)
+			mn.cachedFragment = nil
+			algo := GetAlgorithm(node)
+			_ = algo.Layout(ctx, node, space)
+		}
+	}
+}
+
+func BenchmarkListAlgorithm_InlineChildren(b *testing.B) {
+	const count = 100
+	inlineStyle := &style.Computed{
+		Display: style.DisplayInline,
+		Width:   style.Cells(10),
+		Height:  style.Cells(1),
+	}
+
+	var nodes []Node
+	for range count {
+		// Each list item has one inline child
+		child := &mockInlineNode{mockNode: mockNode{style: inlineStyle}}
+		li := &mockNode{
+			style: &style.Computed{
+				Display:       style.DisplayListItem,
+				ListStyleType: style.ListStyleDecimal,
+			},
+			firstChild: child,
+		}
+		nodes = append(nodes, li)
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 1000}).ToConstraintSpace()
+	ctx := &Context{}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, node := range nodes {
+			mn := node.(*mockNode)
+			mn.cachedFragment = nil
+			algo := GetAlgorithm(node)
+			_ = algo.Layout(ctx, node, space)
 		}
 	}
 }

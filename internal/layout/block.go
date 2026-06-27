@@ -153,9 +153,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		// An IFC with no visible text (e.g. an empty input) still occupies
 		// one content row — just like a browser renders an empty line box.
 		if linesEmitted == 0 {
-			line := &LineBox{
-				Size: geometry.Size{Width: 0, Height: 1},
-			}
+			line := lineBoxPool.Get().(*LineBox)
+			line.Size = geometry.Size{Width: 0, Height: 1}
+			line.Children = line.Children[:0]
 			lineFrag := line.ToFragment()
 			offset := geometry.Point{
 				X: decor.Insets.Left,

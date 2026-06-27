@@ -178,10 +178,14 @@ func (b *BoxFragmentBuilder) AddChild(frag *Fragment, offset geometry.Point) {
 // ToFragment finalizes the builder and returns an immutable Fragment.
 // It also returns the builder to the pool.
 func (b *BoxFragmentBuilder) ToFragment() *Fragment {
+	var children []FragmentLink
+	if len(b.children) > 0 {
+		children = slices.Clone(b.children)
+	}
 	frag := &Fragment{
 		Node:          b.node,
 		Size:          b.size,
-		Children:      slices.Clone(b.children),
+		Children:      children,
 		BreakToken:    b.breakToken,
 		HasScrollbarX: b.hasScrollbarX,
 		HasScrollbarY: b.hasScrollbarY,

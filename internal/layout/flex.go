@@ -13,11 +13,11 @@ type FlexAlgorithm struct{}
 
 // AnonymousBlock represents an anonymous box created to wrap contiguous runs of inline content.
 type AnonymousBlock struct {
-	parent        Node
-	children      []Node
-	cachedSpace   ConstraintSpace
-	cachedStyle   style.Computed
-	hasStyle      bool
+	parent      Node
+	children    []Node
+	cachedSpace ConstraintSpace
+	cachedStyle style.Computed
+	hasStyle    bool
 }
 
 var _ Node = (*AnonymousBlock)(nil)

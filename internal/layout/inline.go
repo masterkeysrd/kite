@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"slices"
 	"sync"
 
 	geometry "github.com/masterkeysrd/kite/geom"
@@ -51,11 +52,26 @@ type LineBox struct {
 	Children []FragmentLink
 }
 
+var lineBoxPool = sync.Pool{
+	New: func() any {
+		return &LineBox{
+			Children: make([]FragmentLink, 0, 16),
+		}
+	},
+}
+
 func (lb *LineBox) ToFragment() *Fragment {
-	return &Fragment{
-		Size:     lb.Size,
-		Children: lb.Children,
+	var children []FragmentLink
+	if len(lb.Children) > 0 {
+		children = slices.Clone(lb.Children)
 	}
+	frag := &Fragment{
+		Size:     lb.Size,
+		Children: children,
+	}
+	lb.Children = lb.Children[:0]
+	lineBoxPool.Put(lb)
+	return frag
 }
 
 func isSpaceCluster(c text.Cluster) bool {
@@ -388,13 +404,18 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	if l.currentIndex >= len(l.items) {
 		if l.hadForcedBreakAtEnd {
 			l.hadForcedBreakAtEnd = false
-			return &LineBox{Size: geometry.Size{Width: 0, Height: 1}}, true
+			line := lineBoxPool.Get().(*LineBox)
+			line.Size = geometry.Size{Width: 0, Height: 1}
+			line.Children = line.Children[:0]
+			return line, true
 		}
 		return nil, false
 	}
 	defer ctx.Begin("Layout(IFC):NextLine")()
 
-	line := &LineBox{}
+	line := lineBoxPool.Get().(*LineBox)
+	line.Size = geometry.Size{}
+	line.Children = line.Children[:0]
 	currentX := 0
 	lineHeight := 1 // Minimum height of a line
 
