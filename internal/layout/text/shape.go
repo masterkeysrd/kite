@@ -19,9 +19,41 @@ func Shape(text string) []Cluster {
 	if text == "" {
 		return nil
 	}
-	// Pre-allocate: using len(text) as an upper bound capacity hint avoids
-	// a separate O(N) pass to count runes, while preventing slice reallocations.
-	clusters := make([]Cluster, 0, len(text))
+
+	// Fast path: for short strings, build on stack first to avoid capacity overallocation.
+	if len(text) <= 64 {
+		var localBuf [64]Cluster
+		count := 0
+		remaining := text
+		state := -1
+		prevWasBreakableSpace := false
+
+		for len(remaining) > 0 {
+			var clusterStr string
+			var width int
+			clusterStr, remaining, width, state = uniseg.FirstGraphemeClusterInString(remaining, state)
+
+			r, _ := utf8.DecodeRuneInString(clusterStr)
+			bc := classifyBreak(r, prevWasBreakableSpace)
+
+			localBuf[count] = Cluster{
+				Bytes:      unsafeStringBytes(clusterStr),
+				CellWidth:  width,
+				BreakClass: bc,
+			}
+			count++
+			prevWasBreakableSpace = isBreakableSpace(r)
+		}
+
+		// Allocate exactly count items.
+		clusters := make([]Cluster, count)
+		copy(clusters, localBuf[:count])
+		return clusters
+	}
+
+	// For long strings, estimate capacity using rune count instead of byte length.
+	runeCount := utf8.RuneCountInString(text)
+	clusters := make([]Cluster, 0, runeCount)
 
 	remaining := text
 	state := -1
@@ -42,6 +74,13 @@ func Shape(text string) []Cluster {
 		})
 
 		prevWasBreakableSpace = isBreakableSpace(r)
+	}
+
+	// Shrink capacity to match exact length to prevent cache memory bloat.
+	if cap(clusters) > len(clusters) {
+		exactClusters := make([]Cluster, len(clusters))
+		copy(exactClusters, clusters)
+		return exactClusters
 	}
 
 	return clusters

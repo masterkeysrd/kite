@@ -233,7 +233,15 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 
 	// For pre / pre-wrap: shape the original bytes with no collapsing.
 	if ws == style.WhiteSpacePre || ws == style.WhiteSpacePreWrap {
-		clusters := b.shaper.Shape(data)
+		var clusters []text.Cluster
+		if cache, ok := node.(ShapedTextCache); ok && cache.CachedText() == data {
+			clusters = cache.CachedClusters()
+		} else {
+			clusters = b.shaper.Shape(data)
+			if cache, ok := node.(ShapedTextCache); ok {
+				cache.SetCachedClusters(data, clusters)
+			}
+		}
 		if len(clusters) == 0 {
 			return
 		}
@@ -265,7 +273,15 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 	// We must COPY the slice before mutating any CellWidth field to avoid
 	// poisoning the cache for other callers (e.g. a pre-whitespace text node
 	// that renders the same string without collapsing).
-	shaped := b.shaper.Shape(data)
+	var shaped []text.Cluster
+	if cache, ok := node.(ShapedTextCache); ok && cache.CachedText() == data {
+		shaped = cache.CachedClusters()
+	} else {
+		shaped = b.shaper.Shape(data)
+		if cache, ok := node.(ShapedTextCache); ok {
+			cache.SetCachedClusters(data, shaped)
+		}
+	}
 	if len(shaped) == 0 {
 		return
 	}

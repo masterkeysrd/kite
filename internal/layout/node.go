@@ -3,8 +3,15 @@ package layout
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
 )
+
+type ShapedTextCache interface {
+	CachedText() string
+	CachedClusters() []text.Cluster
+	SetCachedClusters(text string, clusters []text.Cluster)
+}
 
 // Node is the layout engine's view of a render object. It provides the
 // style, tree-walk, and bounds-mutation interface required by
