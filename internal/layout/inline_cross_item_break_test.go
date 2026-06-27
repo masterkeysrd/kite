@@ -461,4 +461,3 @@ func TestInlineItemsBuilder_CrossItem_PreTrailingSpace(t *testing.T) {
 		t.Errorf("node2 cluster[1] ('b') BreakClass = %v, want BreakSoft", items[1].Text[1].BreakClass)
 	}
 }
-

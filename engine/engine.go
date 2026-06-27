@@ -175,7 +175,8 @@ type Engine struct {
 	isLayoutActive bool // Prevents infinite recursion during synchronous reflow
 
 	syncStack []syncTask
-	diffMap   map[render.Object]struct{}
+	diffMaps  []map[render.Object]struct{}
+	diffDepth int
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
@@ -232,7 +233,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		backend:         b,
 		clock:           clk,
 		macroTaskBudget: macroTaskBudget,
-		diffMap:         make(map[render.Object]struct{}),
+		diffMaps:        make([]map[render.Object]struct{}, 0, 4),
 		shutdownTimeout: shutdownTimeout,
 		mouseMode:       MouseModeClick,
 		closeCh:         make(chan struct{}),
@@ -906,7 +907,7 @@ func (e *Engine) syncOverlays(d dom.Document) {
 	e.renderView.SetOverlays(overlayROs)
 }
 
-func (e *Engine) diffChild(child dom.Node, parentRO render.Object, lastRO render.Object) render.Object {
+func (e *Engine) diffChild(child dom.Node, parentRO render.Object, existing map[render.Object]struct{}, lastRO render.Object) render.Object {
 	if el, ok := child.(dom.Element); ok && internaldom.IsOverlay(el) {
 		return lastRO
 	}
@@ -916,7 +917,7 @@ func (e *Engine) diffChild(child dom.Node, parentRO render.Object, lastRO render
 		e.setRenderObject(child, childRO)
 	}
 
-	delete(e.diffMap, childRO)
+	delete(existing, childRO)
 
 	// Ensure correct position in render tree.
 	if childRO.Parent() != parentRO || childRO.PreviousSibling() != lastRO {
@@ -942,26 +943,35 @@ func (e *Engine) diffChild(child dom.Node, parentRO render.Object, lastRO render
 
 // diffChildren synchronizes the children of n into the render object ro.
 func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
-	// Map existing render children.
-	clear(e.diffMap)
+	// Get or create a map for the current depth
+	if e.diffDepth >= len(e.diffMaps) {
+		e.diffMaps = append(e.diffMaps, make(map[render.Object]struct{}))
+	}
+	existing := e.diffMaps[e.diffDepth]
+	clear(existing)
+	e.diffDepth++
+	defer func() {
+		e.diffDepth--
+	}()
+
 	for childRO := parentRO.FirstChild(); childRO != nil; childRO = childRO.NextSibling() {
-		e.diffMap[childRO] = struct{}{}
+		existing[childRO] = struct{}{}
 	}
 
 	var lastRO render.Object
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
-		lastRO = e.diffChild(child, parentRO, lastRO)
+		lastRO = e.diffChild(child, parentRO, existing, lastRO)
 	}
 	if el, ok := n.(dom.Element); ok {
 		if uaRoot := internaldom.UARoot(el); uaRoot != nil {
 			for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
-				lastRO = e.diffChild(child, parentRO, lastRO)
+				lastRO = e.diffChild(child, parentRO, existing, lastRO)
 			}
 		}
 	}
 
 	// Remove orphaned render objects.
-	for orphaned := range e.diffMap {
+	for orphaned := range existing {
 		e.clearRenderMapRecursive(orphaned)
 		render.Unlink(orphaned)
 	}
