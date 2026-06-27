@@ -545,6 +545,34 @@ func BenchmarkReconcilerKeyedUpdate(b *testing.B) {
 	}
 }
 
+// BenchmarkReconcilerKeyedShuffled measures list update performance when keys are shuffled, forcing Case 5 lookup.
+func BenchmarkReconcilerKeyedShuffled(b *testing.B) {
+	EnableDevMode = false
+	doc := dom.NewDocument()
+	container := Box(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	listA := make([]Node, 100)
+	for i := range 100 {
+		key := fmt.Sprintf("key-%d", i)
+		listA[i] = Span(SpanProps{Key: key, ID: fmt.Sprintf("id-%d", i)}, Text(fmt.Sprintf("Item %d", i)))
+	}
+	rootA := Box(BoxProps{}, listA...)
+
+	listB := make([]Node, 100)
+	for i := range 100 {
+		idx := (i * 17) % 100
+		key := fmt.Sprintf("key-%d", idx)
+		listB[i] = Span(SpanProps{Key: key, ID: fmt.Sprintf("id-%d", idx)}, Text(fmt.Sprintf("Item %d-updated", idx)))
+	}
+	rootB := Box(BoxProps{}, listB...)
+
+	b.ResetTimer()
+	for b.Loop() {
+		Render(rootA, container)
+		Render(rootB, container)
+	}
+}
+
 func TestFragmentComponentReconciliation(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)

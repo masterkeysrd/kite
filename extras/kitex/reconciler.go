@@ -501,6 +501,14 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 	oldEndIdx := n - 1
 	newEndIdx := len(newChildren) - 1
 
+	var oldKeyMap map[string]int
+	defer func() {
+		if oldKeyMap != nil {
+			clear(oldKeyMap)
+			keyMapPool.Put(oldKeyMap)
+		}
+	}()
+
 	var insertBeforeRef dom.Node
 	var nodeMap map[Node][]dom.Node
 
@@ -622,11 +630,13 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		}
 
 		// Case 5: Complex lookup by key
-		oldKeyMap := keyMapPool.Get().(map[string]int)
-		for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
-			if oldS[idx] != nil {
-				if key := oldS[idx].Key(); key != "" {
-					oldKeyMap[key] = idx
+		if oldKeyMap == nil {
+			oldKeyMap = keyMapPool.Get().(map[string]int)
+			for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
+				if oldS[idx] != nil {
+					if key := oldS[idx].Key(); key != "" {
+						oldKeyMap[key] = idx
+					}
 				}
 			}
 		}
@@ -634,7 +644,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		newKey := newStartNode.Key()
 		matchedIdx := -1
 		if newKey != "" {
-			if idx, found := oldKeyMap[newKey]; found {
+			if idx, found := oldKeyMap[newKey]; found && oldS[idx] != nil {
 				matchedIdx = idx
 			}
 		} else {
@@ -645,12 +655,11 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 				}
 			}
 		}
-		clear(oldKeyMap)
-		keyMapPool.Put(oldKeyMap)
 
 		if matchedIdx != -1 {
-			matchedReal := nodeMap[oldS[matchedIdx]]
-			reconcile(parent, oldS[matchedIdx], newStartNode, matchedReal)
+			matchedNode := oldS[matchedIdx]
+			matchedReal := nodeMap[matchedNode]
+			reconcile(parent, matchedNode, newStartNode, matchedReal)
 			var refNode dom.Node
 			for i := oldStartIdx; i <= oldEndIdx; i++ {
 				if i == matchedIdx {
@@ -674,6 +683,9 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			}
 			for _, node := range matchedReal {
 				safeInsertBefore(parent, node, refNode)
+			}
+			if key := matchedNode.Key(); key != "" && oldKeyMap != nil {
+				delete(oldKeyMap, key)
 			}
 			oldS[matchedIdx] = nil
 		} else {
@@ -871,6 +883,14 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 	oldEndIdx := n - 1
 	newEndIdx := len(flatNew) - 1
 
+	var oldKeyMap map[string]int
+	defer func() {
+		if oldKeyMap != nil {
+			clear(oldKeyMap)
+			keyMapPool.Put(oldKeyMap)
+		}
+	}()
+
 	var insertBeforeRef dom.Node
 	var nodeMap map[Node][]dom.Node
 
@@ -984,11 +1004,13 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		}
 
 		// Case 5: Complex lookup by key
-		oldKeyMap := keyMapPool.Get().(map[string]int)
-		for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
-			if oldS[idx].node != nil {
-				if key := oldS[idx].node.Key(); key != "" {
-					oldKeyMap[key] = idx
+		if oldKeyMap == nil {
+			oldKeyMap = keyMapPool.Get().(map[string]int)
+			for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
+				if oldS[idx].node != nil {
+					if key := oldS[idx].node.Key(); key != "" {
+						oldKeyMap[key] = idx
+					}
 				}
 			}
 		}
@@ -996,7 +1018,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		newKey := newStartNode.node.Key()
 		matchedIdx := -1
 		if newKey != "" {
-			if idx, found := oldKeyMap[newKey]; found {
+			if idx, found := oldKeyMap[newKey]; found && oldS[idx].node != nil {
 				matchedIdx = idx
 			}
 		} else {
@@ -1007,12 +1029,11 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 				}
 			}
 		}
-		clear(oldKeyMap)
-		keyMapPool.Put(oldKeyMap)
 
 		if matchedIdx != -1 {
-			matchedReal := nodeMap[oldS[matchedIdx].node]
-			reconcileFlat(parent, oldS[matchedIdx], newStartNode, matchedReal)
+			matchedNode := oldS[matchedIdx]
+			matchedReal := nodeMap[matchedNode.node]
+			reconcileFlat(parent, matchedNode, newStartNode, matchedReal)
 			var refNode dom.Node
 			for i := oldStartIdx; i <= oldEndIdx; i++ {
 				if i == matchedIdx {
@@ -1036,6 +1057,9 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			}
 			for _, node := range matchedReal {
 				safeInsertBefore(parent, node, refNode)
+			}
+			if key := matchedNode.node.Key(); key != "" && oldKeyMap != nil {
+				delete(oldKeyMap, key)
 			}
 			oldS[matchedIdx] = flatNode{}
 		} else {
