@@ -1972,6 +1972,8 @@ type componentInstance interface {
 	Destroy()
 	restoreContexts() func()
 	getDOMParent() dom.Element
+	setDOMAnchor(dom.Node)
+	getDOMAnchor() dom.Node
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -1992,6 +1994,7 @@ type ComponentNode[P any] struct {
 	key          string
 	contextSnap  contextSnapshot
 	domParent    dom.Element
+	domAnchor    dom.Node
 
 	// Memoization: complexityScore holds the node count of the last rendered
 	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
@@ -2013,6 +2016,14 @@ func (c *ComponentNode[P]) setDOMParent(parent dom.Element) {
 
 func (c *ComponentNode[P]) getDOMParent() dom.Element {
 	return c.domParent
+}
+
+func (c *ComponentNode[P]) setDOMAnchor(anchor dom.Node) {
+	c.domAnchor = anchor
+}
+
+func (c *ComponentNode[P]) getDOMAnchor() dom.Node {
+	return c.domAnchor
 }
 
 type componentNodeInspector interface {

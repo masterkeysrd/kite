@@ -93,7 +93,7 @@ func processDirtyLoop() {
 			newRendered := comp.ReRender()
 			comp.ClearDirty()
 
-			newReals := reconcile(parentEl, oldRendered, newRendered, realNodes)
+			newReals := reconcile(parentEl, oldRendered, newRendered, realNodes, comp.getDOMAnchor())
 			restoreCleanup()
 			comp.setRefs(newReals)
 		}
@@ -147,7 +147,7 @@ func Render(root Node, container dom.Element) {
 	activeRoots[container] = root
 	setDOMParent(root, container)
 	if oldRoot != nil {
-		reconcile(container, oldRoot, root, oldRoot.(nodeInternal).realNodes())
+		reconcile(container, oldRoot, root, oldRoot.(nodeInternal).realNodes(), nil)
 	} else {
 		realNodes := root.Instantiate(container.OwnerDocument())
 		for _, realNode := range realNodes {
@@ -161,7 +161,7 @@ func Render(root Node, container dom.Element) {
 	processDirtyLoop()
 }
 
-func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) []dom.Node {
+func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, anchor dom.Node) []dom.Node {
 	if oldNode == nil && newNode == nil {
 		return nil
 	}
@@ -178,9 +178,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 	if oldNode == nil && newNode != nil {
 		newReals := newNode.Instantiate(parent.OwnerDocument())
 		for _, newReal := range newReals {
-			if newReal != nil {
-				parent.AppendChild(newReal)
-			}
+			safeInsertBefore(parent, newReal, anchor)
 		}
 		return newReals
 	}
@@ -227,9 +225,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 		} else {
 			newReals := newNode.Instantiate(parent.OwnerDocument())
 			for _, newReal := range newReals {
-				if newReal != nil {
-					parent.AppendChild(newReal)
-				}
+				safeInsertBefore(parent, newReal, anchor)
 			}
 			return newReals
 		}
@@ -294,8 +290,9 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 		oldRendered := oldComp.Rendered()
 		newNode.Update(realNodes, oldNode)
 		newComp.ClearDirty()
+		newComp.setDOMAnchor(anchor)
 
-		newReals := reconcile(parent, oldRendered, newComp.Rendered(), realNodes)
+		newReals := reconcile(parent, oldRendered, newComp.Rendered(), realNodes, anchor)
 		newComp.setRefs(newReals)
 		return newReals
 	}
@@ -368,7 +365,7 @@ func flattenNodesRec(nodes []Node, activeProviders []providerInstance, out []fla
 	return out
 }
 
-func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []dom.Node) {
+func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []dom.Node, anchor dom.Node) {
 	for i := 0; i < len(newFlat.providers); i++ {
 		newProv := newFlat.providers[i]
 		setDOMParent(newProv, parent)
@@ -382,7 +379,7 @@ func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []do
 		prov.pushEntry()
 	}
 
-	reconcile(parent, oldFlat.node, newFlat.node, realNodes)
+	reconcile(parent, oldFlat.node, newFlat.node, realNodes, anchor)
 
 	for i := len(newFlat.providers) - 1; i >= 0; i-- {
 		newFlat.providers[i].popEntry()
@@ -490,7 +487,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			if oldChild != nil {
 				realNodes = oldChild.(nodeInternal).realNodes()
 			}
-			reconcile(parent, oldChild, newChild, realNodes)
+			reconcile(parent, oldChild, newChild, realNodes, nil)
 			return
 		}
 	}
@@ -552,7 +549,8 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			} else {
 				realNodes = oldChildren[oldStartIdx].(nodeInternal).realNodes()
 			}
-			reconcile(parent, oldStartNode, newStartNode, realNodes)
+			refNode := findNextDOMAnchor(oldS, oldStartIdx+1, oldEndIdx, nodeMap, oldChildren, insertBeforeRef)
+			reconcile(parent, oldStartNode, newStartNode, realNodes, refNode)
 			oldStartIdx++
 			newStartIdx++
 			continue
@@ -566,7 +564,8 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			} else {
 				realNodes = oldChildren[oldEndIdx].(nodeInternal).realNodes()
 			}
-			reconcile(parent, oldEndNode, newEndNode, realNodes)
+			refNode := findNextDOMAnchor(oldS, oldEndIdx+1, n-1, nodeMap, oldChildren, insertBeforeRef)
+			reconcile(parent, oldEndNode, newEndNode, realNodes, refNode)
 			newReals := newEndNode.(nodeInternal).realNodes()
 			if len(newReals) > 0 {
 				insertBeforeRef = newReals[0]
@@ -589,12 +588,12 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		// Case 3: Old Start goes to New End -> move it after current oldEnd
 		if sameNode(oldStartNode, newEndNode) {
 			domNodes := nodeMap[oldStartNode]
-			reconcile(parent, oldStartNode, newEndNode, domNodes)
 			var afterEndRef dom.Node
 			endNodes := nodeMap[oldEndNode]
 			if len(endNodes) > 0 {
 				afterEndRef = endNodes[len(endNodes)-1].NextSibling()
 			}
+			reconcile(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
 			for _, node := range domNodes {
 				safeInsertBefore(parent, node, afterEndRef)
 			}
@@ -611,7 +610,6 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		// Case 4: Old End goes to New Start -> move it before current oldStart
 		if sameNode(oldEndNode, newStartNode) {
 			domNodes := nodeMap[oldEndNode]
-			reconcile(parent, oldEndNode, newStartNode, domNodes)
 			var refNode dom.Node
 			for i := oldStartIdx; i < oldEndIdx; i++ {
 				if oldS[i] != nil {
@@ -630,6 +628,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
+			reconcile(parent, oldEndNode, newStartNode, domNodes, refNode)
 			for _, node := range domNodes {
 				safeInsertBefore(parent, node, refNode)
 			}
@@ -675,7 +674,6 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			}
 			matchedNode := oldS[matchedIdx]
 			matchedReal := nodeMap[matchedNode]
-			reconcile(parent, matchedNode, newStartNode, matchedReal)
 			var refNode dom.Node
 			for i := oldStartIdx; i <= oldEndIdx; i++ {
 				if i == matchedIdx {
@@ -697,6 +695,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
+			reconcile(parent, matchedNode, newStartNode, matchedReal, refNode)
 			for _, node := range matchedReal {
 				safeInsertBefore(parent, node, refNode)
 			}
@@ -880,7 +879,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		newChild := flatNew[0]
 		if sameNode(oldChild.node, newChild.node) {
 			var realNodes = oldChild.node.(nodeInternal).realNodes()
-			reconcileFlat(parent, oldChild, newChild, realNodes)
+			reconcileFlat(parent, oldChild, newChild, realNodes, nil)
 			return
 		}
 	}
@@ -934,7 +933,8 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			} else {
 				realNodes = flatOld[oldStartIdx].node.(nodeInternal).realNodes()
 			}
-			reconcileFlat(parent, oldStartNode, newStartNode, realNodes)
+			refNode := findNextDOMAnchorFlat(oldS, oldStartIdx+1, oldEndIdx, nodeMap, flatOld, insertBeforeRef)
+			reconcileFlat(parent, oldStartNode, newStartNode, realNodes, refNode)
 			oldStartIdx++
 			newStartIdx++
 			continue
@@ -948,7 +948,8 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			} else {
 				realNodes = flatOld[oldEndIdx].node.(nodeInternal).realNodes()
 			}
-			reconcileFlat(parent, oldEndNode, newEndNode, realNodes)
+			refNode := findNextDOMAnchorFlat(oldS, oldEndIdx+1, n-1, nodeMap, flatOld, insertBeforeRef)
+			reconcileFlat(parent, oldEndNode, newEndNode, realNodes, refNode)
 			newReals := newEndNode.node.(nodeInternal).realNodes()
 			if len(newReals) > 0 {
 				insertBeforeRef = newReals[0]
@@ -969,12 +970,12 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		// Case 3: Old Start goes to New End -> move it after current oldEnd
 		if sameNode(oldStartNode.node, newEndNode.node) {
 			domNodes := nodeMap[oldStartNode.node]
-			reconcileFlat(parent, oldStartNode, newEndNode, domNodes)
 			var afterEndRef dom.Node
 			endNodes := nodeMap[oldEndNode.node]
 			if len(endNodes) > 0 {
 				afterEndRef = endNodes[len(endNodes)-1].NextSibling()
 			}
+			reconcileFlat(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
 			for _, node := range domNodes {
 				safeInsertBefore(parent, node, afterEndRef)
 			}
@@ -991,7 +992,6 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		// Case 4: Old End goes to New Start -> move it before current oldStart
 		if sameNode(oldEndNode.node, newStartNode.node) {
 			domNodes := nodeMap[oldEndNode.node]
-			reconcileFlat(parent, oldEndNode, newStartNode, domNodes)
 			var refNode dom.Node
 			for i := oldStartIdx; i < oldEndIdx; i++ {
 				if oldS[i].node != nil {
@@ -1010,6 +1010,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
+			reconcileFlat(parent, oldEndNode, newStartNode, domNodes, refNode)
 			for _, node := range domNodes {
 				safeInsertBefore(parent, node, refNode)
 			}
@@ -1055,7 +1056,6 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			}
 			matchedNode := oldS[matchedIdx]
 			matchedReal := nodeMap[matchedNode.node]
-			reconcileFlat(parent, matchedNode, newStartNode, matchedReal)
 			var refNode dom.Node
 			for i := oldStartIdx; i <= oldEndIdx; i++ {
 				if i == matchedIdx {
@@ -1077,6 +1077,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
+			reconcileFlat(parent, matchedNode, newStartNode, matchedReal, refNode)
 			for _, node := range matchedReal {
 				safeInsertBefore(parent, node, refNode)
 			}
@@ -1226,4 +1227,38 @@ func safeInsertBefore(parent dom.Element, newReal, refNode dom.Node) {
 		refNode = nil
 	}
 	parent.InsertBefore(newReal, refNode)
+}
+
+func findNextDOMAnchor(oldS []Node, startIdx, endIdx int, nodeMap map[Node][]dom.Node, oldChildren []Node, insertBeforeRef dom.Node) dom.Node {
+	for i := startIdx; i <= endIdx; i++ {
+		if i >= 0 && i < len(oldS) && oldS[i] != nil {
+			var oldReals []dom.Node
+			if nodeMap != nil {
+				oldReals = nodeMap[oldS[i]]
+			} else {
+				oldReals = oldChildren[i].(nodeInternal).realNodes()
+			}
+			if len(oldReals) > 0 {
+				return oldReals[0]
+			}
+		}
+	}
+	return insertBeforeRef
+}
+
+func findNextDOMAnchorFlat(oldS []flatNode, startIdx, endIdx int, nodeMap map[Node][]dom.Node, flatOld []flatNode, insertBeforeRef dom.Node) dom.Node {
+	for i := startIdx; i <= endIdx; i++ {
+		if i >= 0 && i < len(oldS) && oldS[i].node != nil {
+			var oldReals []dom.Node
+			if nodeMap != nil {
+				oldReals = nodeMap[oldS[i].node]
+			} else {
+				oldReals = flatOld[i].node.(nodeInternal).realNodes()
+			}
+			if len(oldReals) > 0 {
+				return oldReals[0]
+			}
+		}
+	}
+	return insertBeforeRef
 }

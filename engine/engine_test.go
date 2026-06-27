@@ -14,6 +14,8 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/render"
+	"github.com/masterkeysrd/kite/style"
+	"image/color"
 )
 
 // ---------------------------------------------------------------------------
@@ -559,5 +561,46 @@ func TestEngine_SetInterval(t *testing.T) {
 	c2 := count.Load()
 	if c2 != c {
 		t.Errorf("count changed after Stop: was %d, now %d", c, c2)
+	}
+}
+
+func TestEngine_DynamicStyleChange(t *testing.T) {
+	e, b := newTestEngine(t)
+	defer e.Stop()
+
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	box := element.NewBox(e.Document())
+	box.Style(style.S().Foreground(red))
+
+	e.Document().AppendChild(box)
+
+	e.Frame() // Initial frame should paint
+
+	// Verify initial computed style
+	ro := e.RenderObject(box)
+	if ro == nil {
+		t.Fatalf("expected render object for box")
+	}
+	if ro.ComputedStyle().Foreground != red {
+		t.Fatalf("expected foreground to be red, got %v", ro.ComputedStyle().Foreground)
+	}
+
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
+
+	// Now update the style to blue
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	box.Style(style.S().Foreground(blue))
+
+	e.Frame() // Second frame
+
+	// Verify updated computed style
+	if ro.ComputedStyle().Foreground != blue {
+		t.Errorf("expected foreground to be updated to blue, got %v", ro.ComputedStyle().Foreground)
+	}
+
+	// Verify that it repainted!
+	if b.BeginFrameCalls != 1 {
+		t.Errorf("expected BeginFrameCalls = 1 (repaint on style change), got %d", b.BeginFrameCalls)
 	}
 }

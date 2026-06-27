@@ -11,6 +11,9 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/log"
+	"github.com/masterkeysrd/kite/style"
+	"image/color"
+	"slices"
 )
 
 func TestReconcilerMountAndUnmount(t *testing.T) {
@@ -934,14 +937,14 @@ func TestReconciler_Case5InsertBeforeRefFallback(t *testing.T) {
 func TestReconcilerTagMismatchOrder(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
-	
+
 	// Frame 1: Box
 	Render(Box(BoxProps{ID: "target-box"}), container)
 	parentReal := container
 	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).TagName() != "box" {
 		t.Fatalf("expected box child initially")
 	}
-	
+
 	// Frame 2: Span (tag mismatch). Replaces Box in place.
 	Render(Span(SpanProps{ID: "target-span"}), container)
 	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).TagName() != "span" {
@@ -956,7 +959,7 @@ func TestReconcilerKeylessWarnings(t *testing.T) {
 	var buf bytes.Buffer
 	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})
 	logger := slog.New(handler)
-	
+
 	oldLogger := log.Logger()
 	log.SetLogger(logger)
 	defer log.SetLogger(oldLogger)
@@ -1115,3 +1118,70 @@ func TestReconcilerDirtyBufferSharing(t *testing.T) {
 	}
 }
 
+func TestReconciler_ComponentStyleUpdate(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setStyleFn func(style.Style)
+
+	StyleComp := FC("StyleComp", func(props struct{}) Node {
+		getStyle, setStyle := UseState(style.S())
+		setStyleFn = setStyle
+		return Span(SpanProps{ID: "target", Style: getStyle()})
+	})
+
+	Render(StyleComp(struct{}{}), container)
+
+	spanReal := container.FirstChild().(dom.Element)
+	if spanReal.ID() != "target" {
+		t.Fatalf("expected span with ID 'target'")
+	}
+
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	setStyleFn(style.S().Foreground(red))
+
+	// Verify that the style on the DOM element was updated!
+	var baseComputed style.Computed
+	applied := spanReal.RawStyle().Apply(baseComputed)
+	if applied.Foreground != red {
+		t.Errorf("expected Foreground to be updated to red, got %v", applied.Foreground)
+	}
+}
+
+func TestReconcilerConditionalEndItem(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	// Frame 1: cond is false, only span-1 is present
+	Render(Box(BoxProps{},
+		Span(SpanProps{ID: "span-1"}),
+		If(false, func() Node { return Span(SpanProps{ID: "span-cond"}) }),
+	), container)
+
+	// Verify initial state
+	realParent := container.FirstChild().(dom.Element)
+	var ids []string
+	for child := realParent.FirstChild(); child != nil; child = child.NextSibling() {
+		ids = append(ids, child.(dom.Element).ID())
+	}
+	if len(ids) != 1 || ids[0] != "span-1" {
+		t.Fatalf("expected initial children [span-1], got %v", ids)
+	}
+
+	// Frame 2: cond is true, new span-new is added before the conditional end item
+	Render(Box(BoxProps{},
+		Span(SpanProps{ID: "span-1"}),
+		Span(SpanProps{ID: "span-new"}),
+		If(true, func() Node { return Span(SpanProps{ID: "span-cond"}) }),
+	), container)
+
+	// Verify final state order
+	ids = ids[:0]
+	for child := realParent.FirstChild(); child != nil; child = child.NextSibling() {
+		ids = append(ids, child.(dom.Element).ID())
+	}
+	expected := []string{"span-1", "span-new", "span-cond"}
+	if !slices.Equal(ids, expected) {
+		t.Errorf("expected children order %v, got %v", expected, ids)
+	}
+}

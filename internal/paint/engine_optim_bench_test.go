@@ -67,7 +67,11 @@ func BenchmarkResolveBorders(b *testing.B) {
 	pe.clipStack = append(pe.clipStack, fb.Bounds())
 	for y := 0; y < h; y += 2 {
 		for x := 0; x < w; x += 2 {
-			pe.setCell(x, y, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
+			pe.setCell(x, y, Cell{Cell: backend.Cell{
+				Content: "│",
+				Fg:      color.RGBA{R: 255, G: 0, B: 0, A: 255},
+				Bg:      color.RGBA{R: 0, G: 0, B: 255, A: 255},
+			}, BorderStyle: BorderSingle})
 		}
 	}
 
@@ -75,5 +79,25 @@ func BenchmarkResolveBorders(b *testing.B) {
 	b.ReportAllocs()
 	for range b.N {
 		pe.resolveBorders(fb)
+	}
+}
+
+func BenchmarkColorsEqual_IdenticalRGBA(b *testing.B) {
+	c1 := color.Color(color.RGBA{R: 255, G: 100, B: 50, A: 255})
+	c2 := color.Color(color.RGBA{R: 255, G: 100, B: 50, A: 255})
+
+	b.ResetTimer()
+	for range b.N {
+		_ = colorsEqual(c1, c2)
+	}
+}
+
+func BenchmarkColorsEqual_DifferentRGBA(b *testing.B) {
+	c1 := color.Color(color.RGBA{R: 255, G: 100, B: 50, A: 255})
+	c2 := color.Color(color.RGBA{R: 250, G: 100, B: 50, A: 255})
+
+	b.ResetTimer()
+	for range b.N {
+		_ = colorsEqual(c1, c2)
 	}
 }

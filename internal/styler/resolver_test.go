@@ -182,7 +182,7 @@ func TestResolver_DynamicStyleUpdate(t *testing.T) {
 	// Frame 2: Update parent style to red
 	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
 	pNode.rawStyle = style.S().Foreground(red)
-	
+
 	// Simulating propagateStyleDirty marking it dirty
 	parent.MarkDirty(render.DirtyStyle)
 
@@ -221,7 +221,7 @@ func TestResolver_ChildStyleUpdate(t *testing.T) {
 	// Frame 2: Update child style to green (override parent)
 	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
 	cNode.rawStyle = style.S().Foreground(green)
-	
+
 	// Simulating propagateStyleDirty marking child dirty.
 	// Since child is dirty style, it propagates ChildNeedsStyle to parent.
 	child.MarkDirty(render.DirtyStyle)
@@ -231,4 +231,3 @@ func TestResolver_ChildStyleUpdate(t *testing.T) {
 		t.Errorf("expected green child after update, got %v", child.ComputedStyle().Foreground)
 	}
 }
-

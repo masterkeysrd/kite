@@ -25,6 +25,8 @@ type PaintEngine struct {
 	borderPoints []geom.Point
 	clipStack    []geom.Rect
 	rootSurface  Surface
+
+	borderGrid []bool // tracks active border cells by flat index
 }
 
 // NewPaintEngine creates a new PaintEngine.
@@ -50,6 +52,17 @@ func (p *PaintEngine) PaintFragment(ctx *Context, frag *layout.Fragment, origin 
 	p.paintFragment(ctx, frag, origin, color.Transparent)
 }
 
+func (p *PaintEngine) clearBorderGrid(bounds geom.Rect) {
+	size := bounds.Size.Width * bounds.Size.Height
+	if len(p.borderGrid) < size {
+		p.borderGrid = make([]bool, size)
+	} else {
+		for i := 0; i < size; i++ {
+			p.borderGrid[i] = false
+		}
+	}
+}
+
 // ResolveBorders resolves border junctions across the entire surface.
 func (p *PaintEngine) ResolveBorders(ctx *Context, surface Surface) {
 	defer ctx.Begin("Paint:ResolveBorders")()
@@ -58,6 +71,8 @@ func (p *PaintEngine) ResolveBorders(ctx *Context, surface Surface) {
 		p.rootSurface = nil
 	}()
 	p.resolveBorders(surface)
+	p.borderPoints = p.borderPoints[:0]
+	p.clearBorderGrid(surface.Bounds())
 }
 
 // Paint draws the immutable fragment tree onto the surface and resolves borders.
@@ -67,6 +82,7 @@ func (p *PaintEngine) Paint(ctx *Context, frag *layout.Fragment, surface Surface
 	}
 	defer ctx.Begin("Paint")()
 	p.borderPoints = p.borderPoints[:0]
+	p.clearBorderGrid(surface.Bounds())
 	p.PaintFragment(ctx, frag, geom.Point{}, surface)
 	p.ResolveBorders(ctx, surface)
 
@@ -124,8 +140,26 @@ func (p *PaintEngine) setCell(x, y int, c Cell) {
 	}
 
 	p.rootSurface.Set(x, y, c)
+
+	bounds := p.rootSurface.Bounds()
+	width := bounds.Size.Width
+	height := bounds.Size.Height
+	size := width * height
+
+	if len(p.borderGrid) < size {
+		newGrid := make([]bool, size)
+		copy(newGrid, p.borderGrid)
+		p.borderGrid = newGrid
+	}
+
+	idx := (y-bounds.Origin.Y)*width + (x - bounds.Origin.X)
 	if c.BorderStyle != BorderNone {
-		p.borderPoints = append(p.borderPoints, geom.Point{X: x, Y: y})
+		if !p.borderGrid[idx] {
+			p.borderGrid[idx] = true
+			p.borderPoints = append(p.borderPoints, geom.Point{X: x, Y: y})
+		}
+	} else {
+		p.borderGrid[idx] = false
 	}
 }
 
@@ -489,13 +523,37 @@ func (p *PaintEngine) tintRect(r geom.Rect, c color.Color) {
 	}
 }
 
+func getFirstRune(s string) rune {
+	if s == "" {
+		return 0
+	}
+	for _, r := range s {
+		return r
+	}
+	return 0
+}
+
 func (p *PaintEngine) resolveBorders(surface Surface) {
 	if len(p.borderPoints) == 0 {
 		return
 	}
 
+	bounds := surface.Bounds()
+	width := bounds.Size.Width
+	height := bounds.Size.Height
+
 	for _, pt := range p.borderPoints {
 		x, y := pt.X, pt.Y
+		rx := x - bounds.Origin.X
+		ry := y - bounds.Origin.Y
+		if rx < 0 || ry < 0 || rx >= width || ry >= height {
+			continue
+		}
+		idx := ry*width + rx
+		if idx >= len(p.borderGrid) || !p.borderGrid[idx] {
+			continue
+		}
+
 		c := surface.CellAt(x, y)
 		if c.BorderStyle == BorderNone {
 			continue
@@ -530,78 +588,85 @@ func (p *PaintEngine) resolveBorders(surface Surface) {
 }
 
 func (p *PaintEngine) connectsUp(c Cell) bool {
-	switch c.Content {
-	case "│", "║", "┃", "|",
-		"└", "╚", "┗", "╰",
-		"┘", "╝", "┛", "╯",
-		"┴", "╩", "┻",
-		"├", "╠", "┣",
-		"┤", "╣", "┫",
-		"┼", "╬", "╋",
-		"+":
+	r := getFirstRune(c.Content)
+	switch r {
+	case '│', '║', '┃', '|',
+		'└', '╚', '┗', '╰',
+		'┘', '╝', '┛', '╯',
+		'┴', '╩', '┻',
+		'├', '╠', '┣',
+		'┤', '╣', '┫',
+		'┼', '╬', '╋',
+		'+':
 		return true
 	}
 	return false
 }
 
 func (p *PaintEngine) connectsDown(c Cell) bool {
-	switch c.Content {
-	case "│", "║", "┃", "|",
-		"┌", "╔", "┏", "╭",
-		"┐", "╗", "┓", "╮",
-		"┬", "╦", "┳",
-		"├", "╠", "┣",
-		"┤", "╣", "┫",
-		"┼", "╬", "╋",
-		"+":
+	r := getFirstRune(c.Content)
+	switch r {
+	case '│', '║', '┃', '|',
+		'┌', '╔', '┏', '╭',
+		'┐', '╗', '┓', '╮',
+		'┬', '╦', '┳',
+		'├', '╠', '┣',
+		'┤', '╣', '┫',
+		'┼', '╬', '╋',
+		'+':
 		return true
 	}
 	return false
 }
 
 func (p *PaintEngine) connectsLeft(c Cell) bool {
-	switch c.Content {
-	case "─", "═", "━", "-",
-		"┐", "╗", "┓", "╮",
-		"┘", "╝", "┛", "╯",
-		"┬", "╦", "┳",
-		"┴", "╩", "┻",
-		"┤", "╣", "┫",
-		"┼", "╬", "╋",
-		"+":
+	r := getFirstRune(c.Content)
+	switch r {
+	case '─', '═', '━', '-',
+		'┐', '╗', '┓', '╮',
+		'┘', '╝', '┛', '╯',
+		'┬', '╦', '┳',
+		'┴', '╩', '┻',
+		'┤', '╣', '┫',
+		'┼', '╬', '╋',
+		'+':
 		return true
 	}
 	return false
 }
 
 func (p *PaintEngine) connectsRight(c Cell) bool {
-	switch c.Content {
-	case "─", "═", "━", "-",
-		"┌", "╔", "┏", "╭",
-		"└", "╚", "┗", "╰",
-		"┬", "╦", "┳",
-		"┴", "╩", "┻",
-		"├", "╠", "┣",
-		"┼", "╬", "╋",
-		"+":
+	r := getFirstRune(c.Content)
+	switch r {
+	case '─', '═', '━', '-',
+		'┌', '╔', '┏', '╭',
+		'└', '╚', '┗', '╰',
+		'┬', '╦', '┳',
+		'┴', '╩', '┻',
+		'├', '╠', '┣',
+		'┼', '╬', '╋',
+		'+':
 		return true
 	}
 	return false
 }
 
 func colorsEqual(c1, c2 color.Color) bool {
-	if c1 == c2 {
-		return true
-	}
 	if c1 == nil || c2 == nil {
+		return c1 == c2
+	}
+
+	rgba1, ok1 := c1.(color.RGBA)
+	rgba2, ok2 := c2.(color.RGBA)
+	if ok1 && ok2 {
+		return rgba1 == rgba2
+	}
+	if ok1 != ok2 {
 		return false
 	}
 
-	// Fast path for common case of RGBA colors.
-	if rgba1, ok := c1.(color.RGBA); ok {
-		if rgba2, ok := c2.(color.RGBA); ok {
-			return rgba1 == rgba2
-		}
+	if style.IsTerminalDefault(c1) && style.IsTerminalDefault(c2) {
+		return true
 	}
 
 	r1, g1, b1, a1 := c1.RGBA()
