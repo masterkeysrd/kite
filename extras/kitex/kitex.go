@@ -11,6 +11,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -2129,6 +2130,7 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	c.isFirst = true
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
+	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	c.isFirst = false
 	popCurrentComponent()
 
@@ -2182,6 +2184,7 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	newRendered := c.RenderFn(c.PropsVal)
+	checkKeylessList(c.Name, newRendered, c.declFile, c.declLine)
 	popCurrentComponent()
 
 	c.rendered = newRendered
@@ -2235,6 +2238,7 @@ func (c *ComponentNode[P]) ReRender() Node {
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
+	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	popCurrentComponent()
 	setDOMParent(c.rendered, c.domParent)
 	c.complexityScore = computeComplexity(c.rendered)
@@ -2681,5 +2685,30 @@ func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
 			instLine: instLine,
 		}
 		return c
+	}
+}
+
+func checkKeylessList(compName string, node Node, file string, line int) {
+	if !EnableDevMode || node == nil {
+		return
+	}
+	if node.TagName() == "#fragment" {
+		children := node.Children()
+		if len(children) > 1 {
+			hasKeyless := false
+			for _, child := range children {
+				if child != nil && child.Key() == "" && child.TagName() != "#empty" && child.TagName() != "#text" {
+					hasKeyless = true
+					break
+				}
+			}
+			if hasKeyless {
+				kitelog.Warn("Component returned a fragment containing child nodes without explicit keys. Dynamic lists should have unique keys to prevent reconciliation and layout corruption.",
+					"component", compName,
+					"file", file,
+					"line", line,
+				)
+			}
+		}
 	}
 }

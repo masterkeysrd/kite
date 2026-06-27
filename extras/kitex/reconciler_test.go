@@ -1,12 +1,16 @@
 package kitex
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/log"
 )
 
 func TestReconcilerMountAndUnmount(t *testing.T) {
@@ -926,3 +930,188 @@ func TestReconciler_Case5InsertBeforeRefFallback(t *testing.T) {
 		t.Errorf("expected final IDs %v, got %v", expectedFinal, finalIDs)
 	}
 }
+
+func TestReconcilerTagMismatchOrder(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+	
+	// Frame 1: Box
+	Render(Box(BoxProps{ID: "target-box"}), container)
+	parentReal := container
+	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).TagName() != "box" {
+		t.Fatalf("expected box child initially")
+	}
+	
+	// Frame 2: Span (tag mismatch). Replaces Box in place.
+	Render(Span(SpanProps{ID: "target-span"}), container)
+	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).TagName() != "span" {
+		t.Fatalf("expected span child after tag mismatch replacement")
+	}
+}
+
+func TestReconcilerKeylessWarnings(t *testing.T) {
+	EnableDevMode = true
+	defer func() { EnableDevMode = false }()
+
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	logger := slog.New(handler)
+	
+	oldLogger := log.Logger()
+	log.SetLogger(logger)
+	defer log.SetLogger(oldLogger)
+
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	// Test 1: Fragment returned by component with keyless child elements
+	KeylessComp := FC("KeylessComp", func(props struct{}) Node {
+		return Fragment(
+			Span(SpanProps{ID: "child1"}),
+			Span(SpanProps{ID: "child2"}),
+		)
+	})
+
+	Render(KeylessComp(struct{}{}), container)
+	if !strings.Contains(buf.String(), "Component returned a fragment containing child nodes without explicit keys") {
+		t.Errorf("expected warning for keyless fragment siblings, got log: %s", buf.String())
+	}
+	buf.Reset()
+
+	// Test 2: Tag mismatch replacement on keyless root nodes
+	Render(Span(SpanProps{ID: "keyless-span"}), container)
+	buf.Reset()
+	Render(Box(BoxProps{ID: "keyless-box"}), container)
+	if !strings.Contains(buf.String(), "Keyless type mismatch replacement detected") {
+		t.Errorf("expected warning for keyless type mismatch replacement, got log: %s", buf.String())
+	}
+	buf.Reset()
+
+	// Test 3: Keyless node shifting in dynamic list reconciliation
+	// We set up a list where keyless nodes shift.
+	// Frame 1: [Span1, Box1, Span2]
+	Render(Box(BoxProps{ID: "list-parent"},
+		Span(SpanProps{ID: "s1"}),
+		Box(BoxProps{ID: "b1"}),
+		Span(SpanProps{ID: "s2"}),
+	), container)
+	buf.Reset()
+
+	// Frame 2: [Box2, Span1, Box1, Box3] - this forces Box1 to shift
+	Render(Box(BoxProps{ID: "list-parent"},
+		Box(BoxProps{ID: "b2"}),
+		Span(SpanProps{ID: "s1"}),
+		Box(BoxProps{ID: "b1"}),
+		Box(BoxProps{ID: "b3"}),
+	), container)
+
+	if !strings.Contains(buf.String(), "Keyless node shifting detected") {
+		t.Errorf("expected warning for keyless node shifting, got log: %s", buf.String())
+	}
+}
+
+func TestReconcilerDirtyBufferSharing(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	var runCountA int
+	var runCountB int
+	var runCountC int
+	var runCountD int
+	var runCountE int
+
+	var setA func(int)
+	var setB func(int)
+	var setC func(int)
+	var setD func(int)
+	var setE func(int)
+
+	CompE := FC("CompE", func(props struct{}) Node {
+		state, set := UseState(0)
+		setE = set
+		runCountE++
+		return Span(SpanProps{ID: fmt.Sprintf("e-%d", state())})
+	})
+
+	CompD := FC("CompD", func(props struct{}) Node {
+		state, set := UseState(0)
+		setD = set
+		runCountD++
+		return Span(SpanProps{ID: fmt.Sprintf("d-%d", state())})
+	})
+
+	CompC := FC("CompC", func(props struct{}) Node {
+		state, set := UseState(0)
+		setC = set
+		runCountC++
+		return Span(SpanProps{ID: fmt.Sprintf("c-%d", state())})
+	})
+
+	CompB := FC("CompB", func(props struct{}) Node {
+		state, set := UseState(0)
+		setB = set
+		runCountB++
+		if state() > 0 {
+			// Trigger two state updates to overwrite index 1 (CompA)
+			setC(1)
+			setE(1)
+		}
+		return Span(SpanProps{ID: fmt.Sprintf("b-%d", state())})
+	})
+
+	CompA := FC("CompA", func(props struct{}) Node {
+		state, set := UseState(0)
+		setA = set
+		runCountA++
+		return Span(SpanProps{ID: fmt.Sprintf("a-%d", state())})
+	})
+
+	// Root triggers queueing
+	var setTrigger func(bool)
+
+	Root := FC("Root", func(props struct{}) Node {
+		state, set := UseState(false)
+		setTrigger = set
+		UseLayoutEffect(func() {
+			if state() {
+				// Queue B, A, D
+				setB(1)
+				setA(1)
+				setD(1)
+			}
+		}, []any{state()})
+		return Box(BoxProps{},
+			CompB(struct{}{}),
+			CompA(struct{}{}),
+			CompD(struct{}{}),
+			CompC(struct{}{}),
+			CompE(struct{}{}),
+		)
+	})
+
+	Render(Root(struct{}{}), container)
+
+	// Reset counters
+	runCountA = 0
+	runCountB = 0
+	runCountC = 0
+	runCountD = 0
+	runCountE = 0
+
+	// Trigger layout effect to queue B, A, D
+	setTrigger(true)
+
+	// Kick off the dirty loop
+	setB(2)
+
+	if runCountA == 0 {
+		t.Errorf("CompA was skipped during dirty component processing (likely due to dirty queue buffer sharing corruption)!")
+	}
+	if runCountB == 0 {
+		t.Errorf("CompB was not processed!")
+	}
+	if runCountD == 0 {
+		t.Errorf("CompD was not processed!")
+	}
+}
+

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/masterkeysrd/kite/dom"
+	kitelog "github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/promise"
 )
 
@@ -63,11 +64,11 @@ func processDirtyLoop() {
 			break
 		}
 		currentDirty := dirtyComponents
-		if cap(dirtyBuffer) < len(currentDirty) {
-			dirtyBuffer = make([]componentInstance, 0, len(currentDirty))
+		if cap(dirtyBuffer) < cap(currentDirty) {
+			dirtyBuffer = make([]componentInstance, 0, cap(currentDirty))
 		}
-		dirtyComponents = dirtyBuffer
-		dirtyBuffer = currentDirty[:0]
+		dirtyComponents = dirtyBuffer[:0]
+		dirtyBuffer = currentDirty
 		effectsMutex.Unlock()
 
 		for _, comp := range currentDirty {
@@ -200,13 +201,16 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 
 	// 3. Replace on tag mismatch
 	if oldNode.TagName() != newNode.TagName() {
+		if EnableDevMode && oldNode.Key() == "" && newNode.Key() == "" {
+			kitelog.Warn("Keyless type mismatch replacement detected. This can cause visual ordering swap or cell position leaks in dynamic lists. Consider adding unique keys.",
+				"parent", parent.TagName(),
+				"oldTag", oldNode.TagName(),
+				"newTag", newNode.TagName(),
+			)
+		}
 		destroyNode(oldNode)
-		newReals := newNode.Instantiate(parent.OwnerDocument())
 		if len(realNodes) > 0 {
-			insertBefore := realNodes[0]
-			for _, newReal := range newReals {
-				safeInsertBefore(parent, newReal, insertBefore)
-			}
+			nextSibling := realNodes[len(realNodes)-1].NextSibling()
 			for _, oldReal := range realNodes {
 				if oldReal != nil {
 					if isParent(oldReal, parent) {
@@ -215,14 +219,20 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node) 
 					ClearAllSubscriptions(oldReal)
 				}
 			}
+			newReals := newNode.Instantiate(parent.OwnerDocument())
+			for _, newReal := range newReals {
+				safeInsertBefore(parent, newReal, nextSibling)
+			}
+			return newReals
 		} else {
+			newReals := newNode.Instantiate(parent.OwnerDocument())
 			for _, newReal := range newReals {
 				if newReal != nil {
 					parent.AppendChild(newReal)
 				}
 			}
+			return newReals
 		}
-		return newReals
 	}
 
 	// 4. Update in place
@@ -657,6 +667,12 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		}
 
 		if matchedIdx != -1 {
+			if EnableDevMode && newKey == "" {
+				kitelog.Warn("Keyless node shifting detected during reconciliation. This can cause layout corruption and visual ordering issues. Consider adding a unique 'Key' property.",
+					"parent", parent.TagName(),
+					"child", newStartNode.TagName(),
+				)
+			}
 			matchedNode := oldS[matchedIdx]
 			matchedReal := nodeMap[matchedNode]
 			reconcile(parent, matchedNode, newStartNode, matchedReal)
@@ -1031,6 +1047,12 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		}
 
 		if matchedIdx != -1 {
+			if EnableDevMode && newKey == "" {
+				kitelog.Warn("Keyless node shifting detected during flat reconciliation. This can cause layout corruption and visual ordering issues. Consider adding a unique 'Key' property.",
+					"parent", parent.TagName(),
+					"child", newStartNode.node.TagName(),
+				)
+			}
 			matchedNode := oldS[matchedIdx]
 			matchedReal := nodeMap[matchedNode.node]
 			reconcileFlat(parent, matchedNode, newStartNode, matchedReal)
