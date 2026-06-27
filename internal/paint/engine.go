@@ -239,6 +239,10 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
+		childRect := geom.Rect{Origin: childOrigin, Size: childLink.Fragment.Size}
+		if !clip.Overlaps(childRect) {
+			continue
+		}
 		p.paintFragment(ctx, childLink.Fragment, childOrigin, currentBlockBg)
 	}
 
