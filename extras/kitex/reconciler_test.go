@@ -1185,3 +1185,43 @@ func TestReconcilerConditionalEndItem(t *testing.T) {
 		t.Errorf("expected children order %v, got %v", expected, ids)
 	}
 }
+
+func TestReconcilerFragmentConditionalEndItem(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	// Frame 1: Fragment has span-1, cond is false
+	Render(Box(BoxProps{},
+		Fragment(
+			Span(SpanProps{ID: "span-1"}),
+		),
+		If(false, func() Node { return Span(SpanProps{ID: "span-cond"}) }),
+	), container)
+
+	realParent := container.FirstChild().(dom.Element)
+	var ids []string
+	for child := realParent.FirstChild(); child != nil; child = child.NextSibling() {
+		ids = append(ids, child.(dom.Element).ID())
+	}
+	if len(ids) != 1 || ids[0] != "span-1" {
+		t.Fatalf("expected initial children [span-1], got %v", ids)
+	}
+
+	// Frame 2: Fragment appends span-new, cond becomes true
+	Render(Box(BoxProps{},
+		Fragment(
+			Span(SpanProps{ID: "span-1"}),
+			Span(SpanProps{ID: "span-new"}),
+		),
+		If(true, func() Node { return Span(SpanProps{ID: "span-cond"}) }),
+	), container)
+
+	ids = ids[:0]
+	for child := realParent.FirstChild(); child != nil; child = child.NextSibling() {
+		ids = append(ids, child.(dom.Element).ID())
+	}
+	expected := []string{"span-1", "span-new", "span-cond"}
+	if !slices.Equal(ids, expected) {
+		t.Errorf("expected children order %v, got %v", expected, ids)
+	}
+}

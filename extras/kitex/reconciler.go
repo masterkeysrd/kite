@@ -239,7 +239,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, 
 		newProv.updateFrom(oldProv)
 		newProv.pushEntry()
 
-		reconcileChildren(parent, oldProv, newProv, oldProv.Children(), newProv.Children())
+		reconcileChildren(parent, oldProv, newProv, oldProv.Children(), newProv.Children(), anchor)
 		newProv.popEntry()
 
 		count := 0
@@ -263,7 +263,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, 
 
 	// Fragment Node:
 	if oldNode.TagName() == "#fragment" {
-		reconcileChildren(parent, oldNode, newNode, oldNode.Children(), newNode.Children())
+		reconcileChildren(parent, oldNode, newNode, oldNode.Children(), newNode.Children(), anchor)
 		count := 0
 		for _, child := range newNode.Children() {
 			if child != nil {
@@ -310,7 +310,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, 
 		for _, child := range newNode.Children() {
 			setDOMParent(child, el)
 		}
-		reconcileChildren(el, oldNode, newNode, oldNode.Children(), newNode.Children())
+		reconcileChildren(el, oldNode, newNode, oldNode.Children(), newNode.Children(), nil)
 	}
 	return realNodes
 }
@@ -433,7 +433,7 @@ var nodeSliceMapPool = sync.Pool{
 	},
 }
 
-func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildren, newChildren []Node) {
+func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildren, newChildren []Node, anchor dom.Node) {
 	hasP := false
 	if op, ok := oldParent.(nodeInternal); ok && op.hasDirectProvider() {
 		hasP = true
@@ -442,7 +442,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 	}
 
 	if hasP {
-		reconcileChildrenFlat(parent, oldChildren, newChildren)
+		reconcileChildrenFlat(parent, oldChildren, newChildren, anchor)
 		return
 	}
 
@@ -452,9 +452,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 				setDOMParent(newChildren[i], parent)
 				newReals := newChildren[i].Instantiate(parent.OwnerDocument())
 				for _, newReal := range newReals {
-					if newReal != nil {
-						parent.AppendChild(newReal)
-					}
+					safeInsertBefore(parent, newReal, anchor)
 				}
 			}
 		}
@@ -516,7 +514,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		}
 	}()
 
-	var insertBeforeRef dom.Node
+	insertBeforeRef := anchor
 	var nodeMap map[Node][]dom.Node
 
 	for oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx {
@@ -802,7 +800,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 	}
 }
 
-func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) {
+func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, anchor dom.Node) {
 	capacityOld := countFlatNodes(oldChildren)
 	capacityNew := countFlatNodes(newChildren)
 
@@ -850,9 +848,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		for i := range flatNew {
 			newReals := instantiateFlat(parent, flatNew[i])
 			for _, newReal := range newReals {
-				if newReal != nil {
-					parent.AppendChild(newReal)
-				}
+				safeInsertBefore(parent, newReal, anchor)
 			}
 		}
 		return
@@ -906,7 +902,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node) 
 		}
 	}()
 
-	var insertBeforeRef dom.Node
+	insertBeforeRef := anchor
 	var nodeMap map[Node][]dom.Node
 
 	for oldStartIdx <= oldEndIdx && newStartIdx <= newEndIdx {
