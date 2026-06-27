@@ -3,7 +3,6 @@ package engine
 import (
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
 	kitelog "github.com/masterkeysrd/kite/log"
 )
@@ -177,10 +176,9 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		e.frameBuffer.Reset()
 		e.frameBuffer.BumpVersion()
 
-		ctx := &paint.Context{
-			Tracer:    e.Tracer(),
-			Selection: selection,
-		}
+		e.paintCtx.Tracer = e.Tracer()
+		e.paintCtx.Selection = selection
+		ctx := &e.paintCtx
 		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), e.frameBuffer)
 		for _, overlay := range overlays {
 			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), e.frameBuffer)
@@ -205,6 +203,8 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		for _, overlay := range overlays {
 			overlay.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
 		}
+		e.paintCtx.Selection = nil
+		e.paintCtx.Tracer = nil
 		e.frameVersion++
 	}
 }

@@ -497,7 +497,7 @@ func TestWheel_RoutesToFirstScrollableAncestor(t *testing.T) {
 	d := event.NewDispatcher()
 
 	sc := &stubScrollable{}
-	scrollables := map[event.EventTarget]event.Scrollable{mid: sc}
+	scrollables := []event.Scrollable{nil, sc, nil} // root, mid, target
 
 	path := buildPath(root, mid, target)
 	e := event.NewWheelEvent(geom.Point{}, 0, 3, 0)
@@ -530,10 +530,7 @@ func TestWheel_ScrollChaining(t *testing.T) {
 
 	scMid := &stubScrollable{}
 	scRoot := &stubScrollable{}
-	scrollables := map[event.EventTarget]event.Scrollable{
-		mid:  scMid,
-		root: scRoot,
-	}
+	scrollables := []event.Scrollable{scRoot, scMid, nil} // root, mid, target
 
 	path := buildPath(root, mid, target)
 	e := event.NewWheelEvent(geom.Point{}, 0, 3, 0)
@@ -561,10 +558,7 @@ func TestWheel_ScrollChaining_Stopped(t *testing.T) {
 
 	scMid := &stubScrollableStopping{}
 	scRoot := &stubScrollable{}
-	scrollables := map[event.EventTarget]event.Scrollable{
-		mid:  scMid,
-		root: scRoot,
-	}
+	scrollables := []event.Scrollable{scRoot, scMid, nil} // root, mid, target
 
 	path := buildPath(root, mid, target)
 	e := event.NewWheelEvent(geom.Point{}, 0, 3, 0)

@@ -39,32 +39,32 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 			Height: e.Height,
 		}
 	case uv.MouseClickEvent:
-		return &backend.RawMouseEvent{
-			X:      e.X,
-			Y:      e.Y,
-			Button: translateMouseButton(e.Button),
-			Up:     false,
-			Move:   false,
-			Mod:    translateModifiers(e.Mod),
-		}
+		me := backend.AcquireRawMouseEvent()
+		me.X = e.X
+		me.Y = e.Y
+		me.Button = translateMouseButton(e.Button)
+		me.Up = false
+		me.Move = false
+		me.Mod = translateModifiers(e.Mod)
+		return me
 	case uv.MouseReleaseEvent:
-		return &backend.RawMouseEvent{
-			X:      e.X,
-			Y:      e.Y,
-			Button: translateMouseButton(e.Button),
-			Up:     true,
-			Move:   false,
-			Mod:    translateModifiers(e.Mod),
-		}
+		me := backend.AcquireRawMouseEvent()
+		me.X = e.X
+		me.Y = e.Y
+		me.Button = translateMouseButton(e.Button)
+		me.Up = true
+		me.Move = false
+		me.Mod = translateModifiers(e.Mod)
+		return me
 	case uv.MouseMotionEvent:
-		return &backend.RawMouseEvent{
-			X:      e.X,
-			Y:      e.Y,
-			Button: translateMouseButton(e.Button),
-			Up:     false,
-			Move:   true,
-			Mod:    translateModifiers(e.Mod),
-		}
+		me := backend.AcquireRawMouseEvent()
+		me.X = e.X
+		me.Y = e.Y
+		me.Button = translateMouseButton(e.Button)
+		me.Up = false
+		me.Move = true
+		me.Mod = translateModifiers(e.Mod)
+		return me
 	case uv.MouseWheelEvent:
 		m := e.Mouse()
 		deltaX, deltaY := 0, 0
@@ -78,13 +78,13 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		case uv.MouseWheelRight:
 			deltaX = 1
 		}
-		return &backend.RawMouseEvent{
-			X:      m.X,
-			Y:      m.Y,
-			DeltaX: deltaX,
-			DeltaY: deltaY,
-			Mod:    translateModifiers(m.Mod),
-		}
+		me := backend.AcquireRawMouseEvent()
+		me.X = m.X
+		me.Y = m.Y
+		me.DeltaX = deltaX
+		me.DeltaY = deltaY
+		me.Mod = translateModifiers(m.Mod)
+		return me
 	case uv.PasteEvent:
 		return &backend.RawBracketedPaste{
 			Text: e.Content,

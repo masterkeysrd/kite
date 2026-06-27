@@ -161,6 +161,9 @@ type Engine struct {
 	structuredBuf   []event.Event
 	coalescedBuf    []event.Event
 	wheelMap        map[event.EventTarget]*event.WheelEvent
+	dispatchPathBuf []event.EventTarget
+	scrollablesBuf  []event.Scrollable
+	paintCtx        paint.Context
 
 	profilerMu sync.RWMutex
 
@@ -240,6 +243,8 @@ func New(b backend.Backend, opts Options) *Engine {
 		wheelMap:        make(map[event.EventTarget]*event.WheelEvent),
 		pipeline:        &StandardPipeline{},
 		renderMap:       make(map[dom.Node]render.Object),
+		dispatchPathBuf: make([]event.EventTarget, 0, 32),
+		scrollablesBuf:  make([]event.Scrollable, 0, 32),
 	}
 
 	size := b.Size()
@@ -1230,7 +1235,10 @@ func (e *Engine) drainEvents() {
 	}
 
 	// 5. Clean up all buffers to prevent leaks while idle.
-	for i := range e.eventBuffer {
+	for i, raw := range e.eventBuffer {
+		if mouseEv, ok := raw.(*backend.RawMouseEvent); ok {
+			backend.ReleaseRawMouseEvent(mouseEv)
+		}
 		e.eventBuffer[i] = nil
 	}
 	e.eventBuffer = e.eventBuffer[:0]
@@ -1411,9 +1419,9 @@ func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
 	}
 	if node, ok := target.(dom.Node); ok {
 		e.setLocalWheelCoords(ev, node)
-		path := nodeAncestorPath(node)
-		scrollables := e.synthesizer.ResolveScrollables(path)
-		e.dispatcher.DispatchWheel(ev, path, scrollables)
+		e.dispatchPathBuf = nodeAncestorPathBuf(node, e.dispatchPathBuf)
+		e.scrollablesBuf = e.resolveScrollablesBuf(e.dispatchPathBuf, e.scrollablesBuf)
+		e.dispatcher.DispatchWheel(ev, e.dispatchPathBuf, e.scrollablesBuf)
 	}
 }
 
@@ -1514,10 +1522,22 @@ func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
 	}
 }
 
+func (e *Engine) resolveScrollablesBuf(path []event.EventTarget, buf []event.Scrollable) []event.Scrollable {
+	buf = buf[:0]
+	for _, t := range path {
+		buf = append(buf, e.resolveScrollable(t))
+	}
+	return buf
+}
+
 func nodeAncestorPath(n dom.Node) []event.EventTarget {
-	var chain []event.EventTarget
+	return nodeAncestorPathBuf(n, nil)
+}
+
+func nodeAncestorPathBuf(n dom.Node, buf []event.EventTarget) []event.EventTarget {
+	buf = buf[:0]
 	for cur := n; cur != nil; {
-		chain = append(chain, cur)
+		buf = append(buf, cur)
 		parent := cur.Parent()
 		if parent == nil {
 			// 1. Cross UA shadow boundary: jump from UARoot to host element.
@@ -1549,10 +1569,10 @@ func nodeAncestorPath(n dom.Node) []event.EventTarget {
 		cur = parent
 	}
 	// Reverse to get root → n order.
-	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
-		chain[i], chain[j] = chain[j], chain[i]
+	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
+		buf[i], buf[j] = buf[j], buf[i]
 	}
-	return chain
+	return buf
 }
 
 func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
@@ -1765,10 +1785,16 @@ func (e *Engine) hasDirtyUIState() bool {
 	if dn.NeedsSync() || dn.ChildNeedsSync() || dn.HasDirtyStyleChild() {
 		return true
 	}
-	for overlay := range e.document.Overlays() {
-		od := internaldom.AsDirty(overlay)
-		if od.NeedsSync() || od.ChildNeedsSync() || od.HasDirtyStyleChild() {
-			return true
+	numOverlays := 0
+	if doc, ok := e.document.(*internaldom.Document); ok {
+		numOverlays = doc.NumOverlays()
+	}
+	if numOverlays > 0 {
+		for overlay := range e.document.Overlays() {
+			od := internaldom.AsDirty(overlay)
+			if od.NeedsSync() || od.ChildNeedsSync() || od.HasDirtyStyleChild() {
+				return true
+			}
 		}
 	}
 	rootFlags := e.renderView.Flags()

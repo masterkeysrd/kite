@@ -562,7 +562,7 @@ type Dispatcher interface {
 
 	// DispatchWheel routes a WheelEvent through the ancestor chain, stopping at
 	// the first ancestor that implements Scrollable.
-	DispatchWheel(e *WheelEvent, path []EventTarget, scrollables map[EventTarget]Scrollable)
+	DispatchWheel(e *WheelEvent, path []EventTarget, scrollables []Scrollable)
 }
 
 // Implementation defines the set of factory functions provided by the

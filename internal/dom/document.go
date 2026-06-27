@@ -182,7 +182,16 @@ func (d *Document) HideOverlay(el dom.Element) {
 	}
 }
 
+func (d *Document) NumOverlays() int {
+	return len(d.overlays)
+}
+
+var emptyOverlaysIter = func(yield func(dom.Element) bool) {}
+
 func (d *Document) Overlays() iter.Seq[dom.Element] {
+	if len(d.overlays) == 0 {
+		return emptyOverlaysIter
+	}
 	return func(yield func(dom.Element) bool) {
 		for _, o := range d.overlays {
 			if !yield(o.el) {
