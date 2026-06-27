@@ -155,3 +155,80 @@ func TestResolver_FullTreeWalk(t *testing.T) {
 		t.Errorf("child should have inherited red, got %v", child.ComputedStyle().Foreground)
 	}
 }
+
+func TestResolver_DynamicStyleUpdate(t *testing.T) {
+	r := styler.NewResolver()
+
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	pNode := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: style.S().Foreground(blue),
+	}
+	parent := render.NewBlock(pNode, nil)
+
+	cNode := &fakeNode{kind: dom.KindElement}
+	child := render.NewBlock(cNode, nil)
+	parent.InsertChild(child, nil)
+
+	// Frame 1
+	r.ResolveTree(parent, nil, false)
+	if parent.ComputedStyle().Foreground != blue {
+		t.Fatalf("expected blue parent initially, got %v", parent.ComputedStyle().Foreground)
+	}
+	if child.ComputedStyle().Foreground != blue {
+		t.Fatalf("expected blue child initially, got %v", child.ComputedStyle().Foreground)
+	}
+
+	// Frame 2: Update parent style to red
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	pNode.rawStyle = style.S().Foreground(red)
+	
+	// Simulating propagateStyleDirty marking it dirty
+	parent.MarkDirty(render.DirtyStyle)
+
+	r.ResolveTree(parent, nil, false)
+	if parent.ComputedStyle().Foreground != red {
+		t.Errorf("expected red parent after update, got %v", parent.ComputedStyle().Foreground)
+	}
+	if child.ComputedStyle().Foreground != red {
+		t.Errorf("expected red child after inheritance update, got %v", child.ComputedStyle().Foreground)
+	}
+}
+
+func TestResolver_ChildStyleUpdate(t *testing.T) {
+	r := styler.NewResolver()
+
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	pNode := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: style.S().Foreground(blue),
+	}
+	parent := render.NewBlock(pNode, nil)
+
+	cNode := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: style.S(),
+	}
+	child := render.NewBlock(cNode, nil)
+	parent.InsertChild(child, nil)
+
+	// Frame 1
+	r.ResolveTree(parent, nil, false)
+	if child.ComputedStyle().Foreground != blue {
+		t.Fatalf("expected blue child initially, got %v", child.ComputedStyle().Foreground)
+	}
+
+	// Frame 2: Update child style to green (override parent)
+	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	cNode.rawStyle = style.S().Foreground(green)
+	
+	// Simulating propagateStyleDirty marking child dirty.
+	// Since child is dirty style, it propagates ChildNeedsStyle to parent.
+	child.MarkDirty(render.DirtyStyle)
+
+	r.ResolveTree(parent, nil, false)
+	if child.ComputedStyle().Foreground != green {
+		t.Errorf("expected green child after update, got %v", child.ComputedStyle().Foreground)
+	}
+}
+
