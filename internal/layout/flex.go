@@ -13,35 +13,51 @@ type FlexAlgorithm struct{}
 
 // AnonymousBlock represents an anonymous box created to wrap contiguous runs of inline content.
 type AnonymousBlock struct {
-	parent      Node
-	firstChild  Node
-	nextMap     map[Node]Node
-	cachedSpace ConstraintSpace
+	parent        Node
+	children      []Node
+	cachedSpace   ConstraintSpace
+	cachedStyle   style.Computed
+	hasStyle      bool
 }
 
 var _ Node = (*AnonymousBlock)(nil)
 
 func (a *AnonymousBlock) Style() *style.Computed {
-	// Anonymous boxes inherit styles from their parent and have DisplayBlock.
-	s := *a.parent.Style()
-	s.Display = style.DisplayBlock
-	// Reset margins/padding/border for anonymous box to ensure they don't double up
-	s.Margin = style.EdgeValues[int]{}
-	s.Padding = style.EdgeValues[int]{}
-	s.Border = style.Border{}
-	// Use Width: Content to ensure the anonymous box shrink-wraps its inlines,
-	// allowing the flex container to correctly align/center it.
-	s.Width = style.Content
-	s.Height = style.Auto
-	return &s
+	if !a.hasStyle {
+		// Anonymous boxes inherit styles from their parent and have DisplayBlock.
+		s := *a.parent.Style()
+		s.Display = style.DisplayBlock
+		// Reset margins/padding/border for anonymous box to ensure they don't double up
+		s.Margin = style.EdgeValues[int]{}
+		s.Padding = style.EdgeValues[int]{}
+		s.Border = style.Border{}
+		// Use Width: Content to ensure the anonymous box shrink-wraps its inlines,
+		// allowing the flex container to correctly align/center it.
+		s.Width = style.Content
+		s.Height = style.Auto
+		a.cachedStyle = s
+		a.hasStyle = true
+	}
+	return &a.cachedStyle
 }
 
 func (a *AnonymousBlock) FirstLayoutChild() Node {
-	return a.firstChild
+	if len(a.children) == 0 {
+		return nil
+	}
+	return a.children[0]
 }
 
 func (a *AnonymousBlock) NextLayoutSibling(child Node) Node {
-	return a.nextMap[child]
+	for i, c := range a.children {
+		if c == child {
+			if i+1 < len(a.children) {
+				return a.children[i+1]
+			}
+			break
+		}
+	}
+	return nil
 }
 
 func (a *AnonymousBlock) LogicalNode() dom.Node    { return nil }
@@ -636,25 +652,27 @@ func (a *FlexAlgorithm) isInlineLevel(node Node) bool {
 	return ok
 }
 
-func (a *FlexAlgorithm) collectItems(_ *Context, node Node, space ConstraintSpace, geom flexGeometry) []*FlexItem {
+func (a *FlexAlgorithm) collectItems(ctx *Context, node Node, space ConstraintSpace, geom flexGeometry) []*FlexItem {
 	var allItems []*FlexItem
 
-	// Refactored to avoid iter.Pull and closures
+	// Refactored to avoid iter.Pull and closures, reusing context buffer
 	var bufferedInlines []Node
+	if ctx != nil {
+		bufferedInlines = ctx.InlineBuffer[:0]
+	}
 
 	processInlines := func() {
 		if len(bufferedInlines) == 0 {
 			return
 		}
 		anon := &AnonymousBlock{
-			parent:  node,
-			nextMap: make(map[Node]Node),
-		}
-		anon.firstChild = bufferedInlines[0]
-		for i := 0; i < len(bufferedInlines)-1; i++ {
-			anon.nextMap[bufferedInlines[i]] = bufferedInlines[i+1]
+			parent:   node,
+			children: slices.Clone(bufferedInlines),
 		}
 		bufferedInlines = bufferedInlines[:0]
+		if ctx != nil {
+			ctx.InlineBuffer = bufferedInlines
+		}
 
 		childStyle := anon.Style()
 		item := &FlexItem{
@@ -672,6 +690,9 @@ func (a *FlexAlgorithm) collectItems(_ *Context, node Node, space ConstraintSpac
 
 		if a.isInlineLevel(child) {
 			bufferedInlines = append(bufferedInlines, child)
+			if ctx != nil {
+				ctx.InlineBuffer = bufferedInlines
+			}
 			continue
 		}
 
