@@ -68,6 +68,11 @@ const (
 	MouseModeTrack
 )
 
+type syncTask struct {
+	node dom.Node
+	ro   render.Object
+}
+
 // Engine orchestrates the five-phase frame pipeline (Tasks → Style → Layout →
 // Paint → Sync), the worker pool, and the macrotask / microtask queues.
 //
@@ -169,6 +174,9 @@ type Engine struct {
 	renderMap      map[dom.Node]render.Object
 	isLayoutActive bool // Prevents infinite recursion during synchronous reflow
 
+	syncStack []syncTask
+	diffMap   map[render.Object]struct{}
+
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
 }
@@ -224,6 +232,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		backend:         b,
 		clock:           clk,
 		macroTaskBudget: macroTaskBudget,
+		diffMap:         make(map[render.Object]struct{}),
 		shutdownTimeout: shutdownTimeout,
 		mouseMode:       MouseModeClick,
 		closeCh:         make(chan struct{}),
@@ -838,26 +847,43 @@ func mapCursorShape(s style.CursorShape) backend.CursorShape {
 
 // syncRenderTree walks the logical DOM and ensures the render tree matches
 // its structure.
-func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
-	dn := internaldom.AsDirty(n)
-	if dn.NeedsSync() {
-		if de := internaldom.AsDirtyElement(n); de != nil {
-			de.MarkStyleDirty()
-		}
-		if _, ok := n.(dom.Document); ok {
-			ro.MarkDirty(render.DirtyPaint)
-		} else {
-			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		}
-		e.diffChildren(n, ro)
-	} else if dn.ChildNeedsSync() {
-		for child := range dom.LayoutChildren(n) {
-			if childRO := e.RenderObject(child); childRO != nil {
-				e.syncRenderTree(child, childRO)
+func (e *Engine) syncRenderTree(rootNode dom.Node, rootRO render.Object) {
+	e.syncStack = append(e.syncStack[:0], syncTask{node: rootNode, ro: rootRO})
+
+	for len(e.syncStack) > 0 {
+		idx := len(e.syncStack) - 1
+		task := e.syncStack[idx]
+		e.syncStack = e.syncStack[:idx]
+
+		dn := internaldom.AsDirty(task.node)
+		if dn.NeedsSync() {
+			if de := internaldom.AsDirtyElement(task.node); de != nil {
+				de.MarkStyleDirty()
+			}
+			if _, ok := task.node.(dom.Document); ok {
+				task.ro.MarkDirty(render.DirtyPaint)
+			} else {
+				task.ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+			}
+			e.diffChildren(task.node, task.ro)
+		} else if dn.ChildNeedsSync() {
+			for child := task.node.FirstChild(); child != nil; child = child.NextSibling() {
+				if childRO := e.RenderObject(child); childRO != nil {
+					e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+				}
+			}
+			if el, ok := task.node.(dom.Element); ok {
+				if uaRoot := internaldom.UARoot(el); uaRoot != nil {
+					for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
+						if childRO := e.RenderObject(child); childRO != nil {
+							e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+						}
+					}
+				}
 			}
 		}
+		dn.ClearSyncFlags()
 	}
-	dn.ClearSyncFlags()
 }
 
 func (e *Engine) syncOverlays(d dom.Document) {
@@ -880,51 +906,62 @@ func (e *Engine) syncOverlays(d dom.Document) {
 	e.renderView.SetOverlays(overlayROs)
 }
 
+func (e *Engine) diffChild(child dom.Node, parentRO render.Object, lastRO render.Object) render.Object {
+	if el, ok := child.(dom.Element); ok && internaldom.IsOverlay(el) {
+		return lastRO
+	}
+	childRO := e.RenderObject(child)
+	if childRO == nil {
+		childRO = e.createRenderObject(child)
+		e.setRenderObject(child, childRO)
+	}
+
+	delete(e.diffMap, childRO)
+
+	// Ensure correct position in render tree.
+	if childRO.Parent() != parentRO || childRO.PreviousSibling() != lastRO {
+		render.Unlink(childRO)
+		var before render.Object
+		if lastRO == nil {
+			before = parentRO.FirstChild()
+		} else {
+			before = lastRO.NextSibling()
+		}
+		parentRO.InsertChild(childRO, before)
+	}
+
+	// If the child was already there, it might still need internal sync.
+	// If it was just created, createRenderObject already synced its children.
+	dn := internaldom.AsDirty(child)
+	if dn.NeedsSync() || dn.ChildNeedsSync() {
+		e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+	}
+
+	return childRO
+}
+
 // diffChildren synchronizes the children of n into the render object ro.
 func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
 	// Map existing render children.
-	existing := make(map[render.Object]struct{})
-	for childRO := range parentRO.Children() {
-		existing[childRO] = struct{}{}
+	clear(e.diffMap)
+	for childRO := parentRO.FirstChild(); childRO != nil; childRO = childRO.NextSibling() {
+		e.diffMap[childRO] = struct{}{}
 	}
 
 	var lastRO render.Object
-	for child := range internaldom.LayoutChildren(n) {
-		if el, ok := child.(dom.Element); ok && internaldom.IsOverlay(el) {
-			continue
-		}
-		childRO := e.RenderObject(child)
-		if childRO == nil {
-			childRO = e.createRenderObject(child)
-			e.setRenderObject(child, childRO)
-		}
-
-		delete(existing, childRO)
-
-		// Ensure correct position in render tree.
-		if childRO.Parent() != parentRO || childRO.PreviousSibling() != lastRO {
-			render.Unlink(childRO)
-			var before render.Object
-			if lastRO == nil {
-				before = parentRO.FirstChild()
-			} else {
-				before = lastRO.NextSibling()
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		lastRO = e.diffChild(child, parentRO, lastRO)
+	}
+	if el, ok := n.(dom.Element); ok {
+		if uaRoot := internaldom.UARoot(el); uaRoot != nil {
+			for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
+				lastRO = e.diffChild(child, parentRO, lastRO)
 			}
-			parentRO.InsertChild(childRO, before)
 		}
-
-		// If the child was already there, it might still need internal sync.
-		// If it was just created, createRenderObject already synced its children.
-		dn := internaldom.AsDirty(child)
-		if dn.NeedsSync() || dn.ChildNeedsSync() {
-			e.syncRenderTree(child, childRO)
-		}
-
-		lastRO = childRO
 	}
 
 	// Remove orphaned render objects.
-	for orphaned := range existing {
+	for orphaned := range e.diffMap {
 		e.clearRenderMapRecursive(orphaned)
 		render.Unlink(orphaned)
 	}
@@ -934,7 +971,7 @@ func (e *Engine) clearRenderMapRecursive(ro render.Object) {
 	if ro == nil {
 		return
 	}
-	for child := range ro.Children() {
+	for child := ro.FirstChild(); child != nil; child = child.NextSibling() {
 		e.clearRenderMapRecursive(child)
 	}
 	if ln := ro.LogicalNode(); ln != nil {
@@ -1813,9 +1850,38 @@ func (e *Engine) EnsureFreshLayout() {
 
 	dn := internaldom.AsDirty(e.document)
 	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
-	needsLayout := e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+	if !needsSync {
+		for overlay := range e.document.Overlays() {
+			od := internaldom.AsDirty(overlay)
+			if od.NeedsSync() || od.ChildNeedsSync() {
+				needsSync = true
+				break
+			}
+		}
+	}
 
-	if !needsSync && !needsLayout {
+	needsStyle := dn.HasDirtyStyleChild()
+	if !needsStyle {
+		for overlay := range e.document.Overlays() {
+			od := internaldom.AsDirty(overlay)
+			if od.HasDirtyStyleChild() {
+				needsStyle = true
+				break
+			}
+		}
+	}
+
+	needsLayout := e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+	if !needsLayout {
+		for _, overlay := range e.renderView.Overlays() {
+			if overlay.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+				needsLayout = true
+				break
+			}
+		}
+	}
+
+	if !needsSync && !needsStyle && !needsLayout {
 		return
 	}
 
@@ -1826,7 +1892,34 @@ func (e *Engine) EnsureFreshLayout() {
 		e.syncRenderTree(e.document, e.renderView)
 		e.syncOverlays(e.document)
 	}
-	if needsLayout || e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+
+	// Re-evaluate needsStyle / needsLayout after synchronization
+	if !needsStyle {
+		needsStyle = dn.HasDirtyStyleChild()
+		if !needsStyle {
+			for overlay := range e.document.Overlays() {
+				od := internaldom.AsDirty(overlay)
+				if od.HasDirtyStyleChild() {
+					needsStyle = true
+					break
+				}
+			}
+		}
+	}
+
+	if !needsLayout {
+		needsLayout = e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+		if !needsLayout {
+			for _, overlay := range e.renderView.Overlays() {
+				if overlay.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+					needsLayout = true
+					break
+				}
+			}
+		}
+	}
+
+	if needsLayout || needsStyle {
 		e.pipeline.Style(e)
 		e.pipeline.Layout(e)
 	}
