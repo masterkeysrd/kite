@@ -74,7 +74,7 @@ func (b *BaseRender) ClearDirty(f DirtyFlag) {
 func (b *BaseRender) ClearDirtyRecursive(f DirtyFlag) {
 	b.ClearDirty(f)
 
-	for child := range b.Children() {
+	for child := b.FirstChild(); child != nil; child = child.NextSibling() {
 		child.ClearDirtyRecursive(f)
 	}
 
