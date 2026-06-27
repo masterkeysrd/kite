@@ -164,6 +164,7 @@ type Engine struct {
 	dispatchPathBuf []event.EventTarget
 	scrollablesBuf  []event.Scrollable
 	paintCtx        paint.Context
+	layoutPathBuf   []layout.Node
 
 	profilerMu sync.RWMutex
 
@@ -245,6 +246,7 @@ func New(b backend.Backend, opts Options) *Engine {
 		renderMap:       make(map[dom.Node]render.Object),
 		dispatchPathBuf: make([]event.EventTarget, 0, 32),
 		scrollablesBuf:  make([]event.Scrollable, 0, 32),
+		layoutPathBuf:   make([]layout.Node, 0, 32),
 	}
 
 	size := b.Size()
@@ -1430,9 +1432,22 @@ func (e *Engine) setLocalWheelCoords(ev *event.WheelEvent, target dom.Node) {
 	if ro == nil {
 		return
 	}
+
+	// Populate layoutPathBuf bottom-up without allocation
+	e.layoutPathBuf = e.layoutPathBuf[:0]
+	for cur := ro; cur != nil; {
+		e.layoutPathBuf = append(e.layoutPathBuf, cur)
+		parentObj := cur.Parent()
+		if parentObj != nil {
+			cur = parentObj
+		} else {
+			break
+		}
+	}
+
 	root := e.renderView.Fragment()
-	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
-		// ScrolledAbsoluteBounds returns the scrolled border-box.
+	if bounds, _, found := layout.ScrolledAbsoluteBoundsPath(root, ro, e.layoutPathBuf); found {
+		// ScrolledAbsoluteBoundsPath returns the scrolled border-box.
 		// Local coordinate in event should be relative to this scrolled box.
 		ev.Local = geom.Point{
 			X: ev.Screen.X - bounds.Origin.X,

@@ -2,6 +2,7 @@ package layout
 
 import (
 	"math"
+	"slices"
 
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout/text"
@@ -322,14 +323,18 @@ func AbsoluteBounds(root *Fragment, target Node) (geometry.Rect, bool) {
 //     ancestor (intersected with all further clipping ancestors).
 //   - found: true if target was found in the subtree.
 func ScrolledAbsoluteBounds(root *Fragment, target Node) (rect geometry.Rect, clip geometry.Rect, found bool) {
-	return scrolledAbsoluteBounds(root, target, geometry.Point{X: 0, Y: 0}, InfiniteRect())
+	return scrolledAbsoluteBounds(root, target, geometry.Point{X: 0, Y: 0}, InfiniteRect(), nil)
+}
+
+func ScrolledAbsoluteBoundsPath(root *Fragment, target Node, path []Node) (rect geometry.Rect, clip geometry.Rect, found bool) {
+	return scrolledAbsoluteBounds(root, target, geometry.Point{X: 0, Y: 0}, InfiniteRect(), path)
 }
 
 type scrollableElement interface {
 	Scroll() (x, y int)
 }
 
-func scrolledAbsoluteBounds(frag *Fragment, target Node, origin geometry.Point, currentClip geometry.Rect) (geometry.Rect, geometry.Rect, bool) {
+func scrolledAbsoluteBounds(frag *Fragment, target Node, origin geometry.Point, currentClip geometry.Rect, path []Node) (geometry.Rect, geometry.Rect, bool) {
 	if frag == nil {
 		return geometry.Rect{}, geometry.Rect{}, false
 	}
@@ -337,6 +342,14 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin geometry.Point, 
 	// 1. If this is the target, we found it.
 	if frag.Node == target {
 		return geometry.Rect{Origin: origin, Size: frag.Size}, currentClip, true
+	}
+
+	// Pruning check: only recurse if frag.Node is in the path.
+	if len(path) > 0 && frag.Node != nil {
+		inPath := slices.Contains(path, frag.Node)
+		if !inPath {
+			return geometry.Rect{}, geometry.Rect{}, false
+		}
 	}
 
 	// 2. Compute the new clip rect if this fragment clips.
@@ -397,7 +410,7 @@ func scrolledAbsoluteBounds(frag *Fragment, target Node, origin geometry.Point, 
 			X: origin.X + childLink.Offset.X - scrollX,
 			Y: origin.Y + childLink.Offset.Y - scrollY,
 		}
-		if r, c, found := scrolledAbsoluteBounds(childLink.Fragment, target, childOrigin, newClip); found {
+		if r, c, found := scrolledAbsoluteBounds(childLink.Fragment, target, childOrigin, newClip, path); found {
 			return r, c, true
 		}
 	}
