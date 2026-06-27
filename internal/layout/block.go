@@ -110,6 +110,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		}
 	}()
 	var bufferedInlines []Node
+	if ctx != nil {
+		bufferedInlines = ctx.InlineBuffer[:0]
+	}
 
 	processInlines := func() {
 		if len(bufferedInlines) == 0 {
@@ -125,6 +128,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 			inlineBuilder.collect(child)
 		}
 		bufferedInlines = bufferedInlines[:0]
+		if ctx != nil {
+			ctx.InlineBuffer = bufferedInlines
+		}
 
 		items := inlineBuilder.items
 		blockStyle := node.Style()
@@ -167,6 +173,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 
 		if IsInlineLevel(child) {
 			bufferedInlines = append(bufferedInlines, child)
+			if ctx != nil {
+				ctx.InlineBuffer = bufferedInlines
+			}
 			continue
 		}
 
@@ -261,6 +270,9 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 		}
 	}()
 	var bufferedInlines []Node
+	if ctx != nil {
+		bufferedInlines = ctx.InlineBuffer[:0]
+	}
 
 	processInlines := func() {
 		if len(bufferedInlines) == 0 {
@@ -274,6 +286,9 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 			inlineBuilder.collect(child)
 		}
 		bufferedInlines = bufferedInlines[:0]
+		if ctx != nil {
+			ctx.InlineBuffer = bufferedInlines
+		}
 
 		inlineMinMax := ComputeInlineMinMaxSizes(ctx, inlineBuilder.items)
 		childrenMinMax.Encompass(inlineMinMax)
@@ -286,6 +301,9 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 
 		if IsInlineLevel(child) {
 			bufferedInlines = append(bufferedInlines, child)
+			if ctx != nil {
+				ctx.InlineBuffer = bufferedInlines
+			}
 			continue
 		}
 

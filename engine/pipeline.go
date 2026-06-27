@@ -22,6 +22,7 @@ type Pipeline interface {
 // StandardPipeline is the default implementation of the Kite rendering pipeline.
 type StandardPipeline struct {
 	styleStack []render.Object
+	layoutCtx  layout.Context
 }
 
 func (p *StandardPipeline) Sync(e *Engine) {
@@ -133,7 +134,8 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 	if anyOverlayDirty || rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
 		layoutRan = true
 		viewport := root.ViewportSize()
-		ctx := &layout.Context{Tracer: e.Tracer()}
+		ctx := &p.layoutCtx
+		ctx.Tracer = e.Tracer()
 		render.LayoutPhase(ctx, root, viewport)
 
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)

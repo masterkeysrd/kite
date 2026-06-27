@@ -209,6 +209,18 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 		}
 	}
 
+	var oldComputed *style.Computed
+	if entry, ok := r.cache[n]; ok {
+		oldComputed = entry.Result
+	} else if ro != nil {
+		oldComputed = ro.ComputedStyle()
+	}
+
+	if oldComputed != nil && !oldComputed.AffectsLayout(&c) && !oldComputed.AffectsPaint(&c) {
+		r.cache[n] = CacheEntry{Parent: parent, Result: oldComputed}
+		return oldComputed
+	}
+
 	result := new(style.Computed)
 	*result = c
 	r.cache[n] = CacheEntry{Parent: parent, Result: result}

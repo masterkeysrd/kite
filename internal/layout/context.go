@@ -4,7 +4,8 @@ import "github.com/masterkeysrd/kite/trace"
 
 // Context carries state and utilities through the layout tree.
 type Context struct {
-	Tracer *trace.Tracer
+	Tracer       *trace.Tracer
+	InlineBuffer []Node
 }
 
 // Begin is a helper to start a trace span.
