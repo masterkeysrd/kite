@@ -235,7 +235,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	size := b.Size()
 	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 
-	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, e.RequestFrame)
+	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, nil)
 	promise.SetScheduler(e.scheduler)
 
 	if opts.Profiler {
@@ -646,6 +646,9 @@ func (e *Engine) Frame() {
 	}
 	defer endFrame()
 
+	// 1. Drain tasks first so that any state updates they make are processed in the same frame.
+	pipe.Tasks(e)
+
 	// Tick active animations at the very top.
 	if len(e.activeAnimations) > 0 {
 		if tracer != nil {
@@ -681,9 +684,14 @@ func (e *Engine) Frame() {
 		e.lastFrameTime = time.Time{}
 	}
 
+	// 2. Check if a rendering frame is actually required.
+	dirty := e.hasDirtyUIState() || e.frameRequested || len(e.activeAnimations) > 0
+	if !dirty {
+		return
+	}
+
 	e.isLayoutActive = true
 	pipe.Sync(e)
-	pipe.Tasks(e)
 	pipe.Style(e)
 	layoutRan := pipe.Layout(e)
 	e.isLayoutActive = false
@@ -1703,6 +1711,26 @@ func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
 	}
 }
 
+// hasDirtyUIState returns true if the DOM, overlays, or render tree are dirty
+// and need to be synchronized, styled, laid out, or painted.
+func (e *Engine) hasDirtyUIState() bool {
+	dn := internaldom.AsDirty(e.document)
+	if dn.NeedsSync() || dn.ChildNeedsSync() || dn.HasDirtyStyleChild() {
+		return true
+	}
+	for overlay := range e.document.Overlays() {
+		od := internaldom.AsDirty(overlay)
+		if od.NeedsSync() || od.ChildNeedsSync() || od.HasDirtyStyleChild() {
+			return true
+		}
+	}
+	rootFlags := e.renderView.Flags()
+	if rootFlags&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+		return true
+	}
+	return false
+}
+
 func (e *Engine) shouldRunFrame() bool {
 	if e.frameRequested {
 		kitelog.Debug("shouldRunFrame returning true due to frameRequested")
@@ -1713,24 +1741,13 @@ func (e *Engine) shouldRunFrame() bool {
 		kitelog.Debug("shouldRunFrame returning true due to nextFrameAt", "nextFrameAt", e.nextFrameAt)
 		return true
 	}
-	// Check for dirty DOM or render tree.
-	dn := internaldom.AsDirty(e.document)
-	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
-	rootFlags := e.renderView.Flags()
-	pending := e.scheduler.hasPendingTasks()
-	anyOverlayDirty := false
-	for overlay := range e.document.Overlays() {
-		if od := internaldom.AsDirty(overlay); od.NeedsSync() || od.ChildNeedsSync() {
-			anyOverlayDirty = true
-			break
-		}
-	}
 
-	if needsSync || anyOverlayDirty || rootFlags&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 || pending {
+	pending := e.scheduler.hasPendingTasks()
+	dirty := e.hasDirtyUIState()
+
+	if dirty || pending {
 		kitelog.Debug("shouldRunFrame returning true due to dirty state",
-			"needsSync", needsSync,
-			"anyOverlayDirty", anyOverlayDirty,
-			"rootFlags", rootFlags,
+			"dirty", dirty,
 			"pending", pending,
 		)
 		return true
