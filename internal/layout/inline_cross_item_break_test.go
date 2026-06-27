@@ -429,3 +429,36 @@ func TestIFC_CrossItemWrap_NoWrapWithoutTrailingSpace(t *testing.T) {
 		t.Errorf("line 0 width = %d, want 14 (both nodes on one overflowing line)", frag.Children[0].Fragment.Size.Width)
 	}
 }
+
+// TestInlineItemsBuilder_CrossItem_PreTrailingSpace verifies that a pre/pre-wrap node
+// ending with a space sets lastWasSpace = true, which correctly collapses leading spaces
+// in a subsequent normal/nowrap node and promotes its first non-space cluster to BreakSoft.
+func TestInlineItemsBuilder_CrossItem_PreTrailingSpace(t *testing.T) {
+	node1 := newTextNodeWS("foo ", style.WhiteSpacePre)
+	node2 := newTextNodeWS(" bar", style.WhiteSpaceNormal)
+	parent := &mockNode{
+		style:      blockStyleW(40),
+		firstChild: chainTextNodes(node1, node2),
+	}
+
+	items := textItemsOnly(buildItemsFromBlock(parent))
+	if len(items) != 2 {
+		t.Fatalf("expected 2 InlineText items, got %d", len(items))
+	}
+
+	// node1 (pre) trailing space is visible
+	if items[0].Text[3].CellWidth != 1 {
+		t.Errorf("node1 (pre) trailing space CellWidth = %d, want 1", items[0].Text[3].CellWidth)
+	}
+
+	// node2 (normal) leading space should be collapsed to CellWidth = 0
+	if items[1].Text[0].CellWidth != 0 {
+		t.Errorf("node2 (normal) leading space CellWidth = %d, want 0 (collapsed)", items[1].Text[0].CellWidth)
+	}
+
+	// node2 first non-space cluster ('b' at index 1) should be BreakSoft
+	if items[1].Text[1].BreakClass != text.BreakSoft {
+		t.Errorf("node2 cluster[1] ('b') BreakClass = %v, want BreakSoft", items[1].Text[1].BreakClass)
+	}
+}
+

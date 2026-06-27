@@ -19,8 +19,9 @@ func Shape(text string) []Cluster {
 	if text == "" {
 		return nil
 	}
-	// Pre-allocate: at minimum one cluster per rune (ASCII gives exact count).
-	clusters := make([]Cluster, 0, utf8.RuneCountInString(text))
+	// Pre-allocate: using len(text) as an upper bound capacity hint avoids
+	// a separate O(N) pass to count runes, while preventing slice reallocations.
+	clusters := make([]Cluster, 0, len(text))
 
 	remaining := text
 	state := -1
@@ -92,6 +93,10 @@ func isBreakableSpace(r rune) bool {
 	case ' ', '\t', '\v':
 		return true
 	}
+	// Guard against non-ASCII range: Zs category characters are always U+0080 or above.
+	if r < 128 {
+		return false
+	}
 	// Unicode general category Zs (space separators) except NBSP.
 	return r != '\u00A0' && unicode.Is(unicode.Zs, r)
 }
@@ -99,6 +104,10 @@ func isBreakableSpace(r rune) bool {
 // isCJKOrEmoji reports whether r belongs to a CJK ideograph, CJK-adjacent
 // syllabary, or emoji range that warrants BreakAnywhere treatment.
 func isCJKOrEmoji(r rune) bool {
+	// Guard: the lowest CJK/emoji range block is Miscellaneous Symbols (U+2600).
+	if r < 0x2600 {
+		return false
+	}
 	switch {
 	// Hiragana (U+3040–U+309F) and Katakana (U+30A0–U+30FF)
 	case r >= 0x3040 && r <= 0x30FF:
