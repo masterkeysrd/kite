@@ -22,6 +22,7 @@ type fakeNode struct {
 	elementDefaultStyle style.Style // optional per-element-type default
 	intrinsicStyle      style.Style // optional UA-forced intrinsic style
 	kind                dom.Kind
+	doc                 dom.Document
 }
 
 func (n *fakeNode) Kind() dom.Kind                           { return n.kind }
@@ -30,7 +31,7 @@ func (n *fakeNode) Parent() dom.Node                         { return nil }
 func (n *fakeNode) ParentElement() dom.Element               { return nil }
 func (n *fakeNode) NextSibling() dom.Node                    { return nil }
 func (n *fakeNode) PreviousSibling() dom.Node                { return nil }
-func (n *fakeNode) OwnerDocument() dom.Document              { return nil }
+func (n *fakeNode) OwnerDocument() dom.Document              { return n.doc }
 func (n *fakeNode) IsConnected() bool                        { return true }
 func (n *fakeNode) AppendChild(dom.Node) dom.Node            { return nil }
 func (n *fakeNode) InsertBefore(dom.Node, dom.Node) dom.Node { return nil }
@@ -229,5 +230,57 @@ func TestResolver_ChildStyleUpdate(t *testing.T) {
 	r.ResolveTree(parent, nil, false)
 	if child.ComputedStyle().Foreground != green {
 		t.Errorf("expected green child after update, got %v", child.ComputedStyle().Foreground)
+	}
+}
+
+type fakeDocument struct {
+	dom.Document
+	view dom.View
+}
+
+func (d *fakeDocument) DefaultView() dom.View { return d.view }
+
+type fakeView struct {
+	dom.View
+	size geom.Size
+}
+
+func (v *fakeView) ViewportSize() geom.Size { return v.size }
+
+func TestResolver_MediaQueries(t *testing.T) {
+	r := styler.NewResolver()
+
+	view := &fakeView{size: geom.Size{Width: 40, Height: 20}}
+	doc := &fakeDocument{view: view}
+
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+
+	s := style.S().
+		Foreground(red).
+		Media(style.Query().MinWidth(80), style.S().Foreground(blue))
+
+	node := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: s,
+		doc:      doc,
+	}
+	ro := render.NewBlock(node, nil)
+
+	// Resolve style when width = 40 (should remain red)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Foreground != red {
+		t.Errorf("expected red foreground, got %v", ro.ComputedStyle().Foreground)
+	}
+
+	// Change viewport width to 100 (matches query)
+	view.size = geom.Size{Width: 100, Height: 20}
+	ro.MarkDirty(render.DirtyStyle)
+	r.Invalidate(node) // clear cache
+
+	// Re-resolve
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Foreground != blue {
+		t.Errorf("expected blue foreground after matching media query, got %v", ro.ComputedStyle().Foreground)
 	}
 }

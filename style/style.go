@@ -1,6 +1,10 @@
 package style
 
-import "image/color"
+import (
+	"image/color"
+
+	"github.com/masterkeysrd/kite/geom"
+)
 
 // Style is a sparse set of visual and layout properties for a kitex element.
 // Every field is [Optional] so that callers can compose styles without
@@ -16,6 +20,8 @@ import "image/color"
 //
 // Combine two styles with [Style.Merge].
 type Style struct {
+	mediaRules    []MediaRule
+	hasMediaRules bool
 	// --- Flex / display -------------------------------------------------------
 
 	// Display controls how the element participates in its parent's layout.
@@ -335,6 +341,9 @@ func (s Style) Merge(override Style) Style {
 		overflowY: s.overflowY.Merge(override.overflowY),
 		scrollbar: mergeOptionalScrollbar(s.scrollbar, override.scrollbar),
 		cursor:    mergeOptionalCursor(s.cursor, override.cursor),
+
+		mediaRules:    append(append([]MediaRule(nil), s.mediaRules...), override.mediaRules...),
+		hasMediaRules: s.hasMediaRules || override.hasMediaRules,
 	}
 }
 
@@ -1108,4 +1117,97 @@ func applyDefaultStyleIfVisible(b *Border, side string) {
 			b.Styles.Left = BorderSingle
 		}
 	}
+}
+
+// --- Media Queries -----------------------------------------------------------
+
+// MediaQuery represents a viewport condition to dynamically match styles.
+type MediaQuery struct {
+	minWidth  int
+	maxWidth  int
+	minHeight int
+	maxHeight int
+}
+
+// MediaRule associates a [MediaQuery] with an overriding [Style].
+type MediaRule struct {
+	Query MediaQuery
+	Style Style
+}
+
+// Query returns an empty [MediaQuery] to start a query building chain.
+func Query() MediaQuery {
+	return MediaQuery{}
+}
+
+// MinWidth sets the minimum viewport width constraint.
+func (q MediaQuery) MinWidth(w int) MediaQuery {
+	q.minWidth = w
+	return q
+}
+
+// MaxWidth sets the maximum viewport width constraint.
+func (q MediaQuery) MaxWidth(w int) MediaQuery {
+	q.maxWidth = w
+	return q
+}
+
+// MinHeight sets the minimum viewport height constraint.
+func (q MediaQuery) MinHeight(h int) MediaQuery {
+	q.minHeight = h
+	return q
+}
+
+// MaxHeight sets the maximum viewport height constraint.
+func (q MediaQuery) MaxHeight(h int) MediaQuery {
+	q.maxHeight = h
+	return q
+}
+
+// Matches returns true if the given viewport size satisfies all constraints of the query.
+func (q MediaQuery) Matches(viewport geom.Size) bool {
+	if q.minWidth > 0 && viewport.Width < q.minWidth {
+		return false
+	}
+	if q.maxWidth > 0 && viewport.Width > q.maxWidth {
+		return false
+	}
+	if q.minHeight > 0 && viewport.Height < q.minHeight {
+		return false
+	}
+	if q.maxHeight > 0 && viewport.Height > q.maxHeight {
+		return false
+	}
+	return true
+}
+
+// Media registers a conditional media rule on the style. If the viewport matches
+// the query, the ruleStyle will be merged on top of this style.
+func (s Style) Media(q MediaQuery, ruleStyle Style) Style {
+	s.mediaRules = append(s.mediaRules, MediaRule{Query: q, Style: ruleStyle})
+	s.hasMediaRules = true
+	return s
+}
+
+// HasMediaRules returns true if the style contains conditional media rules.
+func (s Style) HasMediaRules() bool {
+	return s.hasMediaRules
+}
+
+// EvaluateMedia matches all registered media rules against the given viewport size,
+// merges the matching rule styles, and returns the resolved style.
+func (s Style) EvaluateMedia(viewport geom.Size) Style {
+	if !s.hasMediaRules {
+		return s
+	}
+	res := s
+	res.mediaRules = nil
+	res.hasMediaRules = false
+
+	for _, rule := range s.mediaRules {
+		if rule.Query.Matches(viewport) {
+			res = res.Merge(rule.Style)
+		}
+	}
+	return res
 }

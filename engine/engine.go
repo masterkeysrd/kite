@@ -1633,6 +1633,9 @@ func (e *Engine) handleResize(ev *event.ResizeEvent) {
 		Width:  ev.Width,
 		Height: ev.Height,
 	})
+	if e.document != nil {
+		e.document.DispatchTo(ev)
+	}
 	e.RequestFrame()
 }
 

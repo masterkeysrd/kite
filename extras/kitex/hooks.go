@@ -8,6 +8,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -651,4 +652,63 @@ func UseInterval(handler func(), interval time.Duration, deps []any) {
 			close(done)
 		}
 	}, append([]any{interval}, deps...))
+}
+
+// UseViewportSize returns the current viewport size (terminal dimensions)
+// and registers a listener to trigger a re-render when the terminal is resized.
+func UseViewportSize() geom.Size {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseViewportSize must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+
+	getDoc := func() dom.Document {
+		for _, node := range comp.realNodes() {
+			if node != nil {
+				if doc := node.OwnerDocument(); doc != nil {
+					return doc
+				}
+			}
+		}
+		return nil
+	}
+
+	var initialSize geom.Size
+	if doc := getDoc(); doc != nil {
+		if view := doc.DefaultView(); view != nil {
+			initialSize = view.ViewportSize()
+		}
+	}
+
+	size, setSize := UseState(initialSize)
+
+	UseEffectCleanup(func() func() {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+
+		// Initial sync
+		if view := doc.DefaultView(); view != nil {
+			currSize := view.ViewportSize()
+			if currSize != size() {
+				setSize(currSize)
+			}
+		}
+
+		// Listen to resize events on the document
+		sub := doc.AddEventListener(event.EventResize, func(ev event.Event) {
+			if view := doc.DefaultView(); view != nil {
+				setSize(view.ViewportSize())
+			}
+		})
+
+		// Return the cleanup function
+		return func() {
+			sub.Cancel()
+		}
+	}, nil)
+
+	return size()
 }

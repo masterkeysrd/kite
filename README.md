@@ -24,7 +24,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 Kite is built with a clean separation of concerns, divided into specialized packages that form the rendering pipeline:
 
 - **`dom`**: The logical node tree representing the user interface. It implements strict lifecycle hooks, identity registration, semantic state, and a top-layer overlay API for out-of-flow elements.
-- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade: inherited values, element-type defaults, author styles, and intrinsic styles.
+- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade (inherited values, element-type defaults, author styles, and UA intrinsic styles) and a high-performance **Media Queries** matching system for responsive design.
 - **`layout`**: The high-performance engine responsible for computing geometry, returning immutable fragment trees.
 - **`paint` & `backend`**: The drawing layer and terminal decoupling, allowing for varied output backends.
 - **`render`**: The visual bridge mirroring the DOM to the layout engine, carrying lifecycle dirty-flags.

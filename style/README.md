@@ -63,3 +63,31 @@ When scrollbars are enabled but glyphs are omitted, the resolver applies sensibl
 - **Reservation**: If `Overflow` is `Auto` or `Scroll` AND scrollbars are enabled, the layout engine reserves 1 cell of space along the appropriate edge.
 - **Auto-hide**: If `Overflow` is `Auto`, space is only reserved if the content actually overflows the viewport. If `ScrollbarY(true)` is NOT set, `OverflowAuto` still allows scrolling but hides the visual indicator.
 - **Rendering**: Scrollbars are painted over the element's content, representing the current `Scroll()` offset of the logical DOM element.
+
+## 📱 Media Queries & Responsive Layouts
+
+Kite features a declarative, high-performance **Media Queries** system that resolves styles dynamically based on the terminal's viewport size.
+
+### Media Rules API
+You can register conditional styles on any base `Style` builder using the `Media()` method:
+
+```go
+var CardStyle = style.S().
+    Width(style.Cells(30)).
+    Background(color.RGBA{B: 255, A: 255}). // Blue background on small screen
+    // Merge overrides when the viewport width is >= 80 cells
+    Media(style.Query().MinWidth(80), style.S().
+        Width(style.Cells(60)).
+        Background(color.RGBA{G: 255, A: 255}), // Green background on wide screen
+    )
+```
+
+Predefined query constraints:
+- **`MinWidth(w int)`**: Match when viewport width is $\ge w$ cells.
+- **`MaxWidth(w int)`**: Match when viewport width is $\le w$ cells.
+- **`MinHeight(h int)`**: Match when viewport height is $\ge h$ cells.
+- **`MaxHeight(h int)`**: Match when viewport height is $\le h$ cells.
+
+### Performance & Cache Invalidation
+- **0% Overhead Static Matching**: Media queries avoid arbitrary functions or heap allocations during normal render loops.
+- **Selective Cache Invalidation**: The style resolver caches resolved styles. When the viewport is resized, the engine walks the render tree and invalidates *only* the subtrees containing media rules. All other nodes remain cached, resulting in zero overhead.

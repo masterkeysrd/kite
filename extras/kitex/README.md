@@ -103,6 +103,7 @@ Kitex includes terminal-specific hooks built on the core primitives:
 - **`UseKeyboard(handler func(event.KeyEvent), deps []any)`**: Registers a global keyboard listener on the document. Automatically cleans up when the component is unmounted or when `deps` change.
 - **`UseDocument() func() dom.Document`**: Returns a lazy getter for the component's owner document. Useful for building custom hooks that need document-level event subscriptions.
 - **`UseElement() func() dom.Node`**: Returns a lazy getter for the underlying raw DOM node associated with the current component. Useful for retrieving the component's element inside side effects (e.g., to focus or measure it).
+- **`UseViewportSize() geom.Size`**: Subscribes the component to viewport resize events and returns the current terminal size. Triggering a resize dynamically re-renders the component to support responsive layout restructuring.
 
 ## 🌐 Context System
 

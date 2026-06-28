@@ -9,6 +9,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
 )
 
@@ -1288,4 +1289,50 @@ func TestUseInterval(t *testing.T) {
 	if ticks.Load() != currentTicks {
 		t.Errorf("ticks continued after unmount: was %d, now %d", currentTicks, ticks.Load())
 	}
+}
+
+type mockViewportView struct {
+	dom.View // stub
+	size     geom.Size
+}
+
+func (v *mockViewportView) ViewportSize() geom.Size { return v.size }
+
+func TestUseViewportSize(t *testing.T) {
+	doc := dom.NewDocument()
+	view := &mockViewportView{size: geom.Size{Width: 80, Height: 24}}
+	if setter, ok := doc.(interface{ SetDefaultView(dom.View) }); ok {
+		setter.SetDefaultView(view)
+	}
+
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var size geom.Size
+	comp := SimpleFC("ViewportComp", func() Node {
+		size = UseViewportSize()
+		return Box(BoxProps{})
+	})
+
+	// 1. Initial render
+	Render(comp(), container)
+	testScheduler.flushMacrotasks() // Run UseEffect which calls setSize
+	testScheduler.flushMacrotasks() // Run re-render with the new size
+
+	if size.Width != 80 || size.Height != 24 {
+		t.Errorf("expected viewport size 80x24 on initial render, got %dx%d", size.Width, size.Height)
+	}
+
+	// 2. Change viewport size and dispatch EventResize
+	view.size = geom.Size{Width: 100, Height: 40}
+	doc.DispatchTo(event.NewResizeEvent(100, 40))
+	testScheduler.flushMacrotasks() // Run resize listener which calls setSize
+	testScheduler.flushMacrotasks() // Run re-render with the new size
+
+	if size.Width != 100 || size.Height != 40 {
+		t.Errorf("expected viewport size to update to 100x40, got %dx%d", size.Width, size.Height)
+	}
+
+	// 3. Unmount component
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
 }
