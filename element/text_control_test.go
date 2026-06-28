@@ -474,3 +474,35 @@ func BenchmarkBuffer_DeleteRange(b *testing.B) {
 		buf.DeleteRange(100, 200)
 	}
 }
+
+func TestTextControlBase_ScrollCursorIntoView_PartiallyOffscreen(t *testing.T) {
+	b := mock.New(80, 24)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	// Textarea with 5 lines of text, height = 5 cells (content height = 3).
+	// Positioned at Y = 22, so the textarea extends to Y = 27 (off-screen).
+	// Viewport size is 24, so the last visible content row of the textarea on screen is Y = 23 (which corresponds to content line 0).
+	text := "line0\nline1\nline2\nline3\nline4"
+	txa := element.NewTextArea(eng.Document(), text)
+	txa.Style(style.S().
+		Width(style.Cells(20)).
+		Height(style.Cells(5)),
+	)
+	root := element.Box(txa)
+	root.Style(style.S().MarginTop(22))
+	eng.Mount(root)
+
+	// First frame: layout resolved.
+	eng.Frame()
+
+	// Trigger needsScrollIntoView. The cursor is at the end (line 4).
+	txa.SyncBuffer()
+	eng.Frame()
+
+	// The scroll offset should have updated to scroll the cursor into the visible region of the screen (up to Y = 23).
+	_, scrollY := txa.Scroll()
+	if scrollY <= 0 {
+		t.Errorf("expected scrollY > 0 when cursor is at line 4 of a partially off-screen textarea, got %d", scrollY)
+	}
+}

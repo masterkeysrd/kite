@@ -796,8 +796,22 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 						// We use inclusive checks for the right/bottom edges because a
 						// text cursor sits between characters and can logically sit
 						// on the trailing boundary of its container.
+						//
+						// However, the hardware cursor must also lie strictly within the
+						// physical screen boundaries (the viewport), as terminal coordinates
+						// are 0-indexed (e.g. 0 <= X < viewportWidth). Positioning the cursor
+						// at or beyond the viewport boundary (X >= viewportWidth) can cause
+						// terminal emulators to wrap the cursor to the next line or misbehave.
+						viewportRect := geom.Rect{
+							Origin: geom.Point{X: 0, Y: 0},
+							Size:   root.ViewportSize(),
+						}
+						clip = clip.Intersect(viewportRect)
+
 						if cursorPos.X >= clip.Origin.X && cursorPos.X <= clip.Origin.X+clip.Size.Width &&
-							cursorPos.Y >= clip.Origin.Y && cursorPos.Y <= clip.Origin.Y+clip.Size.Height {
+							cursorPos.Y >= clip.Origin.Y && cursorPos.Y <= clip.Origin.Y+clip.Size.Height &&
+							cursorPos.X >= 0 && cursorPos.X < viewportRect.Size.Width &&
+							cursorPos.Y >= 0 && cursorPos.Y < viewportRect.Size.Height {
 							next.Visible = true
 							next.X = cursorPos.X
 							next.Y = cursorPos.Y
