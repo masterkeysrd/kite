@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+	"fmt"
 	"image/color"
 	"io"
 
@@ -48,6 +49,9 @@ type Backend struct {
 
 	// Output captures all raw sequences written to the backend via Writer().
 	Output bytes.Buffer
+
+	// title holds the simulated terminal window title.
+	title string
 
 	current *backend.Buffer
 }
@@ -138,6 +142,23 @@ func (b *Backend) ShowCursor(v bool)                    { b.Cursor.Visible = v }
 func (b *Backend) SetCursorPos(x, y int)                { b.Cursor.X, b.Cursor.Y = x, y }
 func (b *Backend) SetCursorColor(c color.Color)         { b.Cursor.Color = c }
 func (b *Backend) SetCursorShape(s backend.CursorShape) { b.Cursor.Shape = s }
+
+func (b *Backend) SetTitle(s string) {
+	b.title = s
+	fmt.Fprintf(&b.Output, "\x1b]2;%s\x07", s)
+}
+
+func (b *Backend) Title() string {
+	return b.title
+}
+
+func (b *Backend) Bell() {
+	fmt.Fprint(&b.Output, "\x07")
+}
+
+func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int) {
+	fmt.Fprintf(&b.Output, "\x1b]9;4;%d;%d\x07", state, percentage)
+}
 
 // LastFrame returns the most recently completed frame, or a zero FrameRecord
 // if no frames have been completed yet.

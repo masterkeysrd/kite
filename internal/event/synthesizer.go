@@ -91,6 +91,10 @@ func (s *Synthesizer) Process(raw backend.RawEvent) []pub.Event {
 		return s.processKey(e)
 	case *backend.RawResizeEvent:
 		return s.processResize(e)
+	case *backend.RawFocusInEvent:
+		return s.processFocusIn(e)
+	case *backend.RawFocusOutEvent:
+		return s.processFocusOut(e)
 	case *backend.RawBracketedPaste:
 		return s.processBracketedPaste(e)
 	case *backend.RawClipboardEvent:
@@ -498,4 +502,16 @@ func (s *Synthesizer) appendHoverTransition(
 	}
 
 	return events
+}
+
+func (s *Synthesizer) processFocusIn(raw *backend.RawFocusInEvent) []pub.Event {
+	fe := pub.NewWindowFocusEvent(pub.EventWindowFocus)
+	s.outBuf = append(s.outBuf, fe)
+	return s.outBuf
+}
+
+func (s *Synthesizer) processFocusOut(raw *backend.RawFocusOutEvent) []pub.Event {
+	be := pub.NewWindowFocusEvent(pub.EventWindowBlur)
+	s.outBuf = append(s.outBuf, be)
+	return s.outBuf
 }

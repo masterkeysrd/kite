@@ -101,6 +101,14 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		if ev, ok := translateClipboardEvent(*e); ok {
 			return ev
 		}
+	case uv.FocusEvent:
+		return &backend.RawFocusInEvent{}
+	case *uv.FocusEvent:
+		return &backend.RawFocusInEvent{}
+	case uv.BlurEvent:
+		return &backend.RawFocusOutEvent{}
+	case *uv.BlurEvent:
+		return &backend.RawFocusOutEvent{}
 	case uv.UnknownOscEvent:
 		s := string(e)
 		kitelog.Info("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))

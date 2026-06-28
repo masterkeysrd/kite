@@ -36,6 +36,6 @@ Inspect typical examples:
 - `examples/kitex_demo` — functional VDOM components, reactive hooks, list reconciliation, and state.
 - `examples/kitex_ref_demo` — VDOM hook refs, persistent non-rendering states, and DOM element ref wiring.
 - `examples/form_demo` — comprehensive form submission showing inputs, select, checkbox, and radio controls within a `kitex.Form`.
-
+- `examples/responsive` — responsive layout and terminal-specific hook actions (`UseViewportSize`, `UseTitle`, `UseBell`, `UseWindowFocus`, `UseProgressBar`).
 
 If an example lacks a `main` package, it may be structured as tests or packages; read the `README.md` inside the example subfolder (when present) for details.

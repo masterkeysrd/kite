@@ -11,6 +11,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 type TestProps struct {
@@ -1333,6 +1334,178 @@ func TestUseViewportSize(t *testing.T) {
 	}
 
 	// 3. Unmount component
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+}
+
+type mockTerminal struct {
+	terminal.Terminal
+	title string
+}
+
+func (m *mockTerminal) SetTitle(title string)         { m.title = title }
+func (m *mockTerminal) Scheduler() terminal.Scheduler { return testScheduler }
+
+func TestUseTerminal(t *testing.T) {
+	doc := dom.NewDocument()
+	mockTerm := &mockTerminal{}
+	doc.SetTerminal(mockTerm)
+
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var term terminal.Terminal
+	comp := SimpleFC("TerminalComp", func() Node {
+		getTerm := UseTerminal()
+		term = getTerm()
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	if term == nil {
+		t.Fatalf("expected UseTerminal to return a terminal object")
+	}
+
+	term.SetTitle("Test Title")
+	if mockTerm.title != "Test Title" {
+		t.Errorf("expected title to be 'Test Title', got %q", mockTerm.title)
+	}
+
+	// Unmount
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+}
+
+type mockTitleBellTerminal struct {
+	terminal.Terminal
+	title           string
+	bell            int
+	progressState   terminal.ProgressBarState
+	progressPercent int
+}
+
+func (m *mockTitleBellTerminal) SetTitle(title string) { m.title = title }
+func (m *mockTitleBellTerminal) Bell()                 { m.bell++ }
+func (m *mockTitleBellTerminal) SetProgressBar(state terminal.ProgressBarState, percentage int) {
+	m.progressState = state
+	m.progressPercent = percentage
+}
+func (m *mockTitleBellTerminal) Scheduler() terminal.Scheduler { return testScheduler }
+
+func TestUseTitleAndUseBell(t *testing.T) {
+	doc := dom.NewDocument()
+	mockTerm := &mockTitleBellTerminal{}
+	doc.SetTerminal(mockTerm)
+
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var ringBell func()
+	var ringBell2 func()
+	var setTitle func(string)
+	var setProgress func(terminal.ProgressBarState, int)
+	var setProgress2 func(terminal.ProgressBarState, int)
+
+	comp := SimpleFC("TitleBellComp", func() Node {
+		_, setTitleSetter := UseTitle("Initial Title")
+		setTitle = setTitleSetter
+
+		ringBell = UseBell()
+		ringBell2 = UseBell()
+
+		setProgress = UseProgressBar()
+		setProgress2 = UseProgressBar()
+
+		return Box(BoxProps{})
+	})
+
+	// 1. Initial render
+	Render(comp(), container)
+	testScheduler.flushMacrotasks() // runs UseEffect which sets the initial title
+
+	if mockTerm.title != "Initial Title" {
+		t.Errorf("expected title to be 'Initial Title', got %q", mockTerm.title)
+	}
+
+	// Verify that UseBell returns a memoized function
+	if reflect.ValueOf(ringBell).Pointer() != reflect.ValueOf(ringBell2).Pointer() {
+		t.Errorf("expected UseBell to return memoized function")
+	}
+
+	// Verify that UseProgressBar returns a memoized function
+	if reflect.ValueOf(setProgress).Pointer() != reflect.ValueOf(setProgress2).Pointer() {
+		t.Errorf("expected UseProgressBar to return memoized function")
+	}
+
+	// 2. Update title state
+	setTitle("Updated Title")
+	testScheduler.flushMacrotasks() // runs the re-render and UseEffect with the new title
+
+	if mockTerm.title != "Updated Title" {
+		t.Errorf("expected title to be updated to 'Updated Title', got %q", mockTerm.title)
+	}
+
+	// 3. Ring bell
+	if mockTerm.bell != 0 {
+		t.Errorf("expected bell to not have rung yet, got %d", mockTerm.bell)
+	}
+	ringBell()
+	if mockTerm.bell != 1 {
+		t.Errorf("expected bell to have rung once, got %d", mockTerm.bell)
+	}
+
+	// 4. Update progress bar
+	if mockTerm.progressState != terminal.ProgressBarHide {
+		t.Errorf("expected initial progress bar state to be Hide, got %v", mockTerm.progressState)
+	}
+	setProgress(terminal.ProgressBarNormal, 80)
+	if mockTerm.progressState != terminal.ProgressBarNormal || mockTerm.progressPercent != 80 {
+		t.Errorf("expected progress bar Normal at 80%%, got %v at %d%%", mockTerm.progressState, mockTerm.progressPercent)
+	}
+
+	// Unmount
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+}
+
+func TestUseWindowFocus(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var isFocused bool
+	comp := SimpleFC("WindowFocusComp", func() Node {
+		isFocused = UseWindowFocus()
+		return Box(BoxProps{})
+	})
+
+	// 1. Initial render
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	// Initially, it should be true
+	if !isFocused {
+		t.Errorf("expected window focus to be initially true")
+	}
+
+	// 2. Dispatch blur event
+	doc.DispatchTo(event.NewWindowFocusEvent(event.EventWindowBlur))
+	testScheduler.flushMacrotasks() // runs setFocused(false)
+	testScheduler.flushMacrotasks() // runs the re-render
+
+	if isFocused {
+		t.Errorf("expected window focus to update to false on EventWindowBlur")
+	}
+
+	// 3. Dispatch focus event
+	doc.DispatchTo(event.NewWindowFocusEvent(event.EventWindowFocus))
+	testScheduler.flushMacrotasks() // runs setFocused(true)
+	testScheduler.flushMacrotasks() // runs the re-render
+
+	if !isFocused {
+		t.Errorf("expected window focus to update to true on EventWindowFocus")
+	}
+
+	// Unmount
 	Render(nil, container)
 	testScheduler.flushMacrotasks()
 }

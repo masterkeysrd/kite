@@ -88,3 +88,13 @@ type RawResizeEvent struct {
 }
 
 func (RawResizeEvent) isRawEvent() {}
+
+// RawFocusInEvent is the backend representation of terminal focus gained.
+type RawFocusInEvent struct{}
+
+func (RawFocusInEvent) isRawEvent() {}
+
+// RawFocusOutEvent is the backend representation of terminal focus lost.
+type RawFocusOutEvent struct{}
+
+func (RawFocusOutEvent) isRawEvent() {}

@@ -24,6 +24,18 @@ func (tp *TerminalProxy) Scheduler() terminal.Scheduler {
 	return tp.e.scheduler
 }
 
+func (tp *TerminalProxy) SetTitle(title string) {
+	tp.e.SetTitle(title)
+}
+
+func (tp *TerminalProxy) Bell() {
+	tp.e.Bell()
+}
+
+func (tp *TerminalProxy) SetProgressBar(state terminal.ProgressBarState, percentage int) {
+	tp.e.SetProgressBar(state, percentage)
+}
+
 type pendingRead struct {
 	mime string
 	ch   chan []byte

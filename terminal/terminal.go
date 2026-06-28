@@ -14,7 +14,20 @@ import (
 type Terminal interface {
 	Clipboard() Clipboard
 	Scheduler() Scheduler
+	SetTitle(title string)
+	Bell()
+	SetProgressBar(state ProgressBarState, percentage int)
 }
+
+type ProgressBarState uint8
+
+const (
+	ProgressBarHide ProgressBarState = iota
+	ProgressBarNormal
+	ProgressBarError
+	ProgressBarIndeterminate
+	ProgressBarPaused
+)
 
 type Scheduler interface {
 	// RunBackground executes a task on a background worker pool.

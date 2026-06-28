@@ -312,6 +312,18 @@ func UseElement() func() dom.Node {
 	}
 }
 
+// UseTerminal returns a function that retrieves the terminal object associated with the current component.
+func UseTerminal() func() terminal.Terminal {
+	getDoc := UseDocument()
+	return func() terminal.Terminal {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+		return doc.Terminal()
+	}
+}
+
 func UseEffect(effect func(), deps []any) {
 	compVal := getCurrentComponent()
 	if compVal == nil {
@@ -711,4 +723,79 @@ func UseViewportSize() geom.Size {
 	}, nil)
 
 	return size()
+}
+
+// UseTitle initializes and manages the terminal window title.
+// It returns a getter and a setter. Setting a new title automatically
+// updates the terminal window title.
+func UseTitle(initialTitle string) (func() string, func(string)) {
+	title, setTitle := UseState(initialTitle)
+	getTerm := UseTerminal()
+	UseEffect(func() {
+		if term := getTerm(); term != nil {
+			term.SetTitle(title())
+		}
+	}, []any{title()})
+	return title, setTitle
+}
+
+// UseBell returns a memoized callback function to trigger the terminal hardware bell.
+func UseBell() func() {
+	getTerm := UseTerminal()
+	return UseCallback(func() {
+		if term := getTerm(); term != nil {
+			term.Bell()
+		}
+	}, nil)
+}
+
+// UseWindowFocus returns a reactive boolean indicating whether the terminal window currently has focus.
+func UseWindowFocus() bool {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseWindowFocus must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+
+	isFocused, setFocused := UseState(true)
+
+	UseEffectCleanup(func() func() {
+		var doc dom.Document
+		for _, node := range comp.realNodes() {
+			if node != nil {
+				if d := node.OwnerDocument(); d != nil {
+					doc = d
+					break
+				}
+			}
+		}
+		if doc == nil {
+			return nil
+		}
+
+		subFocus := doc.AddEventListener(event.EventWindowFocus, func(ev event.Event) {
+			setFocused(true)
+		})
+
+		subBlur := doc.AddEventListener(event.EventWindowBlur, func(ev event.Event) {
+			setFocused(false)
+		})
+
+		return func() {
+			subFocus.Cancel()
+			subBlur.Cancel()
+		}
+	}, nil)
+
+	return isFocused()
+}
+
+// UseProgressBar returns a memoized callback function to update the terminal window's native progress bar.
+func UseProgressBar() func(state terminal.ProgressBarState, percentage int) {
+	getTerm := UseTerminal()
+	return UseCallback(func(state terminal.ProgressBarState, percentage int) {
+		if term := getTerm(); term != nil {
+			term.SetProgressBar(state, percentage)
+		}
+	}, nil)
 }

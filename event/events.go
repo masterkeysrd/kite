@@ -30,6 +30,8 @@ const (
 	EventFocusIn         EventType = "focusin"
 	EventFocusOut        EventType = "focusout"
 	EventResize          EventType = "resize"
+	EventWindowFocus     EventType = "windowfocus"
+	EventWindowBlur      EventType = "windowblur"
 	EventChange          EventType = "change"
 	EventInput           EventType = "input"
 	EventPaste           EventType = "paste"
@@ -280,6 +282,18 @@ func NewFocusEvent(typ EventType, related EventTarget) *FocusEvent {
 	return &FocusEvent{
 		BaseEvent:     BaseEvent{typ: typ, bubbles: bubbles},
 		RelatedTarget: related,
+	}
+}
+
+// WindowFocusEvent is dispatched when the terminal window gains or loses focus.
+type WindowFocusEvent struct {
+	BaseEvent
+}
+
+// NewWindowFocusEvent creates a new WindowFocusEvent.
+func NewWindowFocusEvent(typ EventType) *WindowFocusEvent {
+	return &WindowFocusEvent{
+		BaseEvent: BaseEvent{typ: typ, bubbles: false},
 	}
 }
 

@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/terminal"
 	"image/color"
 )
 
@@ -602,5 +604,39 @@ func TestEngine_DynamicStyleChange(t *testing.T) {
 	// Verify that it repainted!
 	if b.BeginFrameCalls != 1 {
 		t.Errorf("expected BeginFrameCalls = 1 (repaint on style change), got %d", b.BeginFrameCalls)
+	}
+}
+
+func TestTerminalProxy_SetTitleAndBell(t *testing.T) {
+	e, b := newTestEngineWithCaps(t, backend.Caps{Title: true, Bell: true, ProgressBar: true})
+	defer e.Stop()
+
+	term := e.Document().Terminal()
+	if term == nil {
+		t.Fatalf("expected terminal object on document")
+	}
+
+	// 1. Test SetTitle
+	term.SetTitle("Hello World")
+	if !strings.Contains(b.Output.String(), "\x1b]2;Hello World\x07") {
+		t.Errorf("expected SetTitle sequence in output, got %q", b.Output.String())
+	}
+
+	// Reset output buffer
+	b.Output.Reset()
+
+	// 2. Test Bell
+	term.Bell()
+	if !strings.Contains(b.Output.String(), "\x07") {
+		t.Errorf("expected Bell sequence in output, got %q", b.Output.String())
+	}
+
+	// Reset output buffer
+	b.Output.Reset()
+
+	// 3. Test SetProgressBar
+	term.SetProgressBar(terminal.ProgressBarNormal, 75)
+	if !strings.Contains(b.Output.String(), "\x1b]9;4;1;75\x07") {
+		t.Errorf("expected SetProgressBar sequence in output, got %q", b.Output.String())
 	}
 }

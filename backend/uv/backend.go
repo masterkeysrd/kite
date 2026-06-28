@@ -3,7 +3,6 @@ package uv
 import (
 	"encoding/base64"
 	"fmt"
-	kitelog "github.com/masterkeysrd/kite/log"
 	"image/color"
 	"io"
 	"os"
@@ -12,10 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	kitelog "github.com/masterkeysrd/kite/log"
+
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // Compile-time assertion: Backend implements backend.Backend.
@@ -138,6 +140,10 @@ func (b *Backend) Start() error {
 	}
 	b.screen.EnterAltScreen()
 	b.screen.HideCursor()
+	// Enable focus events reporting.
+	b.writeRaw("\x1b[?1004h")
+	// Save window title on terminal stack.
+	b.writeRaw("\x1b[22;0t")
 
 	// Update dimensions from the now-started terminal/screen.
 	b.width = b.screen.Width()
@@ -192,6 +198,10 @@ func (b *Backend) Restore() {
 	if b.stopped.Swap(true) {
 		return
 	}
+	// Restore window title from terminal stack.
+	b.writeRaw("\x1b[23;0t")
+	// Disable focus events reporting.
+	b.writeRaw("\x1b[?1004l")
 	b.screen.ExitAltScreen()
 	b.screen.ShowCursor()
 	_ = b.terminal.Stop()
@@ -271,6 +281,35 @@ func (b *Backend) SetCursorColor(c color.Color) {
 
 func (b *Backend) SetCursorShape(s backend.CursorShape) {
 	b.cursorState.Shape = s
+}
+
+func (b *Backend) SetTitle(s string) {
+	b.screen.SetWindowTitle(s)
+}
+
+func (b *Backend) Title() string {
+	return b.screen.WindowTitle()
+}
+
+func (b *Backend) Bell() {
+	b.writeRaw("\x07")
+}
+
+func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int) {
+	var uvState uv.ProgressBarState
+	switch state {
+	case terminal.ProgressBarHide:
+		uvState = uv.ProgressBarNone
+	case terminal.ProgressBarNormal:
+		uvState = uv.ProgressBarDefault
+	case terminal.ProgressBarError:
+		uvState = uv.ProgressBarError
+	case terminal.ProgressBarIndeterminate:
+		uvState = uv.ProgressBarIndeterminate
+	case terminal.ProgressBarPaused:
+		uvState = uv.ProgressBarWarning
+	}
+	b.screen.SetProgressBar(uv.NewProgressBar(uvState, percentage))
 }
 
 func (b *Backend) DumpState() {

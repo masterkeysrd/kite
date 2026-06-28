@@ -465,6 +465,7 @@ func (e *Engine) SetTitle(s string) {
 		return
 	}
 	kitelog.Info("engine: set title", slog.String("title", s))
+	e.backend.SetTitle(s)
 }
 
 // Bell emits a BEL character. It is a no-op when Caps.Bell is false.
@@ -475,6 +476,19 @@ func (e *Engine) Bell() {
 		return
 	}
 	kitelog.Info("engine: bell")
+	e.backend.Bell()
+}
+
+// SetProgressBar updates the terminal window tab's native progress bar.
+// It is a no-op if Caps.ProgressBar is false.
+//
+// SetProgressBar must be called from the main goroutine.
+func (e *Engine) SetProgressBar(state backend.ProgressBarState, percentage int) {
+	if !e.caps.ProgressBar {
+		return
+	}
+	kitelog.Info("engine: set progress bar", slog.Int("state", int(state)), slog.Int("percentage", percentage))
+	e.backend.SetProgressBar(state, percentage)
 }
 
 // SetDebugXRay toggles the visual layout debugging overlay.
@@ -1397,6 +1411,10 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 		e.dispatchKeyEvent(evt)
 	case *event.ResizeEvent:
 		e.handleResize(evt)
+	case *event.WindowFocusEvent:
+		if e.document != nil {
+			e.document.DispatchTo(evt)
+		}
 	case *event.ClipboardEvent:
 		if evt.Type() == event.EventPaste {
 			e.clipboard.resolvePending(evt.Items)

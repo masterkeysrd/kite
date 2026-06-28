@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // Backend is the interface that decouples the paint engine from the terminal
@@ -70,7 +71,29 @@ type Backend interface {
 
 	// Clipboard returns the clipboard provider for this backend.
 	Clipboard() Clipboard
+
+	// SetTitle sets the terminal window title.
+	SetTitle(string)
+
+	// Title returns the current terminal window title.
+	Title() string
+
+	// Bell triggers the terminal hardware bell.
+	Bell()
+
+	// SetProgressBar updates the terminal window's native progress bar.
+	SetProgressBar(state terminal.ProgressBarState, percentage int)
 }
+
+type ProgressBarState = terminal.ProgressBarState
+
+const (
+	ProgressBarHide          = terminal.ProgressBarHide
+	ProgressBarNormal        = terminal.ProgressBarNormal
+	ProgressBarError         = terminal.ProgressBarError
+	ProgressBarIndeterminate = terminal.ProgressBarIndeterminate
+	ProgressBarPaused        = terminal.ProgressBarPaused
+)
 
 // Clipboard is implemented by objects that provide system clipboard access.
 type Clipboard interface {
@@ -230,6 +253,9 @@ type Caps struct {
 	// Bell reports whether the terminal should respond to the BEL character.
 	// engine.Bell is a no-op when this is false.
 	Bell bool
+
+	// ProgressBar reports whether the terminal supports native progress bar escape sequences.
+	ProgressBar bool
 
 	// Clipboard is the list of supported clipboard protocols.
 	Clipboard []ClipboardKind
