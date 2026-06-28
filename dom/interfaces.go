@@ -409,6 +409,9 @@ type View interface {
 	// NodeAtPoint returns the leaf node and its rune offset at the given
 	// screen coordinates.
 	NodeAtPoint(x, y int) (Node, int)
+
+	// ViewportSize returns the current viewport size (terminal dimensions).
+	ViewportSize() geom.Size
 }
 
 // FocusHandle is the interface for the focus management implementation injected
