@@ -64,6 +64,9 @@ type Backend struct {
 	// stopped indicates the backend has been stopped.
 	stopped atomic.Bool
 
+	// stopCh is closed to signal event loop termination.
+	stopCh chan struct{}
+
 	// onResize is called when the terminal is resized.
 	onResize func(geom.Size)
 
@@ -119,6 +122,7 @@ func New() (*Backend, error) {
 		height:   h,
 		eventCh:  make(chan backend.RawEvent),
 		renderCh: make(chan renderRequest, 2),
+		stopCh:   make(chan struct{}),
 	}
 	b.bufferPool.New = func() any {
 		return backend.NewBuffer(b.width, b.height)
@@ -192,25 +196,25 @@ func (b *Backend) EndFrame() error {
 // Caps returns the terminal capabilities detected at startup.
 func (b *Backend) Caps() backend.Caps { return b.caps }
 
-// Restore unconditionally exits alt-screen, restores terminal state, and shows
-// the cursor.
 func (b *Backend) Restore() {
 	if b.stopped.Swap(true) {
 		return
 	}
+	close(b.stopCh)
+	_ = b.terminal.Stop()
+
 	// Restore window title from terminal stack.
 	b.writeRaw("\x1b[23;0t")
 	// Disable focus events reporting.
 	b.writeRaw("\x1b[?1004l")
 	b.screen.ExitAltScreen()
 	b.screen.ShowCursor()
-	_ = b.terminal.Stop()
+	_ = b.screen.Flush()
 }
 
 // Stop closes the render goroutine gracefully and calls Restore.
 func (b *Backend) Stop() {
 	close(b.renderCh)
-	close(b.eventCh)
 	b.renderWG.Wait()
 	b.Restore()
 }
@@ -387,7 +391,11 @@ func (b *Backend) loopEvents() {
 		kitelog.Info("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
 		KiteEv := translateEvent(ev)
 		if KiteEv != nil {
-			b.eventCh <- KiteEv
+			select {
+			case b.eventCh <- KiteEv:
+			case <-b.stopCh:
+				return
+			}
 		}
 	}
 }
