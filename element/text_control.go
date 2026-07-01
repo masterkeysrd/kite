@@ -1,16 +1,16 @@
 package element
 
-// textControlBase is a generic base struct shared by InputElement and
+// TextControlBase is a generic base struct shared by InputElement and
 // TextAreaElement. It centralises terminal coordinate math, scroll-cursor
 // tracking, and default event handling so that fixes need only be applied
 // once.
 //
 // Constraints:
-//  1. textControlBase does not know about the UA shadow subtree structure;
-//     it only knows about a single "uaDiv" element which holds the IFC line boxes.
+//  1. TextControlBase does not know about the UA shadow subtree structure;
+//     it only knows about a single "ContentElement" element which holds the IFC line boxes.
 //  2. It relies on the host element's Scroll/ScrollTo methods for actual
 //     scroll state, as mandated by ADR-012. It must never call txa.Scroll/
-//     ScrollTo DOM methods. textControlBase MUST NOT store scrollX/Y fields.
+//     ScrollTo DOM methods. TextControlBase MUST NOT store scrollX/Y fields.
 //  3. syncCallback MUST be called after any buffer mutation so that the
 //     concrete element can rebuild its UA subtree and mark the render tree dirty.
 
@@ -27,12 +27,12 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-type textControlBase[T Element] struct {
-	host         T
-	uaDiv        dom.Element
-	buf          *text.Buffer
-	isMultiline  bool
-	syncCallback func()
+type TextControlBase[T Element] struct {
+	host           T
+	ContentElement dom.Element
+	buf            *text.Buffer
+	isMultiline    bool
+	syncCallback   func()
 
 	// lastKnownCX/Y track the caret position in content-box coordinates at the
 	// time of the last layout.
@@ -73,21 +73,21 @@ type textControlBase[T Element] struct {
 	lastKnownBounds geom.Rect
 }
 
-// initTextControlBase initialises the base with its dependencies.
+// InitTextControlBase initialises the base with its dependencies.
 // host is the outer dom.Element (the shadow host for the control).
-// uaDiv is the inner block element whose IFC children form the text layout.
+// ContentElement is the inner block element whose IFC children form the text layout.
 // buf is the editor buffer.
 // isMultiline distinguishes textarea (true) from input (false).
 // sync is the concrete element's sync callback.
-func (b *textControlBase[T]) initTextControlBase(
+func (b *TextControlBase[T]) InitTextControlBase(
 	host T,
-	uaDiv dom.Element,
+	ContentElement dom.Element,
 	buf *text.Buffer,
 	isMultiline bool,
 	sync func(),
 ) {
 	b.host = host
-	b.uaDiv = uaDiv
+	b.ContentElement = ContentElement
 	b.buf = buf
 	b.isMultiline = isMultiline
 	b.syncCallback = sync
@@ -98,8 +98,8 @@ func (b *textControlBase[T]) initTextControlBase(
 	b.selectionEnd = buf.ByteOffset()
 }
 
-// wireTextControlEvents wires up default key bindings and mouse events.
-func (b *textControlBase[T]) wireTextControlEvents() {
+// WireTextControlEvents wires up default key bindings and mouse events.
+func (b *TextControlBase[T]) WireTextControlEvents() {
 	b.host.AddEventListener(event.EventMouseDown, b.handleMouseDown)
 	b.host.AddEventListener(event.EventKeyDown, b.handleKeyDown)
 	b.host.AddEventListener(event.EventPaste, b.handlePaste)
@@ -109,7 +109,7 @@ func (b *textControlBase[T]) wireTextControlEvents() {
 
 // SetSelectionRange sets the selection to the given byte offsets.
 // It moves the cursor to end and triggers a sync.
-func (b *textControlBase[T]) SetSelectionRange(start, end int) {
+func (b *TextControlBase[T]) SetSelectionRange(start, end int) {
 	maxLen := len(b.buf.Value())
 	if start < 0 {
 		start = 0
@@ -131,12 +131,12 @@ func (b *textControlBase[T]) SetSelectionRange(start, end int) {
 }
 
 // SelectionRange returns the current selection start and end byte offsets.
-func (b *textControlBase[T]) SelectionRange() (int, int) {
+func (b *TextControlBase[T]) SelectionRange() (int, int) {
 	return b.selectionStart, b.selectionEnd
 }
 
 // SelectedText returns the text currently covered by the local selection.
-func (b *textControlBase[T]) SelectedText() string {
+func (b *TextControlBase[T]) SelectedText() string {
 	if b.selectionStart == b.selectionEnd {
 		return ""
 	}
@@ -156,7 +156,7 @@ func (b *textControlBase[T]) SelectedText() string {
 // CursorState implements cursor.Provider. It returns the terminal-cell
 // coordinate of the caret within the host's content box, derived from the
 // IFC fragment tree via cursor.FromTextFragment.
-func (b *textControlBase[T]) CursorState() cursor.State {
+func (b *TextControlBase[T]) CursorState() cursor.State {
 	// If the buffer version or layout size has changed since the last time the cursor was
 	// rendered, we must recalculate the cursor position.
 	sizeChanged := false
@@ -180,7 +180,7 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 		if d := b.host.OwnerDocument(); d != nil {
 			if v := d.DefaultView(); v != nil {
 				// Use the View to find cell coordinates for the current buffer offset.
-				pos, ok := v.GetCaretPosition(b.uaDiv, b.buf.ByteOffset())
+				pos, ok := v.GetCaretPosition(b.ContentElement, b.buf.ByteOffset())
 				if ok {
 					b.lastKnownCX = pos.X
 					b.lastKnownCY = pos.Y
@@ -224,7 +224,7 @@ func (b *textControlBase[T]) CursorState() cursor.State {
 // handleMouseDown handles a left-button mouse-down event, translating the
 // screen-space click coordinates to a buffer byte offset while accounting for
 // the host's border+padding inset and current scroll offset.
-func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
+func (b *TextControlBase[T]) handleMouseDown(ev event.Event) {
 	me, ok := ev.(*event.MouseEvent)
 	if !ok {
 		return
@@ -255,7 +255,7 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	targetX := me.Local.X - insetLeft + scrollX
 	targetY := me.Local.Y - insetTop + scrollY
 
-	offset := v.ByteOffsetAtPoint(b.uaDiv, targetX, targetY)
+	offset := v.ByteOffsetAtPoint(b.ContentElement, targetX, targetY)
 
 	// Clamp to buffer length. Multiline controls have a trailing <br> in the
 	// UA tree that can produce an off-by-one offset; single-line controls are
@@ -278,7 +278,7 @@ func (b *textControlBase[T]) handleMouseDown(ev event.Event) {
 	b.syncCallback()
 }
 
-func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
+func (b *TextControlBase[T]) handleMouseMove(ev event.Event) {
 	if !b.isDragging {
 		return
 	}
@@ -312,7 +312,7 @@ func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
 	targetX := me.Screen.X - hostRect.Origin.X - insetLeft + scrollX
 	targetY := me.Screen.Y - hostRect.Origin.Y - insetTop + scrollY
 
-	offset := v.ByteOffsetAtPoint(b.uaDiv, targetX, targetY)
+	offset := v.ByteOffsetAtPoint(b.ContentElement, targetX, targetY)
 	if maxLen := len(b.buf.Value()); offset > maxLen {
 		offset = maxLen
 	}
@@ -323,7 +323,7 @@ func (b *textControlBase[T]) handleMouseMove(ev event.Event) {
 	b.syncCallback()
 }
 
-func (b *textControlBase[T]) handleMouseUp(_ event.Event) {
+func (b *TextControlBase[T]) handleMouseUp(_ event.Event) {
 	if !b.isDragging {
 		return
 	}
@@ -331,7 +331,7 @@ func (b *textControlBase[T]) handleMouseUp(_ event.Event) {
 	b.clearDragSubscriptions()
 }
 
-func (b *textControlBase[T]) clearDragSubscriptions() {
+func (b *TextControlBase[T]) clearDragSubscriptions() {
 	if b.mouseMoveSub != nil {
 		b.mouseMoveSub.Cancel()
 		b.mouseMoveSub = nil
@@ -343,12 +343,12 @@ func (b *textControlBase[T]) clearDragSubscriptions() {
 }
 
 // ProvidesCursor implements dom.Element.
-func (b *textControlBase[T]) ProvidesCursor() bool {
+func (b *TextControlBase[T]) ProvidesCursor() bool {
 	return true
 }
 
 // ScrollCursorIntoView implements dom.Element.
-func (b *textControlBase[T]) ScrollCursorIntoView() {
+func (b *TextControlBase[T]) ScrollCursorIntoView() {
 	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
@@ -532,7 +532,7 @@ func (b *textControlBase[T]) ScrollCursorIntoView() {
 
 // handleKeyDown processes a keydown event and routes it to the appropriate
 // buffer operation.
-func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
+func (b *TextControlBase[T]) handleKeyDown(ev event.Event) {
 	ke, ok := ev.(*event.KeyEvent)
 	if !ok {
 		return
@@ -683,7 +683,7 @@ func (b *textControlBase[T]) handleKeyDown(ev event.Event) {
 	}
 }
 
-func (b *textControlBase[T]) handlePaste(ev event.Event) {
+func (b *TextControlBase[T]) handlePaste(ev event.Event) {
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return
@@ -707,7 +707,7 @@ func (b *textControlBase[T]) handlePaste(ev event.Event) {
 	ev.StopPropagation()
 }
 
-func (b *textControlBase[T]) handleCopy(ev event.Event) {
+func (b *TextControlBase[T]) handleCopy(ev event.Event) {
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return
@@ -720,7 +720,7 @@ func (b *textControlBase[T]) handleCopy(ev event.Event) {
 	}
 }
 
-func (b *textControlBase[T]) handleCut(ev event.Event) {
+func (b *TextControlBase[T]) handleCut(ev event.Event) {
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return
@@ -743,7 +743,7 @@ func (b *textControlBase[T]) handleCut(ev event.Event) {
 	ev.PreventDefault()
 }
 
-func (b *textControlBase[T]) maybeDeleteSelection(_ *event.KeyEvent) bool {
+func (b *TextControlBase[T]) maybeDeleteSelection(_ *event.KeyEvent) bool {
 	if b.selectionStart == b.selectionEnd {
 		return false
 	}
@@ -754,7 +754,7 @@ func (b *textControlBase[T]) maybeDeleteSelection(_ *event.KeyEvent) bool {
 // UpdateSelectionRange programmatically updates the document's selection
 // based on the control's local selectionStart/selectionEnd offsets.
 // It maps byte offsets to (Node, runeOffset) pairs within the UA subtree.
-func (b *textControlBase[T]) UpdateSelectionRange() {
+func (b *TextControlBase[T]) UpdateSelectionRange() {
 	maxLen := len(b.buf.Value())
 	if b.selectionStart < 0 {
 		b.selectionStart = 0
@@ -780,7 +780,7 @@ func (b *textControlBase[T]) UpdateSelectionRange() {
 		b.selectionEnd = b.buf.ByteOffset()
 
 		// If we own the selection, clear it.
-		// A simple way is to check if the first range starts in our uaDiv.
+		// A simple way is to check if the first range starts in our ContentElement.
 		if sel.RangeCount() > 0 {
 			r := sel.GetRangeAt(0)
 			if b.isNodeInUASubtree(r.StartContainer()) {
@@ -814,7 +814,7 @@ func (b *textControlBase[T]) UpdateSelectionRange() {
 	sel.AddRange(r)
 }
 
-func (b *textControlBase[T]) isNodeInUASubtree(n dom.Node) bool {
+func (b *TextControlBase[T]) isNodeInUASubtree(n dom.Node) bool {
 	return dom.IsUANode(n)
 }
 
@@ -822,11 +822,11 @@ type isPlaceholderElement interface {
 	IsPlaceholder() bool
 }
 
-func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int) {
+func (b *TextControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int) {
 	currByte := 0
 	childIdx := 0
 
-	for child := b.uaDiv.FirstChild(); child != nil; child = child.NextSibling() {
+	for child := b.ContentElement.FirstChild(); child != nil; child = child.NextSibling() {
 		// Skip visual placeholder elements (e.g. gray placeholder text).
 		if p, ok := child.(isPlaceholderElement); ok && p.IsPlaceholder() {
 			continue
@@ -860,28 +860,28 @@ func (b *textControlBase[T]) resolveOffset(targetByteOffset int) (dom.Node, int)
 			if !isPlaceholderBr {
 				if currByte == targetByteOffset {
 					// Position before this \n.
-					return b.uaDiv, childIdx
+					return b.ContentElement, childIdx
 				}
 				currByte++ // \n
 			} else {
 				// Placeholder <br>.
 				if currByte == targetByteOffset {
-					return b.uaDiv, childIdx
+					return b.ContentElement, childIdx
 				}
 			}
 		}
 		childIdx++
 	}
 
-	// Fallback to end of uaDiv.
-	return b.uaDiv, childIdx
+	// Fallback to end of ContentElement.
+	return b.ContentElement, childIdx
 }
 
 // --- Vertical navigation helpers --------------------------------------------
 
-// uaDivFragment returns the fragment for the inner ua-div, whose direct
+// ContentElement returns the fragment for the inner div, whose direct
 // children are IFC line-boxes suitable for cursor.FromTextFragment.
-func (b *textControlBase[T]) moveUp() {
+func (b *TextControlBase[T]) moveUp() {
 	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
@@ -889,11 +889,11 @@ func (b *textControlBase[T]) moveUp() {
 
 	// We need a fresh cursor state calculation to ensure lastKnownCX/Y are up to date.
 	b.CursorState()
-	offset := v.MoveCursorVertically(b.uaDiv, b.buf.ByteOffset(), -1, b.lastKnownCX, b.lastKnownCY)
+	offset := v.MoveCursorVertically(b.ContentElement, b.buf.ByteOffset(), -1, b.lastKnownCX, b.lastKnownCY)
 	b.buf.SetOffset(offset)
 }
 
-func (b *textControlBase[T]) moveDown() {
+func (b *TextControlBase[T]) moveDown() {
 	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
@@ -901,7 +901,7 @@ func (b *textControlBase[T]) moveDown() {
 
 	// We need a fresh cursor state calculation to ensure lastKnownCX/Y are up to date.
 	b.CursorState()
-	offset := v.MoveCursorVertically(b.uaDiv, b.buf.ByteOffset(), 1, b.lastKnownCX, b.lastKnownCY)
+	offset := v.MoveCursorVertically(b.ContentElement, b.buf.ByteOffset(), 1, b.lastKnownCX, b.lastKnownCY)
 	if maxLen := len(b.buf.Value()); offset > maxLen {
 		offset = maxLen
 	}
@@ -930,4 +930,17 @@ func newPlaceholder(doc dom.Document, text string, s style.Style) *uaPlaceholder
 	p.Style(s)
 	el.AppendChild(doc.CreateTextNode(text, nil))
 	return p
+}
+
+// Buffer returns the underlying editor buffer.
+func (b *TextControlBase[T]) Buffer() *text.Buffer {
+	return b.buf
+}
+
+// SyncBuffer propagates the current buffer state to the UA text node and marks
+// layout dirty. Call this after any direct mutation of Buffer().
+func (b *TextControlBase[T]) SyncBuffer() {
+	if b.syncCallback != nil {
+		b.syncCallback()
+	}
 }

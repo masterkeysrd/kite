@@ -55,12 +55,12 @@ func (d *uaInputDiv) IsDirtyStyle() bool {
 //     fragment, whose direct children are the IFC line-boxes.
 //   - Common text-editing mechanics (CursorState, ScrollCursorIntoView,
 //     handleMouseDown, handleKeyDown) are implemented by the embedded
-//     textControlBase[InputElement]. See ADR-013, TSK-029.
+//     TextControlBase[InputElement]. See ADR-013, TSK-029.
 //
 // See ADR-009, ADR-010, ADR-013, TSK-024, TSK-029.
 type InputElement struct {
 	elementBase[InputElement]
-	textControlBase[*InputElement]
+	TextControlBase[*InputElement]
 
 	// uaText is the single UA-internal text node whose Data() mirrors buf.Value().
 	// It is never nil after construction.
@@ -71,7 +71,7 @@ type InputElement struct {
 	// making it the correct root for cursor.FromTextFragment and
 	// scroll-offset calculations.
 	//
-	// This field is also stored in textControlBase.uaDiv (as dom.Element) for
+	// This field is also stored in TextControlBase.ContentElement (as dom.Element) for
 	// the shared geometry math; we keep a typed copy here for syncText.
 	uaInputDivEl *uaInputDiv
 
@@ -145,7 +145,7 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	inp.initBase(el, inp, defaultInputStyle, intrinsicInputStyle)
 
 	// Initialise the shared text-control base.
-	inp.initTextControlBase(inp, uaInnerDiv, buf, false /* single-line */, inp.syncText)
+	inp.InitTextControlBase(inp, uaInnerDiv, buf, false /* single-line */, inp.syncText)
 
 	// Attach the UA shadow subtree.
 	//
@@ -160,8 +160,8 @@ func NewInput(doc dom.Document, initialValue string) *InputElement {
 	uaRoot.AppendChild(uaInnerDiv) // the *uaInputDiv is the DOM tree node
 	el.AttachUARoot(uaRoot)
 
-	// Wire up default key bindings and mouse events (via textControlBase).
-	inp.wireTextControlEvents()
+	// Wire up default key bindings and mouse events (via TextControlBase).
+	inp.WireTextControlEvents()
 
 	return inp
 }

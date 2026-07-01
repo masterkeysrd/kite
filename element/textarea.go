@@ -14,7 +14,7 @@ package element
 //   - UA-mandated styles live in IntrinsicStyle(): display:inline-block,
 //     overflow-y:scroll, overflow-wrap:break-word.
 //   - Cursor positioning, scroll tracking, mouse hit-testing, and keyboard
-//     routing are handled by the embedded textControlBase[TextAreaElement]
+//     routing are handled by the embedded TextControlBase[TextAreaElement]
 //     (ADR-013, TSK-029).
 //
 // See ADR-009, ADR-010, ADR-013, TSK-025, TSK-029.
@@ -32,7 +32,7 @@ import (
 // host (ADR-009).
 type TextAreaElement struct {
 	elementBase[TextAreaElement]
-	textControlBase[*TextAreaElement]
+	TextControlBase[*TextAreaElement]
 
 	name             string
 	placeholder      string
@@ -131,7 +131,7 @@ func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	uaDiv := &uaTextAreaDiv{doc.CreateElement("ua-textarea-div", nil)}
 
 	// Initialise the shared text-control base with the ua-div and buffer.
-	txa.initTextControlBase(txa, uaDiv, buf, true /* multi-line */, txa.syncText)
+	txa.InitTextControlBase(txa, uaDiv, buf, true /* multi-line */, txa.syncText)
 
 	uaRoot := &uaTextAreaRoot{doc.CreateElement("ua-textarea-root", nil)}
 	uaRoot.AppendChild(uaDiv)
@@ -140,8 +140,8 @@ func NewTextArea(doc dom.Document, initialValue string) *TextAreaElement {
 	// Populate the UA subtree with the initial value.
 	txa.rebuildUASubtree()
 
-	// Wire up default key bindings and mouse events (via textControlBase).
-	txa.wireTextControlEvents()
+	// Wire up default key bindings and mouse events (via TextControlBase).
+	txa.WireTextControlEvents()
 
 	return txa
 }
@@ -234,7 +234,7 @@ func (txa *TextAreaElement) syncText() {
 		txa.rebuildUASubtree()
 		txa.lastSyncedVersion = v
 
-		if d := internaldom.AsDirty(txa.uaDiv); d != nil {
+		if d := internaldom.AsDirty(txa.ContentElement); d != nil {
 			d.MarkNeedsSync()
 		}
 		if d := internaldom.AsDirty(txa); d != nil {
@@ -315,7 +315,7 @@ func (txa *TextAreaElement) rebuildUASubtree() {
 }
 
 func (txa *TextAreaElement) syncChildren(newChildren []dom.Node) {
-	uaDiv := txa.uaDiv
+	uaDiv := txa.ContentElement
 
 	currentChild := uaDiv.FirstChild()
 	for _, newNode := range newChildren {
