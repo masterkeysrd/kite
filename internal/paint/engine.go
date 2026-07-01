@@ -437,12 +437,17 @@ func (p *PaintEngine) pushChildClip(frag *layout.Fragment, origin geom.Point) {
 	bw := s.Border.Widths()
 	pad := s.Padding
 
-	// Content-box insets from the fragment's border-box origin:
-	//   inset = border + padding on each side.
 	insetLeft := bw.Left + pad.Left
 	insetTop := bw.Top + pad.Top
 	insetRight := bw.Right + pad.Right
 	insetBottom := bw.Bottom + pad.Bottom
+
+	if frag.HasScrollbarY {
+		insetRight++
+	}
+	if frag.HasScrollbarX {
+		insetBottom++
+	}
 
 	var clipRect geom.Rect
 

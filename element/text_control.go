@@ -755,6 +755,18 @@ func (b *textControlBase[T]) maybeDeleteSelection(_ *event.KeyEvent) bool {
 // based on the control's local selectionStart/selectionEnd offsets.
 // It maps byte offsets to (Node, runeOffset) pairs within the UA subtree.
 func (b *textControlBase[T]) UpdateSelectionRange() {
+	maxLen := len(b.buf.Value())
+	if b.selectionStart < 0 {
+		b.selectionStart = 0
+	} else if b.selectionStart > maxLen {
+		b.selectionStart = maxLen
+	}
+	if b.selectionEnd < 0 {
+		b.selectionEnd = 0
+	} else if b.selectionEnd > maxLen {
+		b.selectionEnd = maxLen
+	}
+
 	doc := b.host.OwnerDocument()
 	if doc == nil {
 		return
