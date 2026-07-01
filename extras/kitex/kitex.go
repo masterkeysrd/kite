@@ -317,6 +317,13 @@ func buildElementInfo(children []Node) (int, bool, bool) {
 // Special cases:
 //   - reflect.Func values are compared via the existing funcEquals helper so
 //     that stable closures with the same pointer compare as equal.
+//
+// EquatableProps allows prop structures to bypass reflection-based comparisons
+// by implementing a custom, direct equality method.
+type EquatableProps interface {
+	Equal(other any) bool
+}
+
 //   - When depth == 0 the function conservatively returns false to avoid
 //     unbounded recursion on large nested structures.
 func deepEqualProps(oldProps, newProps any, maxDepth int) bool {
@@ -328,6 +335,10 @@ func deepEqualProps(oldProps, newProps any, maxDepth int) bool {
 	}
 	if oldProps == nil || newProps == nil {
 		return false
+	}
+
+	if eq, ok := oldProps.(EquatableProps); ok {
+		return eq.Equal(newProps)
 	}
 
 	ov := reflect.ValueOf(oldProps)

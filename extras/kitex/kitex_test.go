@@ -915,6 +915,33 @@ func TestDeepEqualPropsStyle(t *testing.T) {
 	}
 }
 
+type customEquatableProps struct {
+	Value int
+	Name  string
+}
+
+func (p customEquatableProps) Equal(other any) bool {
+	o, ok := other.(customEquatableProps)
+	return ok && p.Value == o.Value && p.Name == o.Name
+}
+
+func TestDeepEqualPropsEquatable(t *testing.T) {
+	p1 := customEquatableProps{Value: 10, Name: "A"}
+	p2 := customEquatableProps{Value: 10, Name: "A"}
+	p3 := customEquatableProps{Value: 20, Name: "A"}
+	p4 := customEquatableProps{Value: 10, Name: "B"}
+
+	if !deepEqualProps(p1, p2, 3) {
+		t.Errorf("expected p1 and p2 to be equal")
+	}
+	if deepEqualProps(p1, p3, 3) {
+		t.Errorf("expected p1 and p3 to not be equal")
+	}
+	if deepEqualProps(p1, p4, 3) {
+		t.Errorf("expected p1 and p4 to not be equal")
+	}
+}
+
 // --- Automatic memoization integration tests ----------------------------------
 
 // TestMemoSkipsRenderOnEqualProps verifies that Update() skips RenderFn when

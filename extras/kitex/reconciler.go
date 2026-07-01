@@ -15,7 +15,38 @@ var (
 	inOnComponentDirty bool
 	dirtyComponents    []componentInstance
 	dirtyBuffer        []componentInstance
+	updateScheduled    bool
+	updateScheduledMu  sync.Mutex
 )
+
+func scheduleDirtyFlush(comp componentInstance) {
+	parent := comp.getDOMParent()
+	if parent != nil && parent.OwnerDocument() != nil && parent.OwnerDocument().Terminal() != nil && scheduler != nil {
+		scheduler.QueueMacrotask(flushDirtyComponents)
+	} else {
+		flushDirtyComponents()
+	}
+}
+
+func flushDirtyComponents() {
+	updateScheduledMu.Lock()
+	updateScheduled = false
+	updateScheduledMu.Unlock()
+
+	renderMutex.Lock()
+	if inOnComponentDirty {
+		renderMutex.Unlock()
+		return
+	}
+	inOnComponentDirty = true
+	defer func() {
+		inOnComponentDirty = false
+		renderMutex.Unlock()
+	}()
+
+	flushPendingEffects()
+	processDirtyLoop()
+}
 
 func init() {
 	dirtyComponents = make([]componentInstance, 0, 16)
@@ -41,15 +72,15 @@ func init() {
 			return
 		}
 
-		renderMutex.Lock()
-		inOnComponentDirty = true
-		defer func() {
-			inOnComponentDirty = false
-			renderMutex.Unlock()
-		}()
+		updateScheduledMu.Lock()
+		if updateScheduled {
+			updateScheduledMu.Unlock()
+			return
+		}
+		updateScheduled = true
+		updateScheduledMu.Unlock()
 
-		flushPendingEffects()
-		processDirtyLoop()
+		scheduleDirtyFlush(compInstance)
 	}
 }
 
@@ -407,6 +438,18 @@ var keyMapPool = sync.Pool{
 	},
 }
 
+var keylessMapPool = sync.Pool{
+	New: func() any {
+		return make(map[string][]int)
+	},
+}
+
+var keylessIterPool = sync.Pool{
+	New: func() any {
+		return make(map[string]int)
+	},
+}
+
 var nodeSlicePool = sync.Pool{
 	New: func() any {
 		s := make([]Node, 128)
@@ -507,10 +550,23 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 	newEndIdx := len(newChildren) - 1
 
 	var oldKeyMap map[string]int
+	var oldKeylessMap map[string][]int
+	var oldKeylessIter map[string]int
 	defer func() {
 		if oldKeyMap != nil {
 			clear(oldKeyMap)
 			keyMapPool.Put(oldKeyMap)
+		}
+		if oldKeylessMap != nil {
+			for k := range oldKeylessMap {
+				oldKeylessMap[k] = oldKeylessMap[k][:0]
+				delete(oldKeylessMap, k)
+			}
+			keylessMapPool.Put(oldKeylessMap)
+		}
+		if oldKeylessIter != nil {
+			clear(oldKeylessIter)
+			keylessIterPool.Put(oldKeylessIter)
 		}
 	}()
 
@@ -655,11 +711,27 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 				matchedIdx = idx
 			}
 		} else {
-			for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
-				if oldS[idx] != nil && oldS[idx].Key() == "" && oldS[idx].TagName() == newStartNode.TagName() {
+			if oldKeylessMap == nil {
+				oldKeylessMap = keylessMapPool.Get().(map[string][]int)
+				oldKeylessIter = keylessIterPool.Get().(map[string]int)
+				for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
+					if oldS[idx] != nil && oldS[idx].Key() == "" {
+						tag := oldS[idx].TagName()
+						oldKeylessMap[tag] = append(oldKeylessMap[tag], idx)
+					}
+				}
+			}
+			tag := newStartNode.TagName()
+			indices := oldKeylessMap[tag]
+			iter := oldKeylessIter[tag]
+			for iter < len(indices) {
+				idx := indices[iter]
+				oldKeylessIter[tag] = iter + 1
+				if idx >= oldStartIdx && idx <= oldEndIdx && oldS[idx] != nil {
 					matchedIdx = idx
 					break
 				}
+				iter++
 			}
 		}
 
@@ -895,10 +967,23 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 	newEndIdx := len(flatNew) - 1
 
 	var oldKeyMap map[string]int
+	var oldKeylessMap map[string][]int
+	var oldKeylessIter map[string]int
 	defer func() {
 		if oldKeyMap != nil {
 			clear(oldKeyMap)
 			keyMapPool.Put(oldKeyMap)
+		}
+		if oldKeylessMap != nil {
+			for k := range oldKeylessMap {
+				oldKeylessMap[k] = oldKeylessMap[k][:0]
+				delete(oldKeylessMap, k)
+			}
+			keylessMapPool.Put(oldKeylessMap)
+		}
+		if oldKeylessIter != nil {
+			clear(oldKeylessIter)
+			keylessIterPool.Put(oldKeylessIter)
 		}
 	}()
 
@@ -1035,11 +1120,27 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 				matchedIdx = idx
 			}
 		} else {
-			for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
-				if oldS[idx].node != nil && oldS[idx].node.Key() == "" && oldS[idx].node.TagName() == newStartNode.node.TagName() {
+			if oldKeylessMap == nil {
+				oldKeylessMap = keylessMapPool.Get().(map[string][]int)
+				oldKeylessIter = keylessIterPool.Get().(map[string]int)
+				for idx := oldStartIdx; idx <= oldEndIdx; idx++ {
+					if oldS[idx].node != nil && oldS[idx].node.Key() == "" {
+						tag := oldS[idx].node.TagName()
+						oldKeylessMap[tag] = append(oldKeylessMap[tag], idx)
+					}
+				}
+			}
+			tag := newStartNode.node.TagName()
+			indices := oldKeylessMap[tag]
+			iter := oldKeylessIter[tag]
+			for iter < len(indices) {
+				idx := indices[iter]
+				oldKeylessIter[tag] = iter + 1
+				if idx >= oldStartIdx && idx <= oldEndIdx && oldS[idx].node != nil {
 					matchedIdx = idx
 					break
 				}
+				iter++
 			}
 		}
 
