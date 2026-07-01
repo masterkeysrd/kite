@@ -274,8 +274,6 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 
 			var amount int
 			if useGrow {
-				// To handle integer truncation correctly, we distribute the remaining space
-				// proportionally among the remaining unfrozen items.
 				amount = (remainingToDistribute * item.Grow) / totalFlexFactor
 			} else if totalBaseSizeFactor > 0 {
 				amount = -(((-remainingToDistribute) * item.Shrink * item.BaseSize) / totalBaseSizeFactor)
@@ -306,12 +304,18 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 
 		if violationCount == 0 {
 			// If there's still some space left due to rounding and no violations,
-			// we just give it to the last unfrozen item.
+			// we just give it to the last unfrozen item, respecting its min/max bounds.
 			if remainingToDistribute != 0 {
 				for i := len(line.Items) - 1; i >= 0; i-- {
 					item := line.Items[i]
 					if !item.Frozen {
-						item.MainSize += remainingToDistribute
+						newSize := item.MainSize + remainingToDistribute
+						if newSize < item.MinMainSize {
+							newSize = item.MinMainSize
+						} else if item.MaxMainSize > 0 && newSize > item.MaxMainSize {
+							newSize = item.MaxMainSize
+						}
+						item.MainSize = newSize
 						break
 					}
 				}
