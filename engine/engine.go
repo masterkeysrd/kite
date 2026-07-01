@@ -410,6 +410,23 @@ func (e *Engine) StopProfiling() *trace.Tracer {
 // mousedown-to-focus or query the currently focused node).
 func (e *Engine) FocusManager() *focus.Manager { return e.focusManager }
 
+// MoveCaret moves the global selection caret in the specified direction.
+// If the caret hits the edge of the focused element, it shifts focus spatially.
+// It returns true if a transition occurred.
+func (e *Engine) MoveCaret(dir dom.Direction) bool {
+	res := e.focusManager.MoveCaret(dir)
+	e.RequestFrame()
+	return res
+}
+
+// NavigateFocus shifts DOM focus in the specified direction within the active focus scope.
+// It returns true if focus successfully shifted to a new element.
+func (e *Engine) NavigateFocus(dir dom.Direction) bool {
+	res := e.focusManager.NavigateFocus(dir)
+	e.RequestFrame()
+	return res
+}
+
 // HitTest walks the render tree at point (x, y) and returns the topmost
 // event target at that position. It tests overlays (topmost-first) before
 // falling through to the main tree. Returns nil when no target is hit.
@@ -1804,7 +1821,7 @@ func (e *Engine) handleDefaultKeyAction(ev *event.KeyEvent) {
 		case ev.MatchString("right"):
 			dir = spatial.DirectionRight
 		}
-		spatial.Navigate(e.focusManager, dir)
+		e.MoveCaret(dir)
 	}
 }
 

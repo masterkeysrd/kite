@@ -27,6 +27,9 @@ const (
 	ReasonRestore
 )
 
+// SpatialNavigateFunc is registered by the spatial focus package to avoid circular package dependencies.
+var SpatialNavigateFunc func(m *Manager, dir dom.Direction) bool
+
 // Manager owns focus state, the scope stack, and tab-navigation for a single
 // logical tree. All methods must be called from the single main-loop goroutine.
 //
@@ -447,4 +450,33 @@ func ancestorPath(n dom.Node) []event.EventTarget {
 		chain[i], chain[j] = chain[j], chain[i]
 	}
 	return chain
+}
+
+// NavigateFocus implements dom.FocusHandle.
+func (m *Manager) NavigateFocus(dir dom.Direction) bool {
+	if SpatialNavigateFunc != nil {
+		return SpatialNavigateFunc(m, dir)
+	}
+	return false
+}
+
+// MoveCaret implements dom.FocusHandle.
+func (m *Manager) MoveCaret(dir dom.Direction) bool {
+	if cur := m.Current(); cur != nil {
+		if sc, ok := cur.(dom.SpatialCaret); ok {
+			if boundaryReached := sc.MoveCaret(dir); !boundaryReached {
+				return false
+			}
+		}
+	}
+
+	if m.NavigateFocus(dir) {
+		if next := m.Current(); next != nil {
+			if sc, ok := next.(dom.SpatialCaret); ok {
+				sc.ResetCaret(dir)
+			}
+		}
+		return true
+	}
+	return false
 }

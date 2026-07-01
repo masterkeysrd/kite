@@ -31,6 +31,7 @@ go run main.go
 - **[grid_animation](grid_animation/)**: Animated grid layouts.
 - **[overlay](overlay/)**: Using the Top Layer Overlay API for tooltips and floating elements.
 - **[dialog](dialog/)**: Modal dialogs with focus management.
+- **[spatial_navigation](spatial_navigation/)**: Directional arrow-key spatial focus navigation with a virtual arrow key pad overlay.
 - **[clipboard](clipboard/)**: Integration with the system clipboard.
 - **[app1](app1/)**: A comprehensive application example combining multiple components.
 

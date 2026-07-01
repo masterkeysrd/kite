@@ -73,9 +73,10 @@ type ElementProps struct {
 	ID           string
 	Class        string
 	Style        style.Style
-	Hidden       bool
-	Disabled     bool
-	Attributes   map[string]string
+	Hidden          bool
+	Disabled        bool
+	CursorNavigable bool
+	Attributes      map[string]string
 	OnKeyDown    func(event.Event)
 	OnKeyUp      func(event.Event)
 	OnKeyPress   func(event.Event)
@@ -724,6 +725,9 @@ func updateElementBase(el element.Element, old, new *ElementProps) {
 	if old.Disabled != new.Disabled {
 		setDisabled(el, new.Disabled)
 	}
+	if old.CursorNavigable != new.CursorNavigable {
+		el.SetCursorNavigable(new.CursorNavigable)
+	}
 	setStyle(el, new.Style)
 
 	// Reconcile attributes
@@ -869,18 +873,20 @@ type ButtonProps struct {
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
-	Ref          refSetter
-	Disabled     bool
-	Active       bool
-	Type         string
+	Ref             refSetter
+	Disabled        bool
+	CursorNavigable bool
+	Active          bool
+	Type            string
 }
 
 func (p ButtonProps) elementProps() ElementProps {
 	return ElementProps{
 		Attributes: p.Attributes,
 		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:  p.Disabled,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -960,18 +966,20 @@ type CheckboxProps struct {
 	OnMouseLeave   func(event.Event)
 	OnMouseOver    func(event.Event)
 	OnMouseOut     func(event.Event)
-	Ref            refSetter
-	Checked        bool
-	UncheckedGlyph string
-	CheckedGlyph   string
-	Name           string
+	Ref             refSetter
+	Checked         bool
+	UncheckedGlyph  string
+	CheckedGlyph    string
+	Name            string
+	CursorNavigable bool
 }
 
 func (p CheckboxProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:  p.Disabled,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1058,16 +1066,18 @@ type RadioGroupProps struct {
 	OnMouseLeave  func(event.Event)
 	OnMouseOver   func(event.Event)
 	OnMouseOut    func(event.Event)
-	Ref           refSetter
-	Value         string
-	OnValueChange func(string)
+	Ref             refSetter
+	Value           string
+	OnValueChange   func(string)
+	CursorNavigable bool
 }
 
 func (p RadioGroupProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:  p.Disabled,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1139,17 +1149,21 @@ type RadioProps struct {
 	OnMouseLeave   func(event.Event)
 	OnMouseOver    func(event.Event)
 	OnMouseOut     func(event.Event)
-	Ref            refSetter
-	Value          string
-	UncheckedGlyph string
-	CheckedGlyph   string
-	Name           string
+	Ref             refSetter
+	Value           string
+	UncheckedGlyph  string
+	CheckedGlyph    string
+	Name            string
+	Disabled        bool
+	CursorNavigable bool
 }
 
 func (p RadioProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1234,17 +1248,19 @@ type SelectProps struct {
 	OnMouseLeave  func(event.Event)
 	OnMouseOver   func(event.Event)
 	OnMouseOut    func(event.Event)
-	Ref           refSetter
-	Value         string
-	OnValueChange func(string)
-	Name          string
+	Ref             refSetter
+	Value           string
+	OnValueChange   func(string)
+	Name            string
+	CursorNavigable bool
 }
 
 func (p SelectProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:  p.Disabled,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1325,15 +1341,19 @@ type OptionProps struct {
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
-	Ref          refSetter
-	Text         string
-	Value        string
+	Ref             refSetter
+	Text            string
+	Value           string
+	Disabled        bool
+	CursorNavigable bool
 }
 
 func (p OptionProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1408,13 +1428,15 @@ type InputProps struct {
 	Name             string
 	Placeholder      string
 	PlaceholderStyle style.Style
+	CursorNavigable  bool
 }
 
 func (p InputProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:  p.Disabled,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1507,13 +1529,15 @@ type TextAreaProps struct {
 	Name             string
 	Placeholder      string
 	PlaceholderStyle style.Style
+	CursorNavigable  bool
 }
 
 func (p TextAreaProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:  p.Disabled,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1759,15 +1783,19 @@ type TDProps struct {
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
-	Ref          refSetter
-	ColSpan      int
-	RowSpan      int
+	Ref             refSetter
+	ColSpan         int
+	RowSpan         int
+	Disabled        bool
+	CursorNavigable bool
 }
 
 func (p TDProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1852,17 +1880,21 @@ type OverlayProps struct {
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
-	Ref          refSetter
-	Anchor       dom.Element
-	ZIndex       int
-	Placement    geom.Placement
-	Flip         bool
+	Ref             refSetter
+	Anchor          dom.Element
+	ZIndex          int
+	Placement       geom.Placement
+	Flip            bool
+	Disabled        bool
+	CursorNavigable bool
 }
 
 func (p OverlayProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,
@@ -1941,14 +1973,18 @@ type DialogProps struct {
 	OnMouseLeave func(event.Event)
 	OnMouseOver  func(event.Event)
 	OnMouseOut   func(event.Event)
-	Ref          refSetter
-	ZIndex       int
+	Ref             refSetter
+	ZIndex          int
+	Disabled        bool
+	CursorNavigable bool
 }
 
 func (p DialogProps) elementProps() ElementProps {
 	return ElementProps{
 		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
+		Disabled:        p.Disabled,
+		CursorNavigable: p.CursorNavigable,
+		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
 		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
 		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnScroll: p.OnScroll,

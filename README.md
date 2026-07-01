@@ -9,6 +9,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 📐 **Layout Engine**: High-performance, LayoutNG-inspired engine responsible for computing geometry.
 - 🏎️ **60FPS Pipeline**: Orchestrated 6-phase pipeline (Sync -> Style -> Layout -> Paint -> Commit).
 - 🖱️ **Advanced Events**: Support for capture, target, and bubble phases, plus synthetic event management.
+- 🧭 **Spatial & Caret Navigation**: Unified cell-by-cell caret navigation within cursor-navigable elements combined with spatial boundary-crossing focus jumps.
 - 🧪 **Headless Testing**: Simulate user input and assert on DOM state or visual regression (golden files).
 - ✨ **Animations**: Imperative property interpolation and tweening system for smooth transitions.
 - 🛠️ **Developer Tools**: Web-based DOM inspector, in-terminal X-Ray mode, and performance profiler.

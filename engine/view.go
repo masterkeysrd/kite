@@ -196,3 +196,7 @@ func (p *domViewProxy) GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Re
 func (p *domViewProxy) ViewportSize() geom.Size {
 	return p.e.renderView.ViewportSize()
 }
+
+func (p *domViewProxy) LayoutVersion() uint64 {
+	return p.e.frameVersion
+}

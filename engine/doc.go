@@ -36,4 +36,15 @@
 // while deep-tree granular timings are captured via an inlineable TraceContext
 // injected into layout and paint phases. The profiler can be enabled via
 // engine.WithProfiler(true) and exports data in the Chrome Trace Event Format.
+//
+// # Caret & Spatial Focus Navigation
+//
+// The engine coordinates caret-level character navigation and spatial focus jumps.
+// When directional key events (up, down, left, right) are dispatched, they are
+// routed to the active focused element's MoveCaret method if it implements
+// [dom.SpatialCaret]. If the caret hits the text boundary, a spatial focus
+// shift is triggered to focus the nearest logical element in that direction.
+//
+// Developers can trigger these focus and caret movements programmatically using
+// the high-level Engine.MoveCaret(dir) and Engine.NavigateFocus(dir) methods.
 package engine

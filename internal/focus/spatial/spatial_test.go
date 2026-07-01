@@ -334,8 +334,10 @@ func (d *testDocument) Focus(el dom.Element) {}
 func (d *testDocument) IsFocused(el dom.Element) bool {
 	return false
 }
-func (d *testDocument) Unwrap() dom.Node      { return d.spatialObj }
-func (d *testDocument) DefaultView() dom.View { return &testView{} }
+func (d *testDocument) Unwrap() dom.Node                     { return d.spatialObj }
+func (d *testDocument) DefaultView() dom.View                { return &testView{} }
+func (d *testDocument) NavigateFocus(dir dom.Direction) bool { return false }
+func (d *testDocument) MoveCaret(dir dom.Direction) bool     { return false }
 
 type testView struct {
 	dom.View // stub

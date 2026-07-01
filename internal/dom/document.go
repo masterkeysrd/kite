@@ -273,6 +273,20 @@ func (d *Document) PreviousFocus() bool {
 	return false
 }
 
+func (d *Document) NavigateFocus(dir dom.Direction) bool {
+	if d.focusHandle != nil {
+		return d.focusHandle.NavigateFocus(dir)
+	}
+	return false
+}
+
+func (d *Document) MoveCaret(dir dom.Direction) bool {
+	if d.focusHandle != nil {
+		return d.focusHandle.MoveCaret(dir)
+	}
+	return false
+}
+
 func (d *Document) SetFocusHandle(handle dom.FocusHandle) {
 	d.focusHandle = handle
 }

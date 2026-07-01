@@ -345,6 +345,8 @@ type Document interface {
 	CurrentFocus() Element
 	NextFocus() bool
 	PreviousFocus() bool
+	NavigateFocus(dir Direction) bool
+	MoveCaret(dir Direction) bool
 
 	// QuerySelector returns the first element matching the selector in this document's subtree.
 	// It pierces UA shadow subtrees.
@@ -429,6 +431,10 @@ type View interface {
 
 	// ViewportSize returns the current viewport size (terminal dimensions).
 	ViewportSize() geom.Size
+
+	// LayoutVersion returns a monotonic version number of the layout state.
+	// Incrementing this means the layout has been recomputed.
+	LayoutVersion() uint64
 }
 
 // FocusHandle is the interface for the focus management implementation injected
@@ -442,6 +448,35 @@ type FocusHandle interface {
 	Current() Element
 	Next() bool
 	Previous() bool
+
+	NavigateFocus(dir Direction) bool
+	MoveCaret(dir Direction) bool
+}
+
+// Direction represents the four cardinal directions for spatial navigation.
+type Direction uint8
+
+const (
+	// DirectionUp navigates toward the top of the screen.
+	DirectionUp Direction = iota
+	// DirectionDown navigates toward the bottom of the screen.
+	DirectionDown
+	// DirectionLeft navigates toward the left side of the screen.
+	DirectionLeft
+	// DirectionRight navigates toward the right side of the screen.
+	DirectionRight
+)
+
+// SpatialCaret is implemented by elements that manage an internal text cursor.
+// It allows the engine's default spatial focus handler to seamlessly coordinate
+// internal caret movements and global element-level focus jumps.
+type SpatialCaret interface {
+	// MoveCaret moves the internal caret in the specified direction.
+	// Returns boundaryReached=true if the cursor hits the edge and focus should jump.
+	MoveCaret(dir Direction) (boundaryReached bool)
+
+	// ResetCaret positions the caret at the entry boundary when focus shifts in.
+	ResetCaret(dir Direction)
 }
 
 // Range represents a fragment of a document that can contain nodes and parts

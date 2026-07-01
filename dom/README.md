@@ -22,6 +22,17 @@ Represents text selection state within the document.
 - **Range:** Defines a segment of text between a start and end point.
 - **Selection:** Managed by the `Document`, holds the active ranges and dispatches `selectionchange` events.
 
+### SpatialCaret & Direction (ADR-045)
+Governs hybrid caret-level navigation and boundary-crossing focus transitions.
+- **Direction:** Enum for the four cardinal directions (`DirectionUp`, `DirectionDown`, `DirectionLeft`, `DirectionRight`).
+- **SpatialCaret:** Implemented by elements that support character-level caret navigation:
+  ```go
+  type SpatialCaret interface {
+      MoveCaret(dir Direction) (boundaryReached bool)
+      ResetCaret(dir Direction)
+  }
+  ```
+
 ### Disableable
 Indicates that an element can be semantically disabled.
 ```go

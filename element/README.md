@@ -80,6 +80,16 @@ btn := element.Box("Click Me").
 | `Overlay` | `overlay` | An anchored overlay with smart flipping. |
 | `Dialog` | `dialog` | A full-screen modal container. |
 
+## Caret Navigation & CursorNavigable
+
+All elements in package `element` inherit caret navigation and text selection capabilities via their base element wrapper. You can make any element cursor-navigable by calling `.CursorNavigable(true)`.
+
+When an element is cursor-navigable, pressing arrow keys when the element is focused moves a text selection caret character-by-character through its text content, with automatic skipping over collapsed whitespace. When the caret reaches the boundary of the text content, it shifts focus to the next spatial element in that direction.
+
+```go
+card := element.Button("  Action Card  ").CursorNavigable(true)
+```
+
 ## Implicit Adoption
 
 Elements created via functional constructors are initially owned by a global "orphan" document. When you mount the root of your tree to the Kite `Engine` using `eng.Mount(root)`, the entire tree is recursively adopted by the engine's main document. This eliminates the need to pass a document reference through every component constructor.

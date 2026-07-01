@@ -58,3 +58,10 @@ The engine calls `backend.EndFrame()`. The backend diffs the newly painted Frame
 The engine reads raw input from the backend and pushes it into an internal buffer. Immediately before each frame, it coalesces high-frequency inputs (mouse moves and wheel deltas) to reduce redundant DOM processing. The resulting coalesced raw events are then translated via an `event.Synthesizer` and routed through an `event.Dispatcher`.
 *   **Mouse Events:** Hit-tested against the immutable Layout `Fragment` tree to find the exact logical DOM target, then dispatched with standard Capture/Target/Bubble phases.
 *   **Keyboard Events:** Routed via the `focus.Manager` directly to the currently active DOM node, bubbling up to the document root.
+
+## Caret & Spatial Focus Navigation
+
+The engine coordinates character-level text selection carets and spatial focus transitions:
+*   **Automatic Routing:** The engine routes arrow keys to the focused element's `MoveCaret()` method if it implements `dom.SpatialCaret`.
+*   **Boundary Crossing:** If caret movement hits the text boundary, the engine automatically triggers a spatial focus transition to the nearest element in that direction.
+*   **Programmatic API:** Developers can trigger these transitions programmatically using the high-level `Engine.MoveCaret(dir)` and `Engine.NavigateFocus(dir)` methods, or using the logical DOM `dom.Document` methods.

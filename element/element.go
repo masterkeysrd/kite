@@ -25,6 +25,11 @@ type Element interface {
 
 	// DispatchEvent fires an event that propagates through the DOM tree.
 	DispatchEvent(e event.Event)
+
+	// SetCursorNavigable sets whether the element is cursor-navigable.
+	SetCursorNavigable(bool)
+	// IsCursorNavigable reports whether the element is cursor-navigable.
+	IsCursorNavigable() bool
 }
 
 // elementBase is the shared data and method set embedded by every concrete
@@ -64,6 +69,9 @@ type elementBase[Self any] struct {
 
 	// listeners holds event registrations made via OnEvent.
 	listeners []PendingListener
+
+	cursorNavigable bool
+	caret           *CaretController
 }
 
 // PendingListener records an event registration from OnEvent().

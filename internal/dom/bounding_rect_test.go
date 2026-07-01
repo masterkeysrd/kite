@@ -28,6 +28,7 @@ func (m *mockView) MoveCursorVertically(n dom.Node, offset int, delta int, x, y 
 func (m *mockView) GetSize(n dom.Node) (geom.Size, bool) { return geom.Size{}, false }
 func (m *mockView) GetMaxScroll(n dom.Node) (x, y int)   { return 0, 0 }
 func (m *mockView) ViewportSize() geom.Size              { return geom.Size{} }
+func (m *mockView) LayoutVersion() uint64                { return 0 }
 
 func TestGetBoundingClientRect(t *testing.T) {
 	doc := NewDocument()

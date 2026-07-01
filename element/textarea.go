@@ -443,3 +443,7 @@ func (txa *TextAreaElement) Disabled(v bool) *TextAreaElement {
 	txa.disabled = v
 	return txa
 }
+
+func (txa *TextAreaElement) CursorState() cursor.State {
+	return txa.TextControlBase.CursorState()
+}

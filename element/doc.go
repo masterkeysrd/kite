@@ -71,4 +71,16 @@
 //     (ADR-013). See TSK-025, TSK-029.
 //   - Form: A container component (similar to <form>) that gathers all child
 //     FormControl values on submit and handles implicit submission mechanics.
+//
+// # Caret Navigation & CursorNavigable
+//
+// All elements inherit caret navigation and text selection capabilities via
+// their base element wrapper. You can make any element cursor-navigable by
+// calling the fluent builder method CursorNavigable(true).
+//
+// When an element is cursor-navigable, it implements [dom.SpatialCaret] and
+// [cursor.Provider]. Pressing arrow keys moves a text selection caret
+// character-by-character through its text content, automatically skipping
+// over collapsed whitespace. When the caret reaches the boundary of the text,
+// the engine performs a spatial focus transition to the nearest element.
 package element

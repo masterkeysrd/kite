@@ -307,3 +307,7 @@ func (inp *InputElement) Disabled(v bool) *InputElement {
 	inp.disabled = v
 	return inp
 }
+
+func (inp *InputElement) CursorState() cursor.State {
+	return inp.TextControlBase.CursorState()
+}

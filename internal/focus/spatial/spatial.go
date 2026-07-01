@@ -7,17 +7,17 @@ import (
 )
 
 // Direction represents the four cardinal directions for spatial navigation.
-type Direction uint8
+type Direction = dom.Direction
 
 const (
 	// DirectionUp navigates toward the top of the screen.
-	DirectionUp Direction = iota
+	DirectionUp = dom.DirectionUp
 	// DirectionDown navigates toward the bottom of the screen.
-	DirectionDown
+	DirectionDown = dom.DirectionDown
 	// DirectionLeft navigates toward the left side of the screen.
-	DirectionLeft
+	DirectionLeft = dom.DirectionLeft
 	// DirectionRight navigates toward the right side of the screen.
-	DirectionRight
+	DirectionRight = dom.DirectionRight
 )
 
 // offAxisPenalty is the multiplier applied to the off-axis distance when
@@ -330,3 +330,7 @@ func rectMinX(r geom.Rect) int { return r.Origin.X }
 func rectMaxX(r geom.Rect) int { return r.Origin.X + r.Size.Width }
 func rectMinY(r geom.Rect) int { return r.Origin.Y }
 func rectMaxY(r geom.Rect) int { return r.Origin.Y + r.Size.Height }
+
+func init() {
+	focus.SpatialNavigateFunc = Navigate
+}
