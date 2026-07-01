@@ -74,7 +74,7 @@ func (b *BaseRender) ClearDirty(f DirtyFlag) {
 func (b *BaseRender) ClearDirtyRecursive(f DirtyFlag) {
 	b.ClearDirty(f)
 
-	for child := range b.Children() {
+	for child := b.FirstChild(); child != nil; child = child.NextSibling() {
 		child.ClearDirtyRecursive(f)
 	}
 
@@ -310,8 +310,17 @@ func (v *RenderView) ViewportSize() geom.Size {
 
 // SetViewportSize updates the viewport dimensions.
 func (v *RenderView) SetViewportSize(sz geom.Size) {
+	if v.viewportSize == sz {
+		return
+	}
 	v.viewportSize = sz
 	v.MarkDirty(DirtyLayout | DirtyPaint)
+
+	// Invalidate styles that contain media rules.
+	invalidateMediaStyles(v)
+	for _, overlay := range v.overlays {
+		invalidateMediaStyles(overlay)
+	}
 }
 
 // Overlays returns the list of overlay render trees.
@@ -426,4 +435,30 @@ func Unlink(obj Object) {
 		return
 	}
 	obj.Parent().RemoveChild(obj)
+}
+
+func invalidateMediaStyles(obj Object) {
+	if obj == nil {
+		return
+	}
+	n := obj.LogicalNode()
+	if n != nil {
+		type styleProvider interface {
+			RawStyle() style.Style
+		}
+		var sp styleProvider
+		if p, ok := n.(styleProvider); ok {
+			sp = p
+		} else if un := n.Unwrap(); un != nil {
+			if p, ok := un.(styleProvider); ok {
+				sp = p
+			}
+		}
+		if sp != nil && sp.RawStyle().HasMediaRules() {
+			obj.MarkDirty(DirtyStyle)
+		}
+	}
+	for child := obj.FirstChild(); child != nil; child = child.NextSibling() {
+		invalidateMediaStyles(child)
+	}
 }

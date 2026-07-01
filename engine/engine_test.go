@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,6 +15,9 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/render"
+	"github.com/masterkeysrd/kite/style"
+	"github.com/masterkeysrd/kite/terminal"
+	"image/color"
 )
 
 // ---------------------------------------------------------------------------
@@ -559,5 +563,80 @@ func TestEngine_SetInterval(t *testing.T) {
 	c2 := count.Load()
 	if c2 != c {
 		t.Errorf("count changed after Stop: was %d, now %d", c, c2)
+	}
+}
+
+func TestEngine_DynamicStyleChange(t *testing.T) {
+	e, b := newTestEngine(t)
+	defer e.Stop()
+
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	box := element.NewBox(e.Document())
+	box.Style(style.S().Foreground(red))
+
+	e.Document().AppendChild(box)
+
+	e.Frame() // Initial frame should paint
+
+	// Verify initial computed style
+	ro := e.RenderObject(box)
+	if ro == nil {
+		t.Fatalf("expected render object for box")
+	}
+	if ro.ComputedStyle().Foreground != red {
+		t.Fatalf("expected foreground to be red, got %v", ro.ComputedStyle().Foreground)
+	}
+
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
+
+	// Now update the style to blue
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	box.Style(style.S().Foreground(blue))
+
+	e.Frame() // Second frame
+
+	// Verify updated computed style
+	if ro.ComputedStyle().Foreground != blue {
+		t.Errorf("expected foreground to be updated to blue, got %v", ro.ComputedStyle().Foreground)
+	}
+
+	// Verify that it repainted!
+	if b.BeginFrameCalls != 1 {
+		t.Errorf("expected BeginFrameCalls = 1 (repaint on style change), got %d", b.BeginFrameCalls)
+	}
+}
+
+func TestTerminalProxy_SetTitleAndBell(t *testing.T) {
+	e, b := newTestEngineWithCaps(t, backend.Caps{Title: true, Bell: true, ProgressBar: true})
+	defer e.Stop()
+
+	term := e.Document().Terminal()
+	if term == nil {
+		t.Fatalf("expected terminal object on document")
+	}
+
+	// 1. Test SetTitle
+	term.SetTitle("Hello World")
+	if !strings.Contains(b.Output.String(), "\x1b]2;Hello World\x07") {
+		t.Errorf("expected SetTitle sequence in output, got %q", b.Output.String())
+	}
+
+	// Reset output buffer
+	b.Output.Reset()
+
+	// 2. Test Bell
+	term.Bell()
+	if !strings.Contains(b.Output.String(), "\x07") {
+		t.Errorf("expected Bell sequence in output, got %q", b.Output.String())
+	}
+
+	// Reset output buffer
+	b.Output.Reset()
+
+	// 3. Test SetProgressBar
+	term.SetProgressBar(terminal.ProgressBarNormal, 75)
+	if !strings.Contains(b.Output.String(), "\x1b]9;4;1;75\x07") {
+		t.Errorf("expected SetProgressBar sequence in output, got %q", b.Output.String())
 	}
 }

@@ -778,6 +778,70 @@ func BenchmarkFlexLayout_Resolution(b *testing.B) {
 		algo.Layout(nil, parent, space)
 	}
 }
+
+type mockInlineNode struct {
+	mockNode
+}
+
+func (m *mockInlineNode) IsInlineLevel() bool {
+	return true
+}
+
+func BenchmarkFlexLayout_AnonymousBlocks(b *testing.B) {
+	// Create a flex container with many inline items, forcing anonymous block wrapping.
+	const numItems = 100
+	inlineStyle := &style.Computed{
+		Display: style.DisplayInline,
+		Width:   style.Cells(10),
+		Height:  style.Cells(1),
+	}
+	blockStyle := &style.Computed{
+		Display: style.DisplayBlock,
+		Width:   style.Cells(10),
+		Height:  style.Cells(1),
+	}
+
+	var firstChild, prev Node
+	for i := range numItems {
+		var curr Node
+		if i%2 == 0 {
+			curr = &mockInlineNode{mockNode: mockNode{style: inlineStyle}}
+		} else {
+			curr = &mockNode{style: blockStyle}
+		}
+		if firstChild == nil {
+			firstChild = curr
+		} else {
+			if prevInline, ok := prev.(*mockInlineNode); ok {
+				prevInline.nextSibling = curr
+			} else {
+				prev.(*mockNode).nextSibling = curr
+			}
+		}
+		prev = curr
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display:       style.DisplayFlex,
+			FlexDirection: style.FlexRow,
+			Width:         style.Cells(1000),
+			Height:        style.Auto,
+		},
+		firstChild: firstChild,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{1000, 100}).ToConstraintSpace()
+	ctx := &Context{}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		parent.cachedFragment = nil
+		algo := GetAlgorithm(parent)
+		algo.Layout(ctx, parent, space)
+	}
+}
 func TestFlexLayout_ReproIssue(t *testing.T) {
 	// Root is a FlexColumn container.
 	// Child is a FlexRow container with Width: Auto.

@@ -22,6 +22,7 @@ type fakeNode struct {
 	elementDefaultStyle style.Style // optional per-element-type default
 	intrinsicStyle      style.Style // optional UA-forced intrinsic style
 	kind                dom.Kind
+	doc                 dom.Document
 }
 
 func (n *fakeNode) Kind() dom.Kind                           { return n.kind }
@@ -30,7 +31,7 @@ func (n *fakeNode) Parent() dom.Node                         { return nil }
 func (n *fakeNode) ParentElement() dom.Element               { return nil }
 func (n *fakeNode) NextSibling() dom.Node                    { return nil }
 func (n *fakeNode) PreviousSibling() dom.Node                { return nil }
-func (n *fakeNode) OwnerDocument() dom.Document              { return nil }
+func (n *fakeNode) OwnerDocument() dom.Document              { return n.doc }
 func (n *fakeNode) IsConnected() bool                        { return true }
 func (n *fakeNode) AppendChild(dom.Node) dom.Node            { return nil }
 func (n *fakeNode) InsertBefore(dom.Node, dom.Node) dom.Node { return nil }
@@ -153,5 +154,133 @@ func TestResolver_FullTreeWalk(t *testing.T) {
 
 	if child.ComputedStyle().Foreground != red {
 		t.Errorf("child should have inherited red, got %v", child.ComputedStyle().Foreground)
+	}
+}
+
+func TestResolver_DynamicStyleUpdate(t *testing.T) {
+	r := styler.NewResolver()
+
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	pNode := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: style.S().Foreground(blue),
+	}
+	parent := render.NewBlock(pNode, nil)
+
+	cNode := &fakeNode{kind: dom.KindElement}
+	child := render.NewBlock(cNode, nil)
+	parent.InsertChild(child, nil)
+
+	// Frame 1
+	r.ResolveTree(parent, nil, false)
+	if parent.ComputedStyle().Foreground != blue {
+		t.Fatalf("expected blue parent initially, got %v", parent.ComputedStyle().Foreground)
+	}
+	if child.ComputedStyle().Foreground != blue {
+		t.Fatalf("expected blue child initially, got %v", child.ComputedStyle().Foreground)
+	}
+
+	// Frame 2: Update parent style to red
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	pNode.rawStyle = style.S().Foreground(red)
+
+	// Simulating propagateStyleDirty marking it dirty
+	parent.MarkDirty(render.DirtyStyle)
+
+	r.ResolveTree(parent, nil, false)
+	if parent.ComputedStyle().Foreground != red {
+		t.Errorf("expected red parent after update, got %v", parent.ComputedStyle().Foreground)
+	}
+	if child.ComputedStyle().Foreground != red {
+		t.Errorf("expected red child after inheritance update, got %v", child.ComputedStyle().Foreground)
+	}
+}
+
+func TestResolver_ChildStyleUpdate(t *testing.T) {
+	r := styler.NewResolver()
+
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	pNode := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: style.S().Foreground(blue),
+	}
+	parent := render.NewBlock(pNode, nil)
+
+	cNode := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: style.S(),
+	}
+	child := render.NewBlock(cNode, nil)
+	parent.InsertChild(child, nil)
+
+	// Frame 1
+	r.ResolveTree(parent, nil, false)
+	if child.ComputedStyle().Foreground != blue {
+		t.Fatalf("expected blue child initially, got %v", child.ComputedStyle().Foreground)
+	}
+
+	// Frame 2: Update child style to green (override parent)
+	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	cNode.rawStyle = style.S().Foreground(green)
+
+	// Simulating propagateStyleDirty marking child dirty.
+	// Since child is dirty style, it propagates ChildNeedsStyle to parent.
+	child.MarkDirty(render.DirtyStyle)
+
+	r.ResolveTree(parent, nil, false)
+	if child.ComputedStyle().Foreground != green {
+		t.Errorf("expected green child after update, got %v", child.ComputedStyle().Foreground)
+	}
+}
+
+type fakeDocument struct {
+	dom.Document
+	view dom.View
+}
+
+func (d *fakeDocument) DefaultView() dom.View { return d.view }
+
+type fakeView struct {
+	dom.View
+	size geom.Size
+}
+
+func (v *fakeView) ViewportSize() geom.Size { return v.size }
+
+func TestResolver_MediaQueries(t *testing.T) {
+	r := styler.NewResolver()
+
+	view := &fakeView{size: geom.Size{Width: 40, Height: 20}}
+	doc := &fakeDocument{view: view}
+
+	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+
+	s := style.S().
+		Foreground(red).
+		Media(style.Query().MinWidth(80), style.S().Foreground(blue))
+
+	node := &fakeNode{
+		kind:     dom.KindElement,
+		rawStyle: s,
+		doc:      doc,
+	}
+	ro := render.NewBlock(node, nil)
+
+	// Resolve style when width = 40 (should remain red)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Foreground != red {
+		t.Errorf("expected red foreground, got %v", ro.ComputedStyle().Foreground)
+	}
+
+	// Change viewport width to 100 (matches query)
+	view.size = geom.Size{Width: 100, Height: 20}
+	ro.MarkDirty(render.DirtyStyle)
+	r.Invalidate(node) // clear cache
+
+	// Re-resolve
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Foreground != blue {
+		t.Errorf("expected blue foreground after matching media query, got %v", ro.ComputedStyle().Foreground)
 	}
 }

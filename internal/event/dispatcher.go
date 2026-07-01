@@ -7,7 +7,9 @@ import (
 // Dispatcher performs 3-phase (capture → target → bubble) event dispatch.
 //
 // Dispatcher is not safe for concurrent use.
-type Dispatcher struct{}
+type Dispatcher struct {
+	targetsBuf []event.EventTarget
+}
 
 var _ event.Dispatcher = (*Dispatcher)(nil)
 
@@ -25,7 +27,7 @@ func (d *Dispatcher) Dispatch(e event.Event, path []event.EventTarget) {
 	}
 
 	// Step i's target is the deepest ancestor of the real target that step i can see.
-	targets := computeRetargeting(path)
+	targets := d.computeRetargeting(path)
 	realTarget := path[len(path)-1]
 
 	ie, ok := any(e).(event.InternalEvent)
@@ -78,12 +80,12 @@ func (d *Dispatcher) Dispatch(e event.Event, path []event.EventTarget) {
 // skipped silently.
 //
 // path must be ordered root → target.
-func (d *Dispatcher) DispatchWheel(e *event.WheelEvent, path []event.EventTarget, scrollables map[event.EventTarget]event.Scrollable) {
+func (d *Dispatcher) DispatchWheel(e *event.WheelEvent, path []event.EventTarget, scrollables []event.Scrollable) {
 	if len(path) == 0 {
 		return
 	}
 
-	targets := computeRetargeting(path)
+	targets := d.computeRetargeting(path)
 	realTarget := path[len(path)-1]
 
 	ie, ok := any(e).(event.InternalEvent)
@@ -113,8 +115,10 @@ func (d *Dispatcher) DispatchWheel(e *event.WheelEvent, path []event.EventTarget
 	realTarget.DispatchToTarget(e)
 
 	// Check if target itself is Scrollable.
-	if sc, ok := scrollables[realTarget]; ok {
-		sc.OnWheel(e)
+	if len(scrollables) > len(path)-1 {
+		if sc := scrollables[len(path)-1]; sc != nil {
+			sc.OnWheel(e)
+		}
 	}
 
 	if e.PropagationStopped() {
@@ -129,23 +133,30 @@ func (d *Dispatcher) DispatchWheel(e *event.WheelEvent, path []event.EventTarget
 		}
 		et := path[i]
 		ie.SetTarget(targets[i])
-		if sc, ok := scrollables[et]; ok {
-			ie.SetCurrentTarget(et)
-			sc.OnWheel(e)
-			if e.PropagationStopped() {
-				return
+		if len(scrollables) > i {
+			if sc := scrollables[i]; sc != nil {
+				ie.SetCurrentTarget(et)
+				sc.OnWheel(e)
+				if e.PropagationStopped() {
+					return
+				}
+				continue
 			}
-			continue
 		}
 		ie.SetCurrentTarget(et)
 		et.DispatchTo(e)
 	}
 }
 
-func computeRetargeting(path []event.EventTarget) []event.EventTarget {
-	res := make([]event.EventTarget, len(path))
+func (d *Dispatcher) computeRetargeting(path []event.EventTarget) []event.EventTarget {
+	if cap(d.targetsBuf) < len(path) {
+		d.targetsBuf = make([]event.EventTarget, len(path))
+	} else {
+		d.targetsBuf = d.targetsBuf[:len(path)]
+	}
+
 	if len(path) == 0 {
-		return res
+		return d.targetsBuf
 	}
 
 	// We walk from target to root.
@@ -153,7 +164,7 @@ func computeRetargeting(path []event.EventTarget) []event.EventTarget {
 	currentTarget := path[len(path)-1]
 
 	for i := len(path) - 1; i >= 0; i-- {
-		res[i] = currentTarget
+		d.targetsBuf[i] = currentTarget
 
 		if i > 0 {
 			parent := path[i-1]
@@ -186,7 +197,7 @@ func computeRetargeting(path []event.EventTarget) []event.EventTarget {
 		}
 	}
 
-	return res
+	return d.targetsBuf
 }
 
 // HitTester resolves the event target at a screen-space point. This is

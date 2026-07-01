@@ -110,6 +110,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		}
 	}()
 	var bufferedInlines []Node
+	if ctx != nil {
+		bufferedInlines = ctx.InlineBuffer[:0]
+	}
 
 	processInlines := func() {
 		if len(bufferedInlines) == 0 {
@@ -125,6 +128,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 			inlineBuilder.collect(child)
 		}
 		bufferedInlines = bufferedInlines[:0]
+		if ctx != nil {
+			ctx.InlineBuffer = bufferedInlines
+		}
 
 		items := inlineBuilder.items
 		blockStyle := node.Style()
@@ -147,9 +153,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 		// An IFC with no visible text (e.g. an empty input) still occupies
 		// one content row — just like a browser renders an empty line box.
 		if linesEmitted == 0 {
-			line := &LineBox{
-				Size: geometry.Size{Width: 0, Height: 1},
-			}
+			line := lineBoxPool.Get().(*LineBox)
+			line.Size = geometry.Size{Width: 0, Height: 1}
+			line.Children = line.Children[:0]
 			lineFrag := line.ToFragment()
 			offset := geometry.Point{
 				X: decor.Insets.Left,
@@ -167,6 +173,9 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 
 		if IsInlineLevel(child) {
 			bufferedInlines = append(bufferedInlines, child)
+			if ctx != nil {
+				ctx.InlineBuffer = bufferedInlines
+			}
 			continue
 		}
 
@@ -261,6 +270,9 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 		}
 	}()
 	var bufferedInlines []Node
+	if ctx != nil {
+		bufferedInlines = ctx.InlineBuffer[:0]
+	}
 
 	processInlines := func() {
 		if len(bufferedInlines) == 0 {
@@ -274,6 +286,9 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 			inlineBuilder.collect(child)
 		}
 		bufferedInlines = bufferedInlines[:0]
+		if ctx != nil {
+			ctx.InlineBuffer = bufferedInlines
+		}
 
 		inlineMinMax := ComputeInlineMinMaxSizes(ctx, inlineBuilder.items)
 		childrenMinMax.Encompass(inlineMinMax)
@@ -286,6 +301,9 @@ func (a *BlockAlgorithm) ComputeMinMaxSizes(ctx *Context, node Node) MinMaxSizes
 
 		if IsInlineLevel(child) {
 			bufferedInlines = append(bufferedInlines, child)
+			if ctx != nil {
+				ctx.InlineBuffer = bufferedInlines
+			}
 			continue
 		}
 

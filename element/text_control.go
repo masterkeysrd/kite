@@ -20,6 +20,8 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/text"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
@@ -65,6 +67,10 @@ type textControlBase[T Element] struct {
 	// lastRenderedVersion tracks the buffer.Version() at the time of the last
 	// paint phase.
 	lastRenderedVersion int64
+
+	// lastKnownBounds tracks the layout bounding box of the text control to detect
+	// position and size changes (such as when a sidebar collapses/expands).
+	lastKnownBounds geom.Rect
 }
 
 // initTextControlBase initialises the base with its dependencies.
@@ -151,10 +157,25 @@ func (b *textControlBase[T]) SelectedText() string {
 // coordinate of the caret within the host's content box, derived from the
 // IFC fragment tree via cursor.FromTextFragment.
 func (b *textControlBase[T]) CursorState() cursor.State {
-	// If the buffer version has changed since the last time the cursor was
-	// rendered, we must return true so that engine.updateHardwareCursor
-	// triggers a repaint to recalculate the cursor position.
-	if b.buf.Version() != b.lastRenderedVersion || b.buf.ByteOffset() != b.lastSyncedOffset {
+	// If the buffer version or layout size has changed since the last time the cursor was
+	// rendered, we must recalculate the cursor position.
+	sizeChanged := false
+	if d := b.host.OwnerDocument(); d != nil {
+		if v := d.DefaultView(); v != nil {
+			var bounds geom.Rect
+			var found bool
+			if p, ok := v.(interface {
+				GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Rect, bool)
+			}); ok {
+				bounds, _, found = p.GetScrolledAbsoluteBounds(b.host)
+			}
+			if found && bounds.Size != b.lastKnownBounds.Size {
+				sizeChanged = true
+			}
+		}
+	}
+
+	if b.buf.Version() != b.lastRenderedVersion || b.buf.ByteOffset() != b.lastSyncedOffset || sizeChanged {
 		// Update cached coordinates from the live fragment tree.
 		if d := b.host.OwnerDocument(); d != nil {
 			if v := d.DefaultView(); v != nil {
@@ -328,29 +349,154 @@ func (b *textControlBase[T]) ProvidesCursor() bool {
 
 // ScrollCursorIntoView implements dom.Element.
 func (b *textControlBase[T]) ScrollCursorIntoView() {
-	if !b.needsScrollIntoView {
-		return
-	}
-	b.needsScrollIntoView = false
-
-	// Ensure lastKnownCX/CY are up to date.
-	b.CursorState()
-	cx, cy := b.lastKnownCX, b.lastKnownCY
-
-	// Host bounds.
 	v := b.host.OwnerDocument().DefaultView()
 	if v == nil {
 		return
 	}
+
+	// Check if view provides absolute bounds and ancestor clipping bounds.
+	// This lets us scroll content relative to the visible region of the control.
+	var bounds, clip geom.Rect
+	var found bool
+	if p, ok := v.(interface {
+		GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Rect, bool)
+	}); ok {
+		bounds, clip, found = p.GetScrolledAbsoluteBounds(b.host)
+	}
+
+	if found {
+		// Detect layout/position/resize changes (such as when a sidebar collapses/expands).
+		// If the absolute bounds (scrolled origin or size) changed from a previously cached non-empty bounds,
+		// we force scroll-into-view to make sure the cursor remains visible.
+		if b.lastKnownBounds.Size.Width > 0 && b.lastKnownBounds.Size.Height > 0 && bounds != b.lastKnownBounds {
+			b.needsScrollIntoView = true
+		}
+	}
+
+	if !b.needsScrollIntoView {
+		if found {
+			b.lastKnownBounds = bounds
+		}
+		return
+	}
+	b.needsScrollIntoView = false
+
+	// Ensure lastKnownCX/Y are up to date.
+	b.CursorState()
+	cx, cy := b.lastKnownCX, b.lastKnownCY
+
 	size, ok := v.GetSize(b.host)
 	cs := v.GetComputedStyle(b.host)
 	if !ok || cs == nil {
+		if found {
+			b.lastKnownBounds = bounds
+		}
 		return
 	}
 	bw := cs.Border.Widths()
 	width := size.Width - bw.Left - bw.Right - cs.Padding.Left - cs.Padding.Right
 	height := size.Height - bw.Top - bw.Bottom - cs.Padding.Top - cs.Padding.Bottom
 
+	if found {
+		var viewportSize geom.Size
+		if vp, ok := v.(interface{ ViewportSize() geom.Size }); ok {
+			viewportSize = vp.ViewportSize()
+		}
+
+		if viewportSize.Width > 0 && viewportSize.Height > 0 {
+			viewportRect := geom.Rect{
+				Origin: geom.Point{X: 0, Y: 0},
+				Size:   viewportSize,
+			}
+			// Intersect the ancestor clip with the screen viewport.
+			clip = clip.Intersect(viewportRect)
+
+			// The host content box in screen coordinates.
+			contentBox := geom.Rect{
+				Origin: geom.Point{
+					X: bounds.Origin.X + bw.Left + cs.Padding.Left,
+					Y: bounds.Origin.Y + bw.Top + cs.Padding.Top,
+				},
+				Size: geom.Size{
+					Width:  width,
+					Height: height,
+				},
+			}
+
+			// Check for scrollbar presence to adjust usable width/height.
+			adjustedWidth := width
+			adjustedHeight := height
+			if pf, ok := v.(interface {
+				GetFragment(dom.Node) *layout.Fragment
+			}); ok {
+				if frag := pf.GetFragment(b.host); frag != nil {
+					if frag.HasScrollbarX {
+						adjustedHeight = max(0, adjustedHeight-1)
+					}
+					if frag.HasScrollbarY {
+						adjustedWidth = max(0, adjustedWidth-1)
+					}
+				}
+			}
+
+			contentBox.Size.Width = adjustedWidth
+			contentBox.Size.Height = adjustedHeight
+
+			// The visible content box is the intersection of the content box with the clipped area.
+			visibleBox := contentBox.Intersect(clip)
+
+			// Current scroll.
+			sx, sy := b.host.Scroll()
+
+			// New scroll.
+			nsx, nsy := sx, sy
+
+			if visibleBox.Size.Width > 0 && visibleBox.Size.Height > 0 {
+				// Horizontal scroll bounds.
+				if !b.isMultiline {
+					minSX := contentBox.Origin.X + cx - (visibleBox.Origin.X + visibleBox.Size.Width - 1)
+					maxSX := contentBox.Origin.X + cx - visibleBox.Origin.X
+					if nsx < minSX {
+						nsx = minSX
+					} else if nsx > maxSX {
+						nsx = maxSX
+					}
+				} else {
+					nsx = 0
+				}
+
+				// Vertical scroll bounds.
+				minSY := contentBox.Origin.Y + cy - (visibleBox.Origin.Y + visibleBox.Size.Height - 1)
+				maxSY := contentBox.Origin.Y + cy - visibleBox.Origin.Y
+				if nsy < minSY {
+					nsy = minSY
+				} else if nsy > maxSY {
+					nsy = maxSY
+				}
+			}
+
+			// Clamp to max possible scroll to handle shrinking content.
+			// MaxScroll maxX/maxY are calculated based on the layout viewport sizes.
+			// contentWidth/Height = maxScroll + layoutViewportSize.
+			maxX, maxY := v.GetMaxScroll(b.host)
+			contentWidth := maxX + adjustedWidth
+			contentHeight := maxY + adjustedHeight
+
+			maxSX := max(0, contentWidth-visibleBox.Size.Width)
+			maxSY := max(0, contentHeight-visibleBox.Size.Height)
+
+			nsx = max(0, min(nsx, maxSX))
+			nsy = max(0, min(nsy, maxSY))
+
+			if nsx != sx || nsy != sy {
+				b.host.ScrollTo(nsx, nsy)
+			}
+			b.lastKnownBounds = bounds
+			return
+		}
+	}
+
+	// Fallback/original behavior when absolute layout queries are not supported.
 	// Current scroll.
 	sx, sy := b.host.Scroll()
 
@@ -609,6 +755,18 @@ func (b *textControlBase[T]) maybeDeleteSelection(_ *event.KeyEvent) bool {
 // based on the control's local selectionStart/selectionEnd offsets.
 // It maps byte offsets to (Node, runeOffset) pairs within the UA subtree.
 func (b *textControlBase[T]) UpdateSelectionRange() {
+	maxLen := len(b.buf.Value())
+	if b.selectionStart < 0 {
+		b.selectionStart = 0
+	} else if b.selectionStart > maxLen {
+		b.selectionStart = maxLen
+	}
+	if b.selectionEnd < 0 {
+		b.selectionEnd = 0
+	} else if b.selectionEnd > maxLen {
+		b.selectionEnd = maxLen
+	}
+
 	doc := b.host.OwnerDocument()
 	if doc == nil {
 		return

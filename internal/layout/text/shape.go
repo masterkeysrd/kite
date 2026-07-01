@@ -19,8 +19,41 @@ func Shape(text string) []Cluster {
 	if text == "" {
 		return nil
 	}
-	// Pre-allocate: at minimum one cluster per rune (ASCII gives exact count).
-	clusters := make([]Cluster, 0, utf8.RuneCountInString(text))
+
+	// Fast path: for short strings, build on stack first to avoid capacity overallocation.
+	if len(text) <= 64 {
+		var localBuf [64]Cluster
+		count := 0
+		remaining := text
+		state := -1
+		prevWasBreakableSpace := false
+
+		for len(remaining) > 0 {
+			var clusterStr string
+			var width int
+			clusterStr, remaining, width, state = uniseg.FirstGraphemeClusterInString(remaining, state)
+
+			r, _ := utf8.DecodeRuneInString(clusterStr)
+			bc := classifyBreak(r, prevWasBreakableSpace)
+
+			localBuf[count] = Cluster{
+				Bytes:      unsafeStringBytes(clusterStr),
+				CellWidth:  width,
+				BreakClass: bc,
+			}
+			count++
+			prevWasBreakableSpace = isBreakableSpace(r)
+		}
+
+		// Allocate exactly count items.
+		clusters := make([]Cluster, count)
+		copy(clusters, localBuf[:count])
+		return clusters
+	}
+
+	// For long strings, estimate capacity using rune count instead of byte length.
+	runeCount := utf8.RuneCountInString(text)
+	clusters := make([]Cluster, 0, runeCount)
 
 	remaining := text
 	state := -1
@@ -41,6 +74,13 @@ func Shape(text string) []Cluster {
 		})
 
 		prevWasBreakableSpace = isBreakableSpace(r)
+	}
+
+	// Shrink capacity to match exact length to prevent cache memory bloat.
+	if cap(clusters) > len(clusters) {
+		exactClusters := make([]Cluster, len(clusters))
+		copy(exactClusters, clusters)
+		return exactClusters
 	}
 
 	return clusters
@@ -92,6 +132,10 @@ func isBreakableSpace(r rune) bool {
 	case ' ', '\t', '\v':
 		return true
 	}
+	// Guard against non-ASCII range: Zs category characters are always U+0080 or above.
+	if r < 128 {
+		return false
+	}
 	// Unicode general category Zs (space separators) except NBSP.
 	return r != '\u00A0' && unicode.Is(unicode.Zs, r)
 }
@@ -99,6 +143,10 @@ func isBreakableSpace(r rune) bool {
 // isCJKOrEmoji reports whether r belongs to a CJK ideograph, CJK-adjacent
 // syllabary, or emoji range that warrants BreakAnywhere treatment.
 func isCJKOrEmoji(r rune) bool {
+	// Guard: the lowest CJK/emoji range block is Miscellaneous Symbols (U+2600).
+	if r < 0x2600 {
+		return false
+	}
 	switch {
 	// Hiragana (U+3040–U+309F) and Katakana (U+30A0–U+30FF)
 	case r >= 0x3040 && r <= 0x30FF:

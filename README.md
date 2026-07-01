@@ -24,7 +24,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 Kite is built with a clean separation of concerns, divided into specialized packages that form the rendering pipeline:
 
 - **`dom`**: The logical node tree representing the user interface. It implements strict lifecycle hooks, identity registration, semantic state, and a top-layer overlay API for out-of-flow elements.
-- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade: inherited values, element-type defaults, author styles, and intrinsic styles.
+- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade (inherited values, element-type defaults, author styles, and UA intrinsic styles) and a high-performance **Media Queries** matching system for responsive design.
 - **`layout`**: The high-performance engine responsible for computing geometry, returning immutable fragment trees.
 - **`paint` & `backend`**: The drawing layer and terminal decoupling, allowing for varied output backends.
 - **`render`**: The visual bridge mirroring the DOM to the layout engine, carrying lifecycle dirty-flags.
@@ -217,6 +217,23 @@ See the full working example in [`examples/stage/`](examples/stage/).
 | `Tab` | Move focus to the controls panel inputs |
 | `Ctrl+C` | Quit |
 | `F12` | Toggle web-inspector devtools |
+
+## ⚡ Performance & Benchmarks
+
+Kite is engineered for speed, leveraging a batch-coalesced rendering pipeline and incremental DOM updates to maintain smooth, lag-free terminal interactions even under massive layouts.
+
+We run a realistic benchmark ([`BenchmarkEngine_RealisticApp_1000Nodes`](engine/bench_test.go#L61)) that mounts a complex UI structure containing a header, sidebar, and a scrollable content area with over **1,200 nested nodes** (styled with borders, colors, padding, and Flexbox layouts). On every iteration, we mutate a dynamic text node to trigger dirtiness and force the engine through a complete frame execution (Sync → Style Cascade → Layout Reflow → FrameBuffer Paint).
+
+### Results (Tested on Apple M1 Max)
+
+| Benchmark | Latency / Frame | Frame Rate (FPS) | Memory / Frame | Allocations / Frame |
+| :--- | :--- | :--- | :--- | :--- |
+| **Realistic App (1,200+ Nodes)** | `~2.43 ms` | **~410 FPS** | `3.44 MB` | `25,810` |
+
+To run the benchmark yourself:
+```bash
+go test -bench=BenchmarkEngine_RealisticApp -benchmem ./engine
+```
 
 ## 📖 Documentation & Guides
 

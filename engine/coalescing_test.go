@@ -115,9 +115,11 @@ func BenchmarkEngine_ScrollBurst_Coalesced(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Simulate 500 wheel ticks arriving before the 8ms ticker fires.
 		for j := 0; j < 500; j++ {
-			e.eventBuffer = append(e.eventBuffer, &backend.RawMouseEvent{
-				X: 10, Y: 10, DeltaY: 1,
-			})
+			me := backend.AcquireRawMouseEvent()
+			me.X = 10
+			me.Y = 10
+			me.DeltaY = 1
+			e.eventBuffer = append(e.eventBuffer, me)
 		}
 		e.drainEvents() // Coalesces 500 events into 1
 		e.Frame()       // Process the 1 coalesced event
@@ -141,9 +143,11 @@ func BenchmarkEngine_ScrollBurst_NonCoalesced(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Simulate 500 wheel ticks, each triggering a frame (no coalescing).
 		for j := 0; j < 500; j++ {
-			e.eventBuffer = append(e.eventBuffer, &backend.RawMouseEvent{
-				X: 10, Y: 10, DeltaY: 1,
-			})
+			me := backend.AcquireRawMouseEvent()
+			me.X = 10
+			me.Y = 10
+			me.DeltaY = 1
+			e.eventBuffer = append(e.eventBuffer, me)
 			e.drainEvents()
 			e.Frame()
 		}

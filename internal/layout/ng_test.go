@@ -141,3 +141,104 @@ func TestResolveDecorations(t *testing.T) {
 		t.Errorf("expected viewport 15x5, got %dx%d", vp.Width, vp.Height)
 	}
 }
+
+func BenchmarkScrolledAbsoluteBounds_Baseline(b *testing.B) {
+	target := &mockNode{}
+
+	var buildTree func(depth int, isTargetBranch bool) *Fragment
+	buildTree = func(depth int, isTargetBranch bool) *Fragment {
+		if depth == 10 {
+			var node Node = &mockNode{}
+			if isTargetBranch {
+				node = target
+			}
+			return &Fragment{
+				Node: node,
+				Size: geometry.Size{Width: 10, Height: 10},
+			}
+		}
+
+		children := make([]FragmentLink, 3)
+		for i := 0; i < 3; i++ {
+			childFrag := buildTree(depth+1, isTargetBranch && (i == 2))
+			children[i] = FragmentLink{
+				Fragment: childFrag,
+				Offset:   geometry.Point{X: i * 10, Y: 0},
+			}
+		}
+
+		return &Fragment{
+			Node:     &mockNode{},
+			Size:     geometry.Size{Width: 100, Height: 100},
+			Children: children,
+		}
+	}
+
+	rootFrag := buildTree(1, true)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ScrolledAbsoluteBounds(rootFrag, target)
+	}
+}
+
+func BenchmarkScrolledAbsoluteBounds_Path(b *testing.B) {
+	target := &mockNode{}
+
+	var buildTree func(depth int, currentPath []Node, isTargetBranch bool) (*Fragment, []Node)
+	buildTree = func(depth int, currentPath []Node, isTargetBranch bool) (*Fragment, []Node) {
+		node := &mockNode{
+			style: &style.Computed{
+				OverflowX: style.OverflowVisible,
+				OverflowY: style.OverflowVisible,
+			},
+		}
+		var newPath []Node
+		if isTargetBranch {
+			newPath = append(currentPath, node)
+		}
+		if depth == 10 {
+			if isTargetBranch {
+				newPath[len(newPath)-1] = target
+				return &Fragment{
+					Node: target,
+					Size: geometry.Size{Width: 10, Height: 10},
+				}, newPath
+			}
+			return &Fragment{
+				Node: &mockNode{},
+				Size: geometry.Size{Width: 10, Height: 10},
+			}, nil
+		}
+
+		children := make([]FragmentLink, 3)
+		var targetPath []Node
+		for i := 0; i < 3; i++ {
+			var childFrag *Fragment
+			if i == 2 && isTargetBranch {
+				childFrag, targetPath = buildTree(depth+1, newPath, true)
+			} else {
+				childFrag, _ = buildTree(depth+1, nil, false)
+			}
+			children[i] = FragmentLink{
+				Fragment: childFrag,
+				Offset:   geometry.Point{X: i * 10, Y: 0},
+			}
+		}
+
+		return &Fragment{
+			Node:     node,
+			Size:     geometry.Size{Width: 100, Height: 100},
+			Children: children,
+		}, targetPath
+	}
+
+	rootFrag, targetPath := buildTree(1, nil, true)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ScrolledAbsoluteBoundsPath(rootFrag, target, targetPath)
+	}
+}

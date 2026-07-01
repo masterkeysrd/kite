@@ -3,7 +3,6 @@ package engine
 import (
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
-	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
 	kitelog "github.com/masterkeysrd/kite/log"
 )
@@ -20,7 +19,10 @@ type Pipeline interface {
 }
 
 // StandardPipeline is the default implementation of the Kite rendering pipeline.
-type StandardPipeline struct{}
+type StandardPipeline struct {
+	styleStack []render.Object
+	layoutCtx  layout.Context
+}
 
 func (p *StandardPipeline) Sync(e *Engine) {
 	dn := internaldom.AsDirty(e.document)
@@ -42,31 +44,55 @@ func (p *StandardPipeline) Tasks(e *Engine) {
 	e.scheduler.drainMicrotasks()
 }
 
-func propagateStyleDirty(ro render.Object) {
-	if ro == nil {
+func (p *StandardPipeline) propagateStyleDirty(root render.Object) {
+	if root == nil {
 		return
 	}
-	n := ro.LogicalNode()
-	if n != nil {
-		if de := internaldom.AsDirtyElement(n); de != nil {
-			if de.IsDirtyStyle() {
-				ro.MarkDirty(render.DirtyStyle)
-				de.ClearDirtyStyle()
+
+	p.styleStack = append(p.styleStack[:0], root)
+
+	for len(p.styleStack) > 0 {
+		idx := len(p.styleStack) - 1
+		ro := p.styleStack[idx]
+		p.styleStack = p.styleStack[:idx]
+
+		n := ro.LogicalNode()
+		skipChildren := false
+
+		if n != nil {
+			if de := internaldom.AsDirtyElement(n); de != nil {
+				if de.IsDirtyStyle() {
+					ro.MarkDirty(render.DirtyStyle)
+					de.ClearDirtyStyle()
+				}
+				if !de.HasDirtyStyleChild() {
+					de.ClearStyleFlags()
+					skipChildren = true
+				} else {
+					de.ClearStyleFlags()
+				}
+			} else if dn := internaldom.AsDirty(n); dn != nil {
+				if !dn.HasDirtyStyleChild() {
+					dn.ClearStyleFlags()
+					skipChildren = true
+				} else {
+					dn.ClearStyleFlags()
+				}
 			}
-			de.ClearStyleFlags()
-		} else if dn := internaldom.AsDirty(n); dn != nil {
-			dn.ClearStyleFlags()
 		}
-	}
-	for child := range ro.Children() {
-		propagateStyleDirty(child)
+
+		if !skipChildren {
+			for child := range ro.Children() {
+				p.styleStack = append(p.styleStack, child)
+			}
+		}
 	}
 }
 
 func (p *StandardPipeline) Style(e *Engine) {
-	propagateStyleDirty(e.renderView)
+	p.propagateStyleDirty(e.renderView)
 	for _, overlay := range e.renderView.Overlays() {
-		propagateStyleDirty(overlay)
+		p.propagateStyleDirty(overlay)
 	}
 
 	e.resolver.ResolveTree(e.renderView, nil, false)
@@ -107,7 +133,8 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 	if anyOverlayDirty || rootFlags&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
 		layoutRan = true
 		viewport := root.ViewportSize()
-		ctx := &layout.Context{Tracer: e.Tracer()}
+		ctx := &p.layoutCtx
+		ctx.Tracer = e.Tracer()
 		render.LayoutPhase(ctx, root, viewport)
 
 		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
@@ -149,10 +176,9 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		e.frameBuffer.Reset()
 		e.frameBuffer.BumpVersion()
 
-		ctx := &paint.Context{
-			Tracer:    e.Tracer(),
-			Selection: selection,
-		}
+		e.paintCtx.Tracer = e.Tracer()
+		e.paintCtx.Selection = selection
+		ctx := &e.paintCtx
 		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), e.frameBuffer)
 		for _, overlay := range overlays {
 			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), e.frameBuffer)
@@ -177,6 +203,8 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		for _, overlay := range overlays {
 			overlay.ClearDirtyRecursive(render.DirtyPaint | render.DirtyScroll | render.ChildNeedsPaint)
 		}
+		e.paintCtx.Selection = nil
+		e.paintCtx.Tracer = nil
 		e.frameVersion++
 	}
 }

@@ -134,3 +134,20 @@ func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
 	byteOffset := cursor.ByteOffsetAtPoint(root, x, y)
 	return p.e.document.FindNodeAtByteOffset(p.e.document, byteOffset)
 }
+
+func (p *domViewProxy) GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Rect, bool) {
+	p.e.EnsureFreshLayout()
+	ro := p.e.RenderObject(n)
+	if ro == nil {
+		return geom.Rect{}, geom.Rect{}, false
+	}
+	root := p.e.renderView.Fragment()
+	if root == nil {
+		return geom.Rect{}, geom.Rect{}, false
+	}
+	return layout.ScrolledAbsoluteBounds(root, ro)
+}
+
+func (p *domViewProxy) ViewportSize() geom.Size {
+	return p.e.renderView.ViewportSize()
+}

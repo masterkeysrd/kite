@@ -120,6 +120,14 @@ func AcquireFlexLineBuilder(geom flexGeometry, mainGap, crossGap int) *FlexLineB
 
 // ReleaseFlexLineBuilder returns a builder to the pool.
 func ReleaseFlexLineBuilder(b *FlexLineBuilder) {
+	for i := range b.items {
+		b.items[i] = nil
+	}
+	b.items = b.items[:0]
+	for i := range b.lines {
+		b.lines[i] = nil
+	}
+	b.lines = b.lines[:0]
 	flexBuilderPool.Put(b)
 }
 

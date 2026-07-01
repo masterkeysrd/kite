@@ -7,6 +7,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/collections"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/terminal"
 )
@@ -169,7 +170,7 @@ func (d *Document) ShowOverlay(el dom.Element, zIndex int) {
 func (d *Document) HideOverlay(el dom.Element) {
 	for i, o := range d.overlays {
 		if o.el == el {
-			d.overlays = append(d.overlays[:i], d.overlays[i+1:]...)
+			d.overlays = collections.DeleteAt(d.overlays, i)
 			d.InvalidatePreorderCache()
 			d.InvalidateTextNodeCache()
 			if parent := el.Parent(); parent != nil {
@@ -181,7 +182,16 @@ func (d *Document) HideOverlay(el dom.Element) {
 	}
 }
 
+func (d *Document) NumOverlays() int {
+	return len(d.overlays)
+}
+
+var emptyOverlaysIter = func(yield func(dom.Element) bool) {}
+
 func (d *Document) Overlays() iter.Seq[dom.Element] {
+	if len(d.overlays) == 0 {
+		return emptyOverlaysIter
+	}
 	return func(yield func(dom.Element) bool) {
 		for _, o := range d.overlays {
 			if !yield(o.el) {

@@ -2,6 +2,7 @@ package styler
 
 import (
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/geom"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -173,12 +174,23 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 		c.SelectionBackground = parent.SelectionBackground
 	}
 
-	// Layer 4: element's own author-set style — Optional fields only when IsSet.
-	if isEl {
-		c = el.RawStyle().Apply(c)
-	} else {
-		c = sp.RawStyle().Apply(c)
+	// Get the viewport size from the node's document default view.
+	var viewportSize geom.Size
+	if doc := n.OwnerDocument(); doc != nil {
+		if view := doc.DefaultView(); view != nil {
+			viewportSize = view.ViewportSize()
+		}
 	}
+
+	// Layer 4: element's own author-set style — Optional fields only when IsSet.
+	var authorStyle style.Style
+	if isEl {
+		authorStyle = el.RawStyle()
+	} else {
+		authorStyle = sp.RawStyle()
+	}
+	authorStyle = authorStyle.EvaluateMedia(viewportSize)
+	c = authorStyle.Apply(c)
 
 	// Layer 5: UA-mandated intrinsic style — highest precedence; authors cannot
 	// override. Only applied when the element has intrinsic properties set

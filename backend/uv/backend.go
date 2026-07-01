@@ -3,7 +3,6 @@ package uv
 import (
 	"encoding/base64"
 	"fmt"
-	kitelog "github.com/masterkeysrd/kite/log"
 	"image/color"
 	"io"
 	"os"
@@ -12,10 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	kitelog "github.com/masterkeysrd/kite/log"
+
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 // Compile-time assertion: Backend implements backend.Backend.
@@ -61,6 +63,9 @@ type Backend struct {
 
 	// stopped indicates the backend has been stopped.
 	stopped atomic.Bool
+
+	// stopCh is closed to signal event loop termination.
+	stopCh chan struct{}
 
 	// onResize is called when the terminal is resized.
 	onResize func(geom.Size)
@@ -117,6 +122,7 @@ func New() (*Backend, error) {
 		height:   h,
 		eventCh:  make(chan backend.RawEvent),
 		renderCh: make(chan renderRequest, 2),
+		stopCh:   make(chan struct{}),
 	}
 	b.bufferPool.New = func() any {
 		return backend.NewBuffer(b.width, b.height)
@@ -138,6 +144,10 @@ func (b *Backend) Start() error {
 	}
 	b.screen.EnterAltScreen()
 	b.screen.HideCursor()
+	// Enable focus events reporting.
+	b.writeRaw("\x1b[?1004h")
+	// Save window title on terminal stack.
+	b.writeRaw("\x1b[22;0t")
 
 	// Update dimensions from the now-started terminal/screen.
 	b.width = b.screen.Width()
@@ -186,21 +196,25 @@ func (b *Backend) EndFrame() error {
 // Caps returns the terminal capabilities detected at startup.
 func (b *Backend) Caps() backend.Caps { return b.caps }
 
-// Restore unconditionally exits alt-screen, restores terminal state, and shows
-// the cursor.
 func (b *Backend) Restore() {
 	if b.stopped.Swap(true) {
 		return
 	}
+	close(b.stopCh)
+	_ = b.terminal.Stop()
+
+	// Restore window title from terminal stack.
+	b.writeRaw("\x1b[23;0t")
+	// Disable focus events reporting.
+	b.writeRaw("\x1b[?1004l")
 	b.screen.ExitAltScreen()
 	b.screen.ShowCursor()
-	_ = b.terminal.Stop()
+	_ = b.screen.Flush()
 }
 
 // Stop closes the render goroutine gracefully and calls Restore.
 func (b *Backend) Stop() {
 	close(b.renderCh)
-	close(b.eventCh)
 	b.renderWG.Wait()
 	b.Restore()
 }
@@ -271,6 +285,35 @@ func (b *Backend) SetCursorColor(c color.Color) {
 
 func (b *Backend) SetCursorShape(s backend.CursorShape) {
 	b.cursorState.Shape = s
+}
+
+func (b *Backend) SetTitle(s string) {
+	b.screen.SetWindowTitle(s)
+}
+
+func (b *Backend) Title() string {
+	return b.screen.WindowTitle()
+}
+
+func (b *Backend) Bell() {
+	b.writeRaw("\x07")
+}
+
+func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int) {
+	var uvState uv.ProgressBarState
+	switch state {
+	case terminal.ProgressBarHide:
+		uvState = uv.ProgressBarNone
+	case terminal.ProgressBarNormal:
+		uvState = uv.ProgressBarDefault
+	case terminal.ProgressBarError:
+		uvState = uv.ProgressBarError
+	case terminal.ProgressBarIndeterminate:
+		uvState = uv.ProgressBarIndeterminate
+	case terminal.ProgressBarPaused:
+		uvState = uv.ProgressBarWarning
+	}
+	b.screen.SetProgressBar(uv.NewProgressBar(uvState, percentage))
 }
 
 func (b *Backend) DumpState() {
@@ -348,7 +391,11 @@ func (b *Backend) loopEvents() {
 		kitelog.Info("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
 		KiteEv := translateEvent(ev)
 		if KiteEv != nil {
-			b.eventCh <- KiteEv
+			select {
+			case b.eventCh <- KiteEv:
+			case <-b.stopCh:
+				return
+			}
 		}
 	}
 }

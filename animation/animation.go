@@ -103,13 +103,19 @@ func NewTween[T any](start, end T, duration time.Duration, easing EasingFunction
 func (t *Tween[T]) Tick(dt time.Duration) bool {
 	t.elapsed += dt
 	if t.Duration <= 0 {
-		t.OnUpdate(t.End)
+		if t.OnUpdate != nil {
+			t.OnUpdate(t.End)
+		}
+		t.cleanup()
 		return true
 	}
 
 	progress := float64(t.elapsed) / float64(t.Duration)
 	if progress >= 1.0 {
-		t.OnUpdate(t.End)
+		if t.OnUpdate != nil {
+			t.OnUpdate(t.End)
+		}
+		t.cleanup()
 		return true
 	}
 
@@ -118,9 +124,20 @@ func (t *Tween[T]) Tick(dt time.Duration) bool {
 		eased = t.Easing(progress)
 	}
 
-	current := t.Interp(t.Start, t.End, eased)
-	t.OnUpdate(current)
+	if t.Interp != nil && t.OnUpdate != nil {
+		current := t.Interp(t.Start, t.End, eased)
+		t.OnUpdate(current)
+	}
 	return false
+}
+
+func (t *Tween[T]) cleanup() {
+	var zero T
+	t.Start = zero
+	t.End = zero
+	t.Easing = nil
+	t.Interp = nil
+	t.OnUpdate = nil
 }
 
 // InterpolateGridTracks interpolates between two slices of GridTrackSize.

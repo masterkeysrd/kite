@@ -6,14 +6,18 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/layout/text"
 	"github.com/masterkeysrd/kite/style"
 )
 
 var _ layout.InlineLever = (*Text)(nil)
+var _ layout.ShapedTextCache = (*Text)(nil)
 
 // Text represents a text-level render object.
 type Text struct {
 	BaseRender
+	cachedText     string
+	cachedClusters []text.Cluster
 }
 
 var _ Object = (*Text)(nil)
@@ -43,4 +47,17 @@ func (t *Text) LayoutChildren() iter.Seq[layout.Node] {
 
 func (t *Text) IsInlineLevel() bool {
 	return true
+}
+
+func (t *Text) CachedText() string {
+	return t.cachedText
+}
+
+func (t *Text) CachedClusters() []text.Cluster {
+	return t.cachedClusters
+}
+
+func (t *Text) SetCachedClusters(txt string, clusters []text.Cluster) {
+	t.cachedText = txt
+	t.cachedClusters = clusters
 }

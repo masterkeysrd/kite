@@ -118,7 +118,15 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Component Lifecycle — `Destroy()`:** When the reconciler removes a component (unmount, tag mismatch), it calls `Destroy()` on the `ComponentNode` before DOM removal. `Destroy()` runs all effect cleanups, unsubscribes from context providers, and recursively destroys nested component subtrees.
 - **Reconciliation:** On state change, the component re-executes. A VDOM diffing engine compares the new lightweight tree against the previous frame and generates a minimal set of imperative patches (mutations) to the underlying logical `dom.Node` tree.
 - **VDOM Primitives:** The `kitex` package defines lightweight, fully-typed VDOM representations (e.g., `kitex.Button(kitex.ButtonProps{...})`) that map 1:1 to the real, heavy DOM nodes in the root `element` package. The reconciler translates these VDOM nodes into imperative updates on the underlying `element` nodes.
-- **Convenience Hooks (`/extras/kitex/hooks`):** Terminal-specific hooks built on the core primitives: `UseFocus(ref)` subscribes to focus/blur events and returns a reactive boolean; `UseKeyboard(handler, deps)` registers scoped keyboard handlers. These demonstrate composability and are shipped as a separate sub-package.
+- **Convenience Hooks (`/extras/kitex/hooks`):** Terminal-specific hooks built on the core primitives:
+  * `UseFocus(ref)`: Subscribes to focus/blur events and returns a reactive boolean.
+  * `UseKeyboard(handler, deps)`: Registers scoped keyboard handlers.
+  * `UseTitle(initialTitle)`: Sets and updates the terminal window title.
+  * `UseBell()`: Triggers the terminal hardware bell.
+  * `UseWindowFocus()`: Subscribes to terminal window focus events and returns a reactive boolean.
+  * `UseProgressBar()`: Updates the terminal window's native progress bar.
+  These demonstrate composability and are shipped as a separate sub-package.
+
 
 ### 3.12. Global State Management (`/extras/kites`)
 - **Responsibility:** Provide a thread-safe, external state management solution ("Kite Store") decoupled from the VDOM.

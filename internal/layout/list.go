@@ -2,11 +2,20 @@ package layout
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/masterkeysrd/kite/dom"
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
+
+var decimalMarkerCache [101]string
+
+func init() {
+	for i := 1; i <= 100; i++ {
+		decimalMarkerCache[i] = fmt.Sprintf("%d. ", i)
+	}
+}
 
 // ListAlgorithm implements the layout for list items with markers.
 // It formats the list item as a two-column row: Column 1 is the marker,
@@ -90,6 +99,9 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		}
 	}()
 	var bufferedInlines []Node
+	if ctx != nil {
+		bufferedInlines = ctx.InlineBuffer[:0]
+	}
 
 	processInlines := func() {
 		if len(bufferedInlines) == 0 {
@@ -103,6 +115,9 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 			inlineBuilder.collect(child)
 		}
 		bufferedInlines = bufferedInlines[:0]
+		if ctx != nil {
+			ctx.InlineBuffer = bufferedInlines
+		}
 
 		items := inlineBuilder.items
 		breaker := NewLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
@@ -128,6 +143,9 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 
 		if IsInlineLevel(child) {
 			bufferedInlines = append(bufferedInlines, child)
+			if ctx != nil {
+				ctx.InlineBuffer = bufferedInlines
+			}
 			continue
 		}
 
@@ -221,7 +239,10 @@ func (a *ListAlgorithm) getMarkerText(node Node) string {
 		return "■ "
 	case style.ListStyleDecimal:
 		ordinal := a.computeOrdinal(node)
-		return fmt.Sprintf("%d. ", ordinal)
+		if ordinal >= 1 && ordinal <= 100 {
+			return decimalMarkerCache[ordinal]
+		}
+		return strconv.Itoa(ordinal) + ". "
 	default:
 		return "• "
 	}

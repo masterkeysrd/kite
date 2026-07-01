@@ -79,6 +79,20 @@ func AcquireTableFragmentBuilder(node Node, space ConstraintSpace) *TableFragmen
 // ReleaseTableFragmentBuilder returns a builder to the pool.
 func ReleaseTableFragmentBuilder(b *TableFragmentBuilder) {
 	b.node = nil
+	b.boxBuilder = nil
+	b.currentAnonBody = nil
+	for i := range b.headers {
+		b.headers[i] = nil
+	}
+	b.headers = b.headers[:0]
+	for i := range b.bodies {
+		b.bodies[i] = nil
+	}
+	b.bodies = b.bodies[:0]
+	for i := range b.footers {
+		b.footers[i] = nil
+	}
+	b.footers = b.footers[:0]
 	tableBuilderPool.Put(b)
 }
 
@@ -343,6 +357,9 @@ type tableGrid struct {
 }
 
 func (g *tableGrid) Reset() {
+	for i := range g.Rows {
+		g.Rows[i] = nil
+	}
 	g.Rows = g.Rows[:0]
 	g.NumCols = 0
 	g.ColJunctionOverlap = g.ColJunctionOverlap[:0]

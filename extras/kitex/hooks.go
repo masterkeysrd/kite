@@ -8,6 +8,7 @@ import (
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -308,6 +309,18 @@ func UseElement() func() dom.Node {
 			return reals[0]
 		}
 		return nil
+	}
+}
+
+// UseTerminal returns a function that retrieves the terminal object associated with the current component.
+func UseTerminal() func() terminal.Terminal {
+	getDoc := UseDocument()
+	return func() terminal.Terminal {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+		return doc.Terminal()
 	}
 }
 
@@ -651,4 +664,138 @@ func UseInterval(handler func(), interval time.Duration, deps []any) {
 			close(done)
 		}
 	}, append([]any{interval}, deps...))
+}
+
+// UseViewportSize returns the current viewport size (terminal dimensions)
+// and registers a listener to trigger a re-render when the terminal is resized.
+func UseViewportSize() geom.Size {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseViewportSize must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+
+	getDoc := func() dom.Document {
+		for _, node := range comp.realNodes() {
+			if node != nil {
+				if doc := node.OwnerDocument(); doc != nil {
+					return doc
+				}
+			}
+		}
+		return nil
+	}
+
+	var initialSize geom.Size
+	if doc := getDoc(); doc != nil {
+		if view := doc.DefaultView(); view != nil {
+			initialSize = view.ViewportSize()
+		}
+	}
+
+	size, setSize := UseState(initialSize)
+
+	UseEffectCleanup(func() func() {
+		doc := getDoc()
+		if doc == nil {
+			return nil
+		}
+
+		// Initial sync
+		if view := doc.DefaultView(); view != nil {
+			currSize := view.ViewportSize()
+			if currSize != size() {
+				setSize(currSize)
+			}
+		}
+
+		// Listen to resize events on the document
+		sub := doc.AddEventListener(event.EventResize, func(ev event.Event) {
+			if view := doc.DefaultView(); view != nil {
+				setSize(view.ViewportSize())
+			}
+		})
+
+		// Return the cleanup function
+		return func() {
+			sub.Cancel()
+		}
+	}, nil)
+
+	return size()
+}
+
+// UseTitle initializes and manages the terminal window title.
+// It returns a getter and a setter. Setting a new title automatically
+// updates the terminal window title.
+func UseTitle(initialTitle string) (func() string, func(string)) {
+	title, setTitle := UseState(initialTitle)
+	getTerm := UseTerminal()
+	UseEffect(func() {
+		if term := getTerm(); term != nil {
+			term.SetTitle(title())
+		}
+	}, []any{title()})
+	return title, setTitle
+}
+
+// UseBell returns a memoized callback function to trigger the terminal hardware bell.
+func UseBell() func() {
+	getTerm := UseTerminal()
+	return UseCallback(func() {
+		if term := getTerm(); term != nil {
+			term.Bell()
+		}
+	}, nil)
+}
+
+// UseWindowFocus returns a reactive boolean indicating whether the terminal window currently has focus.
+func UseWindowFocus() bool {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseWindowFocus must be called inside a functional component render phase")
+	}
+	comp := compVal.(componentInstance)
+
+	isFocused, setFocused := UseState(true)
+
+	UseEffectCleanup(func() func() {
+		var doc dom.Document
+		for _, node := range comp.realNodes() {
+			if node != nil {
+				if d := node.OwnerDocument(); d != nil {
+					doc = d
+					break
+				}
+			}
+		}
+		if doc == nil {
+			return nil
+		}
+
+		subFocus := doc.AddEventListener(event.EventWindowFocus, func(ev event.Event) {
+			setFocused(true)
+		})
+
+		subBlur := doc.AddEventListener(event.EventWindowBlur, func(ev event.Event) {
+			setFocused(false)
+		})
+
+		return func() {
+			subFocus.Cancel()
+			subBlur.Cancel()
+		}
+	}, nil)
+
+	return isFocused()
+}
+
+// UseProgressBar returns a memoized callback function to update the terminal window's native progress bar.
+func UseProgressBar() func(state terminal.ProgressBarState, percentage int) {
+	getTerm := UseTerminal()
+	return UseCallback(func(state terminal.ProgressBarState, percentage int) {
+		if term := getTerm(); term != nil {
+			term.SetProgressBar(state, percentage)
+		}
+	}, nil)
 }

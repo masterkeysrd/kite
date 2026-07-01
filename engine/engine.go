@@ -17,6 +17,7 @@ import (
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/internal/collections"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	internalevent "github.com/masterkeysrd/kite/internal/event"
 	"github.com/masterkeysrd/kite/internal/focus"
@@ -66,6 +67,11 @@ const (
 	// MouseModeTrack enables full motion tracking including hover event.
 	MouseModeTrack
 )
+
+type syncTask struct {
+	node dom.Node
+	ro   render.Object
+}
 
 // Engine orchestrates the five-phase frame pipeline (Tasks → Style → Layout →
 // Paint → Sync), the worker pool, and the macrotask / microtask queues.
@@ -155,6 +161,10 @@ type Engine struct {
 	structuredBuf   []event.Event
 	coalescedBuf    []event.Event
 	wheelMap        map[event.EventTarget]*event.WheelEvent
+	dispatchPathBuf []event.EventTarget
+	scrollablesBuf  []event.Scrollable
+	paintCtx        paint.Context
+	layoutPathBuf   []layout.Node
 
 	profilerMu sync.RWMutex
 
@@ -167,6 +177,10 @@ type Engine struct {
 
 	renderMap      map[dom.Node]render.Object
 	isLayoutActive bool // Prevents infinite recursion during synchronous reflow
+
+	syncStack []syncTask
+	diffMaps  []map[render.Object]struct{}
+	diffDepth int
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
@@ -223,18 +237,22 @@ func New(b backend.Backend, opts Options) *Engine {
 		backend:         b,
 		clock:           clk,
 		macroTaskBudget: macroTaskBudget,
+		diffMaps:        make([]map[render.Object]struct{}, 0, 4),
 		shutdownTimeout: shutdownTimeout,
 		mouseMode:       MouseModeClick,
 		closeCh:         make(chan struct{}),
 		wheelMap:        make(map[event.EventTarget]*event.WheelEvent),
 		pipeline:        &StandardPipeline{},
 		renderMap:       make(map[dom.Node]render.Object),
+		dispatchPathBuf: make([]event.EventTarget, 0, 32),
+		scrollablesBuf:  make([]event.Scrollable, 0, 32),
+		layoutPathBuf:   make([]layout.Node, 0, 32),
 	}
 
 	size := b.Size()
 	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 
-	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, e.RequestFrame)
+	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, nil)
 	promise.SetScheduler(e.scheduler)
 
 	if opts.Profiler {
@@ -447,6 +465,7 @@ func (e *Engine) SetTitle(s string) {
 		return
 	}
 	kitelog.Info("engine: set title", slog.String("title", s))
+	e.backend.SetTitle(s)
 }
 
 // Bell emits a BEL character. It is a no-op when Caps.Bell is false.
@@ -457,6 +476,19 @@ func (e *Engine) Bell() {
 		return
 	}
 	kitelog.Info("engine: bell")
+	e.backend.Bell()
+}
+
+// SetProgressBar updates the terminal window tab's native progress bar.
+// It is a no-op if Caps.ProgressBar is false.
+//
+// SetProgressBar must be called from the main goroutine.
+func (e *Engine) SetProgressBar(state backend.ProgressBarState, percentage int) {
+	if !e.caps.ProgressBar {
+		return
+	}
+	kitelog.Info("engine: set progress bar", slog.Int("state", int(state)), slog.Int("percentage", percentage))
+	e.backend.SetProgressBar(state, percentage)
 }
 
 // SetDebugXRay toggles the visual layout debugging overlay.
@@ -645,6 +677,9 @@ func (e *Engine) Frame() {
 	}
 	defer endFrame()
 
+	// 1. Drain tasks first so that any state updates they make are processed in the same frame.
+	pipe.Tasks(e)
+
 	// Tick active animations at the very top.
 	if len(e.activeAnimations) > 0 {
 		if tracer != nil {
@@ -669,7 +704,7 @@ func (e *Engine) Frame() {
 				return anim.Tick(dt)
 			}()
 			if finished {
-				e.activeAnimations = append(e.activeAnimations[:i], e.activeAnimations[i+1:]...)
+				e.activeAnimations = collections.DeleteAt(e.activeAnimations, i)
 			}
 		}
 
@@ -680,9 +715,14 @@ func (e *Engine) Frame() {
 		e.lastFrameTime = time.Time{}
 	}
 
+	// 2. Check if a rendering frame is actually required.
+	dirty := e.hasDirtyUIState() || e.frameRequested || len(e.activeAnimations) > 0
+	if !dirty {
+		return
+	}
+
 	e.isLayoutActive = true
 	pipe.Sync(e)
-	pipe.Tasks(e)
 	pipe.Style(e)
 	layoutRan := pipe.Layout(e)
 	e.isLayoutActive = false
@@ -770,8 +810,22 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 						// We use inclusive checks for the right/bottom edges because a
 						// text cursor sits between characters and can logically sit
 						// on the trailing boundary of its container.
+						//
+						// However, the hardware cursor must also lie strictly within the
+						// physical screen boundaries (the viewport), as terminal coordinates
+						// are 0-indexed (e.g. 0 <= X < viewportWidth). Positioning the cursor
+						// at or beyond the viewport boundary (X >= viewportWidth) can cause
+						// terminal emulators to wrap the cursor to the next line or misbehave.
+						viewportRect := geom.Rect{
+							Origin: geom.Point{X: 0, Y: 0},
+							Size:   root.ViewportSize(),
+						}
+						clip = clip.Intersect(viewportRect)
+
 						if cursorPos.X >= clip.Origin.X && cursorPos.X <= clip.Origin.X+clip.Size.Width &&
-							cursorPos.Y >= clip.Origin.Y && cursorPos.Y <= clip.Origin.Y+clip.Size.Height {
+							cursorPos.Y >= clip.Origin.Y && cursorPos.Y <= clip.Origin.Y+clip.Size.Height &&
+							cursorPos.X >= 0 && cursorPos.X < viewportRect.Size.Width &&
+							cursorPos.Y >= 0 && cursorPos.Y < viewportRect.Size.Height {
 							next.Visible = true
 							next.X = cursorPos.X
 							next.Y = cursorPos.Y
@@ -829,26 +883,43 @@ func mapCursorShape(s style.CursorShape) backend.CursorShape {
 
 // syncRenderTree walks the logical DOM and ensures the render tree matches
 // its structure.
-func (e *Engine) syncRenderTree(n dom.Node, ro render.Object) {
-	dn := internaldom.AsDirty(n)
-	if dn.NeedsSync() {
-		if de := internaldom.AsDirtyElement(n); de != nil {
-			de.MarkStyleDirty()
-		}
-		if _, ok := n.(dom.Document); ok {
-			ro.MarkDirty(render.DirtyPaint)
-		} else {
-			ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
-		}
-		e.diffChildren(n, ro)
-	} else if dn.ChildNeedsSync() {
-		for child := range dom.LayoutChildren(n) {
-			if childRO := e.RenderObject(child); childRO != nil {
-				e.syncRenderTree(child, childRO)
+func (e *Engine) syncRenderTree(rootNode dom.Node, rootRO render.Object) {
+	e.syncStack = append(e.syncStack[:0], syncTask{node: rootNode, ro: rootRO})
+
+	for len(e.syncStack) > 0 {
+		idx := len(e.syncStack) - 1
+		task := e.syncStack[idx]
+		e.syncStack = e.syncStack[:idx]
+
+		dn := internaldom.AsDirty(task.node)
+		if dn.NeedsSync() {
+			if de := internaldom.AsDirtyElement(task.node); de != nil {
+				de.MarkStyleDirty()
+			}
+			if _, ok := task.node.(dom.Document); ok {
+				task.ro.MarkDirty(render.DirtyPaint)
+			} else {
+				task.ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
+			}
+			e.diffChildren(task.node, task.ro)
+		} else if dn.ChildNeedsSync() {
+			for child := task.node.FirstChild(); child != nil; child = child.NextSibling() {
+				if childRO := e.RenderObject(child); childRO != nil {
+					e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+				}
+			}
+			if el, ok := task.node.(dom.Element); ok {
+				if uaRoot := internaldom.UARoot(el); uaRoot != nil {
+					for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
+						if childRO := e.RenderObject(child); childRO != nil {
+							e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+						}
+					}
+				}
 			}
 		}
+		dn.ClearSyncFlags()
 	}
-	dn.ClearSyncFlags()
 }
 
 func (e *Engine) syncOverlays(d dom.Document) {
@@ -871,55 +942,86 @@ func (e *Engine) syncOverlays(d dom.Document) {
 	e.renderView.SetOverlays(overlayROs)
 }
 
+func (e *Engine) diffChild(child dom.Node, parentRO render.Object, existing map[render.Object]struct{}, lastRO render.Object) render.Object {
+	if el, ok := child.(dom.Element); ok && internaldom.IsOverlay(el) {
+		return lastRO
+	}
+	childRO := e.RenderObject(child)
+	if childRO == nil {
+		childRO = e.createRenderObject(child)
+		e.setRenderObject(child, childRO)
+	}
+
+	delete(existing, childRO)
+
+	// Ensure correct position in render tree.
+	if childRO.Parent() != parentRO || childRO.PreviousSibling() != lastRO {
+		render.Unlink(childRO)
+		var before render.Object
+		if lastRO == nil {
+			before = parentRO.FirstChild()
+		} else {
+			before = lastRO.NextSibling()
+		}
+		parentRO.InsertChild(childRO, before)
+	}
+
+	// If the child was already there, it might still need internal sync.
+	// If it was just created, createRenderObject already synced its children.
+	dn := internaldom.AsDirty(child)
+	if dn.NeedsSync() || dn.ChildNeedsSync() {
+		e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+	}
+
+	return childRO
+}
+
 // diffChildren synchronizes the children of n into the render object ro.
 func (e *Engine) diffChildren(n dom.Node, parentRO render.Object) {
-	// Map existing render children.
-	existing := make(map[render.Object]struct{})
-	for childRO := range parentRO.Children() {
+	// Get or create a map for the current depth
+	if e.diffDepth >= len(e.diffMaps) {
+		e.diffMaps = append(e.diffMaps, make(map[render.Object]struct{}))
+	}
+	existing := e.diffMaps[e.diffDepth]
+	clear(existing)
+	e.diffDepth++
+	defer func() {
+		e.diffDepth--
+	}()
+
+	for childRO := parentRO.FirstChild(); childRO != nil; childRO = childRO.NextSibling() {
 		existing[childRO] = struct{}{}
 	}
 
 	var lastRO render.Object
-	for child := range internaldom.LayoutChildren(n) {
-		if el, ok := child.(dom.Element); ok && internaldom.IsOverlay(el) {
-			continue
-		}
-		childRO := e.RenderObject(child)
-		if childRO == nil {
-			childRO = e.createRenderObject(child)
-			e.setRenderObject(child, childRO)
-		}
-
-		delete(existing, childRO)
-
-		// Ensure correct position in render tree.
-		if childRO.Parent() != parentRO || childRO.PreviousSibling() != lastRO {
-			render.Unlink(childRO)
-			var before render.Object
-			if lastRO == nil {
-				before = parentRO.FirstChild()
-			} else {
-				before = lastRO.NextSibling()
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		lastRO = e.diffChild(child, parentRO, existing, lastRO)
+	}
+	if el, ok := n.(dom.Element); ok {
+		if uaRoot := internaldom.UARoot(el); uaRoot != nil {
+			for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
+				lastRO = e.diffChild(child, parentRO, existing, lastRO)
 			}
-			parentRO.InsertChild(childRO, before)
 		}
-
-		// If the child was already there, it might still need internal sync.
-		// If it was just created, createRenderObject already synced its children.
-		dn := internaldom.AsDirty(child)
-		if dn.NeedsSync() || dn.ChildNeedsSync() {
-			e.syncRenderTree(child, childRO)
-		}
-
-		lastRO = childRO
 	}
 
 	// Remove orphaned render objects.
 	for orphaned := range existing {
-		if ln := orphaned.LogicalNode(); ln != nil {
-			e.setRenderObject(ln, nil)
-		}
+		e.clearRenderMapRecursive(orphaned)
 		render.Unlink(orphaned)
+	}
+}
+
+func (e *Engine) clearRenderMapRecursive(ro render.Object) {
+	if ro == nil {
+		return
+	}
+	for child := ro.FirstChild(); child != nil; child = child.NextSibling() {
+		e.clearRenderMapRecursive(child)
+	}
+	if ln := ro.LogicalNode(); ln != nil {
+		e.setRenderObject(ln, nil)
+		e.resolver.Invalidate(ln)
 	}
 }
 
@@ -1144,9 +1246,11 @@ func (e *Engine) drainEvents() {
 
 	// 1. Coalesce raw events before synthesis to save allocations.
 	rawCoalesced := e.coalesceRawEvents(e.eventBuffer)
-	e.eventBuffer = e.eventBuffer[:0]
 
 	// 2. Synthesize coalesced raw events into structured events.
+	for i := range e.structuredBuf {
+		e.structuredBuf[i] = nil
+	}
 	e.structuredBuf = e.structuredBuf[:0]
 	for _, raw := range rawCoalesced {
 		e.structuredBuf = append(e.structuredBuf, e.synthesizer.Process(raw)...)
@@ -1159,6 +1263,30 @@ func (e *Engine) drainEvents() {
 	for _, ev := range coalesced {
 		e.dispatchEvent(ev)
 	}
+
+	// 5. Clean up all buffers to prevent leaks while idle.
+	for i, raw := range e.eventBuffer {
+		if mouseEv, ok := raw.(*backend.RawMouseEvent); ok {
+			backend.ReleaseRawMouseEvent(mouseEv)
+		}
+		e.eventBuffer[i] = nil
+	}
+	e.eventBuffer = e.eventBuffer[:0]
+
+	for i := range e.structuredBuf {
+		e.structuredBuf[i] = nil
+	}
+	e.structuredBuf = e.structuredBuf[:0]
+
+	for i := range e.rawCoalescedBuf {
+		e.rawCoalescedBuf[i] = nil
+	}
+	e.rawCoalescedBuf = e.rawCoalescedBuf[:0]
+
+	for i := range e.coalescedBuf {
+		e.coalescedBuf[i] = nil
+	}
+	e.coalescedBuf = e.coalescedBuf[:0]
 }
 
 func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent {
@@ -1171,6 +1299,9 @@ func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent
 	// - Accumulate consecutive Wheel events IF they are at the same coordinate and have same modifiers.
 	// - Keep all other events (clicks, keys) in order.
 
+	for i := range e.rawCoalescedBuf {
+		e.rawCoalescedBuf[i] = nil
+	}
 	e.rawCoalescedBuf = e.rawCoalescedBuf[:0]
 
 	// Find index of the absolute last mouse move in the whole batch.
@@ -1236,6 +1367,9 @@ func (e *Engine) coalesceEvents(events []event.Event) []event.Event {
 		}
 	}
 
+	for i := range e.coalescedBuf {
+		e.coalescedBuf[i] = nil
+	}
 	e.coalescedBuf = e.coalescedBuf[:0]
 	clear(e.wheelMap)
 
@@ -1277,6 +1411,10 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 		e.dispatchKeyEvent(evt)
 	case *event.ResizeEvent:
 		e.handleResize(evt)
+	case *event.WindowFocusEvent:
+		if e.document != nil {
+			e.document.DispatchTo(evt)
+		}
 	case *event.ClipboardEvent:
 		if evt.Type() == event.EventPaste {
 			e.clipboard.resolvePending(evt.Items)
@@ -1315,9 +1453,9 @@ func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
 	}
 	if node, ok := target.(dom.Node); ok {
 		e.setLocalWheelCoords(ev, node)
-		path := nodeAncestorPath(node)
-		scrollables := e.synthesizer.ResolveScrollables(path)
-		e.dispatcher.DispatchWheel(ev, path, scrollables)
+		e.dispatchPathBuf = nodeAncestorPathBuf(node, e.dispatchPathBuf)
+		e.scrollablesBuf = e.resolveScrollablesBuf(e.dispatchPathBuf, e.scrollablesBuf)
+		e.dispatcher.DispatchWheel(ev, e.dispatchPathBuf, e.scrollablesBuf)
 	}
 }
 
@@ -1326,9 +1464,22 @@ func (e *Engine) setLocalWheelCoords(ev *event.WheelEvent, target dom.Node) {
 	if ro == nil {
 		return
 	}
+
+	// Populate layoutPathBuf bottom-up without allocation
+	e.layoutPathBuf = e.layoutPathBuf[:0]
+	for cur := ro; cur != nil; {
+		e.layoutPathBuf = append(e.layoutPathBuf, cur)
+		parentObj := cur.Parent()
+		if parentObj != nil {
+			cur = parentObj
+		} else {
+			break
+		}
+	}
+
 	root := e.renderView.Fragment()
-	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
-		// ScrolledAbsoluteBounds returns the scrolled border-box.
+	if bounds, _, found := layout.ScrolledAbsoluteBoundsPath(root, ro, e.layoutPathBuf); found {
+		// ScrolledAbsoluteBoundsPath returns the scrolled border-box.
 		// Local coordinate in event should be relative to this scrolled box.
 		ev.Local = geom.Point{
 			X: ev.Screen.X - bounds.Origin.X,
@@ -1418,10 +1569,22 @@ func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
 	}
 }
 
+func (e *Engine) resolveScrollablesBuf(path []event.EventTarget, buf []event.Scrollable) []event.Scrollable {
+	buf = buf[:0]
+	for _, t := range path {
+		buf = append(buf, e.resolveScrollable(t))
+	}
+	return buf
+}
+
 func nodeAncestorPath(n dom.Node) []event.EventTarget {
-	var chain []event.EventTarget
+	return nodeAncestorPathBuf(n, nil)
+}
+
+func nodeAncestorPathBuf(n dom.Node, buf []event.EventTarget) []event.EventTarget {
+	buf = buf[:0]
 	for cur := n; cur != nil; {
-		chain = append(chain, cur)
+		buf = append(buf, cur)
 		parent := cur.Parent()
 		if parent == nil {
 			// 1. Cross UA shadow boundary: jump from UARoot to host element.
@@ -1453,10 +1616,10 @@ func nodeAncestorPath(n dom.Node) []event.EventTarget {
 		cur = parent
 	}
 	// Reverse to get root → n order.
-	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
-		chain[i], chain[j] = chain[j], chain[i]
+	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
+		buf[i], buf[j] = buf[j], buf[i]
 	}
-	return chain
+	return buf
 }
 
 func (e *Engine) dispatchKeyEvent(ev *event.KeyEvent) {
@@ -1488,6 +1651,9 @@ func (e *Engine) handleResize(ev *event.ResizeEvent) {
 		Width:  ev.Width,
 		Height: ev.Height,
 	})
+	if e.document != nil {
+		e.document.DispatchTo(ev)
+	}
 	e.RequestFrame()
 }
 
@@ -1662,6 +1828,32 @@ func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
 	}
 }
 
+// hasDirtyUIState returns true if the DOM, overlays, or render tree are dirty
+// and need to be synchronized, styled, laid out, or painted.
+func (e *Engine) hasDirtyUIState() bool {
+	dn := internaldom.AsDirty(e.document)
+	if dn.NeedsSync() || dn.ChildNeedsSync() || dn.HasDirtyStyleChild() {
+		return true
+	}
+	numOverlays := 0
+	if doc, ok := e.document.(*internaldom.Document); ok {
+		numOverlays = doc.NumOverlays()
+	}
+	if numOverlays > 0 {
+		for overlay := range e.document.Overlays() {
+			od := internaldom.AsDirty(overlay)
+			if od.NeedsSync() || od.ChildNeedsSync() || od.HasDirtyStyleChild() {
+				return true
+			}
+		}
+	}
+	rootFlags := e.renderView.Flags()
+	if rootFlags&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+		return true
+	}
+	return false
+}
+
 func (e *Engine) shouldRunFrame() bool {
 	if e.frameRequested {
 		kitelog.Debug("shouldRunFrame returning true due to frameRequested")
@@ -1672,24 +1864,13 @@ func (e *Engine) shouldRunFrame() bool {
 		kitelog.Debug("shouldRunFrame returning true due to nextFrameAt", "nextFrameAt", e.nextFrameAt)
 		return true
 	}
-	// Check for dirty DOM or render tree.
-	dn := internaldom.AsDirty(e.document)
-	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
-	rootFlags := e.renderView.Flags()
-	pending := e.scheduler.hasPendingTasks()
-	anyOverlayDirty := false
-	for overlay := range e.document.Overlays() {
-		if od := internaldom.AsDirty(overlay); od.NeedsSync() || od.ChildNeedsSync() {
-			anyOverlayDirty = true
-			break
-		}
-	}
 
-	if needsSync || anyOverlayDirty || rootFlags&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 || pending {
+	pending := e.scheduler.hasPendingTasks()
+	dirty := e.hasDirtyUIState()
+
+	if dirty || pending {
 		kitelog.Debug("shouldRunFrame returning true due to dirty state",
-			"needsSync", needsSync,
-			"anyOverlayDirty", anyOverlayDirty,
-			"rootFlags", rootFlags,
+			"dirty", dirty,
 			"pending", pending,
 		)
 		return true
@@ -1755,9 +1936,38 @@ func (e *Engine) EnsureFreshLayout() {
 
 	dn := internaldom.AsDirty(e.document)
 	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()
-	needsLayout := e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+	if !needsSync {
+		for overlay := range e.document.Overlays() {
+			od := internaldom.AsDirty(overlay)
+			if od.NeedsSync() || od.ChildNeedsSync() {
+				needsSync = true
+				break
+			}
+		}
+	}
 
-	if !needsSync && !needsLayout {
+	needsStyle := dn.HasDirtyStyleChild()
+	if !needsStyle {
+		for overlay := range e.document.Overlays() {
+			od := internaldom.AsDirty(overlay)
+			if od.HasDirtyStyleChild() {
+				needsStyle = true
+				break
+			}
+		}
+	}
+
+	needsLayout := e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+	if !needsLayout {
+		for _, overlay := range e.renderView.Overlays() {
+			if overlay.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+				needsLayout = true
+				break
+			}
+		}
+	}
+
+	if !needsSync && !needsStyle && !needsLayout {
 		return
 	}
 
@@ -1768,7 +1978,34 @@ func (e *Engine) EnsureFreshLayout() {
 		e.syncRenderTree(e.document, e.renderView)
 		e.syncOverlays(e.document)
 	}
-	if needsLayout || e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+
+	// Re-evaluate needsStyle / needsLayout after synchronization
+	if !needsStyle {
+		needsStyle = dn.HasDirtyStyleChild()
+		if !needsStyle {
+			for overlay := range e.document.Overlays() {
+				od := internaldom.AsDirty(overlay)
+				if od.HasDirtyStyleChild() {
+					needsStyle = true
+					break
+				}
+			}
+		}
+	}
+
+	if !needsLayout {
+		needsLayout = e.renderView.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0
+		if !needsLayout {
+			for _, overlay := range e.renderView.Overlays() {
+				if overlay.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+					needsLayout = true
+					break
+				}
+			}
+		}
+	}
+
+	if needsLayout || needsStyle {
 		e.pipeline.Style(e)
 		e.pipeline.Layout(e)
 	}

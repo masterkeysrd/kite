@@ -58,9 +58,9 @@ func (fb *FrameBuffer) Set(x, y int, c Cell) {
 	ly := y - fb.bounds.Origin.Y
 	idx := ly*fb.bounds.Size.Width + lx
 
-	if c.Bg == color.Transparent {
+	if c.Bg == nil || isTransparent(c.Bg) {
 		c.Bg = fb.cells[idx].Bg
-	} else if c.Bg != nil {
+	} else {
 		c.Bg = fb.blendColors(fb.cells[idx].Bg, c.Bg)
 	}
 

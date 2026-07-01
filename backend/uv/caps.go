@@ -26,8 +26,29 @@ func probeCapabilities(environ []string) backend.Caps {
 		KittyGraphics:  probeKittyGraphics(env),
 		Title:          probeTitle(env),
 		Bell:           true, // BEL is universally supported
+		ProgressBar:    probeProgressBar(env),
 		Clipboard:      []backend.ClipboardKind{backend.ClipboardOSC52},
 	}
+}
+
+// probeProgressBar checks whether the terminal supports native progress bars.
+func probeProgressBar(env map[string]string) bool {
+	// Known supporting terminals
+	prog := strings.ToLower(env["TERM_PROGRAM"])
+	switch prog {
+	case "iterm.app", "wezterm", "ghostty", "vscode", "warp":
+		return true
+	}
+	if env["WT_SESSION"] != "" { // Windows Terminal
+		return true
+	}
+	if env["TERM"] == "xterm-kitty" {
+		return true
+	}
+	if env["KONSOLE_VERSION"] != "" {
+		return true
+	}
+	return false
 }
 
 // probeTrueColor checks whether the terminal reports 24-bit color support.

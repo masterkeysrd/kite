@@ -8,6 +8,7 @@ import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/internal/focus"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -1315,5 +1316,46 @@ func BenchmarkUseMemoHitRate(b *testing.B) {
 		node2 := myComp(struct{}{})
 		upd(node2, realNode, node1)
 		node1 = node2
+	}
+}
+
+func TestInput_ProgrammaticClearFocusReconciliation(t *testing.T) {
+	doc := dom.NewDocument()
+	fm := focus.NewManager(doc, event.NewDispatcher())
+	doc.SetFocusHandle(fm)
+
+	type State struct {
+		value string
+	}
+	state := &State{value: "hello"}
+
+	App := SimpleFC("App", func() Node {
+		return Input(InputProps{
+			ID:    "inp1",
+			Value: state.value,
+		})
+	})
+
+	container := doc.CreateElement("container", nil)
+	doc.AppendChild(container)
+	Render(App(), container)
+	testScheduler.flushMacrotasks()
+
+	realInp := container.FirstChild().(*element.InputElement)
+
+	// Focus the input
+	fm.Focus(realInp)
+	if fm.Current() != realInp {
+		t.Fatalf("expected input to be focused, got %v", fm.Current())
+	}
+
+	// Change state value to empty (clear programmatically) and re-render
+	state.value = ""
+	Render(App(), container)
+	testScheduler.flushMacrotasks()
+
+	// Verify it remains focused
+	if fm.Current() != realInp {
+		t.Errorf("after programmatic VDOM clear: focused element = %v, want input", fm.Current())
 	}
 }

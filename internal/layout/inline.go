@@ -1,8 +1,8 @@
 package layout
 
 import (
+	"slices"
 	"sync"
-	"unicode"
 
 	geometry "github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/layout/text"
@@ -33,6 +33,16 @@ func AcquireInlineItemsBuilder(shaper *text.Shaper, block Node) *InlineItemsBuil
 func ReleaseInlineItemsBuilder(b *InlineItemsBuilder) {
 	b.shaper = nil
 	b.blockContainer = nil
+	for i := range b.items {
+		b.items[i].Node = nil
+		b.items[i].ParentNode = nil
+		b.items[i].Text = nil
+	}
+	b.items = b.items[:0]
+	for i := range b.parentStack {
+		b.parentStack[i] = nil
+	}
+	b.parentStack = b.parentStack[:0]
 	inlineBuilderPool.Put(b)
 }
 
@@ -42,19 +52,34 @@ type LineBox struct {
 	Children []FragmentLink
 }
 
+var lineBoxPool = sync.Pool{
+	New: func() any {
+		return &LineBox{
+			Children: make([]FragmentLink, 0, 16),
+		}
+	},
+}
+
 func (lb *LineBox) ToFragment() *Fragment {
-	return &Fragment{
-		Size:     lb.Size,
-		Children: lb.Children,
+	var children []FragmentLink
+	if len(lb.Children) > 0 {
+		children = slices.Clone(lb.Children)
 	}
+	frag := &Fragment{
+		Size:     lb.Size,
+		Children: children,
+	}
+	lb.Children = lb.Children[:0]
+	lineBoxPool.Put(lb)
+	return frag
 }
 
 func isSpaceCluster(c text.Cluster) bool {
 	if len(c.Bytes) != 1 {
 		return false
 	}
-	r := rune(c.Bytes[0])
-	return unicode.IsSpace(r)
+	b := c.Bytes[0]
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
 
 // InlineItemType identifies the role of an item in the inline flow.
@@ -224,10 +249,19 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 
 	// For pre / pre-wrap: shape the original bytes with no collapsing.
 	if ws == style.WhiteSpacePre || ws == style.WhiteSpacePreWrap {
-		clusters := b.shaper.Shape(data)
+		var clusters []text.Cluster
+		if cache, ok := node.(ShapedTextCache); ok && cache.CachedText() == data {
+			clusters = cache.CachedClusters()
+		} else {
+			clusters = b.shaper.Shape(data)
+			if cache, ok := node.(ShapedTextCache); ok {
+				cache.SetCachedClusters(data, clusters)
+			}
+		}
 		if len(clusters) == 0 {
 			return
 		}
+		b.lastWasSpace = isSpaceCluster(clusters[len(clusters)-1])
 		b.items = append(b.items, InlineItem{
 			Type:       InlineText,
 			Text:       clusters,
@@ -255,7 +289,15 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 	// We must COPY the slice before mutating any CellWidth field to avoid
 	// poisoning the cache for other callers (e.g. a pre-whitespace text node
 	// that renders the same string without collapsing).
-	shaped := b.shaper.Shape(data)
+	var shaped []text.Cluster
+	if cache, ok := node.(ShapedTextCache); ok && cache.CachedText() == data {
+		shaped = cache.CachedClusters()
+	} else {
+		shaped = b.shaper.Shape(data)
+		if cache, ok := node.(ShapedTextCache); ok {
+			cache.SetCachedClusters(data, shaped)
+		}
+	}
 	if len(shaped) == 0 {
 		return
 	}
@@ -362,13 +404,18 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	if l.currentIndex >= len(l.items) {
 		if l.hadForcedBreakAtEnd {
 			l.hadForcedBreakAtEnd = false
-			return &LineBox{Size: geometry.Size{Width: 0, Height: 1}}, true
+			line := lineBoxPool.Get().(*LineBox)
+			line.Size = geometry.Size{Width: 0, Height: 1}
+			line.Children = line.Children[:0]
+			return line, true
 		}
 		return nil, false
 	}
 	defer ctx.Begin("Layout(IFC):NextLine")()
 
-	line := &LineBox{}
+	line := lineBoxPool.Get().(*LineBox)
+	line.Size = geometry.Size{}
+	line.Children = line.Children[:0]
 	currentX := 0
 	lineHeight := 1 // Minimum height of a line
 
@@ -620,49 +667,59 @@ func (l *LineBreaker) findFittingClusters(item InlineItem, clusters []text.Clust
 	lastBreakOp := -1
 	lastBreakWidth := 0
 
-	for i, c := range clusters {
-		if canWrap && (c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakAnywhere) {
-			lastBreakOp = i
-			lastBreakWidth = currentWidth
-		}
-
-		if canWrap && currentWidth+c.CellWidth > availableWidth {
-			if lastBreakOp > 0 || (lastBreakOp == 0 && availableWidth < l.width) {
-				return lastBreakOp, lastBreakWidth, false
+	if canWrap {
+		for i, c := range clusters {
+			if c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakAnywhere {
+				lastBreakOp = i
+				lastBreakWidth = currentWidth
 			}
 
-			// No break opportunity found, check OverflowWrap.
-			ow := style.OverflowWrapNormal
-			if comp != nil {
-				ow = comp.OverflowWrap
-			}
-
-			if ow == style.OverflowWrapBreakWord || ow == style.OverflowWrapAnywhere {
-				// Emergency break: if we've already taken some clusters, break here.
-				if i > 0 {
-					return i, currentWidth, false
+			if currentWidth+c.CellWidth > availableWidth {
+				if lastBreakOp > 0 || (lastBreakOp == 0 && availableWidth < l.width) {
+					return lastBreakOp, lastBreakWidth, false
 				}
 
-				// Even the first cluster doesn't fit in availableWidth.
-				// If we are at the START of the line, we MUST take one cluster
-				// to make progress.
-				if availableWidth >= l.width {
-					return 1, c.CellWidth, false
+				// No break opportunity found, check OverflowWrap.
+				ow := style.OverflowWrapNormal
+				if comp != nil {
+					ow = comp.OverflowWrap
 				}
 
-				// Not at start of line: return 0 to trigger line-end and retry
-				// at start of next line.
-				return 0, 0, false
+				if ow == style.OverflowWrapBreakWord || ow == style.OverflowWrapAnywhere {
+					// Emergency break: if we've already taken some clusters, break here.
+					if i > 0 {
+						return i, currentWidth, false
+					}
+
+					// Even the first cluster doesn't fit in availableWidth.
+					// If we are at the START of the line, we MUST take one cluster
+					// to make progress.
+					if availableWidth >= l.width {
+						return 1, c.CellWidth, false
+					}
+
+					// Not at start of line: return 0 to trigger line-end and retry
+					// at start of next line.
+					return 0, 0, false
+				}
+
+				// OverflowWrapNormal: never emergency-break. Continue until next
+				// break opportunity (mandatory or end of run).
 			}
 
-			// OverflowWrapNormal: never emergency-break. Continue until next
-			// break opportunity (mandatory or end of run).
+			currentWidth += c.CellWidth
+
+			if c.BreakClass == text.BreakMandatory {
+				return i + 1, currentWidth, true
+			}
 		}
+	} else {
+		for i, c := range clusters {
+			currentWidth += c.CellWidth
 
-		currentWidth += c.CellWidth
-
-		if c.BreakClass == text.BreakMandatory {
-			return i + 1, currentWidth, true
+			if c.BreakClass == text.BreakMandatory {
+				return i + 1, currentWidth, true
+			}
 		}
 	}
 
@@ -686,19 +743,28 @@ func ComputeInlineMinMaxSizes(ctx *Context, items []InlineItem) MinMaxSizes {
 			// For max-content, we just sum everything up (ignoring soft wraps).
 			// For min-content, we find the longest unbreakable run.
 			unbreakableRun := 0
-			for _, c := range item.Text {
-				if canWrap && (c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakMandatory || c.BreakClass == text.BreakAnywhere) {
-					result.Min = max(result.Min, unbreakableRun)
-					unbreakableRun = 0
+			if canWrap {
+				for _, c := range item.Text {
+					if c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakMandatory || c.BreakClass == text.BreakAnywhere {
+						result.Min = max(result.Min, unbreakableRun)
+						unbreakableRun = 0
+					}
+					if c.BreakClass != text.BreakMandatory {
+						unbreakableRun += c.CellWidth
+						currentLineMax += c.CellWidth
+					} else {
+						result.Max = max(result.Max, currentLineMax)
+						currentLineMax = 0
+					}
 				}
-				if c.BreakClass != text.BreakMandatory {
-					unbreakableRun += c.CellWidth
-					currentLineMax += c.CellWidth
-				} else {
-					result.Max = max(result.Max, currentLineMax)
-					currentLineMax = 0
-					if !canWrap {
-						// Even if we can't soft wrap, mandatory breaks still reset.
+			} else {
+				for _, c := range item.Text {
+					if c.BreakClass != text.BreakMandatory {
+						unbreakableRun += c.CellWidth
+						currentLineMax += c.CellWidth
+					} else {
+						result.Max = max(result.Max, currentLineMax)
+						currentLineMax = 0
 						result.Min = max(result.Min, unbreakableRun)
 						unbreakableRun = 0
 					}

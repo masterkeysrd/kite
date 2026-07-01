@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"sync"
+
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
 )
@@ -55,7 +57,22 @@ type RawMouseEvent struct {
 	Mod    event.Modifiers
 }
 
-func (RawMouseEvent) isRawEvent() {}
+func (*RawMouseEvent) isRawEvent() {}
+
+var rawMouseEventPool = sync.Pool{
+	New: func() any {
+		return &RawMouseEvent{}
+	},
+}
+
+func AcquireRawMouseEvent() *RawMouseEvent {
+	return rawMouseEventPool.Get().(*RawMouseEvent)
+}
+
+func ReleaseRawMouseEvent(e *RawMouseEvent) {
+	*e = RawMouseEvent{}
+	rawMouseEventPool.Put(e)
+}
 
 // RawKeyEvent is the backend representation of a key press or release.
 type RawKeyEvent struct {
@@ -71,3 +88,13 @@ type RawResizeEvent struct {
 }
 
 func (RawResizeEvent) isRawEvent() {}
+
+// RawFocusInEvent is the backend representation of terminal focus gained.
+type RawFocusInEvent struct{}
+
+func (RawFocusInEvent) isRawEvent() {}
+
+// RawFocusOutEvent is the backend representation of terminal focus lost.
+type RawFocusOutEvent struct{}
+
+func (RawFocusOutEvent) isRawEvent() {}

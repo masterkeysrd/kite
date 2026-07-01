@@ -111,3 +111,73 @@ func TestEngineCursorIntegration(t *testing.T) {
 		t.Errorf("expected CursorBar, got %v", b.Cursor.Shape)
 	}
 }
+
+func TestEngineCursorOffScreenHiding(t *testing.T) {
+	b := mock.New(80, 24)
+	e := New(b, Options{})
+
+	// Create a document and a node.
+	doc := e.Document()
+	fe := &focusableElement{}
+	el := doc.CreateElement("input", fe)
+	fe.Element = el
+	doc.AppendChild(fe)
+
+	myRO := &cursorProvidingRenderObject{
+		state: cursor.State{
+			Visible: true,
+			X:       6, // 75 + 6 = 81 (off-screen)
+			Y:       0,
+			Style: style.Cursor{
+				Shape: style.Some(style.CursorBar),
+				Blink: style.Some(true),
+			},
+		},
+	}
+	myRO.Init(myRO, fe, fe)
+	myRO.SetComputedStyle(&style.Computed{})
+
+	e.setRenderObject(fe, myRO)
+
+	if ok := e.focusManager.SetFocus(fe, focus.ReasonProgrammatic); !ok {
+		t.Fatalf("failed to focus element")
+	}
+
+	e.EnsureFreshLayout()
+
+	frag := &layout.Fragment{
+		Node: myRO,
+		Size: geom.Size{Width: 10, Height: 1},
+	}
+	myRO.SetCachedLayout(layout.ConstraintSpace{}, frag)
+
+	viewFrag := &layout.Fragment{
+		Node: e.renderView,
+		Size: geom.Size{Width: 80, Height: 24},
+		Children: []layout.FragmentLink{
+			{
+				Fragment: frag,
+				Offset:   geom.Point{X: 75, Y: 10},
+			},
+		},
+	}
+	e.renderView.SetCachedLayout(layout.ConstraintSpace{}, viewFrag)
+
+	// Run updateHardwareCursor. It should hide the cursor because it is off-screen.
+	e.updateHardwareCursor(true)
+
+	if b.Cursor.Visible {
+		t.Errorf("expected cursor to be hidden when X=81 is off-screen")
+	}
+
+	// Move cursor to X=2 (75 + 2 = 77, on-screen).
+	myRO.state.X = 2
+	e.updateHardwareCursor(true)
+
+	if !b.Cursor.Visible {
+		t.Errorf("expected cursor to be visible when X=77 is on-screen")
+	}
+	if b.Cursor.X != 77 || b.Cursor.Y != 10 {
+		t.Errorf("expected cursor pos (77, 10), got (%d, %d)", b.Cursor.X, b.Cursor.Y)
+	}
+}

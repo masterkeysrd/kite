@@ -410,3 +410,57 @@ func TestInput_Regression_ScrollBackOnBackspace(t *testing.T) {
 		t.Errorf("After backspace, scrollX = %d, want 5 (to keep cursor at the end)", gotX)
 	}
 }
+
+func TestInput_Regression_ProgrammaticClearKeepFocus(t *testing.T) {
+	b := mock.New(80, 5)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	inp := element.NewInput(eng.Document(), "hello")
+	root := element.Box(inp)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Focus the input
+	eng.Document().Focus(inp)
+	if eng.Document().CurrentFocus() != inp {
+		t.Fatalf("expected input to be focused, got %v", eng.Document().CurrentFocus())
+	}
+
+	// Programmatically clear the value
+	inp.SetValue("")
+	eng.Frame()
+
+	// Verify it is still focused
+	if eng.Document().CurrentFocus() != inp {
+		t.Errorf("after programmatic clear: focused element = %v, want input", eng.Document().CurrentFocus())
+	}
+}
+
+func TestInput_Regression_ProgrammaticClearSelectionReset(t *testing.T) {
+	b := mock.New(80, 5)
+	eng := engine.New(b, engine.Options{})
+	defer eng.Stop()
+
+	inp := element.NewInput(eng.Document(), "hello")
+	root := element.Box(inp)
+	eng.Mount(root)
+	eng.Frame()
+
+	// Set selection to 0..5
+	inp.SetSelectionRange(0, 5)
+	start, end := inp.SelectionRange()
+	if start != 0 || end != 5 {
+		t.Fatalf("expected selection range (0, 5), got (%d, %d)", start, end)
+	}
+
+	// Programmatically clear the value
+	inp.SetValue("")
+	eng.Frame()
+
+	// Verify the selection range has been reset to (0, 0)
+	start, end = inp.SelectionRange()
+	if start != 0 || end != 0 {
+		t.Errorf("after programmatic clear: selection range = (%d, %d), want (0, 0)", start, end)
+	}
+}

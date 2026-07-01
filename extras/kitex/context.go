@@ -143,6 +143,7 @@ func (c *Context[T]) push(entry *contextEntry[T]) {
 
 func (c *Context[T]) pop() {
 	if len(c.stack) > 0 {
+		c.stack[len(c.stack)-1] = nil
 		c.stack = c.stack[:len(c.stack)-1]
 	}
 }
