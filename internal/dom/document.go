@@ -55,6 +55,7 @@ type Document struct {
 	textNodesValid  bool
 	preorderOrders  map[any]render.NodeOrder
 	preorderValid   bool
+	visited         map[any]bool
 }
 
 type TextNodeRecord struct {
@@ -72,6 +73,7 @@ func NewDocument() *Document {
 	d := &Document{
 		byID:    make(map[string]dom.Element),
 		anchors: make(map[string]dom.Element),
+		visited: make(map[any]bool),
 	}
 	d.self = d
 	d.ownerDocument = d // the document owns itself
@@ -397,8 +399,27 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 			// Build the cache
 			var records []TextNodeRecord
 			currOffset := 0
+			clear(d.visited)
 			var walkBuild func(dom.Node)
 			walkBuild = func(n dom.Node) {
+				if n == nil {
+					return
+				}
+				identity := n
+				curr := n
+				for {
+					if u := curr.Unwrap(); u != nil && u != curr {
+						curr = u
+						identity = u
+						continue
+					}
+					break
+				}
+				if d.visited[identity] {
+					return
+				}
+				d.visited[identity] = true
+
 				if t, ok := n.(dom.TextNode); ok {
 					data := t.Data()
 					byteLen := len(data)
@@ -534,6 +555,7 @@ func (d *Document) computePreorderIndices() {
 	d.preorderOrders = make(map[any]render.NodeOrder)
 	d.preorderValid = true
 	count := 0
+	clear(d.visited)
 	var walk func(dom.Node) int
 	walk = func(n dom.Node) int {
 		if n == nil {
@@ -550,6 +572,11 @@ func (d *Document) computePreorderIndices() {
 			}
 			break
 		}
+
+		if d.visited[identity] {
+			return count
+		}
+		d.visited[identity] = true
 
 		first := count
 		if _, ok := d.preorderOrders[identity]; !ok {

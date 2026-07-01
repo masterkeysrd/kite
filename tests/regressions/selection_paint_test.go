@@ -7,6 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/testenv"
@@ -449,4 +450,61 @@ func TestSelectionOverPaddingArea(t *testing.T) {
 	// This usually means the selection anchor jumped or the end jumped to something else.
 
 	// With recursive ByteOffsetAtPoint, it should be stable.
+}
+
+func TestOverlaySelectionPaint(t *testing.T) {
+	env := testenv.Default(40, 10)
+	defer env.Close()
+
+	doc := env.Document()
+
+	// 1. Background box
+	bgBox := element.NewBox(doc)
+	bgBox.Style(style.S().
+		Width(style.Cells(20)).
+		Height(style.Cells(1)).
+		Background(color.RGBA{R: 0, G: 0, B: 0, A: 255}))
+	doc.AppendChild(bgBox)
+
+	// 2. Overlay containing text node wrapped in a Box
+	textNode := element.Text("overlay text")
+	overlayBox := element.Box(textNode)
+	overlayBox.Style(style.S().
+		Background(color.RGBA{R: 0, G: 0, B: 0, A: 255}))
+
+	overlay := element.Overlay(
+		overlayBox,
+		element.OverlayConfig{
+			Anchor:    bgBox,
+			Placement: geom.PlacementBottom,
+			ZIndex:    100,
+		},
+	)
+	doc.AppendChild(overlay)
+
+	env.Flush()
+
+	// 3. Get overlay placement
+	overlayRect, _ := overlayBox.GetBoundingClientRect()
+	ox := overlayRect.Origin.X
+	oy := overlayRect.Origin.Y
+
+	// Select first 7 characters: "overlay"
+	sel := doc.Selection()
+	rng := doc.CreateRange()
+	rng.SetStart(textNode, 0)
+	rng.SetEnd(textNode, 7)
+	sel.AddRange(rng)
+
+	env.Flush()
+
+	// 4. Verify that "overlay" (length 7 starting at ox) has selection inverse attribute
+	for x := ox; x < ox+7; x++ {
+		testenv.ExpectScreen(t, env).CellAt(x, oy).ToHaveAttribute(paint.AttrInverse)
+	}
+
+	// Verify that " text" (after length 7) does NOT have selection inverse attribute
+	for x := ox + 7; x < ox+12; x++ {
+		testenv.ExpectScreen(t, env).CellAt(x, oy).ToNotHaveAttribute(paint.AttrInverse)
+	}
 }

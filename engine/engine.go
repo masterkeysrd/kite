@@ -1460,27 +1460,11 @@ func (e *Engine) dispatchWheelEvent(ev *event.WheelEvent) {
 }
 
 func (e *Engine) setLocalWheelCoords(ev *event.WheelEvent, target dom.Node) {
-	ro := e.RenderObject(target)
-	if ro == nil {
+	v := e.document.DefaultView()
+	if v == nil {
 		return
 	}
-
-	// Populate layoutPathBuf bottom-up without allocation
-	e.layoutPathBuf = e.layoutPathBuf[:0]
-	for cur := ro; cur != nil; {
-		e.layoutPathBuf = append(e.layoutPathBuf, cur)
-		parentObj := cur.Parent()
-		if parentObj != nil {
-			cur = parentObj
-		} else {
-			break
-		}
-	}
-
-	root := e.renderView.Fragment()
-	if bounds, _, found := layout.ScrolledAbsoluteBoundsPath(root, ro, e.layoutPathBuf); found {
-		// ScrolledAbsoluteBoundsPath returns the scrolled border-box.
-		// Local coordinate in event should be relative to this scrolled box.
+	if bounds, found := v.GetBoundingClientRect(target); found {
 		ev.Local = geom.Point{
 			X: ev.Screen.X - bounds.Origin.X,
 			Y: ev.Screen.Y - bounds.Origin.Y,
@@ -1673,7 +1657,19 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 	}
 	nodeOrder := doc.PreorderOrders()
 	source := &selectionSourceAdapter{sel: sel, nodeOrder: nodeOrder}
-	rs := render.ResolveSelection(root, source, nodeOrder)
+
+	overlays := e.renderView.Overlays()
+	ovSels := make([]render.OverlaySelection, len(overlays))
+	for i, ov := range overlays {
+		el, _ := ov.LogicalNode().(dom.Element)
+		ovSels[i] = render.OverlaySelection{
+			Element:  el,
+			Fragment: ov.Fragment(),
+			Offset:   ov.Offset(),
+		}
+	}
+
+	rs := render.ResolveSelection(root, ovSels, source, nodeOrder)
 	if len(rs) == 0 {
 		return nil
 	}
@@ -1813,14 +1809,11 @@ func (e *Engine) handleDefaultKeyAction(ev *event.KeyEvent) {
 }
 
 func (e *Engine) setLocalMouseCoords(ev *event.MouseEvent, target dom.Node) {
-	ro := e.RenderObject(target)
-	if ro == nil {
+	v := e.document.DefaultView()
+	if v == nil {
 		return
 	}
-	root := e.renderView.Fragment()
-	if bounds, _, found := layout.ScrolledAbsoluteBounds(root, ro); found {
-		// ScrolledAbsoluteBounds returns the scrolled border-box.
-		// Local coordinate in event should be relative to this scrolled box.
+	if bounds, found := v.GetBoundingClientRect(target); found {
 		ev.Local = geom.Point{
 			X: ev.Screen.X - bounds.Origin.X,
 			Y: ev.Screen.Y - bounds.Origin.Y,

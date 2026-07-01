@@ -42,8 +42,33 @@ type NodeOrder struct {
 	Last  int
 }
 
+type OverlaySelection struct {
+	Element  dom.Element
+	Fragment *layout.Fragment
+	Offset   geom.Point
+}
+
+func isDescendant(parent dom.Node, child dom.Node) bool {
+	if parent == nil || child == nil {
+		return false
+	}
+	baseParent := getBase(parent)
+	for curr := child; curr != nil; {
+		if getBase(curr) == baseParent {
+			return true
+		}
+		curr = curr.Parent()
+	}
+	return false
+}
+
 // ResolveSelection maps the active selection to physical screen rectangles.
-func ResolveSelection(root *layout.Fragment, sel SelectionSource, nodeOrder map[any]NodeOrder) []SelectionRect {
+func ResolveSelection(
+	root *layout.Fragment,
+	overlays []OverlaySelection,
+	sel SelectionSource,
+	nodeOrder map[any]NodeOrder,
+) []SelectionRect {
 	var rects []SelectionRect
 	baseCache := make(map[any]any)
 	for i := 0; i < sel.RangeCount(); i++ {
@@ -52,12 +77,36 @@ func ResolveSelection(root *layout.Fragment, sel SelectionSource, nodeOrder map[
 			continue
 		}
 		nodeOffsets := make(map[any]int)
-		rects = append(rects, resolveRange(root, rng, nodeOrder, nodeOffsets, baseCache)...)
+
+		startNode, _ := rng.StartContainerAny().(dom.Node)
+
+		var activeOverlay *OverlaySelection
+		for _, ov := range overlays {
+			if isDescendant(ov.Element, startNode) {
+				activeOverlay = &ov
+				break
+			}
+		}
+
+		if activeOverlay != nil {
+			if activeOverlay.Fragment != nil {
+				rects = append(rects, resolveRange(activeOverlay.Fragment, activeOverlay.Offset, rng, nodeOrder, nodeOffsets, baseCache)...)
+			}
+		} else {
+			rects = append(rects, resolveRange(root, geom.Point{}, rng, nodeOrder, nodeOffsets, baseCache)...)
+		}
 	}
 	return rects
 }
 
-func resolveRange(root *layout.Fragment, rng SelectionRange, nodeOrder map[any]NodeOrder, nodeOffsets map[any]int, baseCache map[any]any) []SelectionRect {
+func resolveRange(
+	root *layout.Fragment,
+	origin geom.Point,
+	rng SelectionRange,
+	nodeOrder map[any]NodeOrder,
+	nodeOffsets map[any]int,
+	baseCache map[any]any,
+) []SelectionRect {
 	var rects []SelectionRect
 
 	startCont := rng.StartContainerAny()
@@ -86,7 +135,7 @@ func resolveRange(root *layout.Fragment, rng SelectionRange, nodeOrder map[any]N
 		baseEnd:     baseEnd,
 	}
 
-	walkFragments(root, geom.Point{}, layout.InfiniteRect(), state)
+	walkFragments(root, origin, layout.InfiniteRect(), state)
 	return rects
 }
 

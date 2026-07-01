@@ -18,6 +18,18 @@ func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
 	if ro == nil {
 		return geom.Rect{}, false
 	}
+
+	// Check overlays first
+	for _, overlay := range p.e.renderView.Overlays() {
+		if frag := overlay.Fragment(); frag != nil {
+			if rect, _, found := layout.ScrolledAbsoluteBounds(frag, ro); found {
+				rect.Origin.X += overlay.Offset().X
+				rect.Origin.Y += overlay.Offset().Y
+				return rect, true
+			}
+		}
+	}
+
 	root := p.e.renderView.Fragment()
 	if root == nil {
 		return geom.Rect{}, false
@@ -127,6 +139,25 @@ func (p *domViewProxy) ByteOffsetAtPoint(n dom.Node, x, y int) int {
 
 func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
 	p.e.EnsureFreshLayout()
+
+	// Check overlays first in reverse order (top-most overlay first)
+	overlays := p.e.renderView.Overlays()
+	for i := len(overlays) - 1; i >= 0; i-- {
+		overlay := overlays[i]
+		offset := overlay.Offset()
+		frag := overlay.Fragment()
+		if frag != nil {
+			bounds := geom.Rect{Origin: offset, Size: frag.Size}
+			if bounds.Contains(geom.Point{X: x, Y: y}) {
+				byteOffset := cursor.ByteOffsetAtPoint(frag, x-offset.X, y-offset.Y)
+				ln := overlay.LogicalNode()
+				if ln != nil {
+					return p.e.document.FindNodeAtByteOffset(ln, byteOffset)
+				}
+			}
+		}
+	}
+
 	root := p.e.renderView.Fragment()
 	if root == nil {
 		return nil, 0
@@ -141,6 +172,20 @@ func (p *domViewProxy) GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Re
 	if ro == nil {
 		return geom.Rect{}, geom.Rect{}, false
 	}
+
+	// Check overlays first
+	for _, overlay := range p.e.renderView.Overlays() {
+		if frag := overlay.Fragment(); frag != nil {
+			if rect, clip, found := layout.ScrolledAbsoluteBounds(frag, ro); found {
+				rect.Origin.X += overlay.Offset().X
+				rect.Origin.Y += overlay.Offset().Y
+				clip.Origin.X += overlay.Offset().X
+				clip.Origin.Y += overlay.Offset().Y
+				return rect, clip, true
+			}
+		}
+	}
+
 	root := p.e.renderView.Fragment()
 	if root == nil {
 		return geom.Rect{}, geom.Rect{}, false
