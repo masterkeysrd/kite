@@ -218,6 +218,23 @@ See the full working example in [`examples/stage/`](examples/stage/).
 | `Ctrl+C` | Quit |
 | `F12` | Toggle web-inspector devtools |
 
+## ⚡ Performance & Benchmarks
+
+Kite is engineered for speed, leveraging a batch-coalesced rendering pipeline and incremental DOM updates to maintain smooth, lag-free terminal interactions even under massive layouts.
+
+We run a realistic benchmark ([`BenchmarkEngine_RealisticApp_1000Nodes`](engine/bench_test.go#L61)) that mounts a complex UI structure containing a header, sidebar, and a scrollable content area with over **1,200 nested nodes** (styled with borders, colors, padding, and Flexbox layouts). On every iteration, we mutate a dynamic text node to trigger dirtiness and force the engine through a complete frame execution (Sync → Style Cascade → Layout Reflow → FrameBuffer Paint).
+
+### Results (Tested on Apple M1 Max)
+
+| Benchmark | Latency / Frame | Frame Rate (FPS) | Memory / Frame | Allocations / Frame |
+| :--- | :--- | :--- | :--- | :--- |
+| **Realistic App (1,200+ Nodes)** | `~2.43 ms` | **~410 FPS** | `3.44 MB` | `25,810` |
+
+To run the benchmark yourself:
+```bash
+go test -bench=BenchmarkEngine_RealisticApp -benchmem ./engine
+```
+
 ## 📖 Documentation & Guides
 
 For more detailed information, please refer to the following guides in the `docs/` directory:
