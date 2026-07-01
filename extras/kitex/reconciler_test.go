@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/style"
 	"image/color"
@@ -1146,6 +1148,127 @@ func TestReconciler_ComponentStyleUpdate(t *testing.T) {
 	if applied.Foreground != red {
 		t.Errorf("expected Foreground to be updated to red, got %v", applied.Foreground)
 	}
+}
+
+func TestReconciler_ComponentEventListenerUpdate(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setValFn func(int)
+	var calledWithVal int
+
+	ClickComp := FC("ClickComp", func(props struct{}) Node {
+		getVal, setVal := UseState(10)
+		setValFn = setVal
+		return Button(ButtonProps{
+			OnClick: func(e event.Event) {
+				calledWithVal = getVal()
+			},
+		})
+	})
+
+	Render(ClickComp(struct{}{}), container)
+
+	btnReal := container.FirstChild().(*element.ButtonElement)
+
+	// Trigger click on btnReal
+	btnReal.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 10 {
+		t.Errorf("expected calledWithVal to be 10, got %d", calledWithVal)
+	}
+
+	setValFn(20)
+
+	// Trigger click on btnReal again
+	btnReal.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 20 {
+		t.Errorf("expected calledWithVal to be updated to 20, got %d (closure was not updated)", calledWithVal)
+	}
+
+}
+
+func TestReconciler_ComponentNestedEventListenerUpdate(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setValFn func(int)
+	var calledWithVal int
+
+	InnerComp := FC("InnerComp", func(props struct{ OnClick func(event.Event) }) Node {
+		return Button(ButtonProps{
+			OnClick: props.OnClick,
+		})
+	})
+
+	ClickComp := FC("ClickComp", func(props struct{}) Node {
+		getVal, setVal := UseState(10)
+		setValFn = setVal
+		return Fragment(
+			InnerComp(struct{ OnClick func(event.Event) }{
+				OnClick: func(e event.Event) {
+					calledWithVal = getVal()
+				},
+			}),
+		)
+	})
+
+	Render(ClickComp(struct{}{}), container)
+
+	btnReal := container.FirstChild().(*element.ButtonElement)
+
+	// Trigger click on btnReal
+	btnReal.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 10 {
+		t.Errorf("expected calledWithVal to be 10, got %d", calledWithVal)
+	}
+
+	setValFn(20)
+
+	// Trigger click on btnReal again
+	btnReal.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 20 {
+		t.Errorf("expected calledWithVal to be updated to 20, got %d (closure was not updated)", calledWithVal)
+	}
+
+}
+
+func TestReconciler_ComponentStaleClosureValue(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setValFn func(int)
+	var calledWithVal int
+
+	ClickComp := FC("ClickComp", func(props struct{}) Node {
+		getVal, setVal := UseState(10)
+		setValFn = setVal
+		val := getVal() // calls getter during render
+		return Button(ButtonProps{
+			OnClick: func(e event.Event) {
+				calledWithVal = val // captures the value, not the getter!
+			},
+		})
+	})
+
+	Render(ClickComp(struct{}{}), container)
+
+	btnReal := container.FirstChild().(*element.ButtonElement)
+
+	// Trigger click on btnReal
+	btnReal.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 10 {
+		t.Errorf("expected calledWithVal to be 10, got %d", calledWithVal)
+	}
+
+	setValFn(20)
+
+	// Trigger click on btnReal again
+	btnReal.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+	if calledWithVal != 20 {
+		t.Errorf("expected calledWithVal to be updated to 20, got %d (closure was not updated)", calledWithVal)
+	}
+
+	ClearAllSubscriptions(btnReal)
 }
 
 func TestReconcilerConditionalEndItem(t *testing.T) {
