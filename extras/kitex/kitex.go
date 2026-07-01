@@ -358,6 +358,13 @@ func deepEqualProps(oldProps, newProps any, maxDepth int) bool {
 // (int, string, bool, float, etc.) never consume depth and always succeed or
 // fail immediately without further recursion.
 func deepEqualValues(ov, nv reflect.Value, depth int) bool {
+	if ov.CanInterface() {
+		if s, ok := ov.Interface().(style.Style); ok {
+			if other, ok := nv.Interface().(style.Style); ok {
+				return s.Equal(other)
+			}
+		}
+	}
 	switch ov.Kind() {
 	case reflect.Func:
 		// Use the existing funcEquals helper which compares function pointers.

@@ -1,6 +1,7 @@
 package kitex
 
 import (
+	"image/color"
 	"reflect"
 	"testing"
 
@@ -888,6 +889,29 @@ func TestDeepEqualPropsSlice(t *testing.T) {
 	}
 	if deepEqualProps(P{Items: nil}, P{Items: []int{}}, 3) {
 		t.Errorf("nil slice != empty slice")
+	}
+}
+
+// TestDeepEqualPropsStyle verifies that style.Style comparison works correctly.
+func TestDeepEqualPropsStyle(t *testing.T) {
+	type P struct{ Style style.Style }
+
+	// 1. Empty styles are equal
+	if !deepEqualProps(P{Style: style.Style{}}, P{Style: style.Style{}}, 3) {
+		t.Errorf("empty styles should be equal")
+	}
+
+	// 2. Different foreground colors are not equal
+	s1 := style.Style{}.Foreground(color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	s2 := style.Style{}.Foreground(color.RGBA{R: 0, G: 255, B: 0, A: 255})
+	if deepEqualProps(P{Style: s1}, P{Style: s2}, 3) {
+		t.Errorf("styles with different foreground colors should not be equal")
+	}
+
+	// 3. Same foreground colors are equal
+	s3 := style.Style{}.Foreground(color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	if !deepEqualProps(P{Style: s1}, P{Style: s3}, 3) {
+		t.Errorf("styles with same foreground colors should be equal")
 	}
 }
 

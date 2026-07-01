@@ -1211,3 +1211,282 @@ func (s Style) EvaluateMedia(viewport geom.Size) Style {
 	}
 	return res
 }
+
+// Equal reports whether s and other are equal.
+func (s Style) Equal(other Style) bool {
+	if s.hasMediaRules != other.hasMediaRules {
+		return false
+	}
+	if !equalMediaRules(s.mediaRules, other.mediaRules) {
+		return false
+	}
+	if s.display != other.display {
+		return false
+	}
+	if s.listStyleType != other.listStyleType {
+		return false
+	}
+	if s.flexDirection != other.flexDirection {
+		return false
+	}
+	if s.flexWrap != other.flexWrap {
+		return false
+	}
+	if s.justifyContent != other.justifyContent {
+		return false
+	}
+	if s.alignItems != other.alignItems {
+		return false
+	}
+	if s.alignContent != other.alignContent {
+		return false
+	}
+	if s.alignSelf != other.alignSelf {
+		return false
+	}
+	if s.gap != other.gap {
+		return false
+	}
+	if s.flex != other.flex {
+		return false
+	}
+	if s.order != other.order {
+		return false
+	}
+	if !equalOptionalGridTrackSizes(s.gridTemplateColumns, other.gridTemplateColumns) {
+		return false
+	}
+	if !equalOptionalGridTrackSizes(s.gridTemplateRows, other.gridTemplateRows) {
+		return false
+	}
+	if s.gridColumnGap != other.gridColumnGap {
+		return false
+	}
+	if s.gridRowGap != other.gridRowGap {
+		return false
+	}
+	if s.gridColumn != other.gridColumn {
+		return false
+	}
+	if s.gridRow != other.gridRow {
+		return false
+	}
+	if s.width != other.width {
+		return false
+	}
+	if s.height != other.height {
+		return false
+	}
+	if s.minWidth != other.minWidth {
+		return false
+	}
+	if s.maxWidth != other.maxWidth {
+		return false
+	}
+	if s.minHeight != other.minHeight {
+		return false
+	}
+	if s.maxHeight != other.maxHeight {
+		return false
+	}
+	if s.padding != other.padding {
+		return false
+	}
+	if s.margin != other.margin {
+		return false
+	}
+	if !equalOptionalBorder(s.border, other.border) {
+		return false
+	}
+	if !equalOptionalColor(s.foreground, other.foreground) {
+		return false
+	}
+	if !equalOptionalColor(s.background, other.background) {
+		return false
+	}
+	if s.bold != other.bold {
+		return false
+	}
+	if s.italic != other.italic {
+		return false
+	}
+	if s.underline != other.underline {
+		return false
+	}
+	if s.strikethrough != other.strikethrough {
+		return false
+	}
+	if s.reverse != other.reverse {
+		return false
+	}
+	if !equalOptionalColor(s.selectionForeground, other.selectionForeground) {
+		return false
+	}
+	if !equalOptionalColor(s.selectionBackground, other.selectionBackground) {
+		return false
+	}
+	if s.textAlign != other.textAlign {
+		return false
+	}
+	if s.textWrap != other.textWrap {
+		return false
+	}
+	if s.textOverflow != other.textOverflow {
+		return false
+	}
+	if s.whiteSpace != other.whiteSpace {
+		return false
+	}
+	if s.wordBreak != other.wordBreak {
+		return false
+	}
+	if s.overflowWrap != other.overflowWrap {
+		return false
+	}
+	if s.overflowX != other.overflowX {
+		return false
+	}
+	if s.overflowY != other.overflowY {
+		return false
+	}
+	if !equalOptionalScrollbar(s.scrollbar, other.scrollbar) {
+		return false
+	}
+	if !equalOptionalCursor(s.cursor, other.cursor) {
+		return false
+	}
+	return true
+}
+
+func equalOptionalGridTrackSizes(a, b Optional[[]GridTrackSize]) bool {
+	if a.set != b.set {
+		return false
+	}
+	if !a.set {
+		return true
+	}
+	av := a.value
+	bv := b.value
+	if len(av) != len(bv) {
+		return false
+	}
+	for i := range av {
+		if av[i] != bv[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalOptionalBorder(a, b Optional[Border]) bool {
+	if a.set != b.set {
+		return false
+	}
+	if !a.set {
+		return true
+	}
+	return equalBorder(a.value, b.value)
+}
+
+func equalBorder(a, b Border) bool {
+	return a.Edges == b.Edges &&
+		a.Styles == b.Styles &&
+		equalEdgeColors(a.Colors, b.Colors) &&
+		equalBorderGlyphs(a.Glyphs, b.Glyphs)
+}
+
+func equalEdgeColors(a, b EdgeValues[color.Color]) bool {
+	return equalColor(a.Top, b.Top) &&
+		equalColor(a.Right, b.Right) &&
+		equalColor(a.Bottom, b.Bottom) &&
+		equalColor(a.Left, b.Left)
+}
+
+func equalBorderGlyphs(a, b BorderGlyphs) bool {
+	return a.H == b.H &&
+		a.V == b.V &&
+		a.TL == b.TL &&
+		a.TR == b.TR &&
+		a.BL == b.BL &&
+		a.BR == b.BR &&
+		a.OverrideTL == b.OverrideTL &&
+		a.OverrideTR == b.OverrideTR &&
+		a.OverrideBL == b.OverrideBL &&
+		a.OverrideBR == b.OverrideBR
+}
+
+func equalColor(a, b color.Color) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if IsTerminalDefault(a) != IsTerminalDefault(b) {
+		return false
+	}
+	r1, g1, b1, a1 := a.RGBA()
+	r2, g2, b2, a2 := b.RGBA()
+	return r1 == r2 && g1 == g2 && b1 == b2 && a1 == a2
+}
+
+func equalOptionalColor(a, b Optional[color.Color]) bool {
+	if a.set != b.set {
+		return false
+	}
+	if !a.set {
+		return true
+	}
+	return equalColor(a.value, b.value)
+}
+
+func equalOptionalScrollbar(a, b Optional[Scrollbar]) bool {
+	if a.set != b.set {
+		return false
+	}
+	if !a.set {
+		return true
+	}
+	return equalScrollbar(a.value, b.value)
+}
+
+func equalScrollbar(a, b Scrollbar) bool {
+	return a.X == b.X &&
+		a.Y == b.Y &&
+		a.TrackGlyph == b.TrackGlyph &&
+		a.ThumbGlyph == b.ThumbGlyph &&
+		equalOptionalColor(a.TrackColor, b.TrackColor) &&
+		equalOptionalColor(a.ThumbColor, b.ThumbColor)
+}
+
+func equalOptionalCursor(a, b Optional[Cursor]) bool {
+	if a.set != b.set {
+		return false
+	}
+	if !a.set {
+		return true
+	}
+	return equalCursor(a.value, b.value)
+}
+
+func equalCursor(a, b Cursor) bool {
+	return a.Shape == b.Shape &&
+		a.Blink == b.Blink &&
+		equalOptionalColor(a.Color, b.Color)
+}
+
+func equalMediaRules(a, b []MediaRule) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Query != b[i].Query {
+			return false
+		}
+		if !a[i].Style.Equal(b[i].Style) {
+			return false
+		}
+	}
+	return true
+}
+
