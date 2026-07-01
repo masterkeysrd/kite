@@ -19,6 +19,11 @@ func (m *mockCursorNode) ID() string                                   { return 
 func (m *mockCursorNode) SetID(string)                                 {}
 func (m *mockCursorNode) Class() string                                { return "" }
 func (m *mockCursorNode) SetClass(string)                              {}
+func (m *mockCursorNode) Attribute(string) (string, bool)              { return "", false }
+func (m *mockCursorNode) SetAttribute(string, string)                  {}
+func (m *mockCursorNode) RemoveAttribute(string)                       {}
+func (m *mockCursorNode) HasAttribute(string) bool                     { return false }
+func (m *mockCursorNode) EachAttribute(func(string, string) bool)      {}
 func (m *mockCursorNode) QuerySelector(string) dom.Element             { return nil }
 func (m *mockCursorNode) ReplaceWith(...dom.Node) dom.Element          { return m }
 func (m *mockCursorNode) RawStyle() style.Style                        { return style.S() }

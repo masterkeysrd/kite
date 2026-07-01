@@ -52,6 +52,11 @@ func (n *stubNode) ID() string                               { return "" }
 func (n *stubNode) SetID(string)                             {}
 func (n *stubNode) Class() string                            { return "" }
 func (n *stubNode) SetClass(string)                          {}
+func (n *stubNode) Attribute(string) (string, bool)          { return "", false }
+func (n *stubNode) SetAttribute(string, string)              {}
+func (n *stubNode) RemoveAttribute(string)                   {}
+func (n *stubNode) HasAttribute(string) bool                 { return false }
+func (n *stubNode) EachAttribute(func(string, string) bool)  {}
 func (n *stubNode) QuerySelector(string) dom.Element         { return nil }
 func (n *stubNode) ReplaceWith(...dom.Node) dom.Element      { return n }
 func (n *stubNode) AttachUARoot(dom.Node)                    {}

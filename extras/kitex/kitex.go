@@ -75,6 +75,7 @@ type ElementProps struct {
 	Style        style.Style
 	Hidden       bool
 	Disabled     bool
+	Attributes   map[string]string
 	OnKeyDown    func(event.Event)
 	OnKeyUp      func(event.Event)
 	OnKeyPress   func(event.Event)
@@ -725,6 +726,20 @@ func updateElementBase(el element.Element, old, new *ElementProps) {
 	}
 	setStyle(el, new.Style)
 
+	// Reconcile attributes
+	if len(old.Attributes) > 0 || len(new.Attributes) > 0 {
+		for k := range old.Attributes {
+			if _, ok := new.Attributes[k]; !ok {
+				el.RemoveAttribute(k)
+			}
+		}
+		for k, v := range new.Attributes {
+			if oldVal, ok := old.Attributes[k]; !ok || oldVal != v {
+				el.SetAttribute(k, v)
+			}
+		}
+	}
+
 	// Listeners
 	updateListener(el, event.EventKeyDown, old.OnKeyDown, new.OnKeyDown)
 	updateListener(el, event.EventKeyUp, old.OnKeyUp, new.OnKeyUp)
@@ -831,6 +846,7 @@ func Span(props SpanProps, children ...Node) Node {
 
 // ButtonProps specifies attributes for Button elements.
 type ButtonProps struct {
+	Attributes   map[string]string
 	Key          string
 	ID           string
 	Class        string
@@ -861,7 +877,8 @@ type ButtonProps struct {
 
 func (p ButtonProps) elementProps() ElementProps {
 	return ElementProps{
-		Key: p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
+		Attributes: p.Attributes,
+		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
 		Disabled:  p.Disabled,
 		OnKeyDown: p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
 		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
@@ -919,6 +936,7 @@ func Button(props ButtonProps, children ...Node) Node {
 
 // CheckboxProps specifies attributes for Checkbox elements.
 type CheckboxProps struct {
+	Attributes     map[string]string
 	Key            string
 	ID             string
 	Class          string
@@ -1015,13 +1033,14 @@ func Checkbox(props CheckboxProps) Node {
 
 // RadioGroupProps specifies attributes for RadioGroup elements.
 type RadioGroupProps struct {
-	Key       string
-	ID        string
-	Class     string
-	Style     style.Style
-	Hidden    bool
-	Disabled  bool
-	OnKeyDown func(event.Event)
+	Attributes map[string]string
+	Key        string
+	ID         string
+	Class      string
+	Style      style.Style
+	Hidden     bool
+	Disabled   bool
+	OnKeyDown  func(event.Event)
 
 	OnKeyUp       func(event.Event)
 	OnKeyPress    func(event.Event)
@@ -1097,6 +1116,7 @@ func RadioGroup(props RadioGroupProps, children ...Node) Node {
 
 // RadioProps specifies attributes for Radio elements.
 type RadioProps struct {
+	Attributes     map[string]string
 	Key            string
 	ID             string
 	Class          string
@@ -1189,13 +1209,14 @@ func Radio(props RadioProps) Node {
 
 // SelectProps specifies attributes for Select elements.
 type SelectProps struct {
-	Key       string
-	ID        string
-	Class     string
-	Style     style.Style
-	Hidden    bool
-	Disabled  bool
-	OnKeyDown func(event.Event)
+	Attributes map[string]string
+	Key        string
+	ID         string
+	Class      string
+	Style      style.Style
+	Hidden     bool
+	Disabled   bool
+	OnKeyDown  func(event.Event)
 
 	OnKeyUp       func(event.Event)
 	OnKeyPress    func(event.Event)
@@ -1281,6 +1302,7 @@ func Select(props SelectProps, children ...Node) Node {
 
 // OptionProps specifies attributes for Option elements.
 type OptionProps struct {
+	Attributes   map[string]string
 	Key          string
 	ID           string
 	Class        string
@@ -1357,6 +1379,7 @@ func Option(props OptionProps) Node {
 
 // InputProps specifies attributes for Input elements.
 type InputProps struct {
+	Attributes       map[string]string
 	Key              string
 	ID               string
 	Class            string
@@ -1455,6 +1478,7 @@ func Input(props InputProps) Node {
 
 // TextAreaProps specifies attributes for TextArea elements.
 type TextAreaProps struct {
+	Attributes       map[string]string
 	Key              string
 	ID               string
 	Class            string
@@ -1712,6 +1736,7 @@ func TR(props TRProps, children ...Node) Node {
 
 // TDProps specifies attributes for TD elements.
 type TDProps struct {
+	Attributes   map[string]string
 	Key          string
 	ID           string
 	Class        string
@@ -1804,6 +1829,7 @@ func Br(props BrProps) Node {
 
 // OverlayProps specifies attributes for Overlay elements.
 type OverlayProps struct {
+	Attributes   map[string]string
 	Key          string
 	ID           string
 	Class        string
@@ -1892,6 +1918,7 @@ func Overlay(props OverlayProps, content Node) Node {
 
 // DialogProps specifies attributes for Dialog elements.
 type DialogProps struct {
+	Attributes   map[string]string
 	Key          string
 	ID           string
 	Class        string

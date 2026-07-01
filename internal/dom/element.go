@@ -12,11 +12,12 @@ import (
 // Element is the concrete, exported implementation of Element.
 type Element struct {
 	BaseNode
-	tagName string
-	id      string
-	class   string
-	uaRoot  dom.Node // closed UA shadow subtree root; nil by default (ADR-009)
-	scroll  *ScrollState
+	tagName    string
+	id         string
+	class      string
+	attributes map[string]string // Lazily allocated
+	uaRoot     dom.Node          // closed UA shadow subtree root; nil by default (ADR-009)
+	scroll     *ScrollState
 
 	dirtyStyle bool
 
@@ -87,6 +88,93 @@ func (e *Element) SetID(id string) {
 		// Use self for registration so wrappers are registered.
 		if el, ok := e.self.(dom.Element); ok {
 			r.registerID(id, el)
+		}
+	}
+}
+
+func (e *Element) Attribute(name string) (string, bool) {
+	switch name {
+	case "id":
+		return e.id, e.id != ""
+	case "class":
+		return e.class, e.class != ""
+	}
+	if e.attributes == nil {
+		return "", false
+	}
+	val, ok := e.attributes[name]
+	return val, ok
+}
+
+func (e *Element) SetAttribute(name, value string) {
+	switch name {
+	case "id":
+		e.SetID(value)
+		return
+	case "class":
+		e.SetClass(value)
+		return
+	}
+	if e.attributes == nil {
+		e.attributes = make(map[string]string)
+	}
+	if e.attributes[name] == value {
+		return
+	}
+	e.attributes[name] = value
+	e.MarkNeedsSync()
+}
+
+func (e *Element) RemoveAttribute(name string) {
+	switch name {
+	case "id":
+		e.SetID("")
+		return
+	case "class":
+		e.SetClass("")
+		return
+	}
+	if e.attributes == nil {
+		return
+	}
+	if _, ok := e.attributes[name]; !ok {
+		return
+	}
+	delete(e.attributes, name)
+	e.MarkNeedsSync()
+}
+
+func (e *Element) HasAttribute(name string) bool {
+	switch name {
+	case "id":
+		return e.id != ""
+	case "class":
+		return e.class != ""
+	}
+	if e.attributes == nil {
+		return false
+	}
+	_, ok := e.attributes[name]
+	return ok
+}
+
+func (e *Element) EachAttribute(fn func(name, value string) bool) {
+	if e.id != "" {
+		if !fn("id", e.id) {
+			return
+		}
+	}
+	if e.class != "" {
+		if !fn("class", e.class) {
+			return
+		}
+	}
+	for k, v := range e.attributes {
+		if k == "id" || k == "class" {
+			continue
+		}
+		if !fn(k, v) {
+			return
 		}
 	}
 }

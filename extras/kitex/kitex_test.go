@@ -1410,3 +1410,59 @@ func TestInput_ProgrammaticClearFocusReconciliation(t *testing.T) {
 		t.Errorf("after programmatic VDOM clear: focused element = %v, want input", fm.Current())
 	}
 }
+
+func TestVDOMAttributes(t *testing.T) {
+	doc := dom.NewDocument()
+
+	// Initial render with attributes
+	boxNode := Box(BoxProps{
+		Attributes: map[string]string{
+			"type": "button",
+			"name": "submit-btn",
+		},
+	})
+	realNode := instOne(boxNode, doc)
+	if realNode == nil {
+		t.Fatal("expected real DOM node")
+	}
+	el, ok := realNode.(dom.Element)
+	if !ok {
+		t.Fatal("expected real DOM element")
+	}
+
+	val, ok := el.Attribute("type")
+	if !ok || val != "button" {
+		t.Errorf("expected attribute 'type' to be 'button', got %q, ok=%t", val, ok)
+	}
+
+	val, ok = el.Attribute("name")
+	if !ok || val != "submit-btn" {
+		t.Errorf("expected attribute 'name' to be 'submit-btn', got %q, ok=%t", val, ok)
+	}
+
+	// Update attributes (modify one, delete one, add one)
+	newBoxNode := Box(BoxProps{
+		Attributes: map[string]string{
+			"type":  "submit",
+			"value": "go",
+		},
+	})
+	upd(newBoxNode, realNode, boxNode)
+
+	// 'type' should be updated to 'submit'
+	val, ok = el.Attribute("type")
+	if !ok || val != "submit" {
+		t.Errorf("expected attribute 'type' to be updated to 'submit', got %q, ok=%t", val, ok)
+	}
+
+	// 'name' should be removed
+	if el.HasAttribute("name") {
+		t.Error("expected attribute 'name' to be removed")
+	}
+
+	// 'value' should be added
+	val, ok = el.Attribute("value")
+	if !ok || val != "go" {
+		t.Errorf("expected attribute 'value' to be 'go', got %q, ok=%t", val, ok)
+	}
+}

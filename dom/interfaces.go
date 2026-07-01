@@ -138,6 +138,23 @@ type Element interface {
 	// SetClass sets the element's classification tag.
 	SetClass(class string)
 
+	// Attribute returns the value of the attribute with the given name,
+	// and a boolean indicating if the attribute is present.
+	Attribute(name string) (string, bool)
+
+	// SetAttribute sets the attribute with the given name to value.
+	SetAttribute(name, value string)
+
+	// RemoveAttribute removes the attribute with the given name.
+	RemoveAttribute(name string)
+
+	// HasAttribute reports whether the element has the attribute with the given name.
+	HasAttribute(name string) bool
+
+	// EachAttribute calls fn for each attribute set on the element.
+	// If fn returns false, iteration stops immediately.
+	EachAttribute(fn func(name, value string) bool)
+
 	// QuerySelector returns the first element matching the selector in this element's subtree.
 	// It pierces UA shadow subtrees.
 	QuerySelector(selector string) Element

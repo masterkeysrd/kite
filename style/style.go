@@ -1489,4 +1489,3 @@ func equalMediaRules(a, b []MediaRule) bool {
 	}
 	return true
 }
-

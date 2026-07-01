@@ -318,3 +318,83 @@ func TestElement_NeedsSync_OnMutation(t *testing.T) {
 	}
 
 }
+
+func TestElement_Attributes(t *testing.T) {
+	doc := NewDocument()
+	el := doc.CreateElement("div", nil)
+
+	// Initially empty attributes
+	if _, ok := el.Attribute("name"); ok {
+		t.Error("expected attribute 'name' to not exist")
+	}
+	if el.HasAttribute("name") {
+		t.Error("expected HasAttribute('name') to be false")
+	}
+
+	// Set standard attribute
+	el.SetAttribute("name", "my-div")
+	val, ok := el.Attribute("name")
+	if !ok || val != "my-div" {
+		t.Errorf("expected 'my-div', got %q, ok=%t", val, ok)
+	}
+	if !el.HasAttribute("name") {
+		t.Error("expected HasAttribute('name') to be true")
+	}
+
+	// Set ID via attribute and check SetID sync
+	el.SetAttribute("id", "main-id")
+	if el.ID() != "main-id" {
+		t.Errorf("expected ID() to be 'main-id', got %q", el.ID())
+	}
+	if val, ok = el.Attribute("id"); !ok || val != "main-id" {
+		t.Errorf("expected Attribute('id') to be 'main-id', got %q", val)
+	}
+
+	// Set Class via attribute and check SetClass sync
+	el.SetAttribute("class", "container")
+	if el.Class() != "container" {
+		t.Errorf("expected Class() to be 'container', got %q", el.Class())
+	}
+	if val, ok = el.Attribute("class"); !ok || val != "container" {
+		t.Errorf("expected Attribute('class') to be 'container', got %q", val)
+	}
+
+	// Iterate attributes via EachAttribute
+	attrs := make(map[string]string)
+	el.EachAttribute(func(name, value string) bool {
+		attrs[name] = value
+		return true
+	})
+
+	expected := map[string]string{
+		"id":    "main-id",
+		"class": "container",
+		"name":  "my-div",
+	}
+	if len(attrs) != len(expected) {
+		t.Errorf("expected %d attributes, got %d", len(expected), len(attrs))
+	}
+	for k, v := range expected {
+		if attrs[k] != v {
+			t.Errorf("expected attribute %q to be %q, got %q", k, v, attrs[k])
+		}
+	}
+
+	// Remove attribute
+	el.RemoveAttribute("name")
+	if el.HasAttribute("name") {
+		t.Error("expected HasAttribute('name') to be false after removal")
+	}
+
+	// Remove ID via attribute
+	el.RemoveAttribute("id")
+	if el.ID() != "" {
+		t.Error("expected ID to be cleared")
+	}
+
+	// Remove Class via attribute
+	el.RemoveAttribute("class")
+	if el.Class() != "" {
+		t.Error("expected Class to be cleared")
+	}
+}
