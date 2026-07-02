@@ -69,32 +69,32 @@ var (
 
 // ElementProps holds common fields and event listeners present on all DOM element nodes.
 type ElementProps struct {
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
 	Hidden          bool
 	Disabled        bool
 	CursorNavigable bool
 	Attributes      map[string]string
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
-	Ref          refSetter
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
+	Ref             refSetter
 }
 
 // elementNode is the base implementation of Node for element VDOM nodes.
@@ -850,29 +850,29 @@ func Span(props SpanProps, children ...Node) Node {
 
 // ButtonProps specifies attributes for Button elements.
 type ButtonProps struct {
-	Attributes   map[string]string
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Disabled        bool
 	CursorNavigable bool
@@ -942,30 +942,30 @@ func Button(props ButtonProps, children ...Node) Node {
 
 // CheckboxProps specifies attributes for Checkbox elements.
 type CheckboxProps struct {
-	Attributes     map[string]string
-	Key            string
-	ID             string
-	Class          string
-	Style          style.Style
-	Hidden         bool
-	Disabled       bool
-	OnKeyDown      func(event.Event)
-	OnKeyUp        func(event.Event)
-	OnKeyPress     func(event.Event)
-	OnMouseDown    func(event.Event)
-	OnMouseUp      func(event.Event)
-	OnMouseMove    func(event.Event)
-	OnClick        func(event.Event)
-	OnDrag         func(event.Event)
-	OnWheel        func(event.Event)
-	OnFocus        func(event.Event)
-	OnBlur         func(event.Event)
-	OnChange       func(event.Event)
-	OnScroll       func(event.Event)
-	OnMouseEnter   func(event.Event)
-	OnMouseLeave   func(event.Event)
-	OnMouseOver    func(event.Event)
-	OnMouseOut     func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	Disabled        bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Checked         bool
 	UncheckedGlyph  string
@@ -1050,22 +1050,22 @@ type RadioGroupProps struct {
 	Disabled   bool
 	OnKeyDown  func(event.Event)
 
-	OnKeyUp       func(event.Event)
-	OnKeyPress    func(event.Event)
-	OnMouseDown   func(event.Event)
-	OnMouseUp     func(event.Event)
-	OnMouseMove   func(event.Event)
-	OnClick       func(event.Event)
-	OnDrag        func(event.Event)
-	OnWheel       func(event.Event)
-	OnFocus       func(event.Event)
-	OnBlur        func(event.Event)
-	OnChange      func(event.Event)
-	OnScroll      func(event.Event)
-	OnMouseEnter  func(event.Event)
-	OnMouseLeave  func(event.Event)
-	OnMouseOver   func(event.Event)
-	OnMouseOut    func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Value           string
 	OnValueChange   func(string)
@@ -1126,29 +1126,29 @@ func RadioGroup(props RadioGroupProps, children ...Node) Node {
 
 // RadioProps specifies attributes for Radio elements.
 type RadioProps struct {
-	Attributes     map[string]string
-	Key            string
-	ID             string
-	Class          string
-	Style          style.Style
-	Hidden         bool
-	OnKeyDown      func(event.Event)
-	OnKeyUp        func(event.Event)
-	OnKeyPress     func(event.Event)
-	OnMouseDown    func(event.Event)
-	OnMouseUp      func(event.Event)
-	OnMouseMove    func(event.Event)
-	OnClick        func(event.Event)
-	OnDrag         func(event.Event)
-	OnWheel        func(event.Event)
-	OnFocus        func(event.Event)
-	OnBlur         func(event.Event)
-	OnChange       func(event.Event)
-	OnScroll       func(event.Event)
-	OnMouseEnter   func(event.Event)
-	OnMouseLeave   func(event.Event)
-	OnMouseOver    func(event.Event)
-	OnMouseOut     func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Value           string
 	UncheckedGlyph  string
@@ -1232,22 +1232,22 @@ type SelectProps struct {
 	Disabled   bool
 	OnKeyDown  func(event.Event)
 
-	OnKeyUp       func(event.Event)
-	OnKeyPress    func(event.Event)
-	OnMouseDown   func(event.Event)
-	OnMouseUp     func(event.Event)
-	OnMouseMove   func(event.Event)
-	OnClick       func(event.Event)
-	OnDrag        func(event.Event)
-	OnWheel       func(event.Event)
-	OnFocus       func(event.Event)
-	OnBlur        func(event.Event)
-	OnChange      func(event.Event)
-	OnScroll      func(event.Event)
-	OnMouseEnter  func(event.Event)
-	OnMouseLeave  func(event.Event)
-	OnMouseOver   func(event.Event)
-	OnMouseOut    func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Value           string
 	OnValueChange   func(string)
@@ -1318,29 +1318,29 @@ func Select(props SelectProps, children ...Node) Node {
 
 // OptionProps specifies attributes for Option elements.
 type OptionProps struct {
-	Attributes   map[string]string
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Text            string
 	Value           string
@@ -1760,29 +1760,29 @@ func TR(props TRProps, children ...Node) Node {
 
 // TDProps specifies attributes for TD elements.
 type TDProps struct {
-	Attributes   map[string]string
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	ColSpan         int
 	RowSpan         int
@@ -1857,29 +1857,29 @@ func Br(props BrProps) Node {
 
 // OverlayProps specifies attributes for Overlay elements.
 type OverlayProps struct {
-	Attributes   map[string]string
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	Anchor          dom.Element
 	ZIndex          int
@@ -1950,29 +1950,29 @@ func Overlay(props OverlayProps, content Node) Node {
 
 // DialogProps specifies attributes for Dialog elements.
 type DialogProps struct {
-	Attributes   map[string]string
-	Key          string
-	ID           string
-	Class        string
-	Style        style.Style
-	Hidden       bool
-	OnKeyDown    func(event.Event)
-	OnKeyUp      func(event.Event)
-	OnKeyPress   func(event.Event)
-	OnMouseDown  func(event.Event)
-	OnMouseUp    func(event.Event)
-	OnMouseMove  func(event.Event)
-	OnClick      func(event.Event)
-	OnDrag       func(event.Event)
-	OnWheel      func(event.Event)
-	OnFocus      func(event.Event)
-	OnBlur       func(event.Event)
-	OnChange     func(event.Event)
-	OnScroll     func(event.Event)
-	OnMouseEnter func(event.Event)
-	OnMouseLeave func(event.Event)
-	OnMouseOver  func(event.Event)
-	OnMouseOut   func(event.Event)
+	Attributes      map[string]string
+	Key             string
+	ID              string
+	Class           string
+	Style           style.Style
+	Hidden          bool
+	OnKeyDown       func(event.Event)
+	OnKeyUp         func(event.Event)
+	OnKeyPress      func(event.Event)
+	OnMouseDown     func(event.Event)
+	OnMouseUp       func(event.Event)
+	OnMouseMove     func(event.Event)
+	OnClick         func(event.Event)
+	OnDrag          func(event.Event)
+	OnWheel         func(event.Event)
+	OnFocus         func(event.Event)
+	OnBlur          func(event.Event)
+	OnChange        func(event.Event)
+	OnScroll        func(event.Event)
+	OnMouseEnter    func(event.Event)
+	OnMouseLeave    func(event.Event)
+	OnMouseOver     func(event.Event)
+	OnMouseOut      func(event.Event)
 	Ref             refSetter
 	ZIndex          int
 	Disabled        bool

@@ -640,8 +640,31 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 
 	// 2. State Hooks
 	activeSceneIdx, setActiveSceneIdx := kitex.UseState(0)
+	expandedComps, setExpandedComps := kitex.UseState(make(map[string]bool))
 	globalValues, setGlobalValues := kitex.UseState(make(map[string]any))
 	rootRef := kitex.UseRef[dom.Node](nil)
+
+	isExpanded := func(compName string) bool {
+		m := expandedComps()
+		if val, ok := m[compName]; ok {
+			return val
+		}
+		// Default: only expand the component of the first registered scene
+		if len(allScenes) > 0 {
+			return compName == allScenes[0].compName
+		}
+		return false
+	}
+
+	toggleComp := func(compName string) {
+		m := expandedComps()
+		next := make(map[string]bool)
+		for k, v := range m {
+			next[k] = v
+		}
+		next[compName] = !isExpanded(compName)
+		setExpandedComps(next)
+	}
 
 	setGlobalVal := func(name string, val any) {
 		prev := globalValues()
@@ -660,29 +683,67 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		activeScene = &props.Stage.components[ref.compName][ref.index]
 	}
 
-	// Render sidebar list items
+	// Render sidebar list items as a flat collapsible tree
+	var visibleIndices []int
 	var sidebarItems []kitex.Node
+
+	// Map compName -> list of scene indices in allScenes
+	compScenesMap := make(map[string][]int)
 	for idx, ref := range allScenes {
-		isSelected := idx == activeSceneIdx()
-		itemStyle := style.S().
-			Padding(0, 1).
-			Width(style.Percent(100))
-		if isSelected {
-			itemStyle = itemStyle.
-				Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}). // Indigo 600
-				Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255})
-		} else {
-			itemStyle = itemStyle.
-				Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}) // Gray 400
+		compScenesMap[ref.compName] = append(compScenesMap[ref.compName], idx)
+	}
+
+	for _, compName := range compNames {
+		// 1. Add Component Header
+		expanded := isExpanded(compName)
+		prefix := "▶ "
+		if expanded {
+			prefix = "▼ "
 		}
 
-		capturedIdx := idx
+		headerStyle := style.S().
+			Padding(0, 1).
+			Width(style.Percent(100)).
+			Bold(true).
+			Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}) // Gray 300
+
+		capturedComp := compName
 		sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
-			Style: itemStyle,
+			Style: headerStyle,
 			OnClick: func(e event.Event) {
-				setActiveSceneIdx(capturedIdx)
+				toggleComp(capturedComp)
 			},
-		}, kitex.Text(fmt.Sprintf("%s / %s", ref.compName, ref.sceneName))))
+		}, kitex.Text(prefix+compName)))
+
+		// 2. Add Component's Scenes if expanded
+		if expanded {
+			sceneIndices := compScenesMap[compName]
+			for _, idx := range sceneIndices {
+				ref := allScenes[idx]
+				visibleIndices = append(visibleIndices, idx)
+
+				isSelected := idx == activeSceneIdx()
+				itemStyle := style.S().
+					Padding(0, 3). // Indented
+					Width(style.Percent(100))
+				if isSelected {
+					itemStyle = itemStyle.
+						Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}). // Indigo 600
+						Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255})
+				} else {
+					itemStyle = itemStyle.
+						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}) // Gray 400
+				}
+
+				capturedIdx := idx
+				sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
+					Style: itemStyle,
+					OnClick: func(e event.Event) {
+						setActiveSceneIdx(capturedIdx)
+					},
+				}, kitex.Text("▪ "+ref.sceneName)))
+			}
+		}
 	}
 
 	// Global document-level navigation keyboard hook
@@ -705,13 +766,29 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 
 			if ke.MatchString("up") {
 				current := activeSceneIdx()
-				if current > 0 {
-					setActiveSceneIdx(current - 1)
+				pos := -1
+				for i, v := range visibleIndices {
+					if v == current {
+						pos = i
+						break
+					}
+				}
+				if pos > 0 {
+					setActiveSceneIdx(visibleIndices[pos-1])
 				}
 			} else if ke.MatchString("down") {
 				current := activeSceneIdx()
-				if current < len(allScenes)-1 {
-					setActiveSceneIdx(current + 1)
+				pos := -1
+				for i, v := range visibleIndices {
+					if v == current {
+						pos = i
+						break
+					}
+				}
+				if pos >= 0 && pos < len(visibleIndices)-1 {
+					setActiveSceneIdx(visibleIndices[pos+1])
+				} else if pos == -1 && len(visibleIndices) > 0 {
+					setActiveSceneIdx(visibleIndices[0])
 				}
 			}
 		}
@@ -720,7 +797,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		return func() {
 			sub.Cancel()
 		}
-	}, []any{len(allScenes), activeSceneIdx()})
+	}, []any{len(allScenes), activeSceneIdx(), len(visibleIndices)})
 
 	// Master Screen Layout
 	return kitex.Box(kitex.BoxProps{
