@@ -1466,3 +1466,65 @@ func TestVDOMAttributes(t *testing.T) {
 		t.Errorf("expected attribute 'value' to be 'go', got %q, ok=%t", val, ok)
 	}
 }
+
+func TestInputAndTextAreaCursorPreservation(t *testing.T) {
+	doc := dom.NewDocument()
+
+	// 1. Input Cursor Preservation Test
+	inpProps := InputProps{
+		ID:    "inp1",
+		Value: "hello",
+	}
+	inpNode := Input(inpProps)
+	realInp := instOne(inpNode, doc).(*element.InputElement)
+
+	// Set selection/cursor position in the middle
+	realInp.SetSelectionRange(2, 2)
+	start, end := realInp.SelectionRange()
+	if start != 2 || end != 2 {
+		t.Fatalf("expected selection range (2, 2), got (%d, %d)", start, end)
+	}
+
+	// Update with the same value
+	newInpProps := InputProps{
+		ID:    "inp1",
+		Value: "hello",
+	}
+	newInpNode := Input(newInpProps)
+	upd(newInpNode, realInp, inpNode)
+
+	// Cursor position should be preserved (not reset to 5)
+	start, end = realInp.SelectionRange()
+	if start != 2 || end != 2 {
+		t.Errorf("expected input selection range (2, 2) to be preserved, but got (%d, %d)", start, end)
+	}
+
+	// 2. TextArea Cursor Preservation Test
+	txaProps := TextAreaProps{
+		ID:    "txa1",
+		Value: "hello",
+	}
+	txaNode := TextArea(txaProps)
+	realTxa := instOne(txaNode, doc).(*element.TextAreaElement)
+
+	// Set selection/cursor position in the middle
+	realTxa.SetSelectionRange(2, 2)
+	start, end = realTxa.SelectionRange()
+	if start != 2 || end != 2 {
+		t.Fatalf("expected selection range (2, 2), got (%d, %d)", start, end)
+	}
+
+	// Update with the same value
+	newTxaProps := TextAreaProps{
+		ID:    "txa1",
+		Value: "hello",
+	}
+	newTxaNode := TextArea(newTxaProps)
+	upd(newTxaNode, realTxa, txaNode)
+
+	// Cursor position should be preserved (not reset to 5)
+	start, end = realTxa.SelectionRange()
+	if start != 2 || end != 2 {
+		t.Errorf("expected textarea selection range (2, 2) to be preserved, but got (%d, %d)", start, end)
+	}
+}

@@ -1474,9 +1474,7 @@ func Input(props InputProps) Node {
 			}
 			updateListener(inp, event.EventInput, oldChange, newChange)
 
-			if old != nil && old.Value != new.Value {
-				inp.SetValue(new.Value)
-			} else if old == nil {
+			if inp.TextContent() != new.Value {
 				inp.SetValue(new.Value)
 			}
 			if old != nil && old.Name != new.Name {
@@ -1574,9 +1572,7 @@ func TextArea(props TextAreaProps) Node {
 				newChange = new.OnChange
 			}
 			updateListener(txa, event.EventInput, oldChange, newChange)
-			if old != nil && old.Value != new.Value {
-				txa.SetValue(new.Value)
-			} else if old == nil {
+			if txa.TextContent() != new.Value {
 				txa.SetValue(new.Value)
 			}
 			if old != nil && old.Name != new.Name {
