@@ -24,7 +24,7 @@ type Scene struct {
 
 // Stage manages components and their scenes for isolation testing.
 type Stage struct {
-	components map[string][]Scene
+	*Registry
 	decorator  func(*Context, kitex.Node) kitex.Node
 	globals    []Control
 }
@@ -32,7 +32,7 @@ type Stage struct {
 // New creates a new Stage manager.
 func New() *Stage {
 	return &Stage{
-		components: make(map[string][]Scene),
+		Registry: NewRegistry(),
 	}
 }
 
@@ -103,7 +103,19 @@ func (s *Stage) GlobalInt(name string, defaultValue int) *Stage {
 
 // Register registers a list of scenes for a component.
 func (s *Stage) Register(component string, scenes []Scene) {
-	s.components[component] = append(s.components[component], scenes...)
+	s.RegisterRaw(component, scenes)
+}
+
+// Merge merges components from another sub-registry into this stage,
+// prepending the given prefix (if any) to the component paths.
+func (s *Stage) Merge(prefix string, reg *Registry) {
+	for compName, scenes := range reg.components {
+		fullPath := compName
+		if prefix != "" {
+			fullPath = prefix + "/" + compName
+		}
+		s.RegisterRaw(fullPath, scenes)
+	}
 }
 
 // Run launches the Stage TUI explorer.

@@ -2,6 +2,7 @@ package stage
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend/mock"
@@ -10,6 +11,7 @@ import (
 	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -140,12 +142,17 @@ func TestStageApp_ReconcilesKnobs(t *testing.T) {
 
 	// Render the stage UI
 	kitex.Render(renderUI(stg), container)
+	defer kitex.Render(nil, container)
 
 	// Helper to find the input element in the tree
 	var findInput func(dom.Node) *element.InputElement
+	var inputCount int
 	findInput = func(n dom.Node) *element.InputElement {
 		if el, ok := n.(*element.InputElement); ok {
-			return el
+			inputCount++
+			if inputCount == 2 {
+				return el
+			}
 		}
 		for child := range n.ChildNodes() {
 			if found := findInput(child); found != nil {
@@ -240,6 +247,7 @@ func TestStageApp_LayoutWidth(t *testing.T) {
 	eng.Mount(root)
 
 	kitex.Render(renderUI(stg), root)
+	defer kitex.Render(nil, root)
 	eng.Frame()
 
 	var findInputROs func(ro render.Object) []render.Object
@@ -282,5 +290,249 @@ func TestStageApp_LayoutWidth(t *testing.T) {
 		if frag != nil && frag.Size.Width <= 3 {
 			t.Errorf("Input element width is too narrow: %d", frag.Size.Width)
 		}
+	}
+}
+
+func TestStageApp_NestedSections(t *testing.T) {
+	stg := New()
+	// Flat component (1 level) -> Default/Default/FlatComp
+	stg.Register("FlatComp", []Scene{{Name: "Scene1", Render: func(c *Context) kitex.Node { return nil }}})
+	// 2-level component -> Default/Suite/Button
+	stg.Register("Suite/Button", []Scene{{Name: "Scene3", Render: func(c *Context) kitex.Node { return nil }}})
+	// Nested 3 levels -> Category/Subcat/Comp
+	stg.Register("Category/Subcat/Comp", []Scene{{Name: "Scene2", Render: func(c *Context) kitex.Node { return nil }}})
+
+	doc := dom.NewDocument()
+	container := element.NewBox(doc)
+
+	// Render the stage UI
+	kitex.Render(renderUI(stg), container)
+	defer kitex.Render(nil, container)
+
+	// Helper to find all text elements
+	var collectTexts func(dom.Node, *[]string)
+	collectTexts = func(n dom.Node, res *[]string) {
+		if txt, ok := n.(*element.TextElement); ok {
+			*res = append(*res, txt.TextContent())
+		}
+		for child := range n.ChildNodes() {
+			collectTexts(child, res)
+		}
+	}
+
+	var textContents []string
+	collectTexts(container, &textContents)
+
+	// Helper to check if any string in slice contains substring
+	hasSubstring := func(slice []string, substring string) bool {
+		for _, s := range slice {
+			if strings.Contains(s, substring) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Verify Category and Subcat are rendered as folder nodes
+	if !hasSubstring(textContents, "Category") {
+		t.Errorf("expected Category folder header in sidebar, got texts: %v", textContents)
+	}
+	if !hasSubstring(textContents, "Subcat") {
+		t.Errorf("expected Subcat folder header in sidebar, got texts: %v", textContents)
+	}
+	if !hasSubstring(textContents, "Comp") {
+		t.Errorf("expected Comp component header in sidebar, got texts: %v", textContents)
+	}
+
+	// Verify "Default" is rendered as a closed top-level folder
+	if !hasSubstring(textContents, "◆ Default") {
+		t.Errorf("expected closed '◆ Default' folder in sidebar, got texts: %v", textContents)
+	}
+
+	// FlatComp and Suite/Button should NOT be visible yet since Default is collapsed
+	if hasSubstring(textContents, "FlatComp") {
+		t.Errorf("FlatComp should not be visible when Default folder is collapsed, got texts: %v", textContents)
+	}
+	if hasSubstring(textContents, "Suite") {
+		t.Errorf("Suite folder should not be visible when Default folder is collapsed, got texts: %v", textContents)
+	}
+
+	// Find the Box/Element containing "◆ Default"
+	var defaultBox dom.Node
+	var findDefaultBox func(dom.Node)
+	findDefaultBox = func(n dom.Node) {
+		if txt, ok := n.(*element.TextElement); ok && txt.TextContent() == "◆ Default" {
+			defaultBox = n.Parent()
+			return
+		}
+		for child := range n.ChildNodes() {
+			findDefaultBox(child)
+			if defaultBox != nil {
+				return
+			}
+		}
+	}
+	findDefaultBox(container)
+	if defaultBox == nil {
+		t.Fatal("expected to find '◆ Default' in sidebar")
+	}
+
+	// Click to expand Default (level 1)
+	el, ok := defaultBox.EventTarget().(element.Element)
+	if !ok {
+		t.Fatal("expected defaultBox to be an element.Element")
+	}
+	el.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+
+	// Re-collect texts to find "▶ Suite" (level 2) and "⬢ FlatComp" (level 2)
+	textContents = nil
+	collectTexts(container, &textContents)
+
+	if !hasSubstring(textContents, "▶ Suite") {
+		t.Errorf("expected '▶ Suite' folder in sidebar under Default category, got texts: %v", textContents)
+	}
+
+	// FlatComp should now be visible directly under Default category!
+	if !hasSubstring(textContents, "FlatComp") {
+		t.Errorf("expected FlatComp header in sidebar directly under 'Default' category, got texts: %v", textContents)
+	}
+}
+
+type MyTestProps struct {
+	Label    string `stage:"label:Custom Label;default:Hello"`
+	Disabled bool   `stage:"default:true"`
+	Padding  int    `stage:"default:3;min:0;max:10"`
+	Theme    string `stage:"select:light,dark;default:light"`
+}
+
+func TestStageApp_ReflectionAndRegistry(t *testing.T) {
+	reg := NewRegistry()
+
+	Register(reg, ComponentConfig[MyTestProps]{
+		Name: "ReflectedComponent",
+		DefaultProps: MyTestProps{
+			Label:    "InitialHello",
+			Disabled: true,
+			Padding:  5,
+			Theme:    "dark",
+		},
+		Render: func(c *Context, props MyTestProps) kitex.Node {
+			println("RENDERING SCENE PROPS:", props.Label, props.Disabled, props.Padding, props.Theme)
+			return kitex.Text(fmt.Sprintf("%s-%v-%d-%s", props.Label, props.Disabled, props.Padding, props.Theme))
+		},
+		Controls: map[string]ControlOverride{
+			"Label": {
+				Label: "Override Label",
+			},
+		},
+		Scenes: []SceneConfig[MyTestProps]{
+			{
+				Name: "Variation1",
+				Props: MyTestProps{
+					Label:    "VarHello",
+					Disabled: true,
+					Padding:  8,
+					Theme:    "light",
+				},
+			},
+		},
+	})
+
+	stg := New()
+	stg.Merge("NestedFolder", reg)
+
+	doc := dom.NewDocument()
+	container := element.NewBox(doc)
+
+	// Render the stage UI
+	kitex.Render(renderUI(stg), container)
+	defer kitex.Render(nil, container)
+
+	// Helper to find a text node with specific content
+	var findText func(dom.Node, string) dom.Node
+	findText = func(n dom.Node, content string) dom.Node {
+		if txt, ok := n.(*element.TextElement); ok && txt.TextContent() == content {
+			return txt
+		}
+		for child := range n.ChildNodes() {
+			if found := findText(child, content); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+
+	// Helper to find all text elements
+	var collectTexts func(dom.Node, *[]string)
+	collectTexts = func(n dom.Node, res *[]string) {
+		if txt, ok := n.(*element.TextElement); ok {
+			*res = append(*res, txt.TextContent())
+		}
+		for child := range n.ChildNodes() {
+			collectTexts(child, res)
+		}
+	}
+	var textContents []string
+	collectTexts(container, &textContents)
+	t.Logf("Rendered text nodes: %v", textContents)
+
+	// Verify the default scene rendered correctly with the default props values
+	// Our initial values: "InitialHello", true, 5, "dark"
+	// So text should be "InitialHello-true-5-dark"
+	if txt := findText(container, "InitialHello-true-5-dark"); txt == nil {
+		t.Fatal("expected default scene to render initial props text")
+	}
+
+	// Verify the controls labels are rendered correctly (with the override)
+	if txt := findText(container, "Override Label"); txt == nil {
+		t.Error("expected 'Override Label' control label to be rendered")
+	}
+	if txt := findText(container, "Disabled"); txt == nil {
+		t.Error("expected 'Disabled' control label to be rendered")
+	}
+	if txt := findText(container, "Padding"); txt == nil {
+		t.Error("expected 'Padding' control label to be rendered")
+	}
+	if txt := findText(container, "Theme"); txt == nil {
+		t.Error("expected 'Theme' control label to be rendered")
+	}
+
+	// Find the Variation1 scene item in the sidebar and click it
+	var variation1Item dom.Node
+	var findVariation1 func(dom.Node)
+	findVariation1 = func(n dom.Node) {
+		if txt, ok := n.(*element.TextElement); ok && txt.TextContent() == "▪ Variation1" {
+			variation1Item = n.Parent()
+			return
+		}
+		for child := range n.ChildNodes() {
+			findVariation1(child)
+			if variation1Item != nil {
+				return
+			}
+		}
+	}
+	findVariation1(container)
+	if variation1Item == nil {
+		t.Fatal("expected to find scene item '▪ Variation1' in sidebar")
+	}
+
+	// Click the variation scene
+	el, ok := variation1Item.EventTarget().(element.Element)
+	if !ok {
+		t.Fatal("expected variation1Item to be an element.Element")
+	}
+	t.Logf("variation1Item type: %T, tag: %s, Listeners: %v", el, el.TagName(), el.Listeners())
+	el.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+
+	// Re-collect texts
+	textContents = nil
+	collectTexts(container, &textContents)
+	t.Logf("Rendered text nodes after click: %v", textContents)
+
+	// Verify that the Canvas text node has updated to the Variation1 props values:
+	// "VarHello-true-8-light"
+	if txt := findText(container, "VarHello-true-8-light"); txt == nil {
+		t.Fatal("expected scene to render Variation1 props text after clicking it")
 	}
 }

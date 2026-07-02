@@ -5,8 +5,10 @@ import (
 	"image/color"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/style"
@@ -614,55 +616,163 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 
 // StageApp renders the interactive playground user interface.
 var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
-	// 1. Collect and sort scenes
+	// 1. Trie structure to support nested sections
+	type trieNode struct {
+		Name     string
+		FullPath string
+		Children map[string]*trieNode
+		Scenes   []Scene
+		CompName string
+	}
+
+	normalizeComponentPath := func(compName string) []string {
+		if compName == "" {
+			return []string{"Default", "Default"}
+		}
+		parts := strings.Split(compName, "/")
+		if len(parts) == 1 {
+			return []string{"Default", parts[0]}
+		} else if len(parts) == 2 {
+			return []string{"Default", parts[0], parts[1]}
+		}
+		return parts
+	}
+
+	buildTrie := func(components map[string][]Scene) *trieNode {
+		root := &trieNode{
+			Children: make(map[string]*trieNode),
+		}
+		for compName, scenes := range components {
+			parts := normalizeComponentPath(compName)
+			curr := root
+			var pathBuilder []string
+			for _, part := range parts {
+				pathBuilder = append(pathBuilder, part)
+				fullPath := strings.Join(pathBuilder, "/")
+				if curr.Children == nil {
+					curr.Children = make(map[string]*trieNode)
+				}
+				child, ok := curr.Children[part]
+				if !ok {
+					child = &trieNode{
+						Name:     part,
+						FullPath: fullPath,
+						Children: make(map[string]*trieNode),
+					}
+					curr.Children[part] = child
+				}
+				curr = child
+			}
+			curr.Scenes = scenes
+			curr.CompName = compName
+		}
+		return root
+	}
+
+	rootTrieNode := buildTrie(props.Stage.components)
+
 	type sceneRef struct {
 		compName  string
 		sceneName string
 		index     int
 	}
-	var compNames []string
-	for k := range props.Stage.components {
-		compNames = append(compNames, k)
-	}
-	sort.Strings(compNames)
 
 	var allScenes []sceneRef
-	for _, compName := range compNames {
-		scenes := props.Stage.components[compName]
-		for idx, sc := range scenes {
+	var traverseTree func(*trieNode)
+	traverseTree = func(node *trieNode) {
+		var childKeys []string
+		for k := range node.Children {
+			childKeys = append(childKeys, k)
+		}
+		sort.Strings(childKeys)
+		for _, k := range childKeys {
+			traverseTree(node.Children[k])
+		}
+
+		for i, sc := range node.Scenes {
 			allScenes = append(allScenes, sceneRef{
-				compName:  compName,
+				compName:  node.CompName,
 				sceneName: sc.Name,
-				index:     idx,
+				index:     i,
 			})
 		}
 	}
+	traverseTree(rootTrieNode)
 
-	// 2. State Hooks
+	// 2. State Hooks & Refs
 	activeSceneIdx, setActiveSceneIdx := kitex.UseState(0)
 	expandedComps, setExpandedComps := kitex.UseState(make(map[string]bool))
 	globalValues, setGlobalValues := kitex.UseState(make(map[string]any))
+	filterText, setFilterText := kitex.UseState("")
 	rootRef := kitex.UseRef[dom.Node](nil)
+	filterInputRef := kitex.UseRef[*element.InputElement](nil)
 
-	isExpanded := func(compName string) bool {
-		m := expandedComps()
-		if val, ok := m[compName]; ok {
-			return val
+	// Trie filter matching helpers
+	var nodeMatches func(*trieNode, string) bool
+	nodeMatches = func(node *trieNode, query string) bool {
+		if query == "" {
+			return true
 		}
-		// Default: only expand the component of the first registered scene
-		if len(allScenes) > 0 {
-			return compName == allScenes[0].compName
+		query = strings.ToLower(query)
+		if strings.Contains(strings.ToLower(node.Name), query) {
+			return true
+		}
+		for _, sc := range node.Scenes {
+			if strings.Contains(strings.ToLower(sc.Name), query) {
+				return true
+			}
+		}
+		for _, child := range node.Children {
+			if nodeMatches(child, query) {
+				return true
+			}
 		}
 		return false
 	}
 
-	toggleComp := func(compName string) {
+	type filteredSceneRef struct {
+		sc    Scene
+		index int
+	}
+
+	getFilteredScenes := func(node *trieNode, query string) []filteredSceneRef {
+		var res []filteredSceneRef
+		queryLower := strings.ToLower(query)
+		compMatch := query == "" || strings.Contains(strings.ToLower(node.Name), queryLower)
+		for i, sc := range node.Scenes {
+			if compMatch || strings.Contains(strings.ToLower(sc.Name), queryLower) {
+				res = append(res, filteredSceneRef{sc: sc, index: i})
+			}
+		}
+		return res
+	}
+
+	isExpanded := func(path string, node *trieNode) bool {
+		query := filterText()
+		if query != "" {
+			return nodeMatches(node, query)
+		}
+
+		m := expandedComps()
+		if val, ok := m[path]; ok {
+			return val
+		}
+		// Default expansion: expand components/folders along the path of the first scene
+		if len(allScenes) > 0 {
+			parts := normalizeComponentPath(allScenes[0].compName)
+			firstCompNormalized := strings.Join(parts, "/")
+			return path == firstCompNormalized || strings.HasPrefix(firstCompNormalized, path+"/")
+		}
+		return false
+	}
+
+	toggleComp := func(path string, node *trieNode) {
 		m := expandedComps()
 		next := make(map[string]bool)
 		for k, v := range m {
 			next[k] = v
 		}
-		next[compName] = !isExpanded(compName)
+		next[path] = !isExpanded(path, node)
 		setExpandedComps(next)
 	}
 
@@ -683,68 +793,137 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		activeScene = &props.Stage.components[ref.compName][ref.index]
 	}
 
-	// Render sidebar list items as a flat collapsible tree
+	// Render sidebar list items as a nested collapsible tree
 	var visibleIndices []int
 	var sidebarItems []kitex.Node
 
-	// Map compName -> list of scene indices in allScenes
-	compScenesMap := make(map[string][]int)
-	for idx, ref := range allScenes {
-		compScenesMap[ref.compName] = append(compScenesMap[ref.compName], idx)
+	sceneKeyToIndex := make(map[string]int)
+	for i, ref := range allScenes {
+		key := fmt.Sprintf("%s:%d", ref.compName, ref.index)
+		sceneKeyToIndex[key] = i
 	}
 
-	for _, compName := range compNames {
-		// 1. Add Component Header
-		expanded := isExpanded(compName)
-		prefix := "▶ "
-		if expanded {
-			prefix = "▼ "
+	var renderNode func(*trieNode, int)
+	renderNode = func(node *trieNode, depth int) {
+		if node.FullPath == "" {
+			var childKeys []string
+			for k, child := range node.Children {
+				if nodeMatches(child, filterText()) {
+					childKeys = append(childKeys, k)
+				}
+			}
+			sort.Strings(childKeys)
+			for i, k := range childKeys {
+				if i > 0 {
+					// Add a visual separator or gap before this top-level category
+					sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
+						Style: style.S().Height(style.Cells(1)),
+					}))
+				}
+				renderNode(node.Children[k], 0)
+			}
+			return
+		}
+
+		expanded := isExpanded(node.FullPath, node)
+		var icon string
+		hasChildren := len(node.Children) > 0
+		hasScenes := len(node.Scenes) > 0
+
+		if depth == 0 {
+			if hasChildren {
+				if expanded {
+					icon = "◇ " // Open Top-Level Folder
+				} else {
+					icon = "◆ " // Closed Top-Level Folder
+				}
+			} else {
+				if expanded {
+					icon = "✧ " // Open Top-Level Flat Component
+				} else {
+					icon = "✦ " // Closed Top-Level Flat Component
+				}
+			}
+		} else {
+			if hasChildren {
+				if expanded {
+					icon = "▼ " // Open Intermediate Folder
+				} else {
+					icon = "▶ " // Closed Intermediate Folder
+				}
+			} else if hasScenes {
+				if expanded {
+					icon = "⬡ " // Open Component Level
+				} else {
+					icon = "⬢ " // Closed Component Level
+				}
+			}
 		}
 
 		headerStyle := style.S().
-			Padding(0, 1).
+			Padding(0, 1+depth*2).
 			Width(style.Percent(100)).
-			Bold(true).
-			Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}) // Gray 300
+			Bold(true)
 
-		capturedComp := compName
+		if hasChildren {
+			headerStyle = headerStyle.Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255})
+		} else {
+			headerStyle = headerStyle.Foreground(color.RGBA{R: 229, G: 231, B: 235, A: 255})
+		}
+
+		capturedPath := node.FullPath
+		capturedNode := node
 		sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
 			Style: headerStyle,
 			OnClick: func(e event.Event) {
-				toggleComp(capturedComp)
+				toggleComp(capturedPath, capturedNode)
 			},
-		}, kitex.Text(prefix+compName)))
+		}, kitex.Text(icon+node.Name)))
 
-		// 2. Add Component's Scenes if expanded
 		if expanded {
-			sceneIndices := compScenesMap[compName]
-			for _, idx := range sceneIndices {
-				ref := allScenes[idx]
-				visibleIndices = append(visibleIndices, idx)
+			var childKeys []string
+			for k, child := range node.Children {
+				if nodeMatches(child, filterText()) {
+					childKeys = append(childKeys, k)
+				}
+			}
+			sort.Strings(childKeys)
+			for _, k := range childKeys {
+				renderNode(node.Children[k], depth+1)
+			}
 
-				isSelected := idx == activeSceneIdx()
+			for _, fsc := range getFilteredScenes(node, filterText()) {
+				key := fmt.Sprintf("%s:%d", node.CompName, fsc.index)
+				globalIdx, found := sceneKeyToIndex[key]
+				if !found {
+					continue
+				}
+				visibleIndices = append(visibleIndices, globalIdx)
+
+				isSelected := globalIdx == activeSceneIdx()
 				itemStyle := style.S().
-					Padding(0, 3). // Indented
+					Padding(0, 1+(depth+1)*2+1).
 					Width(style.Percent(100))
 				if isSelected {
 					itemStyle = itemStyle.
-						Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}). // Indigo 600
+						Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}).
 						Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255})
 				} else {
 					itemStyle = itemStyle.
-						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}) // Gray 400
+						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255})
 				}
 
-				capturedIdx := idx
+				capturedIdx := globalIdx
 				sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
 					Style: itemStyle,
 					OnClick: func(e event.Event) {
 						setActiveSceneIdx(capturedIdx)
 					},
-				}, kitex.Text("▪ "+ref.sceneName)))
+				}, kitex.Text("▪ "+fsc.sc.Name)))
 			}
 		}
 	}
+	renderNode(rootTrieNode, 0)
 
 	// Global document-level navigation keyboard hook
 	kitex.UseEffectCleanup(func() func() {
@@ -762,6 +941,15 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 				if el, ok := target.(dom.Element); ok && el.TagName() == "input" {
 					return
 				}
+			}
+
+			// Focus filter input on "/"
+			if ke.MatchString("/") {
+				if filterInputRef.Current != nil {
+					filterInputRef.Current.Focus()
+				}
+				e.PreventDefault()
+				return
 			}
 
 			if ke.MatchString("up") {
@@ -822,6 +1010,33 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 				},
 				kitex.Text("📖 SCENES"),
 			),
+			kitex.Input(kitex.InputProps{
+				Ref:         filterInputRef,
+				Value:       filterText(),
+				Placeholder: "Filter (press /)...",
+				Style: style.S().
+					Width(style.Percent(100)).
+					MarginBottom(1).
+					Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}).
+					Foreground(color.RGBA{R: 243, G: 244, B: 246, A: 255}).
+					Padding(0, 1),
+				OnChange: func(e event.Event) {
+					if ie, ok := e.(*event.InputEvent); ok {
+						setFilterText(ie.Value)
+					} else if ce, ok := e.(*event.ChangeEvent); ok {
+						setFilterText(ce.Value)
+					}
+				},
+				OnKeyDown: func(e event.Event) {
+					ke := e.(*event.KeyEvent)
+					if ke.MatchString("escape") || ke.MatchString("enter") {
+						if filterInputRef.Current != nil {
+							filterInputRef.Current.Blur()
+						}
+						e.PreventDefault()
+					}
+				},
+			}),
 			kitex.Box(
 				kitex.BoxProps{
 					Style: style.S().Flex(1).Overflow(style.OverflowAuto),
