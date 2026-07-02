@@ -10,6 +10,14 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
+type CardProps struct {
+	Title       string `stage:"label:Card Title;default:Welcome to Kite"`
+	Subtitle    string `stage:"label:Card Subtitle;default:A fast TUI library"`
+	ShowAction  bool   `stage:"label:Show Action Button;default:true"`
+	BorderWidth int    `stage:"label:Border Width;min:1;max:4;default:1"`
+	Theme       string `stage:"select:Ocean,Forest,Sunset;default:Ocean"`
+}
+
 func main() {
 	stg := stage.New()
 
@@ -50,7 +58,7 @@ func main() {
 	})
 
 	// 1. Button component scenes
-	stg.Register("Button", []stage.Scene{
+	stg.Register("DesignSystem/Buttons/Button", []stage.Scene{
 		{
 			Name: "Interactive Button",
 			Render: func(c *stage.Context) kitex.Node {
@@ -269,6 +277,76 @@ func main() {
 			},
 		},
 	})
+
+	// Create a sub-registry (simulating an external package registry)
+	cardRegistry := stage.NewRegistry()
+
+	// Register our Card component using the new generic reflection-based Register function!
+	stage.Register(cardRegistry, stage.ComponentConfig[CardProps]{
+		Name: "Card",
+		DefaultProps: CardProps{
+			Title:      "Kite TUI",
+			Subtitle:   "Sleek and terminal-native",
+			ShowAction: true,
+			Theme:      "Ocean",
+		},
+		Render: func(c *stage.Context, props CardProps) kitex.Node {
+			var themeColor color.RGBA
+			switch props.Theme {
+			case "Ocean":
+				themeColor = color.RGBA{R: 59, G: 130, B: 246, A: 255} // Blue 500
+			case "Sunset":
+				themeColor = color.RGBA{R: 239, G: 68, B: 68, A: 255}  // Red 500
+			case "Forest":
+				themeColor = color.RGBA{R: 16, G: 185, B: 129, A: 255} // Green 500
+			}
+
+			cardStyle := style.S().
+				Padding(1).
+				Border(true, style.BorderSingle, themeColor)
+
+			var children []kitex.Node
+			children = append(children, kitex.Box(
+				kitex.BoxProps{Style: style.S().Bold(true).Foreground(themeColor)},
+				kitex.Text(props.Title),
+			))
+			children = append(children, kitex.Text(props.Subtitle))
+
+			if props.ShowAction {
+				children = append(children, kitex.Box(
+					kitex.BoxProps{Style: style.S().Height(style.Cells(1))}, // Spacing
+				))
+				children = append(children, kitex.Button(
+					kitex.ButtonProps{
+						Style: style.S().
+							Background(themeColor).
+							Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}).
+							Padding(0, 1),
+						OnClick: func(e event.Event) {
+							c.Log("Card action clicked!")
+						},
+					},
+					kitex.Text("Action"),
+				))
+			}
+
+			return kitex.Box(kitex.BoxProps{Style: cardStyle}, children...)
+		},
+		Scenes: []stage.SceneConfig[CardProps]{
+			{
+				Name: "Compact Variation",
+				Props: CardProps{
+					Title:      "Compact Card",
+					Subtitle:   "Minimal variation",
+					ShowAction: false,
+					Theme:      "Forest",
+				},
+			},
+		},
+	})
+
+	// Merge the sub-registry under a clean namespace
+	stg.Merge("DesignSystem/Layouts", cardRegistry)
 
 	stg.Run()
 }
