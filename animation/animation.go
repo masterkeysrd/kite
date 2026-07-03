@@ -146,10 +146,7 @@ func (t *Tween[T]) cleanup() {
 // If they are of different kinds, or if the slice lengths differ, it snaps to start (if progress < 0.5)
 // or end (if progress >= 0.5).
 func InterpolateGridTracks(start, end []style.GridTrackSize, progress float64) []style.GridTrackSize {
-	maxLen := len(start)
-	if len(end) > maxLen {
-		maxLen = len(end)
-	}
+	maxLen := max(len(end), len(start))
 
 	resultLen := len(start)
 	if progress >= 0.5 {
@@ -158,7 +155,7 @@ func InterpolateGridTracks(start, end []style.GridTrackSize, progress float64) [
 
 	result := make([]style.GridTrackSize, 0, resultLen)
 
-	for i := 0; i < maxLen; i++ {
+	for i := range maxLen {
 		sExists := i < len(start)
 		eExists := i < len(end)
 
