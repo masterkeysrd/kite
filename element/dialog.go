@@ -2,6 +2,7 @@ package element
 
 import (
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -13,6 +14,7 @@ type DialogElement struct {
 
 var _ Element = (*DialogElement)(nil)
 var _ dom.Lifecycle = (*DialogElement)(nil)
+var _ event.Scrollable = (*DialogElement)(nil)
 
 var defaultDialogStyle = style.S().
 	Width(style.Percent(100)).
@@ -65,4 +67,9 @@ func (d *DialogElement) OnDisconnected() {
 
 func (d *DialogElement) IsFocusable() bool {
 	return true
+}
+
+// OnWheel implements event.Scrollable to trap scroll/wheel events inside the dialog.
+func (d *DialogElement) OnWheel(e *event.WheelEvent) {
+	e.StopPropagation()
 }

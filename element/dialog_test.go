@@ -6,6 +6,8 @@ import (
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/geom"
 )
 
 func TestDialog_Lifecycle(t *testing.T) {
@@ -62,5 +64,16 @@ func TestDialog_Lifecycle(t *testing.T) {
 	}
 	if activeScope.Root == dialog {
 		t.Error("dialog focus scope should have been popped")
+	}
+}
+
+func TestDialog_ScrollTrapping(t *testing.T) {
+	dialog := element.Dialog(element.Box(), 100)
+
+	ev := event.NewWheelEvent(geom.Point{X: 10, Y: 10}, 0, 1, 0)
+	dialog.OnWheel(ev)
+
+	if !ev.PropagationStopped() {
+		t.Error("expected wheel event to be stopped (trapped) by the dialog element")
 	}
 }
