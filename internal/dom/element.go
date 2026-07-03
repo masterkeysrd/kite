@@ -323,6 +323,18 @@ func (e *Element) ScrollTo(x, y int) {
 	if e.scroll == nil {
 		e.scroll = &ScrollState{}
 	}
+
+	if doc := e.OwnerDocument(); doc != nil {
+		if view := doc.DefaultView(); view != nil {
+			maxSX, maxSY := view.GetMaxScroll(e.self)
+			isCursorProvider := e.ProvidesCursor()
+			if !isCursorProvider {
+				x = max(0, min(x, maxSX))
+				y = max(0, min(y, maxSY))
+			}
+		}
+	}
+
 	dx := x - e.scroll.X
 	dy := y - e.scroll.Y
 	if dx == 0 && dy == 0 {
@@ -360,8 +372,7 @@ func (e *Element) ScrollCursorIntoView() {
 }
 
 func (e *Element) ProvidesCursor() bool {
-	// Base implementation returns false.
-	return false
+	return e.tagName == "input" || e.tagName == "textarea"
 }
 
 func (e *Element) GetBoundingClientRect() (geom.Rect, bool) {

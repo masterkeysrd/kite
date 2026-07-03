@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/masterkeysrd/kite/dom"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
 	"github.com/masterkeysrd/kite/internal/render"
@@ -141,6 +142,12 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 		for _, overlay := range overlays {
 			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
 		}
+
+	}
+
+	clampScrollOffsets(root)
+	for _, overlay := range overlays {
+		clampScrollOffsets(overlay)
 	}
 
 	focused := e.focusManager.Current()
@@ -237,4 +244,26 @@ func (p *ProfilingPipeline) Layout(e *Engine) bool {
 func (p *ProfilingPipeline) Paint(e *Engine, layoutRan bool) {
 	defer e.Tracer().Begin("Phase:Paint")()
 	p.wrapped.Paint(e, layoutRan)
+}
+
+func clampScrollOffsets(ro render.Object) {
+	if ro == nil {
+		return
+	}
+	if n := ro.LogicalNode(); n != nil {
+		if el, ok := n.(dom.Element); ok {
+			if !el.ProvidesCursor() {
+				maxSX, maxSY := ro.MaxScroll()
+				currX, currY := el.Scroll()
+				clampedX := max(0, min(currX, maxSX))
+				clampedY := max(0, min(currY, maxSY))
+				if clampedX != currX || clampedY != currY {
+					el.ScrollTo(clampedX, clampedY)
+				}
+			}
+		}
+	}
+	for child := range ro.Children() {
+		clampScrollOffsets(child)
+	}
 }

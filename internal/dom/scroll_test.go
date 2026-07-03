@@ -3,6 +3,7 @@ package dom
 import (
 	"testing"
 
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 )
 
@@ -58,5 +59,52 @@ func TestElement_ScrollEvent(t *testing.T) {
 	}
 	if received.DeltaX != 1 || received.DeltaY != 2 {
 		t.Errorf("ScrollEvent delta after ScrollBy: got (%d, %d), want (1, 2)", received.DeltaX, received.DeltaY)
+	}
+}
+
+type mockScrollClampingView struct {
+	mockView
+	maxSX, maxSY int
+}
+
+func (m *mockScrollClampingView) GetMaxScroll(n dom.Node) (x, y int) {
+	return m.maxSX, m.maxSY
+}
+
+func TestElement_ScrollClamping(t *testing.T) {
+	doc := NewDocument()
+	el := doc.CreateElement("div", nil)
+
+	// Set a mock view on the document with max scroll limits
+	view := &mockScrollClampingView{maxSX: 50, maxSY: 100}
+	doc.SetDefaultView(view)
+
+	// Programmatic ScrollTo exceeding boundaries
+	el.ScrollTo(9999, 9999)
+	x, y := el.Scroll()
+	if x != 50 || y != 100 {
+		t.Errorf("ScrollTo(9999, 9999) did not clamp to view bounds: got (%d, %d), want (50, 100)", x, y)
+	}
+
+	// Programmatic ScrollTo below zero
+	el.ScrollTo(-10, -20)
+	x, y = el.Scroll()
+	if x != 0 || y != 0 {
+		t.Errorf("ScrollTo(-10, -20) did not clamp to zero: got (%d, %d), want (0, 0)", x, y)
+	}
+
+	// Programmatic ScrollBy exceeding bounds
+	el.ScrollTo(40, 90)
+	el.ScrollBy(20, 20)
+	x, y = el.Scroll()
+	if x != 50 || y != 100 {
+		t.Errorf("ScrollBy(20, 20) did not clamp: got (%d, %d), want (50, 100)", x, y)
+	}
+
+	// Programmatic ScrollBy below zero
+	el.ScrollBy(-60, -110)
+	x, y = el.Scroll()
+	if x != 0 || y != 0 {
+		t.Errorf("ScrollBy(-60, -110) did not clamp: got (%d, %d), want (0, 0)", x, y)
 	}
 }
