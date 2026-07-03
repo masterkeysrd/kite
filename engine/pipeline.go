@@ -263,7 +263,7 @@ func clampScrollOffsets(ro render.Object) {
 			}
 		}
 	}
-	for child := range ro.Children() {
+	for child := ro.FirstChild(); child != nil; child = child.NextSibling() {
 		clampScrollOffsets(child)
 	}
 }
