@@ -1348,3 +1348,95 @@ func TestReconcilerFragmentConditionalEndItem(t *testing.T) {
 		t.Errorf("expected children order %v, got %v", expected, ids)
 	}
 }
+
+func TestReconcilerKeyMismatchReplacement(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	// Frame 1: Box with Key "A"
+	Render(Box(BoxProps{Key: "A", ID: "box-a"}), container)
+	parentReal := container
+	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).ID() != "box-a" {
+		t.Fatalf("expected box-a initially")
+	}
+	oldReal := parentReal.FirstChild()
+
+	// Frame 2: Box with Key "B" (key mismatch). Replaces Box A in place.
+	Render(Box(BoxProps{Key: "B", ID: "box-b"}), container)
+	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).ID() != "box-b" {
+		t.Fatalf("expected box-b after key mismatch replacement")
+	}
+	newReal := parentReal.FirstChild()
+	if oldReal == newReal {
+		t.Fatalf("expected DOM element to be destroyed and replaced, but it was patched in place")
+	}
+}
+
+func TestReconcilerStaleParentRefsPropagation(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	var setStep func(int)
+
+	// Child component that swaps root keys based on step
+	Child := FC("Child", func(props struct{}) Node {
+		step, set := UseState(1)
+		setStep = set
+
+		if step() == 1 {
+			return Box(BoxProps{Key: "A", ID: "child-a"})
+		}
+		return Box(BoxProps{Key: "B", ID: "child-b"})
+	})
+
+	// Parent component that wraps the child component directly
+	Parent := FC("Parent", func(props struct{}) Node {
+		return Child(struct{}{})
+	})
+
+	// Main test app
+	var setScreen func(string)
+	App := FC("App", func(props struct{}) Node {
+		screen, set := UseState("parent")
+		setScreen = set
+
+		if screen() == "parent" {
+			return Parent(struct{}{})
+		}
+		return Box(BoxProps{ID: "other-screen"})
+	})
+
+	// 1. Initial Render: renders App -> Parent -> Child -> Box(Key "A", ID "child-a")
+	Render(App(struct{}{}), container)
+	if container.FirstChild() == nil || container.FirstChild().(dom.Element).ID() != "child-a" {
+		t.Fatalf("expected child-a initially, got %v", container.FirstChild())
+	}
+	oldReal := container.FirstChild()
+
+	// 2. Trigger Child state change: swaps key from "A" to "B"
+	setStep(2)
+	// Flush updates
+	flushDirtyComponents()
+
+	if container.FirstChild() == nil || container.FirstChild().(dom.Element).ID() != "child-b" {
+		t.Fatalf("expected child-b after update, got %v", container.FirstChild())
+	}
+	newReal := container.FirstChild()
+	if oldReal == newReal {
+		t.Fatalf("expected child DOM node to be replaced")
+	}
+
+	// 3. Trigger App state change: transitions from "parent" to "other-screen"
+	setScreen("other")
+	// Flush updates
+	flushDirtyComponents()
+
+	// Verify that the container has transitioned and the child-b DOM element is removed
+	if container.FirstChild() == nil || container.FirstChild().(dom.Element).ID() != "other-screen" {
+		t.Fatalf("expected other-screen after route transition, got %v", container.FirstChild())
+	}
+	// Verify child-b was removed (no sibling left)
+	if container.FirstChild().NextSibling() != nil {
+		t.Fatalf("zombie element left in DOM after transition: %v", container.FirstChild().NextSibling())
+	}
+}

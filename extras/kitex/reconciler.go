@@ -228,9 +228,9 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, 
 		return nil
 	}
 
-	// 3. Replace on tag mismatch
-	if oldNode.TagName() != newNode.TagName() {
-		if EnableDevMode && oldNode.Key() == "" && newNode.Key() == "" {
+	// 3. Replace on tag or key mismatch
+	if oldNode.TagName() != newNode.TagName() || oldNode.Key() != newNode.Key() {
+		if EnableDevMode && oldNode.TagName() != newNode.TagName() && oldNode.Key() == "" && newNode.Key() == "" {
 			kitelog.Warn("Keyless type mismatch replacement detected. This can cause visual ordering swap or cell position leaks in dynamic lists. Consider adding unique keys.",
 				"parent", parent.TagName(),
 				"oldTag", oldNode.TagName(),

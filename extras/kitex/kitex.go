@@ -2051,6 +2051,8 @@ type componentInstance interface {
 	getDOMParent() dom.Element
 	setDOMAnchor(dom.Node)
 	getDOMAnchor() dom.Node
+	setParent(componentInstance)
+	updateRefsFromRendered()
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -2072,6 +2074,7 @@ type ComponentNode[P any] struct {
 	contextSnap  contextSnapshot
 	domParent    dom.Element
 	domAnchor    dom.Node
+	parent       componentInstance
 
 	// Memoization: complexityScore holds the node count of the last rendered
 	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
@@ -2218,6 +2221,7 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	c.isFirst = true
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
+	setParentRefs(c.rendered, c)
 	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	c.isFirst = false
 	popCurrentComponent()
@@ -2266,12 +2270,14 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	// pathological component.
 	if c.shouldMemo && !oldComp.IsDirty() && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
 		c.rendered = oldComp.rendered
+		setParentRefs(c.rendered, c)
 		return
 	}
 
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	newRendered := c.RenderFn(c.PropsVal)
+	setParentRefs(newRendered, c)
 	checkKeylessList(c.Name, newRendered, c.declFile, c.declLine)
 	popCurrentComponent()
 
@@ -2316,6 +2322,37 @@ func (c *ComponentNode[P]) realNodes() []dom.Node {
 
 func (c *ComponentNode[P]) setRefs(els []dom.Node) {
 	c.refs = els
+	if c.parent != nil {
+		c.parent.updateRefsFromRendered()
+	}
+}
+
+func (c *ComponentNode[P]) setParent(parent componentInstance) {
+	c.parent = parent
+}
+
+func (c *ComponentNode[P]) updateRefsFromRendered() {
+	if c.rendered != nil {
+		if ni, ok := c.rendered.(nodeInternal); ok {
+			c.refs = ni.realNodes()
+		}
+	}
+	if c.parent != nil {
+		c.parent.updateRefsFromRendered()
+	}
+}
+
+func setParentRefs(n Node, parent componentInstance) {
+	if n == nil {
+		return
+	}
+	if comp, ok := n.(componentInstance); ok {
+		comp.setParent(parent)
+		return
+	}
+	for _, child := range n.Children() {
+		setParentRefs(child, parent)
+	}
 }
 
 func (c *ComponentNode[P]) Rendered() Node {
@@ -2326,6 +2363,7 @@ func (c *ComponentNode[P]) ReRender() Node {
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
+	setParentRefs(c.rendered, c)
 	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	popCurrentComponent()
 	setDOMParent(c.rendered, c.domParent)
