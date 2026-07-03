@@ -21,15 +21,16 @@ import (
 
 // testObject is a lightweight dom.Node for focus tests.
 type testObject struct {
-	dom.Element // stub
-	target      event.EventTarget
-	parent      *testObject
-	children    []*testObject
-	focusable   bool
-	disabled    bool
-	display     style.Display
-	render      *testRender
-	tabIndex    int
+	dom.Element  // stub
+	target       event.EventTarget
+	parent       *testObject
+	children     []*testObject
+	focusable    bool
+	disabled     bool
+	disconnected bool
+	display      style.Display
+	render       *testRender
+	tabIndex     int
 }
 
 type testRender struct {
@@ -91,7 +92,7 @@ func (o *testObject) PreviousSibling() dom.Node {
 	return nil
 }
 func (o *testObject) OwnerDocument() dom.Document { return nil }
-func (o *testObject) IsConnected() bool           { return true }
+func (o *testObject) IsConnected() bool           { return !o.disconnected }
 func (o *testObject) AppendChild(n dom.Node) dom.Node {
 	o.children = append(o.children, n.(*testObject))
 	n.(*testObject).parent = o
@@ -706,5 +707,43 @@ func TestManager_SetFocus_NilClearsFocus(t *testing.T) {
 	}
 	if !hasBlur {
 		t.Error("expected EventBlur to be fired on focus clear")
+	}
+}
+
+// TestScope_PrunesDisconnectedScopes verifies that if the active focus scope's
+// Root is disconnected/unmounted from the DOM, it is automatically pruned
+// from the stack, preventing view lockout.
+func TestScope_PrunesDisconnectedScopes(t *testing.T) {
+	t.Parallel()
+
+	root := newNonFocusable()
+	a := newFocusable()
+	link(root, a)
+
+	modal := newNonFocusable()
+	modalBtn := newFocusable()
+	link(root, modal)
+	link(modal, modalBtn)
+
+	m, _ := makeManager(root)
+	m.SetFocus(a, focus.ReasonProgrammatic)
+
+	s := &focus.Scope{Root: modal}
+	m.PushScope(s)
+	m.SetFocus(modalBtn, focus.ReasonProgrammatic)
+
+	// Simulate unmounting the modal
+	modal.disconnected = true
+
+	// Accessing the active scope should prune the disconnected scope
+	active := m.ActiveScope()
+	if active == s {
+		t.Error("expected disconnected scope to be pruned from the stack")
+	}
+
+	// Focus should now be allowed to move back to a connected element in the root scope
+	ok := m.SetFocus(a, focus.ReasonProgrammatic)
+	if !ok {
+		t.Error("expected SetFocus(a) to succeed after active scope was pruned")
 	}
 }

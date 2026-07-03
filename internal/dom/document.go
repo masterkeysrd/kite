@@ -252,6 +252,10 @@ func (d *Document) ActiveScope() *dom.FocusScope {
 	return nil
 }
 
+func (d *Document) Mutating() bool {
+	return d.mutating
+}
+
 func (d *Document) CurrentFocus() dom.Element {
 	if d.focusHandle != nil {
 		return d.focusHandle.Current()
@@ -739,6 +743,29 @@ func (d *Document) walkDetach(n dom.Node, parentConnected bool) {
 	}
 
 	if parentConnected {
+		// If this node is (or contains) the currently focused element, automatically
+		// traverse up the parent tree to find the nearest focusable ancestor that is NOT
+		// being unmounted. If none exists, clear focus (which falls back to root element).
+		if d.focusHandle != nil {
+			focused := d.focusHandle.Current()
+			if focused != nil && (focused == n || isDescendantOf(focused, n)) {
+				var fallback dom.Element
+				for cur := n.Parent(); cur != nil; cur = cur.Parent() {
+					if el, ok := cur.(dom.Element); ok && el.TabIndex() >= 0 {
+						if raw, ok := el.(*Element); ok && raw.outer != nil {
+							if outerEl, ok := raw.outer.(dom.Element); ok {
+								fallback = outerEl
+								break
+							}
+						}
+						fallback = el
+						break
+					}
+				}
+				d.focusHandle.Focus(fallback)
+			}
+		}
+
 		// Step 1: lifecycle callback fires while IsConnected() is still true.
 		if lc, ok := n.(dom.Lifecycle); ok {
 			lc.OnDisconnected()
@@ -747,6 +774,15 @@ func (d *Document) walkDetach(n dom.Node, parentConnected bool) {
 		d.unregisterNode(n)
 		b.connected = false
 	}
+}
+
+func isDescendantOf(child, ancestor dom.Node) bool {
+	for cur := child.Parent(); cur != nil; cur = cur.Parent() {
+		if cur == ancestor {
+			return true
+		}
+	}
+	return false
 }
 
 // --- registry helpers -------------------------------------------------------

@@ -1943,6 +1943,9 @@ func (e *Engine) EnsureFreshLayout() {
 	if e.isLayoutActive {
 		return
 	}
+	if doc, ok := e.document.(*internaldom.Document); ok && doc.Mutating() {
+		return
+	}
 
 	dn := internaldom.AsDirty(e.document)
 	needsSync := dn.NeedsSync() || dn.ChildNeedsSync()

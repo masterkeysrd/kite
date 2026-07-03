@@ -87,6 +87,14 @@ func (m *Manager) IsFocusVisible(el dom.Element) bool {
 // ActiveScopeInternal returns the top of the scope stack, or nil if the stack is
 // empty (should not happen after NewManager).
 func (m *Manager) ActiveScopeInternal() *dom.FocusScope {
+	for len(m.scopes) > 1 {
+		top := m.scopes[len(m.scopes)-1]
+		if top.Root == nil || !top.Root.IsConnected() {
+			m.scopes = m.scopes[:len(m.scopes)-1]
+			continue
+		}
+		break
+	}
 	if len(m.scopes) == 0 {
 		return nil
 	}

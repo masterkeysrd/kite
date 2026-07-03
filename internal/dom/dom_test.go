@@ -398,3 +398,88 @@ func TestElement_Attributes(t *testing.T) {
 		t.Error("expected Class to be cleared")
 	}
 }
+
+type mockFocusHandle struct {
+	current dom.Element
+}
+
+func (m *mockFocusHandle) Focus(el dom.Element)                 { m.current = el }
+func (m *mockFocusHandle) IsFocused(el dom.Element) bool        { return m.current == el }
+func (m *mockFocusHandle) PushScope(scope *dom.FocusScope)      {}
+func (m *mockFocusHandle) PopScope()                            {}
+func (m *mockFocusHandle) ActiveScope() *dom.FocusScope         { return nil }
+func (m *mockFocusHandle) Current() dom.Element                 { return m.current }
+func (m *mockFocusHandle) Next() bool                           { return false }
+func (m *mockFocusHandle) Previous() bool                       { return false }
+func (m *mockFocusHandle) NavigateFocus(dir dom.Direction) bool { return false }
+func (m *mockFocusHandle) MoveCaret(dir dom.Direction) bool     { return false }
+
+func TestDocument_UnmountFocusReset(t *testing.T) {
+	doc := NewDocument()
+	focusHandle := &mockFocusHandle{}
+	doc.SetFocusHandle(focusHandle)
+
+	container := doc.CreateElement("div", nil)
+	btn := doc.CreateElement("button", nil)
+	container.AppendChild(btn)
+	doc.AppendChild(container)
+
+	// Focus the button
+	focusHandle.current = btn
+
+	// Remove the container (which contains the focused button)
+	doc.RemoveChild(container)
+
+	// Since container was removed, doc has no children, and focus should be cleared to nil
+	if focusHandle.current != nil {
+		t.Fatalf("expected focus to be cleared to nil, got %v", focusHandle.current)
+	}
+}
+
+func TestDocument_UnmountFocusFallbackToAncestor(t *testing.T) {
+	doc := NewDocument()
+	focusHandle := &mockFocusHandle{}
+	doc.SetFocusHandle(focusHandle)
+
+	rootBox := doc.CreateElement("div", nil)
+
+	// Create an ancestor container that is focusable (TabIndex = 0)
+	focusableAncestor := doc.CreateElement("div", nil)
+	focusableAncestor.SetTabIndex(0)
+
+	subContainer := doc.CreateElement("div", nil)
+	btn := doc.CreateElement("button", nil)
+
+	subContainer.AppendChild(btn)
+	focusableAncestor.AppendChild(subContainer)
+	rootBox.AppendChild(focusableAncestor)
+	doc.AppendChild(rootBox)
+
+	// Focus the button
+	focusHandle.current = btn
+
+	// Remove the subContainer containing the button (focusableAncestor remains connected)
+	focusableAncestor.RemoveChild(subContainer)
+
+	// Focus should fall back to focusableAncestor (the nearest focusable ancestor)
+	if focusHandle.current != focusableAncestor {
+		t.Fatalf("expected focus to fall back to focusableAncestor, got %v", focusHandle.current)
+	}
+}
+
+func TestDocument_CurrentFocusFallbackToRoot(t *testing.T) {
+	doc := NewDocument()
+	focusHandle := &mockFocusHandle{}
+	doc.SetFocusHandle(focusHandle)
+
+	rootBox := doc.CreateElement("div", nil)
+	doc.AppendChild(rootBox)
+
+	// Set focus to nil
+	focusHandle.current = nil
+
+	// CurrentFocus() should return nil
+	if doc.CurrentFocus() != nil {
+		t.Fatalf("expected CurrentFocus to be nil, got %v", doc.CurrentFocus())
+	}
+}

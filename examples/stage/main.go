@@ -296,7 +296,7 @@ func main() {
 			case "Ocean":
 				themeColor = color.RGBA{R: 59, G: 130, B: 246, A: 255} // Blue 500
 			case "Sunset":
-				themeColor = color.RGBA{R: 239, G: 68, B: 68, A: 255}  // Red 500
+				themeColor = color.RGBA{R: 239, G: 68, B: 68, A: 255} // Red 500
 			case "Forest":
 				themeColor = color.RGBA{R: 16, G: 185, B: 129, A: 255} // Green 500
 			}
