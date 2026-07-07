@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend"
+	"github.com/masterkeysrd/kite/geom"
 )
 
 func setCell(pe *PaintEngine, fb Surface, x, y int, c Cell) {
@@ -244,5 +245,53 @@ func TestResolveBorders_SameColorOnly(t *testing.T) {
 	c := fb.CellAt(2, 2)
 	if c.Content == "┼" {
 		t.Errorf("Expected intersection at (2,2) NOT to be ┼ due to different colors")
+	}
+}
+
+func TestResolveBorders_StaleGridResizeBug(t *testing.T) {
+	pe := NewPaintEngine()
+
+	// 1. Paint on a large 10x10 surface
+	fbLarge := NewFrameBuffer(0, 0, 10, 10)
+
+	// Create horizontal line at y=5 on fbLarge
+	for x := range 10 {
+		setCell(pe, fbLarge, x, 5, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
+	}
+	// Create vertical line at x=5 on fbLarge
+	for y := range 10 {
+		setCell(pe, fbLarge, 5, y, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
+	}
+
+	// Resolve borders on a smaller clipped/sub-surface (5x5) to simulate partial updates
+	// or layout changes where ResolveBorders is called on a smaller surface.
+	clipSurface := fbLarge.Clip(geom.Rect{
+		Origin: geom.Point{X: 0, Y: 0},
+		Size:   geom.Size{Width: 5, Height: 5},
+	})
+	pe.ResolveBorders(nil, clipSurface)
+
+	// Since we resolved on a 5x5 clip (size 25), clearBorderGrid only cleared indices 0..24.
+	// Index 55 (x=5, y=5 on 10x10) was untouched and remains true in pe.borderGrid.
+
+	// 2. Now paint again on the large 10x10 surface
+	fbLarge3 := NewFrameBuffer(0, 0, 10, 10)
+	// Create horizontal line at y=5 on fbLarge3
+	for x := range 10 {
+		setCell(pe, fbLarge3, x, 5, Cell{Cell: backend.Cell{Content: "─"}, BorderStyle: BorderSingle})
+	}
+	// Create vertical line at x=5 on fbLarge3
+	for y := range 10 {
+		setCell(pe, fbLarge3, 5, y, Cell{Cell: backend.Cell{Content: "│"}, BorderStyle: BorderSingle})
+	}
+
+	// Resolve borders on the large surface.
+	// If the bug exists, (5, 5) won't be resolved because pe.borderGrid[55] was already true
+	// and therefore not added to pe.borderPoints in the second paint pass.
+	pe.ResolveBorders(nil, fbLarge3)
+
+	c := fbLarge3.CellAt(5, 5)
+	if c.Content != "┼" {
+		t.Errorf("Expected intersection at (5,5) to be resolved to ┼, got %q (stale grid bug)", c.Content)
 	}
 }

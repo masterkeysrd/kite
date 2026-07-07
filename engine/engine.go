@@ -1861,6 +1861,11 @@ func (e *Engine) hasDirtyUIState() bool {
 	if rootFlags&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
 		return true
 	}
+	for _, overlay := range e.renderView.Overlays() {
+		if overlay.Flags()&(render.DirtyStyle|render.DirtyLayout|render.ChildNeedsLayout|render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 {
+			return true
+		}
+	}
 	return false
 }
 

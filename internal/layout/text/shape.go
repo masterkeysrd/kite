@@ -36,9 +36,14 @@ func Shape(text string) []Cluster {
 			r, _ := utf8.DecodeRuneInString(clusterStr)
 			bc := classifyBreak(r, prevWasBreakableSpace)
 
+			cWidth := width
+			if r == '\t' {
+				cWidth = 8
+			}
+
 			localBuf[count] = Cluster{
 				Bytes:      unsafeStringBytes(clusterStr),
-				CellWidth:  width,
+				CellWidth:  cWidth,
 				BreakClass: bc,
 			}
 			count++
@@ -67,9 +72,14 @@ func Shape(text string) []Cluster {
 		r, _ := utf8.DecodeRuneInString(clusterStr)
 		bc := classifyBreak(r, prevWasBreakableSpace)
 
+		cWidth := width
+		if r == '\t' {
+			cWidth = 8
+		}
+
 		clusters = append(clusters, Cluster{
 			Bytes:      unsafeStringBytes(clusterStr),
-			CellWidth:  width,
+			CellWidth:  cWidth,
 			BreakClass: bc,
 		})
 

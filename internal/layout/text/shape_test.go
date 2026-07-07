@@ -211,3 +211,37 @@ func TestShaper_LRUEviction(t *testing.T) {
 		t.Error("expected \"a\" to be evicted, but got a cache hit (same backing array)")
 	}
 }
+
+func TestShape_Tab_Width(t *testing.T) {
+	input := "\t"
+	clusters := text.Shape(input)
+
+	if len(clusters) != 1 {
+		t.Fatalf("got %d clusters for %q, want 1", len(clusters), input)
+	}
+	if clusters[0].CellWidth != 8 {
+		t.Errorf("expected tab cell width to be 8, got %d", clusters[0].CellWidth)
+	}
+}
+
+func TestShape_Emoji_And_CJK_Width(t *testing.T) {
+	testCases := []struct {
+		char          string
+		expectedWidth int
+	}{
+		{"中", 2},
+		{"⚡", 2},
+		{"🔍", 2},
+		{"👨‍👩‍👧", 2},
+	}
+
+	for _, tc := range testCases {
+		clusters := text.Shape(tc.char)
+		if len(clusters) != 1 {
+			t.Fatalf("got %d clusters for %q, want 1", len(clusters), tc.char)
+		}
+		if clusters[0].CellWidth != tc.expectedWidth {
+			t.Errorf("expected width for %q to be %d, got %d", tc.char, tc.expectedWidth, clusters[0].CellWidth)
+		}
+	}
+}

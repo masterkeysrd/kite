@@ -518,6 +518,7 @@ func TestPaint_IsTransparent(t *testing.T) {
 		{"RGBA 0", color.RGBA{0, 0, 0, 0}, true},
 		{"RGBA 1", color.RGBA{0, 0, 0, 1}, false},
 		{"Opaque Red", color.RGBA{255, 0, 0, 255}, false},
+		{"TerminalDefault", style.TerminalDefault, true},
 	}
 
 	for _, tt := range tests {
@@ -1048,5 +1049,29 @@ func BenchmarkFrameBuffer_ColorBlending(b *testing.B) {
 		// Set parent first, then overlay child
 		fb.cells[0].Bg = parent
 		fb.Set(0, 0, cell)
+	}
+}
+
+func TestPaint_ZeroWidthBorder(t *testing.T) {
+	pe := NewPaintEngine()
+	fb := NewFrameBuffer(0, 0, 10, 10)
+
+	styleObj := &style.Computed{
+		Border: style.SingleBorder(),
+	}
+
+	frag := makeBoxFrag(geom.Size{Width: 0, Height: 10}, styleObj)
+
+	pe.PaintFragment(nil, frag, geom.Point{X: 5, Y: 0}, fb)
+
+	// Since width is 0, no cells in the framebuffer should be painted with any border or content.
+	// Specifically, it should not paint at x = 4 (which is x + width - 1 = 5 - 1 = 4).
+	for y := 0; y < 10; y++ {
+		for x := 0; x < 10; x++ {
+			c := fb.CellAt(x, y)
+			if c.BorderStyle != BorderNone || c.Content != "" {
+				t.Errorf("Expected cell at (%d,%d) to be empty, got Content=%q, BorderStyle=%v", x, y, c.Content, c.BorderStyle)
+			}
+		}
 	}
 }

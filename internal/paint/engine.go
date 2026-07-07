@@ -57,9 +57,7 @@ func (p *PaintEngine) clearBorderGrid(bounds geom.Rect) {
 	if len(p.borderGrid) < size {
 		p.borderGrid = make([]bool, size)
 	} else {
-		for i := 0; i < size; i++ {
-			p.borderGrid[i] = false
-		}
+		clear(p.borderGrid)
 	}
 }
 
@@ -201,7 +199,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			len(frag.Text) > 0
 
 		if hasVisuals {
-			if s.Background != nil && !isTransparent(s.Background) && !colorsEqual(s.Background, blockBg) {
+			if s.Background != nil && !isTransparent(s.Background) {
 				p.fillRect(geom.Rect{
 					Origin: origin,
 					Size:   frag.Size,
@@ -233,14 +231,28 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 			}
 			// Use unsafe to avoid allocation for string conversion.
 			content := unsafe.String(unsafe.SliceData(cluster.Bytes), len(cluster.Bytes))
-			p.setCell(currentX, origin.Y, Cell{
-				Cell: backend.Cell{
-					Content: content,
-					Width:   cluster.CellWidth,
-					Fg:      fg,
-					Bg:      textBg,
-				},
-			})
+			if content == "\t" {
+				// Expand tab into space cells of width 1.
+				for w := 0; w < cluster.CellWidth; w++ {
+					p.setCell(currentX+w, origin.Y, Cell{
+						Cell: backend.Cell{
+							Content: " ",
+							Width:   1,
+							Fg:      fg,
+							Bg:      textBg,
+						},
+					})
+				}
+			} else {
+				p.setCell(currentX, origin.Y, Cell{
+					Cell: backend.Cell{
+						Content: content,
+						Width:   cluster.CellWidth,
+						Fg:      fg,
+						Bg:      textBg,
+					},
+				})
+			}
 			currentX += cluster.CellWidth
 		}
 	}
@@ -767,6 +779,9 @@ func (p *PaintEngine) fillRect(r geom.Rect, content string, fg, bg color.Color) 
 func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Color) {
 	width := r.Size.Width
 	height := r.Size.Height
+	if width <= 0 || height <= 0 {
+		return
+	}
 	x := r.Origin.X
 	y := r.Origin.Y
 	clip := p.clipStack[len(p.clipStack)-1]
