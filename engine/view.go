@@ -19,10 +19,15 @@ func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
 		return geom.Rect{}, false
 	}
 
+	var path []layout.Node
+	for curr := ro; curr != nil; curr = curr.Parent() {
+		path = append(path, curr)
+	}
+
 	// Check overlays first
 	for _, overlay := range p.e.renderView.Overlays() {
 		if frag := overlay.Fragment(); frag != nil {
-			if rect, _, found := layout.ScrolledAbsoluteBounds(frag, ro); found {
+			if rect, _, found := layout.ScrolledAbsoluteBoundsPath(frag, ro, path); found {
 				rect.Origin.X += overlay.Offset().X
 				rect.Origin.Y += overlay.Offset().Y
 				return rect, true
@@ -34,7 +39,7 @@ func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
 	if root == nil {
 		return geom.Rect{}, false
 	}
-	rect, _, found := layout.ScrolledAbsoluteBounds(root, ro)
+	rect, _, found := layout.ScrolledAbsoluteBoundsPath(root, ro, path)
 	return rect, found
 }
 
@@ -173,10 +178,15 @@ func (p *domViewProxy) GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Re
 		return geom.Rect{}, geom.Rect{}, false
 	}
 
+	var path []layout.Node
+	for curr := ro; curr != nil; curr = curr.Parent() {
+		path = append(path, curr)
+	}
+
 	// Check overlays first
 	for _, overlay := range p.e.renderView.Overlays() {
 		if frag := overlay.Fragment(); frag != nil {
-			if rect, clip, found := layout.ScrolledAbsoluteBounds(frag, ro); found {
+			if rect, clip, found := layout.ScrolledAbsoluteBoundsPath(frag, ro, path); found {
 				rect.Origin.X += overlay.Offset().X
 				rect.Origin.Y += overlay.Offset().Y
 				clip.Origin.X += overlay.Offset().X
@@ -190,7 +200,7 @@ func (p *domViewProxy) GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Re
 	if root == nil {
 		return geom.Rect{}, geom.Rect{}, false
 	}
-	return layout.ScrolledAbsoluteBounds(root, ro)
+	return layout.ScrolledAbsoluteBoundsPath(root, ro, path)
 }
 
 func (p *domViewProxy) ViewportSize() geom.Size {

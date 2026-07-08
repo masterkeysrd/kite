@@ -50,12 +50,14 @@ type Document struct {
 	// walk is executing. Ancestor-mutation inside a lifecycle callback is
 	// detected by checking whether the node being mutated is outside the
 	// subtree currently being walked.
-	mutating        bool
-	cachedTextNodes []TextNodeRecord
-	textNodesValid  bool
-	preorderOrders  map[any]render.NodeOrder
-	preorderValid   bool
-	visited         map[any]bool
+	mutating           bool
+	cachedTextNodes    []TextNodeRecord
+	textNodesValid     bool
+	lastQueryRoot      dom.Node
+	lastQueryTextNodes []TextNodeRecord
+	preorderOrders     map[any]render.NodeOrder
+	preorderValid      bool
+	visited            map[any]bool
 }
 
 type TextNodeRecord struct {
@@ -400,6 +402,8 @@ func (d *Document) handleMouseUp(ev event.Event) {
 func (d *Document) InvalidateTextNodeCache() {
 	d.textNodesValid = false
 	d.cachedTextNodes = nil
+	d.lastQueryRoot = nil
+	d.lastQueryTextNodes = nil
 }
 
 func (d *Document) InvalidatePreorderCache() {
@@ -506,65 +510,113 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 		return nil, 0
 	}
 
-	currOffset := 0
-	var walk func(dom.Node) (dom.Node, int, bool)
-	walk = func(n dom.Node) (dom.Node, int, bool) {
-		if t, ok := n.(dom.TextNode); ok {
-			data := t.Data()
-			byteLen := len(data)
-			if currOffset+byteLen >= targetOffset {
-				remaining := targetOffset - currOffset
-				runeOffset := 0
-				byteCount := 0
-				for _, r := range data {
-					if byteCount >= remaining {
-						break
-					}
-					byteCount += utf8.RuneLen(r)
-					runeOffset++
-				}
-				return t, runeOffset, true
+	// For sub-roots, cache the text node records of the most recently queried sub-root.
+	if d.lastQueryRoot != root || d.lastQueryTextNodes == nil {
+		d.lastQueryRoot = root
+		var records []TextNodeRecord
+		currOffset := 0
+
+		// Do an iterative DFS walk to avoid deep recursion.
+		stack := make([]dom.Node, 0, 16)
+		stack = append(stack, root)
+		clear(d.visited)
+
+		for len(stack) > 0 {
+			n := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+
+			if n == nil {
+				continue
 			}
-			currOffset += byteLen
+
+			identity := n
+			curr := n
+			for {
+				if u := curr.Unwrap(); u != nil && u != curr {
+					curr = u
+					identity = u
+					continue
+				}
+				break
+			}
+			if d.visited[identity] {
+				continue
+			}
+			d.visited[identity] = true
+
+			if t, ok := n.(dom.TextNode); ok {
+				data := t.Data()
+				byteLen := len(data)
+				records = append(records, TextNodeRecord{
+					Node:      t,
+					StartByte: currOffset,
+					EndByte:   currOffset + byteLen,
+				})
+				currOffset += byteLen
+			}
+
+			var childNodes []dom.Node
+			for child := range LayoutChildren(n) {
+				childNodes = append(childNodes, child)
+			}
+			for i := len(childNodes) - 1; i >= 0; i-- {
+				stack = append(stack, childNodes[i])
+			}
+
+			if n == d {
+				var overlayNodes []dom.Element
+				for el := range d.Overlays() {
+					overlayNodes = append(overlayNodes, el)
+				}
+				for i := len(overlayNodes) - 1; i >= 0; i-- {
+					stack = append(stack, overlayNodes[i])
+				}
+			}
 		}
 
-		for child := range LayoutChildren(n) {
-			if node, offset, found := walk(child); found {
-				return node, offset, true
+		d.lastQueryTextNodes = records
+	}
+
+	// Perform binary search on the cached sub-root text nodes
+	n := len(d.lastQueryTextNodes)
+	if n > 0 {
+		low, high := 0, n-1
+		var foundRecord *TextNodeRecord
+		for low <= high {
+			mid := (low + high) / 2
+			rec := &d.lastQueryTextNodes[mid]
+			if targetOffset < rec.StartByte {
+				high = mid - 1
+			} else if targetOffset > rec.EndByte {
+				low = mid + 1
+			} else {
+				foundRecord = rec
+				break
 			}
 		}
-		if n == d {
-			for el := range d.Overlays() {
-				if node, offset, found := walk(el); found {
-					return node, offset, true
+
+		if foundRecord != nil {
+			t := foundRecord.Node
+			data := t.Data()
+			remaining := targetOffset - foundRecord.StartByte
+			runeOffset := 0
+			byteCount := 0
+			for _, r := range data {
+				if byteCount >= remaining {
+					break
 				}
+				byteCount += utf8.RuneLen(r)
+				runeOffset++
 			}
+			return t, runeOffset
 		}
-		return nil, 0, false
 	}
-	node, offset, found := walk(root)
-	if found {
-		return node, offset
-	}
+
 	// Fallback to the end of the last TextNode in the subtree
-	var lastText dom.TextNode
-	var walkLast func(dom.Node)
-	walkLast = func(n dom.Node) {
-		if t, ok := n.(dom.TextNode); ok {
-			lastText = t
-		}
-		for child := range LayoutChildren(n) {
-			walkLast(child)
-		}
-		if n == d {
-			for el := range d.Overlays() {
-				walkLast(el)
-			}
-		}
-	}
-	walkLast(root)
-	if lastText != nil {
-		return lastText, utf8.RuneCountInString(lastText.Data())
+	if len(d.lastQueryTextNodes) > 0 {
+		lastRec := &d.lastQueryTextNodes[len(d.lastQueryTextNodes)-1]
+		t := lastRec.Node
+		return t, utf8.RuneCountInString(t.Data())
 	}
 	return nil, 0
 }
