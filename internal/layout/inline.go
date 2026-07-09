@@ -378,6 +378,15 @@ func (b *InlineItemsBuilder) collectText(data string, node Node) {
 	})
 }
 
+type lineItem struct {
+	node   Node
+	parent Node // To inherit styles for text
+	text   []text.Cluster
+	frag   *Fragment
+	width  int
+	height int
+}
+
 // LineBreaker packs InlineItems into physical lines.
 type LineBreaker struct {
 	items         []InlineItem
@@ -389,15 +398,37 @@ type LineBreaker struct {
 	clusterIndex int // current cluster index within InlineText
 
 	hadForcedBreakAtEnd bool
+	lineItems           []lineItem
 }
 
-func NewLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, verticalAlign style.Align) *LineBreaker {
-	return &LineBreaker{
-		items:         items,
-		width:         width,
-		textAlign:     textAlign,
-		verticalAlign: verticalAlign,
+var lineBreakerPool = sync.Pool{
+	New: func() any {
+		return &LineBreaker{
+			lineItems: make([]lineItem, 0, 16),
+		}
+	},
+}
+
+func AcquireLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, verticalAlign style.Align) *LineBreaker {
+	l := lineBreakerPool.Get().(*LineBreaker)
+	l.items = items
+	l.width = width
+	l.textAlign = textAlign
+	l.verticalAlign = verticalAlign
+	l.currentIndex = 0
+	l.clusterIndex = 0
+	l.hadForcedBreakAtEnd = false
+	l.lineItems = l.lineItems[:0]
+	return l
+}
+
+func ReleaseLineBreaker(l *LineBreaker) {
+	l.items = nil
+	for i := range l.lineItems {
+		l.lineItems[i] = lineItem{}
 	}
+	l.lineItems = l.lineItems[:0]
+	lineBreakerPool.Put(l)
 }
 
 func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
@@ -419,16 +450,11 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	currentX := 0
 	lineHeight := 1 // Minimum height of a line
 
-	// Temporary storage for items on this line before building FragmentLinks
-	type lineItem struct {
-		node   Node
-		parent Node // To inherit styles for text
-		text   []text.Cluster
-		frag   *Fragment
-		width  int
-		height int
+	// Clear the pre-allocated slice from previous run to avoid leaking
+	for i := range l.lineItems {
+		l.lineItems[i] = lineItem{}
 	}
-	var lineItems []lineItem
+	l.lineItems = l.lineItems[:0]
 
 	for l.currentIndex < len(l.items) {
 		item := l.items[l.currentIndex]
@@ -441,7 +467,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 		case InlineBr:
 			// Content <br>: forces an immediate line break and emits a virtual
 			// '\n' cluster so cursor.FromTextFragment counts the byte.
-			lineItems = append(lineItems, lineItem{
+			l.lineItems = append(l.lineItems, lineItem{
 				text: []text.Cluster{{
 					Bytes:      []byte{'\n'},
 					CellWidth:  0,
@@ -474,7 +500,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 				goto lineEnded
 			}
 
-			lineItems = append(lineItems, lineItem{
+			l.lineItems = append(l.lineItems, lineItem{
 				node:   item.Node,
 				parent: item.ParentNode,
 				frag:   frag,
@@ -521,7 +547,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 			count, tookWidth, forceBreak := l.findFittingClusters(item, remainingClusters, l.width-currentX)
 
 			if count > 0 {
-				lineItems = append(lineItems, lineItem{
+				l.lineItems = append(l.lineItems, lineItem{
 					node:   item.Node,
 					parent: item.ParentNode,
 					text:   remainingClusters[:count],
@@ -555,7 +581,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 
 					if len(remainingClusters) > 0 && (ow == style.OverflowWrapBreakWord || ow == style.OverflowWrapAnywhere) {
 						cWidth := remainingClusters[0].CellWidth
-						lineItems = append(lineItems, lineItem{
+						l.lineItems = append(l.lineItems, lineItem{
 							node:   item.Node,
 							parent: item.ParentNode,
 							text:   remainingClusters[:1],
@@ -576,7 +602,7 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 					for _, c := range remainingClusters {
 						tookWidth += c.CellWidth
 					}
-					lineItems = append(lineItems, lineItem{
+					l.lineItems = append(l.lineItems, lineItem{
 						node:   item.Node,
 						parent: item.ParentNode,
 						text:   remainingClusters,
@@ -608,7 +634,7 @@ lineEnded:
 	}
 
 	offsetX := startX
-	for _, li := range lineItems {
+	for _, li := range l.lineItems {
 		var frag *Fragment
 		if li.frag != nil {
 			frag = li.frag

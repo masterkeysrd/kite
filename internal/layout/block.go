@@ -134,7 +134,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 
 		items := inlineBuilder.items
 		blockStyle := node.Style()
-		breaker := NewLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
+		breaker := AcquireLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
 		linesEmitted := 0
 		for {
 			line, ok := breaker.NextLine(ctx)
@@ -150,6 +150,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 			builder.AdvanceBlockOffset(lineFrag.Size.Height)
 			linesEmitted++
 		}
+		ReleaseLineBreaker(breaker)
 		// An IFC with no visible text (e.g. an empty input) still occupies
 		// one content row — just like a browser renders an empty line box.
 		if linesEmitted == 0 {

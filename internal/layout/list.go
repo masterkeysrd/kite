@@ -120,7 +120,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		}
 
 		items := inlineBuilder.items
-		breaker := NewLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
+		breaker := AcquireLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
 		for {
 			line, ok := breaker.NextLine(ctx)
 			if !ok {
@@ -134,6 +134,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 			builder.AddChild(lineFrag, offset)
 			builder.AdvanceBlockOffset(lineFrag.Size.Height)
 		}
+		ReleaseLineBreaker(breaker)
 	}
 
 	for child := node.FirstLayoutChild(); child != nil; child = node.NextLayoutSibling(child) {
