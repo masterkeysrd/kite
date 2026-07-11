@@ -259,7 +259,11 @@ func (s *SelectElement) wireEvents() {
 		if s.IsDisabled() {
 			return
 		}
-		s.openDropdown(e)
+		if s.isOpen {
+			s.closeDropdown()
+		} else {
+			s.openDropdown(e)
+		}
 	})
 	s.OnEvent(event.EventMouseDown, func(e event.Event) {
 		if s.IsDisabled() {

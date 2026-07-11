@@ -272,9 +272,18 @@ func (b *BaseNode) ReplaceChild(newChild, oldChild dom.Node) dom.Node {
 }
 
 func (b *BaseNode) Contains(descendant dom.Node) bool {
-	for n := descendant; n != nil; n = n.Parent() {
-		if n == b.self {
+	db := asBase(descendant)
+	if db == nil {
+		return false
+	}
+	for p := db; p != nil; {
+		if p == b {
 			return true
+		}
+		if p.inUASubtree && p.parent == nil && p.outer != nil {
+			p = asBase(p.outer)
+		} else {
+			p = asBase(p.parent)
 		}
 	}
 	return false

@@ -180,8 +180,34 @@ func (b *elementBase[Self]) Listeners() []PendingListener {
 func (b *elementBase[Self]) DispatchEvent(e event.Event) {
 	// Build the ancestor path for dispatch (root -> target).
 	var path []event.EventTarget
-	for p := dom.Node(b.Element); p != nil; p = p.Parent() {
-		path = append(path, p.EventTarget())
+	for cur := any(b.self).(dom.Node); cur != nil; {
+		path = append(path, cur)
+		parent := cur.Parent()
+		if parent == nil {
+			// 1. Cross UA shadow boundary: jump from UARoot to host element.
+			if et := cur.EventTarget(); et != nil {
+				if host, ok := et.(dom.Node); ok && host != cur {
+					cur = host
+					continue
+				}
+			}
+			// 2. Cross Overlay boundary: jump from Overlay to Anchor.
+			if ov, ok := cur.(interface{ Anchor() dom.Element }); ok {
+				if anchor := ov.Anchor(); anchor != nil {
+					if aNode, ok := anchor.(dom.Node); ok {
+						cur = aNode
+						continue
+					}
+				}
+			}
+			// 3. Link to document.
+			if doc := cur.OwnerDocument(); doc != nil && cur != doc {
+				cur = doc
+				continue
+			}
+			break
+		}
+		cur = parent
 	}
 	// Reverse the path.
 	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
