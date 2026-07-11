@@ -102,3 +102,32 @@ func TestSelect_KeyboardSelection(t *testing.T) {
 		t.Errorf("expected value opt1, got %q", s.Value())
 	}
 }
+
+func TestSelect_PlaceholderOption(t *testing.T) {
+	doc := dom.NewDocument()
+	s := element.NewSelect(doc,
+		element.Option("Choose a language...", ""),
+		element.Option("Go", "go"),
+	)
+	doc.AppendChild(s)
+
+	uaRoot := dom.UARoot(s)
+	if uaRoot == nil {
+		t.Fatal("expected UA root")
+	}
+	btn, ok := uaRoot.FirstChild().(*element.ButtonElement)
+	if !ok {
+		t.Fatalf("expected UA root child to be ButtonElement, got %T", uaRoot.FirstChild())
+	}
+
+	// Because value is "", and we have an option with value "", the button text should match the option's text:
+	if txt := btn.TextContent(); txt != "Choose a language...▼" {
+		t.Errorf("expected button text to be 'Choose a language...▼', got %q", txt)
+	}
+
+	// If we set the value to "go", it should update to "Go▼"
+	s.SetValue("go")
+	if txt := btn.TextContent(); txt != "Go▼" {
+		t.Errorf("expected button text to be 'Go▼', got %q", txt)
+	}
+}

@@ -33,13 +33,13 @@ func TestSelect_LayoutWidth(t *testing.T) {
 		t.Errorf("expected select width 25, got %d", w)
 	}
 
-	// Internal button should also be 25.
+	// Internal button should be 21 (25 - 4 for border + padding).
 	btn1 := findUAButton(sel1)
 	if btn1 == nil {
 		t.Fatal("could not find internal button for select-fixed")
 	}
-	if w := env.RenderObject(btn1).Fragment().Size.Width; w != 25 {
-		t.Errorf("expected internal button width 25, got %d", w)
+	if w := env.RenderObject(btn1).Fragment().Size.Width; w != 21 {
+		t.Errorf("expected internal button width 21, got %d", w)
 	}
 
 	// Case 2: Select with Auto width (default).
@@ -61,8 +61,8 @@ func TestSelect_LayoutWidth(t *testing.T) {
 	}
 
 	btn2 := findUAButton(sel2)
-	if btn2Width := env.RenderObject(btn2).Fragment().Size.Width; btn2Width != w2 {
-		t.Errorf("expected internal button width %d to match host width %d, got %d", w2, w2, btn2Width)
+	if btn2Width := env.RenderObject(btn2).Fragment().Size.Width; btn2Width != w2-4 {
+		t.Errorf("expected internal button width %d to match host content width %d, got %d", w2-4, w2-4, btn2Width)
 	}
 
 	// Case 3: Narrow host.
@@ -75,8 +75,8 @@ func TestSelect_LayoutWidth(t *testing.T) {
 		t.Errorf("expected select width 10, got %d", w)
 	}
 	btn3 := findUAButton(s3)
-	if w := env.RenderObject(btn3).Fragment().Size.Width; w != 10 {
-		t.Errorf("expected internal button width 10, got %d", w)
+	if w := env.RenderObject(btn3).Fragment().Size.Width; w != 6 {
+		t.Errorf("expected internal button width 6, got %d", w)
 	}
 }
 

@@ -361,15 +361,9 @@ func TestInstantiateAndUpdate(t *testing.T) {
 		uaRoot := dom.UARoot(realSel).(dom.Element)
 		triggerBtn := uaRoot.FirstChild().(*element.ButtonElement)
 
-		var btnText string
-		for child := range triggerBtn.ChildNodes() {
-			if tn, ok := child.(dom.TextNode); ok {
-				btnText = tn.Data()
-			}
-		}
-
-		if btnText != "Administrator ▼" {
-			t.Errorf("expected button text to be 'Administrator ▼', got %q (this means select options were not synchronized)", btnText)
+		btnText := triggerBtn.TextContent()
+		if btnText != "Administrator▼" {
+			t.Errorf("expected button text to be 'Administrator▼', got %q (this means select options were not synchronized)", btnText)
 		}
 	})
 

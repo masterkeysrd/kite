@@ -1,7 +1,6 @@
 package element
 
 import (
-	"fmt"
 	"image/color"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -70,16 +69,25 @@ type uaSelectRoot struct {
 func (r *uaSelectRoot) Unwrap() dom.Node { return r.Element }
 
 var defaultSelectStyle = style.S().
-	Width(style.Cells(20))
+	Width(style.Cells(20)).
+	Border(style.SingleBorder()).
+	Background(style.TerminalDefault).
+	PaddingHorizontal(1)
 
 var intrinsicSelectStyle = style.S().
 	Display(style.DisplayInlineBlock).
 	AlignSelf(style.AlignStart)
 
 var selectButtonStyle = style.S().
-	Display(style.DisplayBlock).
+	Display(style.DisplayFlex).
+	FlexDirection(style.FlexRow).
+	JustifyContent(style.JustifyBetween).
+	AlignItems(style.AlignCenter).
 	Width(style.Percent(100)).
-	Height(style.Auto)
+	Height(style.Auto).
+	Border(style.EmptyBorder()).
+	Background(color.Transparent).
+	PaddingHorizontal(0)
 
 var selectDropdownBaseStyle = style.S().
 	Display(style.DisplayFlex).
@@ -102,6 +110,7 @@ type SelectElement struct {
 	value    string
 	options  []*OptionElement
 	uaButton *ButtonElement
+	uaText   *TextElement
 	overlay  *OverlayElement
 	isOpen   bool
 	onChange func(string)
@@ -123,10 +132,17 @@ func NewSelect(doc dom.Document, children ...any) *SelectElement {
 	el := doc.CreateElement("select", s)
 	s.initBase(el, s, defaultSelectStyle, intrinsicSelectStyle)
 
-	// UA Shadow Subtree: Trigger Button. We force DisplayBlock here so that
-	// the button correctly fills the host's available width even when the
-	// host is an InlineBlock (as is the case for SelectElement).
-	s.uaButton = NewButton(doc, "Select... ▼").Style(selectButtonStyle)
+	// UA Shadow Subtree: Trigger Button. We force DisplayFlex here via selectButtonStyle
+	// so that the text is left-aligned and the chevron is right-aligned.
+	s.uaText = NewText(doc, "Select...")
+	textContainer := NewBox(doc)
+	textContainer.AppendChild(s.uaText)
+
+	chevron := NewBox(doc)
+	chevron.AppendChild(NewText(doc, "▼"))
+	chevron.Style(style.S().Flex(0, 0))
+
+	s.uaButton = NewButton(doc, textContainer, chevron).Style(selectButtonStyle)
 	uaRoot := &uaSelectRoot{}
 	uaRootEl := doc.CreateElement("ua-select-root", uaRoot)
 	uaRoot.Element = uaRootEl
@@ -278,16 +294,23 @@ func (s *SelectElement) wireEvents() {
 }
 
 func (s *SelectElement) syncValue() {
-	text := "Select... ▼"
-	if s.value != "" {
-		for _, opt := range s.options {
-			if opt.value == s.value {
-				text = fmt.Sprintf("%s ▼", opt.text)
-				break
-			}
+	text := ""
+	found := false
+	for _, opt := range s.options {
+		if opt.value == s.value {
+			text = opt.text
+			found = true
+			break
 		}
 	}
-	s.uaButton.SetData(text)
+	if !found {
+		if s.value == "" {
+			text = "Select..."
+		} else {
+			text = s.value
+		}
+	}
+	s.uaText.SetData(text)
 }
 
 func (s *SelectElement) openDropdown(trigger event.Event) {
@@ -460,7 +483,7 @@ func (s *SelectElement) emitChange() {
 }
 
 func (s *SelectElement) SetData(data string) {
-	s.uaButton.SetData(data)
+	s.uaText.SetData(data)
 }
 
 func (s *SelectElement) IsDisabled() bool   { return s.disabled }
