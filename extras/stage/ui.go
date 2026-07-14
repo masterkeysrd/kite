@@ -21,6 +21,7 @@ var (
 			FlexDirection(style.FlexColumn).
 			Width(style.Percent(25)).
 			Height(style.Percent(100)).
+			MinWidth(style.Cells(0)).
 			MinHeight(style.Cells(0)).
 			BorderRight(true, style.BorderSingle, color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 			Background(color.RGBA{R: 17, G: 24, B: 39, A: 255}).                            // Gray 900
@@ -31,6 +32,7 @@ var (
 				FlexDirection(style.FlexColumn).
 				Width(style.Percent(75)).
 				Height(style.Percent(100)).
+				MinWidth(style.Cells(0)).
 				MinHeight(style.Cells(0))
 
 	toolbarStyle = style.S().
@@ -75,6 +77,7 @@ var (
 				FlexDirection(style.FlexColumn).
 				Width(style.Percent(50)).
 				Height(style.Percent(100)).
+				MinWidth(style.Cells(0)).
 				MinHeight(style.Cells(0)).
 				BorderRight(true, style.BorderSingle, color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 				Padding(1)
@@ -84,6 +87,7 @@ var (
 			FlexDirection(style.FlexColumn).
 			Width(style.Percent(50)).
 			Height(style.Percent(100)).
+			MinWidth(style.Cells(0)).
 			MinHeight(style.Cells(0)).
 			Padding(1)
 )
@@ -475,6 +479,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				kitex.BoxProps{
 					Style: style.S().
 						Width(style.Percent(40)).
+						MinWidth(style.Cells(0)).
 						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}),
 				},
 				kitex.Text(ctrl.Name),
@@ -483,7 +488,8 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				kitex.BoxProps{
 					Style: style.S().
 						Display(style.DisplayFlex).
-						Width(style.Percent(60)),
+						Width(style.Percent(60)).
+						MinWidth(style.Cells(0)),
 				},
 				inputWidget,
 			),
@@ -776,6 +782,21 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		setExpandedComps(next)
 	}
 
+	expandComponent := func(compName string) {
+		parts := normalizeComponentPath(compName)
+		m := expandedComps()
+		next := make(map[string]bool)
+		for k, v := range m {
+			next[k] = v
+		}
+		var pathBuilder []string
+		for _, part := range parts {
+			pathBuilder = append(pathBuilder, part)
+			next[strings.Join(pathBuilder, "/")] = true
+		}
+		setExpandedComps(next)
+	}
+
 	setGlobalVal := func(name string, val any) {
 		prev := globalValues()
 		next := make(map[string]any)
@@ -937,47 +958,86 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 
 		listener := func(e event.Event) {
 			ke := e.(*event.KeyEvent)
+			isInputFocused := false
 			if target := e.Target(); target != nil {
 				if el, ok := target.(dom.Element); ok && el.TagName() == "input" {
-					return
+					isInputFocused = true
 				}
 			}
 
 			// Focus filter input on "/"
 			if ke.MatchString("/") {
-				if filterInputRef.Current != nil {
+				if !isInputFocused && filterInputRef.Current != nil {
 					filterInputRef.Current.Focus()
+					e.PreventDefault()
+					return
 				}
-				e.PreventDefault()
-				return
 			}
 
-			if ke.MatchString("up") {
-				current := activeSceneIdx()
-				pos := -1
-				for i, v := range visibleIndices {
-					if v == current {
-						pos = i
-						break
+			// Remove focus from filter on "Esc"
+			if ke.MatchString("escape") || ke.MatchString("esc") {
+				if isInputFocused && filterInputRef.Current != nil {
+					filterInputRef.Current.Blur()
+					if rootRef.Current != nil {
+						if el, ok := rootRef.Current.(dom.Element); ok {
+							el.SetTabIndex(0)
+							el.Focus()
+						}
 					}
+					e.PreventDefault()
+					return
 				}
+			}
+
+			// Determine navigable list
+			var navList []int
+			if filterText() == "" {
+				// No filter: navigate through all scenes flat
+				navList = make([]int, len(allScenes))
+				for i := range allScenes {
+					navList[i] = i
+				}
+			} else {
+				// Filter active: navigate only through visible/matching scenes
+				navList = visibleIndices
+			}
+
+			current := activeSceneIdx()
+			pos := -1
+			for i, idx := range navList {
+				if idx == current {
+					pos = i
+					break
+				}
+			}
+
+			isUp := ke.MatchString("up") || (!isInputFocused && ke.MatchString("k"))
+			isDown := ke.MatchString("down") || (!isInputFocused && ke.MatchString("j"))
+
+			if isUp {
 				if pos > 0 {
-					setActiveSceneIdx(visibleIndices[pos-1])
-				}
-			} else if ke.MatchString("down") {
-				current := activeSceneIdx()
-				pos := -1
-				for i, v := range visibleIndices {
-					if v == current {
-						pos = i
-						break
+					targetIdx := navList[pos-1]
+					setActiveSceneIdx(targetIdx)
+					if filterText() == "" && targetIdx >= 0 && targetIdx < len(allScenes) {
+						expandComponent(allScenes[targetIdx].compName)
 					}
 				}
-				if pos >= 0 && pos < len(visibleIndices)-1 {
-					setActiveSceneIdx(visibleIndices[pos+1])
-				} else if pos == -1 && len(visibleIndices) > 0 {
-					setActiveSceneIdx(visibleIndices[0])
+				e.PreventDefault()
+			} else if isDown {
+				if pos >= 0 && pos < len(navList)-1 {
+					targetIdx := navList[pos+1]
+					setActiveSceneIdx(targetIdx)
+					if filterText() == "" && targetIdx >= 0 && targetIdx < len(allScenes) {
+						expandComponent(allScenes[targetIdx].compName)
+					}
+				} else if pos == -1 && len(navList) > 0 {
+					targetIdx := navList[0]
+					setActiveSceneIdx(targetIdx)
+					if filterText() == "" && targetIdx >= 0 && targetIdx < len(allScenes) {
+						expandComponent(allScenes[targetIdx].compName)
+					}
 				}
+				e.PreventDefault()
 			}
 		}
 
@@ -985,7 +1045,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		return func() {
 			sub.Cancel()
 		}
-	}, []any{len(allScenes), activeSceneIdx(), len(visibleIndices)})
+	}, []any{len(allScenes), activeSceneIdx(), len(visibleIndices), filterText()})
 
 	// Master Screen Layout
 	return kitex.Box(kitex.BoxProps{
