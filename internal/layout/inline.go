@@ -393,6 +393,7 @@ type LineBreaker struct {
 	width         int // Available inline size
 	textAlign     style.TextAlign
 	verticalAlign style.Align
+	textOverflow  style.TextOverflow
 
 	currentIndex int // current item index
 	clusterIndex int // current cluster index within InlineText
@@ -409,12 +410,13 @@ var lineBreakerPool = sync.Pool{
 	},
 }
 
-func AcquireLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, verticalAlign style.Align) *LineBreaker {
+func AcquireLineBreaker(items []InlineItem, width int, textAlign style.TextAlign, verticalAlign style.Align, textOverflow style.TextOverflow) *LineBreaker {
 	l := lineBreakerPool.Get().(*LineBreaker)
 	l.items = items
 	l.width = width
 	l.textAlign = textAlign
 	l.verticalAlign = verticalAlign
+	l.textOverflow = textOverflow
 	l.currentIndex = 0
 	l.clusterIndex = 0
 	l.hadForcedBreakAtEnd = false
@@ -619,6 +621,93 @@ func (l *LineBreaker) NextLine(ctx *Context) (*LineBox, bool) {
 	}
 
 lineEnded:
+	// Apply text-overflow ellipsis if the line overflows and ellipsis is enabled.
+	if l.textOverflow == style.TextOverflowEllipsis && currentX > l.width && l.width > 0 {
+		targetWidth := l.width - 1
+		accumulatedWidth := 0
+		truncatedIdx := -1
+		var truncatedText []text.Cluster
+		var truncatedWidth int
+
+		for i, li := range l.lineItems {
+			if accumulatedWidth+li.width <= targetWidth {
+				accumulatedWidth += li.width
+			} else {
+				truncatedIdx = i
+				if li.text != nil {
+					var itemClusters []text.Cluster
+					itemWidth := 0
+					for _, c := range li.text {
+						if accumulatedWidth+itemWidth+c.CellWidth <= targetWidth {
+							itemClusters = append(itemClusters, c)
+							itemWidth += c.CellWidth
+						} else {
+							break
+						}
+					}
+					truncatedText = itemClusters
+					truncatedWidth = itemWidth
+				}
+				break
+			}
+		}
+
+		if truncatedIdx >= 0 {
+			// Truncate at the target item and discard subsequent items.
+			l.lineItems = l.lineItems[:truncatedIdx+1]
+
+			li := &l.lineItems[truncatedIdx]
+			if li.text != nil {
+				li.text = truncatedText
+				li.width = truncatedWidth
+			} else {
+				// Discard atomic item if it doesn't fit
+				l.lineItems = l.lineItems[:truncatedIdx]
+			}
+
+			// Append the ellipsis character "…"
+			var parentNode, node Node
+			if len(l.lineItems) > 0 {
+				parentNode = l.lineItems[len(l.lineItems)-1].parent
+				node = l.lineItems[len(l.lineItems)-1].node
+			}
+			l.lineItems = append(l.lineItems, lineItem{
+				node:   node,
+				parent: parentNode,
+				text: []text.Cluster{{
+					Bytes:     []byte("…"),
+					CellWidth: 1,
+				}},
+				width:  1,
+				height: 1,
+			})
+		} else if len(l.lineItems) > 0 {
+			// Fallback: truncate the first item
+			l.lineItems = l.lineItems[:1]
+			li := &l.lineItems[0]
+			if li.text != nil {
+				li.text = nil
+				li.width = 0
+			}
+			l.lineItems = append(l.lineItems, lineItem{
+				node:   li.node,
+				parent: li.parent,
+				text: []text.Cluster{{
+					Bytes:     []byte("…"),
+					CellWidth: 1,
+				}},
+				width:  1,
+				height: 1,
+			})
+		}
+
+		// Recompute line width
+		currentX = 0
+		for _, li := range l.lineItems {
+			currentX += li.width
+		}
+	}
+
 	line.Size = geometry.Size{Width: currentX, Height: lineHeight}
 
 	// Horizontal Alignment (text-align)

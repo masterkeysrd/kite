@@ -120,7 +120,7 @@ func (a *ListAlgorithm) Layout(ctx *Context, node Node, space ConstraintSpace) *
 		}
 
 		items := inlineBuilder.items
-		breaker := AcquireLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems)
+		breaker := AcquireLineBreaker(items, column2Width, comp.TextAlign, comp.AlignItems, comp.TextOverflow)
 		for {
 			line, ok := breaker.NextLine(ctx)
 			if !ok {

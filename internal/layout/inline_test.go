@@ -1043,3 +1043,59 @@ func TestInlineLayout_TextAlignCenterTwoLines(t *testing.T) {
 		t.Errorf("line 2: expected offset.X 1, got %d", textLink2.Offset.X)
 	}
 }
+
+func TestInlineLayout_TextOverflowEllipsis(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display:    style.DisplayInline,
+				WhiteSpace: style.WhiteSpaceNoWrap,
+			},
+		},
+		data: "Hello World",
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display:      style.DisplayBlock,
+			Width:        style.Cells(8),
+			TextOverflow: style.TextOverflowEllipsis,
+		},
+		firstChild: textNode,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{8, 10}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	algo := GetAlgorithm(parent)
+	frag := algo.Layout(nil, parent, space)
+
+	// Should have one LineBox fragment (since wrapping is disabled)
+	if len(frag.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(frag.Children))
+	}
+
+	lineBox := frag.Children[0].Fragment
+	// The width should be exactly 8 (container width) because it has been truncated and ellipsis was appended
+	if lineBox.Size.Width != 8 {
+		t.Errorf("expected LineBox width 8, got %d", lineBox.Size.Width)
+	}
+
+	// The text items on the line box should end with the ellipsis cluster
+	if len(lineBox.Children) != 2 {
+		t.Fatalf("expected 2 children (truncated text + ellipsis), got %d", len(lineBox.Children))
+	}
+
+	ellipsisFrag := lineBox.Children[1].Fragment
+	if len(ellipsisFrag.Text) != 1 || string(ellipsisFrag.Text[0].Bytes) != "…" {
+		t.Errorf("expected last child to be ellipsis, got %v", ellipsisFrag.Text)
+	}
+
+	// The first child should be the truncated text "Hello W" (length 7 cells)
+	textFrag := lineBox.Children[0].Fragment
+	var textStr string
+	for _, c := range textFrag.Text {
+		textStr += string(c.Bytes)
+	}
+	if textStr != "Hello W" {
+		t.Errorf("expected truncated text 'Hello W', got %q", textStr)
+	}
+}

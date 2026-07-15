@@ -134,7 +134,7 @@ func (a *BlockAlgorithm) layoutInternal(ctx *Context, node Node, space Constrain
 
 		items := inlineBuilder.items
 		blockStyle := node.Style()
-		breaker := AcquireLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems)
+		breaker := AcquireLineBreaker(items, contentWidth, blockStyle.TextAlign, blockStyle.AlignItems, blockStyle.TextOverflow)
 		linesEmitted := 0
 		for {
 			line, ok := breaker.NextLine(ctx)
