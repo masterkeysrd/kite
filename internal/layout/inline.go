@@ -859,18 +859,33 @@ func ComputeInlineMinMaxSizes(ctx *Context, items []InlineItem) MinMaxSizes {
 			// For min-content, we find the longest unbreakable run.
 			unbreakableRun := 0
 			if canWrap {
-				for _, c := range item.Text {
-					if c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakMandatory || c.BreakClass == text.BreakAnywhere {
-						result.Min = max(result.Min, unbreakableRun)
-						unbreakableRun = 0
+				if comp != nil && comp.OverflowWrap == style.OverflowWrapAnywhere {
+					maxCellWidth := 0
+					for _, c := range item.Text {
+						maxCellWidth = max(maxCellWidth, c.CellWidth)
+						if c.BreakClass != text.BreakMandatory {
+							currentLineMax += c.CellWidth
+						} else {
+							result.Max = max(result.Max, currentLineMax)
+							currentLineMax = 0
+						}
 					}
-					if c.BreakClass != text.BreakMandatory {
-						unbreakableRun += c.CellWidth
-						currentLineMax += c.CellWidth
-					} else {
-						result.Max = max(result.Max, currentLineMax)
-						currentLineMax = 0
+					result.Min = max(result.Min, maxCellWidth)
+				} else {
+					for _, c := range item.Text {
+						if c.BreakClass == text.BreakSoft || c.BreakClass == text.BreakMandatory || c.BreakClass == text.BreakAnywhere {
+							result.Min = max(result.Min, unbreakableRun)
+							unbreakableRun = 0
+						}
+						if c.BreakClass != text.BreakMandatory {
+							unbreakableRun += c.CellWidth
+							currentLineMax += c.CellWidth
+						} else {
+							result.Max = max(result.Max, currentLineMax)
+							currentLineMax = 0
+						}
 					}
+					result.Min = max(result.Min, unbreakableRun)
 				}
 			} else {
 				for _, c := range item.Text {
@@ -884,8 +899,8 @@ func ComputeInlineMinMaxSizes(ctx *Context, items []InlineItem) MinMaxSizes {
 						unbreakableRun = 0
 					}
 				}
+				result.Min = max(result.Min, unbreakableRun)
 			}
-			result.Min = max(result.Min, unbreakableRun)
 
 		case InlineAtomic:
 			// Call intrinsic helper on the atomic node.

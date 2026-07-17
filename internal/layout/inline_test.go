@@ -1099,3 +1099,53 @@ func TestInlineLayout_TextOverflowEllipsis(t *testing.T) {
 		t.Errorf("expected truncated text 'Hello W', got %q", textStr)
 	}
 }
+
+func TestInlineLayout_ComputeInlineMinMaxSizes_OverflowWrapAnywhere(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display:      style.DisplayInline,
+				WhiteSpace:   style.WhiteSpaceNormal,
+				OverflowWrap: style.OverflowWrapAnywhere,
+			},
+		},
+		data: "abcdefghijklmnopqrstuvwxyz",
+	}
+
+	builder := AcquireInlineItemsBuilder(defaultShaper, textNode)
+	defer ReleaseInlineItemsBuilder(builder)
+	builder.collect(textNode)
+
+	minMax := ComputeInlineMinMaxSizes(nil, builder.items)
+	if minMax.Min != 1 {
+		t.Errorf("expected Min intrinsic size to be 1 under OverflowWrapAnywhere, got %d", minMax.Min)
+	}
+	if minMax.Max != 26 {
+		t.Errorf("expected Max intrinsic size to be 26, got %d", minMax.Max)
+	}
+}
+
+func TestInlineLayout_ComputeInlineMinMaxSizes_OverflowWrapBreakWord(t *testing.T) {
+	textNode := &mockTextNode{
+		mockNode: mockNode{
+			style: &style.Computed{
+				Display:      style.DisplayInline,
+				WhiteSpace:   style.WhiteSpaceNormal,
+				OverflowWrap: style.OverflowWrapBreakWord,
+			},
+		},
+		data: "abcdefghijklmnopqrstuvwxyz",
+	}
+
+	builder := AcquireInlineItemsBuilder(defaultShaper, textNode)
+	defer ReleaseInlineItemsBuilder(builder)
+	builder.collect(textNode)
+
+	minMax := ComputeInlineMinMaxSizes(nil, builder.items)
+	if minMax.Min != 26 {
+		t.Errorf("expected Min intrinsic size to be 26 under OverflowWrapBreakWord, got %d", minMax.Min)
+	}
+	if minMax.Max != 26 {
+		t.Errorf("expected Max intrinsic size to be 26, got %d", minMax.Max)
+	}
+}

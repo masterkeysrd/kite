@@ -441,7 +441,7 @@ func (a *FlexAlgorithm) layoutInternal(ctx *Context, node Node, space Constraint
 				isFixedInline := false
 				isFixedBlock := true
 
-				if !wrap && item.AlignSelf == style.AlignStretch && childStyle.Width.Kind() == style.KindAuto && space.IsFixedInlineSize {
+				if !wrap && item.AlignSelf == style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					isFixedInline = true
 				} else if item.AlignSelf != style.AlignStretch && childStyle.Width.Kind() == style.KindAuto {
 					measureCrossSize = min(IntrinsicMinMaxSizes(ctx, item.Node).Max, contentCrossSizeForItems)

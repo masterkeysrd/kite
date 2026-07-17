@@ -1621,3 +1621,38 @@ func TestFlexLayout_GrowWithMinWidth(t *testing.T) {
 		t.Errorf("expected equal widths of 40/40, got child1=%d, child2=%d", c1Width, c2Width)
 	}
 }
+
+func TestFlexLayout_ColumnFixedInlinePropagation(t *testing.T) {
+	child := &mockNode{
+		style: &style.Computed{
+			Display:   style.DisplayBlock,
+			Width:     style.Auto,
+			Height:    style.Cells(5),
+			AlignSelf: style.AlignStretch,
+		},
+	}
+
+	parent := &mockNode{
+		style: &style.Computed{
+			Display:       style.DisplayFlex,
+			FlexDirection: style.FlexColumn,
+			Width:         style.Auto,
+			Height:        style.Cells(20),
+		},
+		firstChild: child,
+	}
+
+	space := NewConstraintSpaceBuilder(geometry.Size{40, 20}).
+		SetIsFixedInlineSize(false).
+		ToConstraintSpace()
+
+	algo := GetAlgorithm(parent)
+	algo.Layout(nil, parent, space)
+
+	if !child.cachedSpace.IsFixedInlineSize {
+		t.Error("expected stretched child of FlexColumn to receive IsFixedInlineSize: true even when parent constraint space is not fixed inline size")
+	}
+	if child.cachedSpace.AvailableSize.Width != 40 {
+		t.Errorf("expected child to receive available width 40, got %d", child.cachedSpace.AvailableSize.Width)
+	}
+}
