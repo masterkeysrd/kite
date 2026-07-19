@@ -124,5 +124,7 @@ func (m *mockLayoutNode) SetCachedLayout(space ConstraintSpace, frag *Fragment) 
 }
 func (m *mockLayoutNode) CachedMinMaxSizes() (MinMaxSizes, bool) { return MinMaxSizes{}, false }
 func (m *mockLayoutNode) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
+func (m *mockLayoutNode) CachedBlockSize(width int) (int, bool)  { return 0, false }
+func (m *mockLayoutNode) SetCachedBlockSize(width, height int)   {}
 func (m *mockLayoutNode) SetOffset(p geometry.Point)             {}
 func (m *mockLayoutNode) IsAnonymous() bool                      { return false }

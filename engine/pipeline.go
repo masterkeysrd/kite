@@ -138,17 +138,14 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 		ctx.Tracer = e.Tracer()
 		render.LayoutPhase(ctx, root, viewport)
 
-		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		for _, overlay := range overlays {
-			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
-		}
-
-	}
-
-	if layoutRan {
 		clampScrollOffsets(root)
 		for _, overlay := range overlays {
 			clampScrollOffsets(overlay)
+		}
+
+		root.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
+		for _, overlay := range overlays {
+			overlay.ClearDirtyRecursive(render.DirtyLayout | render.ChildNeedsLayout)
 		}
 	}
 
@@ -267,7 +264,9 @@ func clampScrollOffsets(ro render.Object) {
 			}
 		}
 	}
-	for child := ro.FirstChild(); child != nil; child = child.NextSibling() {
-		clampScrollOffsets(child)
+	if ro.Flags()&(render.DirtyLayout|render.ChildNeedsLayout) != 0 {
+		for child := ro.FirstChild(); child != nil; child = child.NextSibling() {
+			clampScrollOffsets(child)
+		}
 	}
 }

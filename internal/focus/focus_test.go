@@ -287,6 +287,8 @@ func (r *testRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 	return layout.MinMaxSizes{}, false
 }
 func (r *testRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
+func (r *testRender) CachedBlockSize(width int) (int, bool)   { return 0, false }
+func (r *testRender) SetCachedBlockSize(width, height int)    {}
 func (r *testRender) LogicalNode() dom.Node                   { return r.node }
 
 func (r *testRender) Offset() geom.Point    { return geom.Point{} }

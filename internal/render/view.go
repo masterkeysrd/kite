@@ -12,17 +12,20 @@ import (
 
 // BaseRender provides a default implementation for many render.Object methods.
 type BaseRender struct {
-	self         Object
-	parent       Object
-	firstChild   Object
-	lastChild    Object
-	next         Object
-	prev         Object
-	flags        DirtyFlag
-	cachedSpace  layout.ConstraintSpace
-	cachedFrag   *layout.Fragment
-	cachedMinMax layout.MinMaxSizes
-	minMaxValid  bool
+	self              Object
+	parent            Object
+	firstChild        Object
+	lastChild         Object
+	next              Object
+	prev              Object
+	flags             DirtyFlag
+	cachedSpace       layout.ConstraintSpace
+	cachedFrag        *layout.Fragment
+	cachedMinMax      layout.MinMaxSizes
+	minMaxValid       bool
+	cachedBlockWidth  int
+	cachedBlockHeight int
+	blockSizeValid    bool
 
 	logicalNode   dom.Node
 	eventTarget   event.EventTarget
@@ -131,7 +134,13 @@ func (b *BaseRender) IsDirtyPaint() bool       { return b.Flags()&(DirtyPaint|Di
 func (b *BaseRender) HasChildNeedsPaint() bool { return b.Flags()&ChildNeedsPaint != 0 }
 
 func (b *BaseRender) Offset() geom.Point {
-	return b.offset
+	offset := b.offset
+	if b.parent != nil {
+		pOffset := b.parent.Offset()
+		offset.X += pOffset.X
+		offset.Y += pOffset.Y
+	}
+	return offset
 }
 
 func (b *BaseRender) SetOffset(p geom.Point) {
@@ -289,6 +298,22 @@ func (b *BaseRender) SetCachedMinMaxSizes(sizes layout.MinMaxSizes) {
 	b.minMaxValid = true
 }
 
+func (b *BaseRender) CachedBlockSize(width int) (int, bool) {
+	if b.flags&(DirtyLayout|ChildNeedsLayout) != 0 {
+		return 0, false
+	}
+	if b.blockSizeValid && b.cachedBlockWidth == width {
+		return b.cachedBlockHeight, true
+	}
+	return 0, false
+}
+
+func (b *BaseRender) SetCachedBlockSize(width, height int) {
+	b.cachedBlockWidth = width
+	b.cachedBlockHeight = height
+	b.blockSizeValid = true
+}
+
 // RenderView is the root of a render tree. It represents the viewport.
 type RenderView struct {
 	BaseRender
@@ -422,7 +447,9 @@ func propagateOffsetsAccum(frag *layout.Fragment, accum geom.Point) {
 		offset := geom.Point{X: accum.X + link.Offset.X, Y: accum.Y + link.Offset.Y}
 		if ro, ok := link.Fragment.Node.(Object); ok {
 			ro.SetOffset(offset)
-			propagateOffsetsAccum(link.Fragment, geom.Point{})
+			if ro.Flags()&(DirtyLayout|ChildNeedsLayout) != 0 {
+				propagateOffsetsAccum(link.Fragment, geom.Point{})
+			}
 		} else {
 			propagateOffsetsAccum(link.Fragment, offset)
 		}

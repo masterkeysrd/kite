@@ -279,7 +279,12 @@ func IntrinsicMinMaxSizes(ctx *Context, node Node) MinMaxSizes {
 // IntrinsicBlockSize returns the intrinsic block size (height) of a node given an
 // available inline size (width).
 func IntrinsicBlockSize(ctx *Context, node Node, availableWidth int) int {
-	// For now, we just run a probe layout. In the future, this should be cached.
+	if node != nil {
+		if height, ok := node.CachedBlockSize(availableWidth); ok {
+			return height
+		}
+	}
+
 	// ContainerSpace and ContainingSpace must be set to the probe width so that
 	// children with KindPercent widths resolve correctly inside the probe.
 	// Without this, a child with width:100% would resolve to 0 (ContainerSpace.Width=0),
@@ -290,7 +295,12 @@ func IntrinsicBlockSize(ctx *Context, node Node, availableWidth int) int {
 		SetContainerSpace(probeSize).
 		SetContainingSpace(probeSize).
 		ToConstraintSpace()
-	return GetAlgorithm(node).Layout(ctx, node, space).Size.Height
+	height := GetAlgorithm(node).Layout(ctx, node, space).Size.Height
+
+	if node != nil {
+		node.SetCachedBlockSize(availableWidth, height)
+	}
+	return height
 }
 
 // AbsoluteBounds traverses the fragment tree starting at root and computes the absolute

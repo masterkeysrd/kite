@@ -11,15 +11,18 @@ import (
 )
 
 type mockNode struct {
-	style          *style.Computed
-	firstChild     Node
-	nextSibling    Node
-	dirty          bool
-	cachedSpace    ConstraintSpace
-	cachedFragment *Fragment
-	cachedMinMax   MinMaxSizes
-	minMaxValid    bool
-	self           dom.Node
+	style             *style.Computed
+	firstChild        Node
+	nextSibling       Node
+	dirty             bool
+	cachedSpace       ConstraintSpace
+	cachedFragment    *Fragment
+	cachedMinMax      MinMaxSizes
+	minMaxValid       bool
+	cachedBlockWidth  int
+	cachedBlockHeight int
+	blockSizeValid    bool
+	self              dom.Node
 }
 
 func (m *mockNode) Style() *style.Computed { return m.style }
@@ -67,6 +70,22 @@ func (m *mockNode) CachedMinMaxSizes() (MinMaxSizes, bool) {
 func (m *mockNode) SetCachedMinMaxSizes(sizes MinMaxSizes) {
 	m.cachedMinMax = sizes
 	m.minMaxValid = true
+}
+
+func (m *mockNode) CachedBlockSize(width int) (int, bool) {
+	if m.dirty {
+		return 0, false
+	}
+	if m.blockSizeValid && m.cachedBlockWidth == width {
+		return m.cachedBlockHeight, true
+	}
+	return 0, false
+}
+
+func (m *mockNode) SetCachedBlockSize(width, height int) {
+	m.cachedBlockWidth = width
+	m.cachedBlockHeight = height
+	m.blockSizeValid = true
 }
 
 func (m *mockNode) SetOffset(geometry.Point) {}

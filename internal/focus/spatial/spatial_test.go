@@ -319,6 +319,8 @@ func (r *spatialRender) CachedMinMaxSizes() (layout.MinMaxSizes, bool) {
 	return layout.MinMaxSizes{}, false
 }
 func (r *spatialRender) SetCachedMinMaxSizes(layout.MinMaxSizes) {}
+func (r *spatialRender) CachedBlockSize(width int) (int, bool)   { return 0, false }
+func (r *spatialRender) SetCachedBlockSize(width, height int)    {}
 func (r *spatialRender) LogicalNode() dom.Node                   { return r.node }
 
 func (r *spatialRender) Offset() geom.Point    { return geom.Point{} }

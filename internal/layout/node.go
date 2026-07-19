@@ -68,6 +68,12 @@ type Node interface {
 	// SetCachedMinMaxSizes stores the computed intrinsic minimum and maximum sizes.
 	SetCachedMinMaxSizes(sizes MinMaxSizes)
 
+	// CachedBlockSize returns the intrinsic block size (height) for a given inline size (width).
+	CachedBlockSize(width int) (int, bool)
+
+	// SetCachedBlockSize stores the computed intrinsic block size for a given inline size.
+	SetCachedBlockSize(width, height int)
+
 	// SetOffset updates the physical offset of this node.
 	SetOffset(geom.Point)
 

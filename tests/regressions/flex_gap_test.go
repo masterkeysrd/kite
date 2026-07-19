@@ -46,6 +46,8 @@ func (m *mockNode) CachedLayout(space layout.ConstraintSpace) *layout.Fragment  
 func (m *mockNode) SetCachedLayout(space layout.ConstraintSpace, frag *layout.Fragment) {}
 func (m *mockNode) CachedMinMaxSizes() (layout.MinMaxSizes, bool)                       { return layout.MinMaxSizes{}, false }
 func (m *mockNode) SetCachedMinMaxSizes(sizes layout.MinMaxSizes)                       {}
+func (m *mockNode) CachedBlockSize(width int) (int, bool)                               { return 0, false }
+func (m *mockNode) SetCachedBlockSize(width, height int)                                {}
 func (m *mockNode) SetOffset(p geom.Point)                                              {}
 
 func TestFlexGapInColumn(t *testing.T) {

@@ -86,6 +86,9 @@ func (a *AnonymousBlock) CachedMinMaxSizes() (MinMaxSizes, bool) {
 
 func (a *AnonymousBlock) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
 
+func (a *AnonymousBlock) CachedBlockSize(width int) (int, bool) { return 0, false }
+func (a *AnonymousBlock) SetCachedBlockSize(width, height int)  {}
+
 func (a *AnonymousBlock) SetOffset(p geometry.Point) {}
 
 func (a *AnonymousBlock) IsAnonymous() bool {

@@ -61,6 +61,8 @@ type Object interface {
 	SetCachedLayout(layout.ConstraintSpace, *layout.Fragment)
 	CachedMinMaxSizes() (layout.MinMaxSizes, bool)
 	SetCachedMinMaxSizes(layout.MinMaxSizes)
+	CachedBlockSize(width int) (int, bool)
+	SetCachedBlockSize(width, height int)
 	LogicalNode() dom.Node
 
 	// Offset returns the physical offset of this object relative to its parent.

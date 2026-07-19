@@ -474,6 +474,9 @@ func (a *anonymousTableSection) CachedMinMaxSizes() (MinMaxSizes, bool) {
 
 func (a *anonymousTableSection) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
 
+func (a *anonymousTableSection) CachedBlockSize(width int) (int, bool) { return 0, false }
+func (a *anonymousTableSection) SetCachedBlockSize(width, height int)  {}
+
 func (a *anonymousTableSection) SetOffset(p geometry.Point) {}
 
 func (a *anonymousTableSection) IsAnonymous() bool {
@@ -546,6 +549,9 @@ func (a *anonymousTableRow) CachedMinMaxSizes() (MinMaxSizes, bool) {
 }
 
 func (a *anonymousTableRow) SetCachedMinMaxSizes(sizes MinMaxSizes) {}
+
+func (a *anonymousTableRow) CachedBlockSize(width int) (int, bool) { return 0, false }
+func (a *anonymousTableRow) SetCachedBlockSize(width, height int)  {}
 
 func (a *anonymousTableRow) SetOffset(p geometry.Point) {}
 
