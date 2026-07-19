@@ -26,6 +26,7 @@ type BaseNode struct {
 	ownerDocument   dom.Document
 	connected       bool
 	needsSync       bool
+	needsScrollSync bool
 	childNeedsSync  bool
 	childNeedsStyle bool
 	inUASubtree     bool // true when this node is part of a UA shadow subtree (ADR-009)
@@ -117,8 +118,31 @@ func (b *BaseNode) MarkNeedsSync() {
 func (b *BaseNode) NeedsSync() bool      { return b.needsSync }
 func (b *BaseNode) ChildNeedsSync() bool { return b.childNeedsSync }
 
+func (b *BaseNode) MarkNeedsScrollSync() {
+	if b.needsScrollSync {
+		return
+	}
+	b.needsScrollSync = true
+	// Propagate ChildNeedsSync up.
+	for p := b.parent; p != nil; p = p.Parent() {
+		pb := asBase(p)
+		if pb.childNeedsSync {
+			break
+		}
+		pb.childNeedsSync = true
+	}
+
+	// ADR-009: If this node is in a UA subtree, propagate to the host element.
+	if b.inUASubtree && b.outer != nil {
+		asBase(b.outer).MarkNeedsScrollSync()
+	}
+}
+
+func (b *BaseNode) NeedsScrollSync() bool { return b.needsScrollSync }
+
 func (b *BaseNode) ClearSyncFlags() {
 	b.needsSync = false
+	b.needsScrollSync = false
 	b.childNeedsSync = false
 }
 

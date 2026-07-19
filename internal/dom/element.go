@@ -342,7 +342,7 @@ func (e *Element) ScrollTo(x, y int) {
 	}
 	e.scroll.X = x
 	e.scroll.Y = y
-	e.MarkNeedsSync()
+	e.MarkNeedsScrollSync()
 
 	// Dispatch event.EventScroll.
 	ev := event.NewScrollEvent(x, y, dx, dy)

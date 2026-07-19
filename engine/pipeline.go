@@ -145,9 +145,11 @@ func (p *StandardPipeline) Layout(e *Engine) bool {
 
 	}
 
-	clampScrollOffsets(root)
-	for _, overlay := range overlays {
-		clampScrollOffsets(overlay)
+	if layoutRan {
+		clampScrollOffsets(root)
+		for _, overlay := range overlays {
+			clampScrollOffsets(overlay)
+		}
 	}
 
 	focused := e.focusManager.Current()
@@ -253,12 +255,14 @@ func clampScrollOffsets(ro render.Object) {
 	if n := ro.LogicalNode(); n != nil {
 		if el, ok := n.(dom.Element); ok {
 			if !el.ProvidesCursor() {
-				maxSX, maxSY := ro.MaxScroll()
 				currX, currY := el.Scroll()
-				clampedX := max(0, min(currX, maxSX))
-				clampedY := max(0, min(currY, maxSY))
-				if clampedX != currX || clampedY != currY {
-					el.ScrollTo(clampedX, clampedY)
+				if currX != 0 || currY != 0 {
+					maxSX, maxSY := ro.MaxScroll()
+					clampedX := max(0, min(currX, maxSX))
+					clampedY := max(0, min(currY, maxSY))
+					if clampedX != currX || clampedY != currY {
+						el.ScrollTo(clampedX, clampedY)
+					}
 				}
 			}
 		}

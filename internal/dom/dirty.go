@@ -15,6 +15,9 @@ type DirtyNode interface {
 	ChildNeedsSync() bool
 	ClearSyncFlags()
 
+	MarkNeedsScrollSync()
+	NeedsScrollSync() bool
+
 	HasDirtyStyleChild() bool
 	MarkStyleChildDirty()
 	ClearStyleFlags()

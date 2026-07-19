@@ -919,17 +919,22 @@ func (e *Engine) syncRenderTree(rootNode dom.Node, rootRO render.Object) {
 				task.ro.MarkDirty(render.DirtyLayout | render.DirtyPaint)
 			}
 			e.diffChildren(task.node, task.ro)
-		} else if dn.ChildNeedsSync() {
-			for child := task.node.FirstChild(); child != nil; child = child.NextSibling() {
-				if childRO := e.RenderObject(child); childRO != nil {
-					e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
-				}
+		} else {
+			if dn.NeedsScrollSync() {
+				task.ro.MarkDirty(render.DirtyScroll)
 			}
-			if el, ok := task.node.(dom.Element); ok {
-				if uaRoot := internaldom.UARoot(el); uaRoot != nil {
-					for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
-						if childRO := e.RenderObject(child); childRO != nil {
-							e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+			if dn.ChildNeedsSync() {
+				for child := task.node.FirstChild(); child != nil; child = child.NextSibling() {
+					if childRO := e.RenderObject(child); childRO != nil {
+						e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+					}
+				}
+				if el, ok := task.node.(dom.Element); ok {
+					if uaRoot := internaldom.UARoot(el); uaRoot != nil {
+						for child := uaRoot.FirstChild(); child != nil; child = child.NextSibling() {
+							if childRO := e.RenderObject(child); childRO != nil {
+								e.syncStack = append(e.syncStack, syncTask{node: child, ro: childRO})
+							}
 						}
 					}
 				}
