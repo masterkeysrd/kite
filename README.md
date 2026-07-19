@@ -229,7 +229,7 @@ We run a realistic benchmark ([`BenchmarkEngine_RealisticApp_1000Nodes`](engine/
 
 | Benchmark | Latency / Frame | Frame Rate (FPS) | Memory / Frame | Allocations / Frame |
 | :--- | :--- | :--- | :--- | :--- |
-| **Realistic App (1,200+ Nodes)** | `~2.43 ms` | **~410 FPS** | `3.44 MB` | `25,810` |
+| **Realistic App (1,200+ Nodes)** | `~0.84 ms` | **~1,190 FPS** | `0.97 MB` | `7,123` |
 
 To run the benchmark yourself:
 ```bash
