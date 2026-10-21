@@ -13,6 +13,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -638,5 +639,64 @@ func TestTerminalProxy_SetTitleAndBell(t *testing.T) {
 	term.SetProgressBar(terminal.ProgressBarNormal, 75)
 	if !strings.Contains(b.Output.String(), "\x1b]9;4;1;75\x07") {
 		t.Errorf("expected SetProgressBar sequence in output, got %q", b.Output.String())
+	}
+
+	// Reset output buffer
+	b.Output.Reset()
+
+	// 4. Test SetProgramStatus
+	e.SetProgramStatus(&terminal.ProgramStatus{
+		State: terminal.ProgramStateWorking,
+	})
+	// Initially Caps.ProgramStatus is false in this test
+	if b.ProgramStatus != nil {
+		t.Errorf("expected SetProgramStatus to be no-op when caps disabled, got %v", b.ProgramStatus)
+	}
+}
+
+func TestEngine_ProgramStatusSupportEvent(t *testing.T) {
+	e, b := newTestEngine(t)
+	defer e.Stop()
+
+	if e.Caps().ProgramStatus {
+		t.Errorf("expected initial Caps.ProgramStatus to be false")
+	}
+
+	received := false
+	e.Document().AddEventListener(event.EventProgramStatusSupport, func(ev event.Event) {
+		if ev.Type() == event.EventProgramStatusSupport {
+			received = true
+		}
+	})
+
+	e.ProcessRawEvent(&backend.RawProgramStatusSupportEvent{})
+
+	if !received {
+		t.Errorf("expected EventProgramStatusSupport to be dispatched to document")
+	}
+
+	if !e.Caps().ProgramStatus {
+		t.Errorf("expected Caps.ProgramStatus to be true after support event")
+	}
+
+	// Now SetProgramStatus should work through TerminalProxy
+	term := e.Document().Terminal()
+	term.SetProgramStatus(&terminal.ProgramStatus{
+		State: terminal.ProgramStateWorking,
+		Title: "Building...",
+	})
+
+	if b.ProgramStatus == nil || b.ProgramStatus.State != terminal.ProgramStateWorking {
+		t.Errorf("expected ProgramStatus to be set on backend, got %v", b.ProgramStatus)
+	}
+
+	if !strings.Contains(b.Output.String(), "\x1b]7501;working\x1b\\") {
+		t.Errorf("expected OSC 7501 sequence in output, got %q", b.Output.String())
+	}
+
+	// Clear program status
+	term.SetProgramStatus(nil)
+	if b.ProgramStatus != nil {
+		t.Errorf("expected ProgramStatus to be nil after clear, got %v", b.ProgramStatus)
 	}
 }
