@@ -109,6 +109,10 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		return &backend.RawFocusOutEvent{}
 	case *uv.BlurEvent:
 		return &backend.RawFocusOutEvent{}
+	case uv.ProgramStatusSupportEvent:
+		return &backend.RawProgramStatusSupportEvent{}
+	case *uv.ProgramStatusSupportEvent:
+		return &backend.RawProgramStatusSupportEvent{}
 	case uv.UnknownOscEvent:
 		s := string(e)
 		kitelog.Info("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))

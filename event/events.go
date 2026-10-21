@@ -12,35 +12,36 @@ type EventType string
 
 // Standard event type constants.
 const (
-	EventKeyDown         EventType = "keydown"
-	EventKeyUp           EventType = "keyup"
-	EventKeyPress        EventType = "keypress"
-	EventMouseDown       EventType = "mousedown"
-	EventMouseUp         EventType = "mouseup"
-	EventMouseMove       EventType = "mousemove"
-	EventMouseEnter      EventType = "mouseenter"
-	EventMouseLeave      EventType = "mouseleave"
-	EventMouseOver       EventType = "mouseover"
-	EventMouseOut        EventType = "mouseout"
-	EventClick           EventType = "click"
-	EventDrag            EventType = "drag"
-	EventWheel           EventType = "wheel"
-	EventFocus           EventType = "focus"
-	EventBlur            EventType = "blur"
-	EventFocusIn         EventType = "focusin"
-	EventFocusOut        EventType = "focusout"
-	EventResize          EventType = "resize"
-	EventWindowFocus     EventType = "windowfocus"
-	EventWindowBlur      EventType = "windowblur"
-	EventChange          EventType = "change"
-	EventInput           EventType = "input"
-	EventPaste           EventType = "paste"
-	EventCopy            EventType = "copy"
-	EventCut             EventType = "cut"
-	EventClipboard       EventType = "clipboard"
-	EventScroll          EventType = "scroll"
-	EventSelectionChange EventType = "selectionchange"
-	EventSubmit          EventType = "submit"
+	EventKeyDown              EventType = "keydown"
+	EventKeyUp                EventType = "keyup"
+	EventKeyPress             EventType = "keypress"
+	EventMouseDown            EventType = "mousedown"
+	EventMouseUp              EventType = "mouseup"
+	EventMouseMove            EventType = "mousemove"
+	EventMouseEnter           EventType = "mouseenter"
+	EventMouseLeave           EventType = "mouseleave"
+	EventMouseOver            EventType = "mouseover"
+	EventMouseOut             EventType = "mouseout"
+	EventClick                EventType = "click"
+	EventDrag                 EventType = "drag"
+	EventWheel                EventType = "wheel"
+	EventFocus                EventType = "focus"
+	EventBlur                 EventType = "blur"
+	EventFocusIn              EventType = "focusin"
+	EventFocusOut             EventType = "focusout"
+	EventResize               EventType = "resize"
+	EventWindowFocus          EventType = "windowfocus"
+	EventWindowBlur           EventType = "windowblur"
+	EventChange               EventType = "change"
+	EventInput                EventType = "input"
+	EventPaste                EventType = "paste"
+	EventCopy                 EventType = "copy"
+	EventCut                  EventType = "cut"
+	EventClipboard            EventType = "clipboard"
+	EventScroll               EventType = "scroll"
+	EventSelectionChange      EventType = "selectionchange"
+	EventSubmit               EventType = "submit"
+	EventProgramStatusSupport EventType = "programstatussupport"
 )
 
 // EventPhase represents the current dispatch phase.
@@ -314,6 +315,19 @@ func NewResizeEvent(width, height int) *ResizeEvent {
 		BaseEvent: BaseEvent{typ: EventResize, bubbles: false},
 		Width:     width,
 		Height:    height,
+	}
+}
+
+// ProgramStatusSupportEvent is dispatched when the terminal confirms support
+// for the Program Status Protocol (OSC 7501). It does not bubble.
+type ProgramStatusSupportEvent struct {
+	BaseEvent
+}
+
+// NewProgramStatusSupportEvent creates a new ProgramStatusSupportEvent.
+func NewProgramStatusSupportEvent() *ProgramStatusSupportEvent {
+	return &ProgramStatusSupportEvent{
+		BaseEvent: BaseEvent{typ: EventProgramStatusSupport, bubbles: false},
 	}
 }
 

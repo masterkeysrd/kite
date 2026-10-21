@@ -17,6 +17,7 @@ type Terminal interface {
 	SetTitle(title string)
 	Bell()
 	SetProgressBar(state ProgressBarState, percentage int)
+	SetProgramStatus(status *ProgramStatus)
 }
 
 type ProgressBarState uint8
@@ -28,6 +29,48 @@ const (
 	ProgressBarIndeterminate
 	ProgressBarPaused
 )
+
+// ProgramState is the state of a program reported with the Program Status
+// Protocol (OSC 7501).
+type ProgramState string
+
+const (
+	ProgramStateIdle    ProgramState = "idle"
+	ProgramStateWorking ProgramState = "working"
+	ProgramStateDone    ProgramState = "done"
+	ProgramStateBlocked ProgramState = "blocked"
+	ProgramStateError   ProgramState = "error"
+	ProgramStateClear   ProgramState = "clear"
+)
+
+// ProgramStatusKind says what a blocked program is waiting for.
+type ProgramStatusKind string
+
+const (
+	ProgramStatusKindPermission ProgramStatusKind = "permission"
+	ProgramStatusKindQuestion   ProgramStatusKind = "question"
+	ProgramStatusKindAuth       ProgramStatusKind = "auth"
+)
+
+// ProgramStatus is a report for the Program Status Protocol (OSC 7501).
+type ProgramStatus struct {
+	// State is the program state. Required.
+	State ProgramState
+	// ID addresses a record. Empty means the root record.
+	ID string
+	// App is a stable machine-readable program name.
+	App string
+	// Kind says what a blocked program waits for. Only used with ProgramStateBlocked.
+	Kind ProgramStatusKind
+	// Progress is a percentage between 0 and 100.
+	Progress int
+	// HasProgress reports whether Progress is set.
+	HasProgress bool
+	// Title is a short human-readable label for the record.
+	Title string
+	// Message is one human-readable line describing the record.
+	Message string
+}
 
 type Scheduler interface {
 	// RunBackground executes a task on a background worker pool.

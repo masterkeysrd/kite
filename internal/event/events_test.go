@@ -929,3 +929,18 @@ func TestSynthesizer_HoverTransitions(t *testing.T) {
 		}
 	}
 }
+
+func TestSynthesizerProgramStatusSupport(t *testing.T) {
+	s := internal.NewSynthesizer(nil, nil, internal.SynthesizerOptions{})
+	evts := s.Process(&backend.RawProgramStatusSupportEvent{})
+	if len(evts) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(evts))
+	}
+	pse, ok := evts[0].(*event.ProgramStatusSupportEvent)
+	if !ok {
+		t.Fatalf("expected *event.ProgramStatusSupportEvent, got %T", evts[0])
+	}
+	if pse.Type() != event.EventProgramStatusSupport {
+		t.Errorf("expected event type %q, got %q", event.EventProgramStatusSupport, pse.Type())
+	}
+}

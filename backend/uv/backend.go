@@ -148,6 +148,8 @@ func (b *Backend) Start() error {
 	b.writeRaw("\x1b[?1004h")
 	// Save window title on terminal stack.
 	b.writeRaw("\x1b[22;0t")
+	// Query Program Status Protocol support (OSC 7501).
+	b.writeRaw("\x1b]7501;?\x1b\\")
 
 	// Update dimensions from the now-started terminal/screen.
 	b.width = b.screen.Width()
@@ -314,6 +316,24 @@ func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int)
 		uvState = uv.ProgressBarWarning
 	}
 	b.screen.SetProgressBar(uv.NewProgressBar(uvState, percentage))
+}
+
+func (b *Backend) SetProgramStatus(status *terminal.ProgramStatus) {
+	if status == nil {
+		b.screen.SetProgramStatus(nil)
+		return
+	}
+	uvStatus := &uv.ProgramStatus{
+		State:       uv.ProgramState(status.State),
+		ID:          status.ID,
+		App:         status.App,
+		Kind:        uv.ProgramStatusKind(status.Kind),
+		Progress:    status.Progress,
+		HasProgress: status.HasProgress,
+		Title:       status.Title,
+		Message:     status.Message,
+	}
+	b.screen.SetProgramStatus(uvStatus)
 }
 
 func (b *Backend) DumpState() {

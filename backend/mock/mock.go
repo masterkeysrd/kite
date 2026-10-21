@@ -53,6 +53,9 @@ type Backend struct {
 	// title holds the simulated terminal window title.
 	title string
 
+	// ProgramStatus records the most recently set program status.
+	ProgramStatus *backend.ProgramStatus
+
 	current *backend.Buffer
 }
 
@@ -158,6 +161,15 @@ func (b *Backend) Bell() {
 
 func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int) {
 	fmt.Fprintf(&b.Output, "\x1b]9;4;%d;%d\x07", state, percentage)
+}
+
+func (b *Backend) SetProgramStatus(status *backend.ProgramStatus) {
+	b.ProgramStatus = status
+	if status == nil {
+		fmt.Fprint(&b.Output, "\x1b]7501\x1b\\")
+		return
+	}
+	fmt.Fprintf(&b.Output, "\x1b]7501;%s\x1b\\", status.State)
 }
 
 // LastFrame returns the most recently completed frame, or a zero FrameRecord

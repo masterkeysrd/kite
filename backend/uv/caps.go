@@ -27,8 +27,15 @@ func probeCapabilities(environ []string) backend.Caps {
 		Title:          probeTitle(env),
 		Bell:           true, // BEL is universally supported
 		ProgressBar:    probeProgressBar(env),
+		ProgramStatus:  probeProgramStatus(env),
 		Clipboard:      []backend.ClipboardKind{backend.ClipboardOSC52},
 	}
+}
+
+// probeProgramStatus checks whether the terminal is known to support OSC 7501 Program Status.
+func probeProgramStatus(env map[string]string) bool {
+	prog := strings.ToLower(env["TERM_PROGRAM"])
+	return prog == "ghostty" || prog == "rex"
 }
 
 // probeProgressBar checks whether the terminal supports native progress bars.

@@ -508,6 +508,17 @@ func (e *Engine) SetProgressBar(state backend.ProgressBarState, percentage int) 
 	e.backend.SetProgressBar(state, percentage)
 }
 
+// SetProgramStatus reports the program status to the terminal using OSC 7501.
+// It is a no-op if Caps.ProgramStatus is false.
+//
+// SetProgramStatus must be called from the main goroutine.
+func (e *Engine) SetProgramStatus(status *terminal.ProgramStatus) {
+	if !e.caps.ProgramStatus {
+		return
+	}
+	e.backend.SetProgramStatus(status)
+}
+
 // SetDebugXRay toggles the visual layout debugging overlay.
 func (e *Engine) SetDebugXRay(enabled bool) {
 	e.paintEngine.DebugXRay = enabled
@@ -1434,6 +1445,11 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 	case *event.ResizeEvent:
 		e.handleResize(evt)
 	case *event.WindowFocusEvent:
+		if e.document != nil {
+			e.document.DispatchTo(evt)
+		}
+	case *event.ProgramStatusSupportEvent:
+		e.caps.ProgramStatus = true
 		if e.document != nil {
 			e.document.DispatchTo(evt)
 		}

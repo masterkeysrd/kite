@@ -36,6 +36,10 @@ func (tp *TerminalProxy) SetProgressBar(state terminal.ProgressBarState, percent
 	tp.e.SetProgressBar(state, percentage)
 }
 
+func (tp *TerminalProxy) SetProgramStatus(status *terminal.ProgramStatus) {
+	tp.e.SetProgramStatus(status)
+}
+
 type pendingRead struct {
 	mime string
 	ch   chan []byte
