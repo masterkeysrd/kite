@@ -56,6 +56,11 @@ type Backend struct {
 	// ProgramStatus records the most recently set program status.
 	ProgramStatus *backend.ProgramStatus
 
+	// Inline reports whether inline mode is enabled.
+	Inline bool
+	// InsertedAbove stores buffers inserted above the inline frame.
+	InsertedAbove []*backend.Buffer
+
 	current *backend.Buffer
 }
 
@@ -118,6 +123,11 @@ func (b *Backend) Caps() backend.Caps { return b.caps }
 // Events returns a channel of input events.
 func (b *Backend) Events() <-chan backend.RawEvent { return b.events }
 
+// PostEvent sends a raw input event to the mock backend's event channel.
+func (b *Backend) PostEvent(ev backend.RawEvent) {
+	b.events <- ev
+}
+
 // Restore records the call. In the mock backend this is a no-op.
 func (b *Backend) Restore() { b.RestoreCalls++ }
 
@@ -170,6 +180,19 @@ func (b *Backend) SetProgramStatus(status *backend.ProgramStatus) {
 		return
 	}
 	fmt.Fprintf(&b.Output, "\x1b]7501;%s\x1b\\", status.State)
+}
+
+func (b *Backend) SetInline(inline bool) {
+	b.Inline = inline
+}
+
+func (b *Backend) InsertAbove(buf *backend.Buffer) {
+	if buf == nil {
+		return
+	}
+	cp := backend.NewBuffer(buf.Width, buf.Height)
+	copy(cp.Cells, buf.Cells)
+	b.InsertedAbove = append(b.InsertedAbove, cp)
 }
 
 // LastFrame returns the most recently completed frame, or a zero FrameRecord

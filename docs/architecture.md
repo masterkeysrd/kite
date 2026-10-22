@@ -85,6 +85,7 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Selection Masking:** The paint context accepts a pre-calculated list of selection bounding rectangles. When rendering cells, it acts as an overlay mask, inverting or restyling colors for any cell that intersects a selection rect.
 - **Border Post-Processing:** To automatically form correct Unicode junctions (e.g., `┼`, `├`) without manual coordinate math in layout, the `PaintEngine` runs a global $O(W \times H)$ post-processing pass over the framebuffer. Every cell explicitly tagged as a border is resolved against its cardinal neighbors. Junction merging for overlapping borders of varying weights is handled via a strict "Heaviest Style Wins" precedence rule (using an explicit `BorderStyle` enum stored per-cell). The resolver runs once on the root surface only; it must never be invoked on a clipped sub-surface.
 - **Backend:** Decouples Kite from the actual terminal emulator. The `backend` package is completely agnostic of internal types (like `paint.Cell` or `style.Cursor`). Implementations like `ultraviolet` and `mock` consume a generic `backend.Buffer` populated by the `Engine` at the end of each frame. This strict isolation allows backends to focus purely on I/O and protocol translation.
+- **Inline Mode & Scrollback Insertion (`InsertAbove`):** Configured via `engine.Options{Inline: true}`. When enabled, the engine configures `RenderView` with `SetIsFixedBlockSize(false)`, enabling auto-height layout constrained to the terminal viewport width rather than forcing fullscreen height. The pipeline dynamically adjusts the rendered frame buffer height per frame without entering the terminal alternate screen buffer (`altscreen`), ensuring terminal cursor positioning is relative and scrollback is preserved. To support terminal scrollback logging above the active inline frame, `Engine.InsertAbove(dom.Node)` lays out, paints, and resolves borders for a detached DOM node subtree and forwards the rendered `*backend.Buffer` to `Backend.InsertAbove(*Buffer)`, permanently committing it into the terminal scrollback buffer directly above the live inline viewport.
 
 ### 3.8. Developer Tools (`/devtools`)
 - **Responsibility:** Provide utilities to inspect, test, and debug Kite applications without bloating the core runtime.
@@ -161,3 +162,18 @@ The framework operates via a central nervous system called the **Engine (`/engin
 - **Global Integration:** The `dom.Document` acts as a central coordinator. If a focused element does not handle a copy/paste event, the Document falls back to the global `dom.Selection` to ensure seamless system-wide synchronization.
 - **System Sync:** Uses the **OSC 52** escape sequence in supported backends to securely read from and write to the system clipboard across local and remote (SSH) sessions without external dependencies.
 - **Backend Architecture:** The backend provides native support for terminal-specific protocols (like OSC 52 or Kitty) through a dedicated `Clipboard()` interface.
+
+### 3.17. Inline CLI Mode (`/extras/trail`)
+- **Responsibility:** Provide an Ink-inspired, component-driven inline CLI runtime for building interactive command-line tools without full-screen takeover.
+- **Application Lifecycle (`trail.New` / `trail.Run`):** Initializes an engine instance in inline mode (`Inline: true`), mounts the root component to the engine document, provides an `AppHandle` context, and executes the event loop. Automatic Ctrl+C termination is enabled by default via `trail.WithCtrlCExit(true)`.
+- **`<Static>` Scrollback Flushing:** Ink-compatible `<Static>` component (`trail.Static[T]`) enables append-only items (e.g. completed task entries, log messages) to be permanently flushed to terminal scrollback. Internally, a component ref (`emitted`) tracks the index of already-flushed items. On layout effect (`UseLayoutEffect`), newly appended items are rendered into temporary DOM containers and flushed above via `app.InsertAbove(node)`. Because `Static` returns `nil` in the active VDOM, it occupies zero space in the live inline frame.
+- **Layout Primitives:** Convenient re-exports and constructors for inline terminal layouts:
+  * `Box(BoxProps, ...Node)`: Container element supporting flexbox layouts.
+  * `Text(string)`: Text node constructor.
+  * `Span(SpanProps, ...Node)`: Inline text styling and color spans.
+  * `Newline(count ...int)`: Adds line breaks with controlled box heights.
+  * `Spacer()`: Flexible expanding box (`flex: 1`) for pushing elements apart.
+- **Hooks:** Built-in hooks tailored for inline CLI interactions:
+  * `UseApp()`: Returns `AppHandle` exposing `Exit(err error)`, `InsertAbove(node Node)`, and `Println(text string)`.
+  * `UseInput(handler)`: Binds raw and semantic keyboard listeners (with `event.KeyEvent` support).
+  * Seamless interoperability with core `kitex` hooks (`UseState`, `UseRef`, `UseEffect`, `UseLayoutEffect`, `UseInterval`, `UseTimeout`, `UseViewportSize`, `UseFocus`).

@@ -319,6 +319,7 @@ type RenderView struct {
 	BaseRender
 	viewportSize geom.Size
 	overlays     []Object
+	inline       bool
 }
 
 // NewRenderView creates a new RenderView.
@@ -326,6 +327,16 @@ func NewRenderView() *RenderView {
 	v := &RenderView{}
 	v.Init(v, nil, nil)
 	return v
+}
+
+// SetInline configures the render view for inline mode.
+func (v *RenderView) SetInline(inline bool) {
+	v.inline = inline
+}
+
+// Inline reports whether inline mode is enabled.
+func (v *RenderView) Inline() bool {
+	return v.inline
 }
 
 // ViewportSize returns the current viewport dimensions.
@@ -373,27 +384,34 @@ func (v *RenderView) IsDetached() bool { return false }
 
 func (v *RenderView) SetLogicalNode(n dom.Node) { v.logicalNode = n }
 
+// LayoutSubtree lays out a render subtree with the given constraint space.
+func LayoutSubtree(ctx *layout.Context, root Object, space layout.ConstraintSpace) *layout.Fragment {
+	algo := layout.GetAlgorithm(root)
+	frag := algo.Layout(ctx, root, space)
+	propagateOffsets(frag)
+	return frag
+}
+
 // LayoutPhase runs the layout process for the given subtree using the LayoutNG-inspired architecture.
 func LayoutPhase(ctx *layout.Context, root Object, available geom.Size) {
 	// 1. Build the constraint space for the viewport.
-	// The viewport forces a fixed size.
-	// The viewport has no border/padding, so ContainingSpace and ContainerSpace are equal.
-	space := layout.NewConstraintSpaceBuilder(available).
+	builder := layout.NewConstraintSpaceBuilder(available).
 		SetContainingSpace(available).
 		SetContainerSpace(available).
-		SetIsFixedInlineSize(true).
-		SetIsFixedBlockSize(true).
-		ToConstraintSpace()
+		SetIsFixedInlineSize(true)
 
-	// 2. Wrap the root in the formatting context algorithm.
-	algo := layout.GetAlgorithm(root)
+	if rv, ok := root.(*RenderView); ok && rv.Inline() {
+		builder.SetIsFixedBlockSize(false)
+	} else {
+		builder.SetIsFixedBlockSize(true)
+	}
+	space := builder.ToConstraintSpace()
 
-	// 3. Execute the layout pass.
+	// 2. Execute the layout pass.
 	// This will recursively visit children and cache fragments internally.
-	frag := algo.Layout(ctx, root, space)
-	propagateOffsets(frag)
+	LayoutSubtree(ctx, root, space)
 
-	// 4. Layout overlays.
+	// 3. Layout overlays.
 	if rv, ok := root.(*RenderView); ok {
 		for _, overlay := range rv.Overlays() {
 			comp := overlay.ComputedStyle()
@@ -417,10 +435,8 @@ func LayoutPhase(ctx *layout.Context, root Object, available geom.Size) {
 			}
 			overlaySpace := osb.ToConstraintSpace()
 
-			overlayAlgo := layout.GetAlgorithm(overlay)
-			frag := overlayAlgo.Layout(ctx, overlay, overlaySpace)
+			frag := LayoutSubtree(ctx, overlay, overlaySpace)
 			overlay.SetCachedLayout(overlaySpace, frag)
-			propagateOffsets(frag)
 
 			// If the overlay doesn't have a custom positioner (like OverlayAlgorithm),
 			// we fallback to margin-based positioning relative to the viewport.

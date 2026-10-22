@@ -65,3 +65,12 @@ The engine coordinates character-level text selection carets and spatial focus t
 *   **Automatic Routing:** The engine routes arrow keys to the focused element's `MoveCaret()` method if it implements `dom.SpatialCaret`.
 *   **Boundary Crossing:** If caret movement hits the text boundary, the engine automatically triggers a spatial focus transition to the nearest element in that direction.
 *   **Programmatic API:** Developers can trigger these transitions programmatically using the high-level `Engine.MoveCaret(dir)` and `Engine.NavigateFocus(dir)` methods, or using the logical DOM `dom.Document` methods.
+
+## Inline Mode & InsertAbove
+
+In addition to traditional fullscreen alternate-screen (`altscreen`) execution, the engine supports an **Inline Mode** tailored for interactive CLI utilities, deployment runners, and progress dashboards (such as [`extras/trail`](../extras/trail/)):
+
+*   **Configuration:** Enabled by passing `engine.Options{Inline: true}` to `engine.New()`.
+*   **Auto-Height Layout:** When in inline mode, `RenderView` configures the root constraint space with `SetIsFixedBlockSize(false)`, allowing the layout engine to calculate the natural height of the UI tree constrained to the terminal width rather than forcing full terminal row dimensions.
+*   **Dynamic Frame Heights:** In the paint phase, the engine dynamically resizes the frame buffer and active backend surface to match the rendered fragment height (up to the terminal height limit).
+*   **Scrollback Insertion (`InsertAbove`):** The engine provides `Engine.InsertAbove(node dom.Node)` to permanently insert rendered content above the active inline viewport. This mounts the node into a temporary document, performs styling, layout, fragment painting, and border junction resolution, and commits the resulting buffer via `backend.InsertAbove`. The active inline frame continues running below without flickering or corrupting native scrollback.

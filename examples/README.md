@@ -35,12 +35,13 @@ go run main.go
 - **[clipboard](clipboard/)**: Integration with the system clipboard.
 - **[app1](app1/)**: A comprehensive application example combining multiple components.
 
-### ⚛️ Kitex (Reactive)
+### ⚛️ Kitex (Reactive) & Extras
 - **[kitex_demo](kitex_demo/)**: demonstrates the VDOM reconciler, functional components, and hooks (`UseState`).
 - **[kitex_ref_demo](kitex_ref_demo/)**: demonstrates using `UseRef` and `CreateRef` within functional components.
 - **[kitex_hooks](kitex_hooks/)**: demonstrates terminal-specific hooks (`UseFocus` and `UseKeyboard`).
 - **[kitex_autocomplete_demo](kitex_autocomplete_demo/)**: demonstrates an input-driven autocomplete menu opened with `Ctrl+Space`.
 - **[form_demo](form_demo/)**: demonstrates form elements (Inputs, Checkbox, RadioGroup, Select) and VDOM submission handler via `kitex.Form`.
+- **[trail_demo](trail_demo/)**: demonstrates Ink-like inline CLI apps with `extras/trail`, featuring `<Static>` scrollback logging, dynamic frame heights, animated spinners, and keyboard controls.
 
 
 ---

@@ -32,8 +32,9 @@ type cursorRecord struct {
 }
 
 type renderRequest struct {
-	buffer *backend.Buffer
-	cursor cursorRecord
+	buffer      *backend.Buffer
+	cursor      cursorRecord
+	insertAbove *backend.Buffer
 }
 
 // Backend is the ultraviolet terminal backend for kite/x. It owns a uv.Terminal
@@ -63,6 +64,16 @@ type Backend struct {
 
 	// stopped indicates the backend has been stopped.
 	stopped atomic.Bool
+
+	// started indicates the backend has been started.
+	started atomic.Bool
+
+	// inline indicates inline mode is enabled.
+	inline bool
+
+	stopOnce     sync.Once
+	stopMu       sync.RWMutex
+	renderClosed bool
 
 	// stopCh is closed to signal event loop termination.
 	stopCh chan struct{}
@@ -137,12 +148,22 @@ func (b *Backend) SetResizeHandler(fn func(geom.Size)) {
 	b.onResize = fn
 }
 
+// SetInline configures the backend to run in inline mode.
+func (b *Backend) SetInline(inline bool) {
+	b.inline = inline
+	if inline && b.screen != nil {
+		b.screen.SetMouseMode(uv.MouseModeNone)
+	}
+}
+
 // Start enters alt-screen, enables raw mode, and starts the render goroutine.
 func (b *Backend) Start() error {
 	if err := b.terminal.Start(); err != nil {
 		return err
 	}
-	b.screen.EnterAltScreen()
+	if !b.inline {
+		b.screen.EnterAltScreen()
+	}
 	b.screen.HideCursor()
 	// Enable focus events reporting.
 	b.writeRaw("\x1b[?1004h")
@@ -152,13 +173,20 @@ func (b *Backend) Start() error {
 	b.writeRaw("\x1b]7501;?\x1b\\")
 
 	// Update dimensions from the now-started terminal/screen.
-	b.width = b.screen.Width()
-	b.height = b.screen.Height()
+	if w := b.screen.Width(); w > 0 {
+		b.width = w
+	}
+	if h := b.screen.Height(); h > 0 {
+		b.height = h
+	}
 
-	// Initial flush to clear the screen.
-	b.screen.Render()
-	_ = b.screen.Flush()
+	// Initial flush to clear the screen (alt-screen only).
+	if !b.inline {
+		b.screen.Render()
+		_ = b.screen.Flush()
+	}
 
+	b.started.Store(true)
 	b.renderWG.Add(1)
 	go b.renderLoop()
 
@@ -191,14 +219,34 @@ func (b *Backend) EndFrame() error {
 		cursor: b.cursorState,
 	}
 	b.current = nil
-	b.renderCh <- req
+
+	b.stopMu.RLock()
+	defer b.stopMu.RUnlock()
+	if !b.renderClosed {
+		b.renderCh <- req
+	}
 	return nil
 }
 
 // Caps returns the terminal capabilities detected at startup.
 func (b *Backend) Caps() backend.Caps { return b.caps }
 
+func (b *Backend) stopRenderLoop() {
+	b.stopOnce.Do(func() {
+		if b.started.Load() {
+			b.stopMu.Lock()
+			b.renderClosed = true
+			close(b.renderCh)
+			b.stopMu.Unlock()
+
+			b.renderWG.Wait()
+		}
+	})
+}
+
 func (b *Backend) Restore() {
+	b.stopRenderLoop()
+
 	if b.stopped.Swap(true) {
 		return
 	}
@@ -209,15 +257,19 @@ func (b *Backend) Restore() {
 	b.writeRaw("\x1b[23;0t")
 	// Disable focus events reporting.
 	b.writeRaw("\x1b[?1004l")
-	b.screen.ExitAltScreen()
+	if !b.inline {
+		b.screen.ExitAltScreen()
+	}
 	b.screen.ShowCursor()
 	_ = b.screen.Flush()
+	if b.inline && b.screen.Height() > 0 {
+		b.writeRaw("\r\n")
+	}
 }
 
 // Stop closes the render goroutine gracefully and calls Restore.
 func (b *Backend) Stop() {
-	close(b.renderCh)
-	b.renderWG.Wait()
+	b.stopRenderLoop()
 	b.Restore()
 }
 
@@ -230,7 +282,9 @@ func (b *Backend) Events() <-chan backend.RawEvent {
 func (b *Backend) Resize(size geom.Size) {
 	b.width = size.Width
 	b.height = size.Height
-	b.screen.Resize(size.Width, size.Height)
+	if !b.inline {
+		b.screen.Resize(size.Width, size.Height)
+	}
 }
 
 // Size returns the current terminal size.
@@ -402,8 +456,53 @@ func (b *Backend) DumpState() {
 func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()
 	for req := range b.renderCh {
+		if req.insertAbove != nil {
+			b.processInsertAbove(req.insertAbove)
+			continue
+		}
 		b.renderFrame(req)
 	}
+}
+
+// InsertAbove inserts a rendered cell buffer permanently into the terminal
+// scrollback above the active inline frame.
+func (b *Backend) InsertAbove(buf *backend.Buffer) {
+	if buf == nil || buf.Width <= 0 || buf.Height <= 0 {
+		return
+	}
+	if b.stopped.Load() {
+		return
+	}
+	if b.started.Load() {
+		b.stopMu.RLock()
+		if !b.renderClosed {
+			b.renderCh <- renderRequest{insertAbove: buf}
+		}
+		b.stopMu.RUnlock()
+	} else {
+		b.processInsertAbove(buf)
+	}
+}
+
+func (b *Backend) processInsertAbove(buf *backend.Buffer) {
+	b.block.Lock()
+	defer b.block.Unlock()
+
+	if buf == nil || buf.Width <= 0 || buf.Height <= 0 {
+		return
+	}
+
+	uvBuf := uv.NewBuffer(buf.Width, buf.Height)
+	var uvCell uv.Cell
+	for y := 0; y < buf.Height; y++ {
+		for x := 0; x < buf.Width; {
+			c := buf.CellAt(x, y)
+			populateUVCell(&uvCell, c)
+			uvBuf.SetCell(x, y, &uvCell)
+			x += max(1, uvCell.Width)
+		}
+	}
+	_ = b.screen.InsertAbove(uvBuf.Render())
 }
 
 func (b *Backend) loopEvents() {
@@ -423,12 +522,27 @@ func (b *Backend) loopEvents() {
 func (b *Backend) renderFrame(req renderRequest) {
 	b.block.Lock()
 	defer b.block.Unlock()
-	defer b.bufferPool.Put(req.buffer)
+	if req.buffer != nil {
+		defer b.bufferPool.Put(req.buffer)
+	}
 
 	buf := req.buffer
-	if buf.Width <= 0 || buf.Height <= 0 {
-		kitelog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", buf.Width, "height", buf.Height)
+	if !b.inline && (buf == nil || buf.Width <= 0 || buf.Height <= 0) {
+		if buf != nil {
+			kitelog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", buf.Width, "height", buf.Height)
+		}
 		return
+	}
+	if b.inline {
+		if buf == nil || buf.Width <= 0 || buf.Height < 0 {
+			if buf != nil {
+				kitelog.Warn("uv: renderFrame called with invalid dimensions, skipping", "width", buf.Width, "height", buf.Height)
+			}
+			return
+		}
+		if b.screen.Width() != buf.Width || b.screen.Height() != buf.Height {
+			b.screen.Resize(buf.Width, buf.Height)
+		}
 	}
 
 	// Reuse a single uv.Cell object to avoid thousands of allocations per frame.

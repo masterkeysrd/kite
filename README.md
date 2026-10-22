@@ -19,6 +19,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 🌀 **Async Fetching & Cache**: Ergonomic data fetching and caching with background refetches and mutations (via [`extras/wind`](extras/wind/)).
 - 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`promise`](promise/)).
 - 🎭 **Component Playground**: Interactive component development sandbox with live knobs and action logs (via [`extras/stage`](extras/stage/)).
+- 👣 **Inline CLI Mode**: Ink-inspired inline terminal rendering with permanent scrollback flushing via `Static` (via [`extras/trail`](extras/trail/)).
 
 ## 🏗 Architecture Overview
 
@@ -218,6 +219,73 @@ See the full working example in [`examples/stage/`](examples/stage/).
 | `Tab` | Move focus to the controls panel inputs |
 | `Ctrl+C` | Quit |
 | `F12` | Toggle web-inspector devtools |
+
+## 👣 Trail – Inline CLI Mode
+
+`extras/trail` is an Ink-inspired inline CLI framework built on top of Kite and `kitex`. Unlike full-screen terminal applications that take over the terminal via an alternate screen buffer (`altscreen`), `trail` apps run directly in the active terminal scrollback, dynamically adjust their viewport height per frame, and allow permanently inserting completed tasks or log items into terminal scrollback above the live active UI via `<Static>`.
+
+### Usage Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/extras/trail"
+)
+
+func App() kitex.Node {
+	app := trail.UseApp()
+	count, setCount := kitex.UseState(0)
+	completed, setCompleted := kitex.UseState([]string(nil))
+
+	trail.UseInput(func(input string, k event.KeyEvent) {
+		if input == "q" || k.MatchString("q", "esc") {
+			app.Exit(nil)
+		}
+	})
+
+	kitex.UseInterval(func() {
+		c := count()
+		if c < 5 {
+			setCompleted(append(completed(), fmt.Sprintf("Task %d completed", c+1)))
+			setCount(c + 1)
+		} else {
+			app.Exit(nil)
+		}
+	}, 500*time.Millisecond, nil)
+
+	return trail.Fragment(
+		// Static renders completed items permanently above into terminal scrollback:
+		trail.Static(completed(), func(item string, index int) kitex.Node {
+			return trail.Box(trail.BoxProps{}, trail.Text("✔ "+item))
+		}),
+		// Active inline area:
+		trail.Box(trail.BoxProps{},
+			trail.Text(fmt.Sprintf("Running task %d/5... (press 'q' to quit)", count()+1)),
+		),
+	)
+}
+
+func main() {
+	if err := trail.Run(context.Background(), App()); err != nil {
+		panic(err)
+	}
+}
+```
+
+Run the demo:
+
+```bash
+go run ./examples/trail_demo
+```
+
+See the full working demo in [`examples/trail_demo/`](examples/trail_demo/) and package documentation in [`extras/trail/`](extras/trail/).
 
 ## ⚡ Performance & Benchmarks
 

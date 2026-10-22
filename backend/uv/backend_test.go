@@ -1,6 +1,8 @@
 package uv
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -69,5 +71,62 @@ func TestBackend_SetProgramStatus(t *testing.T) {
 	b.SetProgramStatus(nil)
 	if screen.ProgramStatus() != nil {
 		t.Fatalf("expected screen program status to be nil after clear, got %#v", screen.ProgramStatus())
+	}
+}
+
+func TestBackend_InlineMode_And_InsertAbove(t *testing.T) {
+	var buf bytes.Buffer
+	screen := uv.NewTerminalScreen(&buf, nil)
+	b := &Backend{
+		screen: screen,
+		width:  80,
+		height: 24,
+	}
+
+	// 1. Test SetInline(true)
+	b.SetInline(true)
+	if !b.inline {
+		t.Fatalf("expected b.inline to be true")
+	}
+	if screen.MouseMode() != uv.MouseModeNone {
+		t.Errorf("expected MouseModeNone when inline, got %v", screen.MouseMode())
+	}
+
+	// 2. Test InsertAbove(buf) directly when not started
+	insertBuf := backend.NewBuffer(10, 2)
+	insertBuf.Set(0, 0, backend.Cell{Content: "H", Width: 1})
+	insertBuf.Set(1, 0, backend.Cell{Content: "i", Width: 1})
+	insertBuf.Set(0, 1, backend.Cell{Content: "!", Width: 1})
+
+	b.InsertAbove(insertBuf)
+
+	output := buf.String()
+	if !strings.Contains(output, "Hi") || !strings.Contains(output, "!") {
+		t.Errorf("expected inserted content to be written to screen, got %q", output)
+	}
+}
+
+func TestBackend_InsertAbove_ThroughRenderCh(t *testing.T) {
+	var out bytes.Buffer
+	screen := uv.NewTerminalScreen(&out, nil)
+	b := &Backend{
+		screen:   screen,
+		renderCh: make(chan renderRequest, 4),
+		width:    80,
+		height:   24,
+	}
+	b.started.Store(true)
+	b.renderWG.Add(1)
+	go b.renderLoop()
+
+	insertBuf := backend.NewBuffer(5, 1)
+	insertBuf.Set(0, 0, backend.Cell{Content: "A", Width: 1})
+	b.InsertAbove(insertBuf)
+
+	// Close render loop gracefully and wait for renderLoop to finish processing
+	b.stopRenderLoop()
+
+	if !strings.Contains(out.String(), "A") {
+		t.Errorf("expected 'A' in output from render loop, got %q", out.String())
 	}
 }
