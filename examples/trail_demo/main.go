@@ -14,10 +14,6 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-func UseState[T any](initial T) (func() T, func(T)) {
-	return kitex.UseState(initial)
-}
-
 // BuildStep represents a single step in our simulated deployment pipeline.
 type BuildStep struct {
 	Name     string
@@ -69,13 +65,13 @@ func renderProgressBar(completed, total, barWidth int) string {
 var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 	app := trail.UseApp()
 
-	completed, setCompleted := UseState([]BuildStep(nil))
-	stepIdx, setStepIdx := UseState(0)
-	spinnerIdx, setSpinnerIdx := UseState(0)
-	stepTicks, setStepTicks := UseState(0)
-	paused, setPaused := UseState(false)
-	done, setDone := UseState(false)
-	exitDelay, setExitDelay := UseState(0)
+	completed, setCompleted := trail.UseState([]BuildStep(nil))
+	stepIdx, setStepIdx := trail.UseState(0)
+	spinnerIdx, setSpinnerIdx := trail.UseState(0)
+	stepTicks, setStepTicks := trail.UseState(0)
+	paused, setPaused := trail.UseState(false)
+	done, setDone := trail.UseState(false)
+	exitDelay, setExitDelay := trail.UseState(0)
 
 	// Keyboard controls:
 	// 'q' or 'Esc' -> exit immediately
@@ -92,8 +88,8 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 		}
 	})
 
-	// Timer effect: kitex.UseInterval to tick spinner and advance steps.
-	kitex.UseInterval(func() {
+	// Timer effect: trail.UseInterval to tick spinner and advance steps.
+	trail.UseInterval(func() {
 		if done() {
 			currDelay := exitDelay() + 1
 			setExitDelay(currDelay)
@@ -285,8 +281,13 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 })
 
 func main() {
-	if err := trail.Run(context.Background(), App()); err != nil {
+	inst, err := trail.Render(context.Background(), App())
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	if err := inst.WaitUntilExit(); err != nil {
+		fmt.Fprintf(os.Stderr, "Exit error: %v\n", err)
 		os.Exit(1)
 	}
 }

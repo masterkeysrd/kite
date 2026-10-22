@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/masterkeysrd/kite/animation"
@@ -129,7 +130,7 @@ type Engine struct {
 
 	// frameRequested is set when RequestFrame / RequestFrameAt has been
 	// called since the last frame was committed.
-	frameRequested bool
+	frameRequested atomic.Bool
 
 	// nextFrameAt is the scheduled time for the next frame (from
 	// RequestFrameAt). Zero means "as soon as possible".
@@ -545,7 +546,7 @@ func (e *Engine) SetDebugXRay(enabled bool) {
 //
 // RequestFrame is safe to call from any goroutine.
 func (e *Engine) RequestFrame() {
-	e.frameRequested = true
+	e.frameRequested.Store(true)
 }
 
 // RegisterAnimation registers an active animation to be ticked by the engine.
@@ -569,7 +570,7 @@ func (e *Engine) OnStop(fn func()) {
 //
 // RequestFrameAt must be called from the main goroutine.
 func (e *Engine) RequestFrameAt(t time.Time) {
-	e.frameRequested = true
+	e.frameRequested.Store(true)
 	if e.nextFrameAt.IsZero() || t.Before(e.nextFrameAt) {
 		e.nextFrameAt = t
 	}
@@ -754,7 +755,7 @@ func (e *Engine) Frame() {
 	}
 
 	// 2. Check if a rendering frame is actually required.
-	dirty := e.hasDirtyUIState() || e.frameRequested || len(e.activeAnimations) > 0
+	dirty := e.hasDirtyUIState() || e.frameRequested.Load() || len(e.activeAnimations) > 0
 	if !dirty {
 		return
 	}
@@ -768,7 +769,7 @@ func (e *Engine) Frame() {
 	pipe.Paint(e, layoutRan)
 
 	e.nextFrameAt = time.Time{}
-	e.frameRequested = false
+	e.frameRequested.Store(false)
 
 	// Self-scheduling: keep waking up as long as we have active animations.
 	if len(e.activeAnimations) > 0 {
@@ -1971,7 +1972,7 @@ func (e *Engine) hasDirtyUIState() bool {
 }
 
 func (e *Engine) shouldRunFrame() bool {
-	if e.frameRequested {
+	if e.frameRequested.Load() {
 		kitelog.Debug("shouldRunFrame returning true due to frameRequested")
 		return true
 	}
