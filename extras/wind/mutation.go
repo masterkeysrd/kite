@@ -29,11 +29,21 @@ type mutationState struct {
 	err       error
 }
 
+// UseMutation tracks mutations for the mounted component. Unmounting cancels
+// their context and suppresses subsequent success and error callbacks.
+// The mutation function must honor that context to stop its underlying work.
 func UseMutation[V any, R any](
 	mutationFn func(context.Context, V) *promise.Promise[R],
 	opts ...MutationOptions[V, R],
 ) MutationResult[V] {
 	client := UseClient()
+
+	lifetime := kitex.UseRef[context.Context](nil)
+	kitex.UseLayoutEffectCleanup(func() func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		lifetime.Current = ctx
+		return cancel
+	}, []any{})
 
 	getMutState, setMutState := kitex.UseState(mutationState{
 		isPending: false,
@@ -42,14 +52,21 @@ func UseMutation[V any, R any](
 	})
 
 	mutate := func(variables V) {
+		ctx := lifetime.Current
+		if ctx == nil || ctx.Err() != nil {
+			return
+		}
 		setMutState(mutationState{
 			isPending: true,
 			isError:   false,
 			err:       nil,
 		})
 
-		mutationFn(context.Background(), variables).
+		mutationFn(ctx, variables).
 			Then(func(res R) {
+				if ctx.Err() != nil {
+					return
+				}
 				setMutState(mutationState{
 					isPending: false,
 					isError:   false,
@@ -62,6 +79,9 @@ func UseMutation[V any, R any](
 					}
 				}
 			}, func(err error) {
+				if ctx.Err() != nil {
+					return
+				}
 				setMutState(mutationState{
 					isPending: false,
 					isError:   true,

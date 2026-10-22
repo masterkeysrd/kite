@@ -28,4 +28,9 @@
 // The UseMutation hook manages mutations and side-effects. It receives a MutationContext containing
 // the Client, which allows mutation callbacks (e.g. OnSuccess) to invalidate cached queries
 // directly via Client.InvalidateQueries.
+//
+// Unmounting cancels the contexts of outstanding mutations and suppresses later
+// callbacks. Query and mutation functions must pass Wind's context to their
+// underlying work; promise.Wrap and promise.WrapWithProps preserve that context,
+// whereas promise.New supplies only the scheduler's context.
 package wind
