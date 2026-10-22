@@ -2,6 +2,10 @@
 
 `trail` is an Ink-like inline CLI framework built on [Kite](https://github.com/masterkeysrd/kite), its rendering `engine`, and the `kitex` reactive Virtual DOM framework.
 
+<p align="center">
+  <img width="960" height="540" alt="trail_demo" src="https://github.com/user-attachments/assets/2adc3681-c760-4707-84b4-896a47b298fe" />
+</p>
+
 ## Features
 
 - **Inline Execution**: Runs directly in the standard terminal scrollback without taking over the screen or entering an alternate screen buffer (`altscreen`).

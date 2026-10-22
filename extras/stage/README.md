@@ -2,6 +2,10 @@
 
 The `stage` package provides an interactive component development playground and sandbox for Kitex applications. It allows you to build, test, and preview components in complete isolation without running your main application.
 
+<p align="center">
+  <img width="1100" height="650" alt="stage" src="https://github.com/user-attachments/assets/20458a5f-17a8-488c-8e16-0c71788b99f4" />
+</p>
+
 ## Features
 
 - 🎭 **Isolated Scenes**: Register components with different mock scenarios (e.g. Primary, Secondary, Disabled).

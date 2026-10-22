@@ -2,6 +2,10 @@
 
 Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired development paradigms—such as a logical DOM tree, CSS-style flexbox layout, standard event propagation, and scrolling—to the terminal environment.
 
+<p align="center">
+  <img width="1000" height="600" alt="kitex_demo" src="https://github.com/user-attachments/assets/0aab873b-8bb8-4f02-9323-6041bfc301a3" />
+</p>
+
 ## ✨ Features
 
 - 🌳 **Logical DOM Tree**: Core entities like `Document`, `Element`, and `TextNode` with strict lifecycle hooks.
@@ -139,6 +143,10 @@ Analyze execution durations for the rendering pipeline phases and asynchronous b
 
 [`extras/stage`](extras/stage/) is an interactive component development sandbox inspired by Storybook. It lets you build, tweak, and preview Kitex components in complete isolation — without running your main application.
 
+<p align="center">
+  <img width="1100" height="650" alt="stage" src="https://github.com/user-attachments/assets/20458a5f-17a8-488c-8e16-0c71788b99f4" />
+</p>
+
 ### Layout
 
 ```
@@ -224,6 +232,10 @@ See the full working example in [`examples/stage/`](examples/stage/).
 
 `extras/trail` is an Ink-inspired inline CLI framework built on top of Kite and `kitex`. Unlike full-screen terminal applications that take over the terminal via an alternate screen buffer (`altscreen`), `trail` apps run directly in the active terminal scrollback, dynamically adjust their viewport height per frame, and allow permanently inserting completed tasks or log items into terminal scrollback above the live active UI via `<Static>`.
 
+<p align="center">
+  <img width="960" height="540" alt="trail_demo" src="https://github.com/user-attachments/assets/2adc3681-c760-4707-84b4-896a47b298fe" />
+</p>
+
 ### Usage Example
 
 ```go
@@ -286,6 +298,14 @@ go run ./examples/trail_demo
 ```
 
 See the full working demo in [`examples/trail_demo/`](examples/trail_demo/) and package documentation in [`extras/trail/`](extras/trail/).
+
+## ✨ Animations & CSS Grid Layout
+
+Kite features a full 3-phase CSS Grid layout algorithm (explicit tracks, `fr` units, and auto-placement) coupled with an imperative tweening engine (`animation.Tween[T]`) capable of smoothly interpolating layout tracks, dimensions, and colors at 60FPS.
+
+<p align="center">
+  <img width="1000" height="560" alt="grid_animation" src="https://github.com/user-attachments/assets/3a3430dd-2d88-4b2f-ab16-40b9a7ec8878" />
+</p>
 
 ## ⚡ Performance & Benchmarks
 
