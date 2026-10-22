@@ -3,6 +3,10 @@ package trail_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +16,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/trail"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
@@ -379,5 +384,357 @@ func TestTrail_Exit_FlushesFinalStateAndStatic(t *testing.T) {
 	}
 	if frame.CellAt(0, 0).Content != "c" {
 		t.Errorf("expected final frame to display 'complete', got %q", frame.CellAt(0, 0).Content)
+	}
+}
+
+func TestTrail_Render_WaitUntilExit(t *testing.T) {
+	b := mock.New(80, 24)
+	App := trail.SimpleFC("App", func() kitex.Node {
+		app := trail.UseApp()
+		trail.UseInput(func(input string, k event.KeyEvent) {
+			if input == "x" {
+				app.Exit(nil)
+			}
+		})
+		return trail.Box(trail.BoxProps{}, trail.Text("Running..."))
+	})
+
+	inst, err := trail.Render(context.Background(), App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to render trail: %v", err)
+	}
+
+	time.Sleep(20 * time.Millisecond)
+
+	b.PostEvent(&backend.RawKeyEvent{
+		Key: key.Key{Text: "x", Code: 'x'},
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- inst.WaitUntilExit()
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("expected nil error from WaitUntilExit, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for WaitUntilExit")
+	}
+}
+
+func TestTrail_Rerender(t *testing.T) {
+	b := mock.New(80, 24)
+	App1 := trail.Box(trail.BoxProps{Style: style.S().Height(style.Cells(1))}, trail.Text("Hello"))
+	inst, err := trail.New(App1, trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+
+	frame1 := b.LastFrame().Surface
+	if frame1.CellAt(0, 0).Content != "H" {
+		t.Errorf("expected 'H', got %q", frame1.CellAt(0, 0).Content)
+	}
+
+	App2 := trail.Box(trail.BoxProps{Style: style.S().Height(style.Cells(1))}, trail.Text("World"))
+	inst.Rerender(App2)
+	inst.Frame()
+
+	frame2 := b.LastFrame().Surface
+	if frame2.CellAt(0, 0).Content != "W" {
+		t.Errorf("expected 'W' after Rerender, got %q", frame2.CellAt(0, 0).Content)
+	}
+}
+
+func TestTrail_Clear(t *testing.T) {
+	b := mock.New(80, 24)
+	App := trail.Box(trail.BoxProps{Style: style.S().Height(style.Cells(1))}, trail.Text("ClearMe"))
+	inst, err := trail.New(App, trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+
+	if b.LastFrame().Surface.Height != 1 {
+		t.Fatalf("expected initial frame height 1, got %d", b.LastFrame().Surface.Height)
+	}
+
+	inst.Clear()
+	inst.Frame()
+
+	if b.LastFrame().Surface.Height != 0 {
+		t.Errorf("expected frame height 0 after Clear, got %d", b.LastFrame().Surface.Height)
+	}
+}
+
+func TestTrail_Unmount(t *testing.T) {
+	b := mock.New(80, 24)
+	var cleanupRan atomic.Bool
+
+	App := trail.SimpleFC("App", func() kitex.Node {
+		trail.UseEffectCleanup(func() func() {
+			return func() {
+				cleanupRan.Store(true)
+			}
+		}, nil)
+		return trail.Box(trail.BoxProps{}, trail.Text("Active"))
+	})
+
+	inst, err := trail.Render(context.Background(), App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to render trail: %v", err)
+	}
+
+	time.Sleep(20 * time.Millisecond)
+
+	inst.Unmount()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- inst.WaitUntilExit()
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("expected nil error on Unmount, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for WaitUntilExit after Unmount")
+	}
+
+	if !cleanupRan.Load() {
+		t.Errorf("expected UseEffectCleanup to execute on Unmount")
+	}
+}
+
+func TestTrail_UseInput_IsActive(t *testing.T) {
+	b := mock.New(80, 24)
+	var receivedInput string
+
+	type AppProps struct {
+		Active bool
+	}
+
+	Comp := trail.FC("Comp", func(props AppProps) kitex.Node {
+		trail.UseInput(func(input string, k event.KeyEvent) {
+			receivedInput = input
+		}, trail.InputOptions{IsActive: props.Active})
+		return trail.Box(trail.BoxProps{}, trail.Text("InputComp"))
+	})
+
+	inst, err := trail.New(Comp(AppProps{Active: false}), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+
+	// Post key 'a' while inactive
+	inst.Engine().ProcessRawEvent(&backend.RawKeyEvent{
+		Key: key.Key{Text: "a", Code: 'a'},
+	})
+
+	if receivedInput != "" {
+		t.Errorf("expected no input when IsActive is false, got %q", receivedInput)
+	}
+
+	// Rerender with Active = true
+	inst.Rerender(Comp(AppProps{Active: true}))
+	inst.Frame()
+
+	// Post key 'b' while active
+	inst.Engine().ProcessRawEvent(&backend.RawKeyEvent{
+		Key: key.Key{Text: "b", Code: 'b'},
+	})
+
+	if receivedInput != "b" {
+		t.Errorf("expected input 'b' when IsActive is true, got %q", receivedInput)
+	}
+}
+
+func TestTrail_UseFocus_And_FocusManager(t *testing.T) {
+	b := mock.New(80, 24)
+	var fm trail.FocusManager
+
+	btnRef := kitex.CreateRef[dom.Element]()
+	inpRef := kitex.CreateRef[dom.Element]()
+
+	App := trail.SimpleFC("FocusApp", func() kitex.Node {
+		fm = trail.UseFocusManager()
+		trail.UseFocus(btnRef, trail.FocusOptions{AutoFocus: true})
+		trail.UseFocus(inpRef)
+
+		return trail.Box(trail.BoxProps{},
+			kitex.Button(kitex.ButtonProps{ID: "btn-1", Ref: btnRef}, kitex.Text("Button 1")),
+			kitex.Input(kitex.InputProps{ID: "inp-1", Ref: inpRef}),
+		)
+	})
+
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+
+	// Verify btnRef was auto-focused
+	if btnRef.Current == nil {
+		t.Fatalf("expected btnRef.Current to be non-nil")
+	}
+	if !inst.Engine().Document().IsFocused(btnRef.Current) {
+		t.Errorf("expected btnRef to be focused via AutoFocus")
+	}
+
+	// Test Focus by ID
+	focused := fm.Focus("inp-1")
+	if !focused {
+		t.Errorf("expected fm.Focus(inp-1) to succeed")
+	}
+	if !inst.Engine().Document().IsFocused(inpRef.Current) {
+		t.Errorf("expected inpRef to be focused")
+	}
+
+	// Test Blur
+	fm.Blur()
+	if inst.Engine().Document().CurrentFocus() != nil {
+		t.Errorf("expected no focus after Blur, got %v", inst.Engine().Document().CurrentFocus())
+	}
+
+	// Test FocusNext
+	fm.FocusNext()
+	if inst.Engine().Document().CurrentFocus() == nil {
+		t.Errorf("expected element to be focused after FocusNext")
+	}
+}
+
+func TestTrail_MeasureElement(t *testing.T) {
+	b := mock.New(80, 24)
+	boxRef := kitex.CreateRef[dom.Element]()
+
+	App := trail.SimpleFC("MeasureApp", func() kitex.Node {
+		return trail.Box(trail.BoxProps{
+			Ref:   boxRef,
+			Style: style.S().Width(style.Cells(40)).Height(style.Cells(5)),
+		}, trail.Text("Measuring box"))
+	})
+
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+
+	sz := trail.MeasureElement(boxRef)
+	if sz.Width != 40 || sz.Height != 5 {
+		t.Errorf("expected measured size 40x5, got %dx%d", sz.Width, sz.Height)
+	}
+
+	// Test with nil ref
+	nilSize := trail.MeasureElement(nil)
+	if nilSize != (geom.Size{}) {
+		t.Errorf("expected empty size for nil ref, got %v", nilSize)
+	}
+}
+
+func TestTrail_WithInterceptLog_And_LogWriter(t *testing.T) {
+	b := mock.New(80, 24)
+
+	// Test LogWriter directly
+	inst, err := trail.New(trail.Box(trail.BoxProps{}), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+
+	lw := inst.LogWriter()
+	_, _ = lw.Write([]byte("log message 1\nlog message 2\n"))
+
+	if len(b.InsertedAbove) != 2 {
+		t.Fatalf("expected 2 buffers in InsertedAbove from LogWriter, got %d", len(b.InsertedAbove))
+	}
+
+	// Test WithInterceptLog option in Run
+	b2 := mock.New(80, 24)
+	App2 := trail.SimpleFC("App2", func() kitex.Node {
+		app := trail.UseApp()
+		trail.UseInput(func(input string, k event.KeyEvent) {
+			if input == "q" {
+				app.Exit(nil)
+			}
+		})
+		return trail.Box(trail.BoxProps{}, trail.Text("LoggingApp"))
+	})
+
+	inst2, err := trail.Render(context.Background(), App2(), trail.WithBackend(b2), trail.WithInterceptLog(true))
+	if err != nil {
+		t.Fatalf("failed to render trail: %v", err)
+	}
+
+	time.Sleep(20 * time.Millisecond)
+
+	log.Println("intercepted message via log.Println")
+
+	time.Sleep(20 * time.Millisecond)
+
+	b2.PostEvent(&backend.RawKeyEvent{
+		Key: key.Key{Text: "q", Code: 'q'},
+	})
+
+	_ = inst2.WaitUntilExit()
+
+	if len(b2.InsertedAbove) < 1 {
+		t.Fatalf("expected at least 1 intercepted buffer in InsertedAbove, got %d", len(b2.InsertedAbove))
+	}
+}
+
+func TestTrail_UseStdout_And_UseStderr(t *testing.T) {
+	b := mock.New(80, 24)
+	var viewportSz geom.Size
+
+	App := trail.SimpleFC("StreamsApp", func() kitex.Node {
+		stdout := trail.UseStdout()
+		stderr := trail.UseStderr()
+
+		stdout.Write("stdout message line")
+		stderr.Write("stderr message line\n")
+		viewportSz = stdout.Size()
+
+		return trail.Box(trail.BoxProps{}, trail.Text("Streams"))
+	})
+
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+
+	if len(b.InsertedAbove) != 2 {
+		t.Fatalf("expected 2 buffers inserted above from stdout and stderr, got %d", len(b.InsertedAbove))
+	}
+
+	if viewportSz.Width != 80 || viewportSz.Height != 24 {
+		t.Errorf("expected viewport size 80x24, got %v", viewportSz)
+	}
+}
+
+func TestTrail_Transform(t *testing.T) {
+	node := trail.Transform(func(line string, idx int) string {
+		return fmt.Sprintf("[%d] %s", idx, strings.ToUpper(line))
+	}, "first\nsecond")
+
+	doc := dom.NewDocument()
+	nodes := node.Instantiate(doc)
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+	textNode, ok := nodes[0].(dom.TextNode)
+	if !ok {
+		t.Fatalf("expected dom.TextNode, got %T", nodes[0])
+	}
+
+	expected := "[0] FIRST\n[1] SECOND"
+	if textNode.Data() != expected {
+		t.Errorf("expected %q, got %q", expected, textNode.Data())
 	}
 }

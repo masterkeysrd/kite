@@ -247,14 +247,13 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/trail"
 )
 
-func App() kitex.Node {
+func App() trail.Node {
 	app := trail.UseApp()
-	count, setCount := kitex.UseState(0)
-	completed, setCompleted := kitex.UseState([]string(nil))
+	count, setCount := trail.UseState(0)
+	completed, setCompleted := trail.UseState([]string(nil))
 
 	trail.UseInput(func(input string, k event.KeyEvent) {
 		if input == "q" || k.MatchString("q", "esc") {
@@ -262,7 +261,7 @@ func App() kitex.Node {
 		}
 	})
 
-	kitex.UseInterval(func() {
+	trail.UseInterval(func() {
 		c := count()
 		if c < 5 {
 			setCompleted(append(completed(), fmt.Sprintf("Task %d completed", c+1)))
@@ -274,7 +273,7 @@ func App() kitex.Node {
 
 	return trail.Fragment(
 		// Static renders completed items permanently above into terminal scrollback:
-		trail.Static(completed(), func(item string, index int) kitex.Node {
+		trail.Static(completed(), func(item string, index int) trail.Node {
 			return trail.Box(trail.BoxProps{}, trail.Text("✔ "+item))
 		}),
 		// Active inline area:
@@ -285,11 +284,17 @@ func App() kitex.Node {
 }
 
 func main() {
-	if err := trail.Run(context.Background(), App()); err != nil {
+	inst, err := trail.Render(context.Background(), App())
+	if err != nil {
+		panic(err)
+	}
+	if err := inst.WaitUntilExit(); err != nil {
 		panic(err)
 	}
 }
 ```
+
+`trail` also provides Ink-compatible instance controls (`inst.Rerender`, `inst.Clear`, `inst.Unmount`), log interception (`trail.WithInterceptLog(true)`, `inst.LogWriter()`), stream writers (`trail.UseStdout`, `trail.UseStderr`), element measurement (`trail.MeasureElement`), and focus navigation (`trail.UseFocus`, `trail.UseFocusManager`).
 
 Run the demo:
 

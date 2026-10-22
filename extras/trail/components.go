@@ -1,7 +1,11 @@
 package trail
 
 import (
+	"strings"
+
+	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/extras/kitex"
+	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -84,4 +88,31 @@ func Static[T any](items []T, renderItem func(item T, index int) kitex.Node) kit
 		items:      items,
 		renderItem: renderItem,
 	})
+}
+
+// MeasureElement measures the physical dimensions of an element ref in the current layout.
+// If the ref is nil or not yet mounted/measured, it returns geom.Size{}.
+func MeasureElement(ref kitex.Ref[dom.Element]) geom.Size {
+	if ref == nil || ref.Current == nil {
+		return geom.Size{}
+	}
+	doc := ref.Current.OwnerDocument()
+	if doc != nil && doc.DefaultView() != nil {
+		if rect, ok := doc.DefaultView().GetBoundingClientRect(ref.Current); ok {
+			return rect.Size
+		}
+	}
+	return geom.Size{}
+}
+
+// Transform splits text into lines, applies transform to each line (if non-nil),
+// and returns a Text node containing the joined transformed lines.
+func Transform(transform func(line string, index int) string, text string) kitex.Node {
+	lines := strings.Split(text, "\n")
+	if transform != nil {
+		for i, line := range lines {
+			lines[i] = transform(line, i)
+		}
+	}
+	return Text(strings.Join(lines, "\n"))
 }
