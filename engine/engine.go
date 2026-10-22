@@ -184,6 +184,7 @@ type Engine struct {
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
+	inline    bool
 }
 
 // Options configures an Engine.
@@ -201,6 +202,8 @@ type Options struct {
 	ShutdownTimeout time.Duration
 	// Profiler enables the high-level phase profiling and deep-tree tracing.
 	Profiler bool
+	// Inline enables inline mode (relative cursor, dynamic height, no alt-screen).
+	Inline bool
 }
 
 // New creates an Engine configured with the given backend and options.
@@ -230,6 +233,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	}
 
 	e := &Engine{
+		inline:          opts.Inline,
 		renderView:      render.NewRenderView(),
 		document:        dom.NewDocument(),
 		resolver:        styler.NewResolver(),
@@ -248,6 +252,9 @@ func New(b backend.Backend, opts Options) *Engine {
 		scrollablesBuf:  make([]event.Scrollable, 0, 32),
 		layoutPathBuf:   make([]layout.Node, 0, 32),
 	}
+
+	b.SetInline(opts.Inline)
+	e.renderView.SetInline(opts.Inline)
 
 	size := b.Size()
 	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
@@ -298,6 +305,9 @@ func (e *Engine) Document() dom.Document { return e.document }
 
 // PaintEngine returns the internal paint engine.
 func (e *Engine) PaintEngine() *paint.PaintEngine { return e.paintEngine }
+
+// IsInline reports whether inline mode is enabled.
+func (e *Engine) IsInline() bool { return e.inline }
 
 // AddEventListener registers fn as a listener for event of type typ on target.
 // It returns a Subscription that can be used to remove the listener.
@@ -1089,6 +1099,76 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	e.diffChildren(n, ro)
 
 	return ro
+}
+
+// InsertAbove renders an arbitrary dom.Node (detached from the main document)
+// into a *backend.Buffer and passes it to the backend's InsertAbove method.
+func (e *Engine) InsertAbove(node dom.Node) {
+	if node == nil {
+		return
+	}
+	ro := e.createRenderObject(node)
+	defer func() {
+		var cleanupRO func(obj render.Object)
+		cleanupRO = func(obj render.Object) {
+			if obj == nil {
+				return
+			}
+			if ln := obj.LogicalNode(); ln != nil {
+				e.setRenderObject(ln, nil)
+				e.resolver.Invalidate(ln)
+			}
+			for child := obj.FirstChild(); child != nil; child = child.NextSibling() {
+				cleanupRO(child)
+			}
+		}
+		cleanupRO(ro)
+	}()
+
+	e.resolver.ResolveTree(ro, nil, false)
+
+	viewport := e.renderView.ViewportSize()
+	if viewport.Width <= 0 {
+		viewport.Width = e.backend.Size().Width
+	}
+	if viewport.Width <= 0 {
+		viewport.Width = 80
+	}
+	if viewport.Height <= 0 {
+		viewport.Height = e.backend.Size().Height
+	}
+	if viewport.Height <= 0 {
+		viewport.Height = 24
+	}
+
+	space := layout.NewConstraintSpaceBuilder(viewport).
+		SetContainingSpace(viewport).
+		SetContainerSpace(viewport).
+		SetIsFixedInlineSize(true).
+		SetIsFixedBlockSize(false).
+		ToConstraintSpace()
+
+	var layoutCtx layout.Context
+	layoutCtx.Tracer = e.Tracer()
+	frag := render.LayoutSubtree(&layoutCtx, ro, space)
+
+	if frag != nil && frag.Size.Height > 0 && frag.Size.Width > 0 {
+		fb := paint.NewFrameBuffer(0, 0, viewport.Width, frag.Size.Height)
+		var paintCtx paint.Context
+		paintCtx.Tracer = e.Tracer()
+		e.paintEngine.PaintFragment(&paintCtx, frag, geom.Point{}, fb)
+		e.paintEngine.ResolveBorders(&paintCtx, fb)
+
+		buf := backend.NewBuffer(viewport.Width, frag.Size.Height)
+		bounds := fb.Bounds()
+		for y := 0; y < bounds.Size.Height; y++ {
+			for x := 0; x < bounds.Size.Width; x++ {
+				cell := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
+				buf.Set(x, y, cell.Cell)
+			}
+		}
+		e.backend.InsertAbove(buf)
+	}
 }
 
 // recoverFrame is a deferred function that catches panics in the frame loop.

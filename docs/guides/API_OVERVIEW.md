@@ -11,6 +11,7 @@ This overview points to the primary packages and where to find their authoritati
 - `element` — declarative components and builders. See `element/doc.go`, `element/element.go`.
 - `extras/kitex` — React-style VDOM framework (FC, hooks, reconciler, native element factories). Key files: `kitex.go` (factories + `EnableDevMode`), `hooks.go` (UseState/UseRef/UseEffect), `reconciler.go` (diffing engine), `devtools.go` (snapshot builder).
 - `extras/kitex/kitexdt` — DevTools bridge; exposes `Register(*inspector.Inspector)` to attach the VDOM snapshot as a DevTools extension. See `bridge.go`.
+- `extras/trail` — Ink-inspired inline CLI framework; supports dynamic height rendering and permanent scrollback flushing via `Static`. Key files: `trail.go` (`Instance`/`Run`/`New`), `components.go` (`Box`/`Text`/`Static`), `hooks.go` (`UseApp`/`UseInput`).
 
 When making API-level changes:
 

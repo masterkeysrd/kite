@@ -87,6 +87,14 @@ type Backend interface {
 	// SetProgramStatus reports the program status to the terminal using OSC 7501.
 	// Passing nil clears any current program status on the terminal.
 	SetProgramStatus(status *terminal.ProgramStatus)
+
+	// SetInline configures the backend to run in inline mode (non-alt-screen,
+	// relative cursor, dynamic height) instead of fullscreen mode.
+	SetInline(inline bool)
+
+	// InsertAbove inserts a rendered cell buffer permanently into the terminal
+	// scrollback above the active inline frame.
+	InsertAbove(buf *Buffer)
 }
 
 type ProgressBarState = terminal.ProgressBarState
@@ -177,6 +185,22 @@ func (b *Buffer) CellAt(x, y int) Cell {
 func (b *Buffer) Reset() {
 	for i := range b.Cells {
 		b.Cells[i] = Cell{}
+	}
+}
+
+// Resize changes the dimensions of the buffer, reallocating Cells if necessary.
+func (b *Buffer) Resize(width, height int) {
+	if b.Width == width && b.Height == height {
+		return
+	}
+	b.Width = width
+	b.Height = height
+	size := width * height
+	if cap(b.Cells) >= size {
+		b.Cells = b.Cells[:size]
+		b.Reset()
+	} else {
+		b.Cells = make([]Cell, size)
 	}
 }
 

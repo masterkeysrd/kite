@@ -700,3 +700,117 @@ func TestEngine_ProgramStatusSupportEvent(t *testing.T) {
 		t.Errorf("expected ProgramStatus to be nil after clear, got %v", b.ProgramStatus)
 	}
 }
+
+func TestEngine_InlineMode(t *testing.T) {
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{Inline: true})
+	defer e.Stop()
+
+	if !e.IsInline() {
+		t.Fatalf("expected e.IsInline() to be true")
+	}
+	if !b.Inline {
+		t.Fatalf("expected b.Inline to be true")
+	}
+
+	box1 := element.NewBox(e.Document())
+	box1.Style(style.S().Height(style.Cells(1)))
+	box2 := element.NewBox(e.Document())
+	box2.Style(style.S().Height(style.Cells(1)))
+	container := element.NewBox(e.Document())
+	container.AppendChild(box1)
+	container.AppendChild(box2)
+	e.Mount(container)
+
+	e.Frame()
+
+	frame1 := b.LastFrame().Surface
+	if frame1 == nil {
+		t.Fatalf("expected a rendered frame")
+	}
+	if frame1.Height != 2 {
+		t.Errorf("expected 2-row frame, got height %d", frame1.Height)
+	}
+	if frame1.Width != 80 {
+		t.Errorf("expected width 80, got width %d", frame1.Width)
+	}
+
+	// Dynamically grow to 4 rows
+	box3 := element.NewBox(e.Document())
+	box3.Style(style.S().Height(style.Cells(1)))
+	box4 := element.NewBox(e.Document())
+	box4.Style(style.S().Height(style.Cells(1)))
+	container.AppendChild(box3)
+	container.AppendChild(box4)
+
+	e.Frame()
+
+	frame2 := b.LastFrame().Surface
+	if frame2.Height != 4 {
+		t.Errorf("expected 4-row frame after growing, got height %d", frame2.Height)
+	}
+
+	// Dynamically shrink back to 2 rows
+	container.RemoveChild(box3)
+	container.RemoveChild(box4)
+
+	e.Frame()
+
+	frame3 := b.LastFrame().Surface
+	if frame3.Height != 2 {
+		t.Errorf("expected 2-row frame after shrinking, got height %d", frame3.Height)
+	}
+
+	// Shrink to 0 rows
+	container.RemoveChild(box1)
+	container.RemoveChild(box2)
+
+	e.Frame()
+
+	frame4 := b.LastFrame().Surface
+	if frame4.Height != 0 {
+		t.Errorf("expected 0-row frame after removing all, got height %d", frame4.Height)
+	}
+}
+
+func TestEngine_InsertAbove(t *testing.T) {
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{Inline: true})
+	defer e.Stop()
+
+	doc := dom.NewDocument()
+	el := element.NewBox(doc)
+	el.Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).Border(style.SingleBorder()))
+	txt := doc.CreateTextNode("Hi", nil)
+	el.AppendChild(txt)
+
+	e.InsertAbove(el)
+
+	if len(b.InsertedAbove) != 1 {
+		t.Fatalf("expected 1 buffer inserted above, got %d", len(b.InsertedAbove))
+	}
+
+	buf := b.InsertedAbove[0]
+	if buf.Height != 3 {
+		t.Errorf("expected inserted buffer height 3, got %d", buf.Height)
+	}
+	if buf.Width != 80 {
+		t.Errorf("expected inserted buffer width 80, got %d", buf.Width)
+	}
+
+	// Check top-left corner has border
+	c00 := buf.CellAt(0, 0)
+	if c00.Content != "┌" {
+		t.Errorf("expected top-left border ┌, got %q", c00.Content)
+	}
+
+	// Check text "H" at (1, 1) and "i" at (2, 1)
+	c11 := buf.CellAt(1, 1)
+	if c11.Content != "H" {
+		t.Errorf("expected 'H' at (1,1), got %q", c11.Content)
+	}
+	c21 := buf.CellAt(2, 1)
+	if c21.Content != "i" {
+		t.Errorf("expected 'i' at (2,1), got %q", c21.Content)
+	}
+}

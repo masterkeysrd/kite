@@ -4,6 +4,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	internaldom "github.com/masterkeysrd/kite/internal/dom"
 	"github.com/masterkeysrd/kite/internal/layout"
+	"github.com/masterkeysrd/kite/internal/paint"
 	"github.com/masterkeysrd/kite/internal/render"
 	kitelog "github.com/masterkeysrd/kite/log"
 )
@@ -179,6 +180,21 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 	selection := e.resolveSelection()
 
 	if cursorChanged || anyOverlayDirty || root.Flags()&(render.DirtyPaint|render.DirtyScroll|render.ChildNeedsPaint) != 0 || len(selection) > 0 {
+		if e.inline {
+			viewport := root.ViewportSize()
+			frameHeight := 0
+			if frag := root.Fragment(); frag != nil {
+				frameHeight = frag.Size.Height
+			}
+			if viewport.Height > 0 && frameHeight > viewport.Height {
+				frameHeight = viewport.Height
+			}
+			fbSize := e.frameBuffer.Bounds().Size
+			if fbSize.Width != viewport.Width || fbSize.Height != frameHeight {
+				e.frameBuffer = paint.NewFrameBuffer(0, 0, viewport.Width, frameHeight)
+			}
+		}
+
 		e.frameBuffer.Reset()
 		e.frameBuffer.BumpVersion()
 
@@ -194,6 +210,19 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 
 		// Bridge to agnostic backend.
 		surface := e.backend.BeginFrame()
+		if e.inline {
+			if s, ok := surface.(interface{ Resize(int, int) }); ok {
+				viewport := root.ViewportSize()
+				frameHeight := 0
+				if frag := root.Fragment(); frag != nil {
+					frameHeight = frag.Size.Height
+				}
+				if viewport.Height > 0 && frameHeight > viewport.Height {
+					frameHeight = viewport.Height
+				}
+				s.Resize(viewport.Width, frameHeight)
+			}
+		}
 		bounds := e.frameBuffer.Bounds()
 		for y := 0; y < bounds.Size.Height; y++ {
 			for x := 0; x < bounds.Size.Width; x++ {
