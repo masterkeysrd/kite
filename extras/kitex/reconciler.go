@@ -412,8 +412,8 @@ func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []do
 
 	reconcile(parent, oldFlat.node, newFlat.node, realNodes, anchor)
 
-	for i := len(newFlat.providers) - 1; i >= 0; i-- {
-		newFlat.providers[i].popEntry()
+	for _, v := range slices.Backward(newFlat.providers) {
+		v.popEntry()
 	}
 }
 
@@ -424,8 +424,8 @@ func instantiateFlat(parent dom.Element, newFlat flatNode) []dom.Node {
 		prov.pushEntry()
 	}
 	defer func() {
-		for i := len(newFlat.providers) - 1; i >= 0; i-- {
-			newFlat.providers[i].popEntry()
+		for _, v := range slices.Backward(newFlat.providers) {
+			v.popEntry()
 		}
 	}()
 	setDOMParent(newFlat.node, parent)
@@ -454,12 +454,6 @@ var nodeSlicePool = sync.Pool{
 	New: func() any {
 		s := make([]Node, 128)
 		return &s
-	},
-}
-
-var nodeRealMapPool = sync.Pool{
-	New: func() any {
-		return make(map[Node]dom.Node, 32)
 	},
 }
 

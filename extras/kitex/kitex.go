@@ -312,7 +312,7 @@ func buildElementInfo(children []Node) (int, bool, bool) {
 	return s, hasP, hasDirectP
 }
 
-// deepEqualProps performs a depth-limited recursive equality check between two
+// EquatableProps performs a depth-limited recursive equality check between two
 // arbitrary prop values using reflection. It returns true only when the values
 // are provably equal at every level up to maxDepth.
 //
@@ -372,8 +372,8 @@ func deepEqualProps(oldProps, newProps any, maxDepth int) bool {
 // fail immediately without further recursion.
 func deepEqualValues(ov, nv reflect.Value, depth int) bool {
 	if ov.CanInterface() {
-		if s, ok := ov.Interface().(style.Style); ok {
-			if other, ok := nv.Interface().(style.Style); ok {
+		if s, ok := reflect.TypeAssert[style.Style](ov); ok {
+			if other, ok := reflect.TypeAssert[style.Style](nv); ok {
 				return s.Equal(other)
 			}
 		}
@@ -2608,7 +2608,7 @@ func getRefSetter(props any) refSetter {
 		switch f.Kind() {
 		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 			if !f.IsNil() {
-				if setter, ok := f.Interface().(refSetter); ok {
+				if setter, ok := reflect.TypeAssert[refSetter](f); ok {
 					return setter
 				}
 			}
@@ -2622,7 +2622,7 @@ func getRefSetter(props any) refSetter {
 			switch f.Kind() {
 			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 				if !f.IsNil() {
-					if setter, ok := f.Interface().(refSetter); ok {
+					if setter, ok := reflect.TypeAssert[refSetter](f); ok {
 						return setter
 					}
 				}
