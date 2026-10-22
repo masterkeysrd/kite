@@ -90,6 +90,14 @@ type Backend struct {
 	block sync.Mutex
 
 	bufferPool sync.Pool
+
+	// pendingInsertAbove buffers InsertAbove requests received before b.Start().
+	pendingInsertAbove []*backend.Buffer
+
+	// lastInlineBuf and lastInlineCursor cache the most recently rendered inline frame
+	// so renderLoop can restore the active inline UI after an InsertAbove batch.
+	lastInlineBuf    *backend.Buffer
+	lastInlineCursor cursorRecord
 }
 
 const (
@@ -132,7 +140,7 @@ func New() (*Backend, error) {
 		width:    w,
 		height:   h,
 		eventCh:  make(chan backend.RawEvent),
-		renderCh: make(chan renderRequest, 2),
+		renderCh: make(chan renderRequest, 256),
 		stopCh:   make(chan struct{}),
 	}
 	b.bufferPool.New = func() any {
@@ -323,7 +331,17 @@ func (b *Backend) writeRaw(s string) {
 func (b *Backend) Write(p []byte) (n int, err error) {
 	s := strings.ReplaceAll(string(p), "\x1b", "\\x1b")
 	kitelog.Debug("UV TRACING: ", "message", fmt.Sprintf("output: %q", s))
-	return b.terminal.Write(p)
+	if b.terminal != nil {
+		return b.terminal.Write(p)
+	}
+	if b.screen != nil {
+		_, err := b.screen.WriteString(string(p))
+		if err != nil {
+			return 0, err
+		}
+		return len(p), b.screen.Flush()
+	}
+	return len(p), nil
 }
 
 func (b *Backend) ShowCursor(v bool) {
@@ -453,11 +471,58 @@ func (b *Backend) DumpState() {
 	kitelog.Info("uv: backend state dumped to file")
 }
 
+func cloneBuffer(buf *backend.Buffer) *backend.Buffer {
+	if buf == nil || buf.Width < 0 || buf.Height < 0 {
+		return nil
+	}
+	cp := backend.NewBuffer(buf.Width, buf.Height)
+	copy(cp.Cells, buf.Cells)
+	return cp
+}
+
 func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()
+
+	b.block.Lock()
+	pending := b.pendingInsertAbove
+	b.pendingInsertAbove = nil
+	b.block.Unlock()
+
+	for _, buf := range pending {
+		b.processInsertAbove(buf)
+	}
+
 	for req := range b.renderCh {
 		if req.insertAbove != nil {
 			b.processInsertAbove(req.insertAbove)
+			renderedFreshFrame := false
+
+		drainLoop:
+			for len(b.renderCh) > 0 {
+				select {
+				case next, ok := <-b.renderCh:
+					if !ok {
+						break drainLoop
+					}
+					if next.insertAbove != nil {
+						b.processInsertAbove(next.insertAbove)
+					} else {
+						b.renderFrame(next)
+						renderedFreshFrame = true
+						break drainLoop
+					}
+				default:
+					break drainLoop
+				}
+			}
+
+			if !renderedFreshFrame && b.inline {
+				b.block.Lock()
+				if b.lastInlineBuf != nil {
+					b.paintScreen(b.lastInlineBuf, b.lastInlineCursor)
+				}
+				b.block.Unlock()
+			}
 			continue
 		}
 		b.renderFrame(req)
@@ -473,14 +538,20 @@ func (b *Backend) InsertAbove(buf *backend.Buffer) {
 	if b.stopped.Load() {
 		return
 	}
-	if b.started.Load() {
-		b.stopMu.RLock()
-		if !b.renderClosed {
-			b.renderCh <- renderRequest{insertAbove: buf}
+	cp := cloneBuffer(buf)
+	if !b.started.Load() {
+		b.block.Lock()
+		if !b.started.Load() {
+			b.pendingInsertAbove = append(b.pendingInsertAbove, cp)
+			b.block.Unlock()
+			return
 		}
-		b.stopMu.RUnlock()
-	} else {
-		b.processInsertAbove(buf)
+		b.block.Unlock()
+	}
+	b.stopMu.RLock()
+	defer b.stopMu.RUnlock()
+	if !b.renderClosed {
+		b.renderCh <- renderRequest{insertAbove: cp}
 	}
 }
 
@@ -490,6 +561,21 @@ func (b *Backend) processInsertAbove(buf *backend.Buffer) {
 
 	if buf == nil || buf.Width <= 0 || buf.Height <= 0 {
 		return
+	}
+
+	if b.screen != nil && b.screen.Height() > 0 {
+		w := b.width
+		if w <= 0 {
+			w = b.screen.Width()
+		}
+		if w <= 0 {
+			w = 80
+		}
+		b.screen.HideCursor()
+		b.screen.Resize(w, 0)
+		b.screen.Render()
+		_ = b.screen.Flush()
+		b.lastPaintedCursor = cursorRecord{}
 	}
 
 	uvBuf := uv.NewBuffer(buf.Width, buf.Height)
@@ -502,7 +588,22 @@ func (b *Backend) processInsertAbove(buf *backend.Buffer) {
 			x += max(1, uvCell.Width)
 		}
 	}
-	_ = b.screen.InsertAbove(uvBuf.Render())
+
+	for y := 0; y < len(uvBuf.Lines); y++ {
+		line := uvBuf.Lines[y]
+		for len(line) > 0 && line[len(line)-1].Equal(&uv.EmptyCell) {
+			line = line[:len(line)-1]
+		}
+		uvBuf.Lines[y] = line
+	}
+
+	var sb strings.Builder
+	sb.WriteByte('\r')
+	for _, line := range uvBuf.Lines {
+		sb.WriteString(line.Render())
+		sb.WriteString("\x1b[K\r\n")
+	}
+	b.writeRaw(sb.String())
 }
 
 func (b *Backend) loopEvents() {
@@ -527,6 +628,15 @@ func (b *Backend) renderFrame(req renderRequest) {
 	}
 
 	buf := req.buffer
+	if b.inline && buf != nil {
+		b.lastInlineBuf = cloneBuffer(buf)
+		b.lastInlineCursor = req.cursor
+	}
+
+	b.paintScreen(buf, req.cursor)
+}
+
+func (b *Backend) paintScreen(buf *backend.Buffer, cursor cursorRecord) {
 	if !b.inline && (buf == nil || buf.Width <= 0 || buf.Height <= 0) {
 		if buf != nil {
 			kitelog.Warn("uv: renderFrame called with non-positive dimensions, skipping", "width", buf.Width, "height", buf.Height)
@@ -559,17 +669,17 @@ func (b *Backend) renderFrame(req renderRequest) {
 	// Determine if the cursor state has changed since the last painted frame.
 	// If so, we may need to flush an additional time after updating the cursor
 	// to ensure it appears correctly.
-	cursorChanged := req.cursor != b.lastPaintedCursor
+	cursorChanged := cursor != b.lastPaintedCursor
 	if cursorChanged {
-		b.lastPaintedCursor = req.cursor
+		b.lastPaintedCursor = cursor
 
-		if req.cursor.Visible {
-			uvShape, blink := translateCursorShape(req.cursor.Shape)
+		if cursor.Visible {
+			uvShape, blink := translateCursorShape(cursor.Shape)
 			b.screen.SetCursorStyle(uvShape, blink)
-			if req.cursor.Color != nil {
-				b.screen.SetCursorColor(req.cursor.Color)
+			if cursor.Color != nil {
+				b.screen.SetCursorColor(cursor.Color)
 			}
-			b.screen.SetCursorPosition(req.cursor.X, req.cursor.Y)
+			b.screen.SetCursorPosition(cursor.X, cursor.Y)
 			b.screen.ShowCursor()
 		} else {
 			b.screen.HideCursor()
@@ -598,8 +708,8 @@ func (b *Backend) renderFrame(req renderRequest) {
 	//
 	// We strictly gate this behind `cursorChanged` so we only pay the performance
 	// penalty of a double I/O write on the exact frames where the user moves the cursor.
-	if req.cursor.Visible {
-		b.screen.SetCursorPosition(req.cursor.X, req.cursor.Y)
+	if cursor.Visible {
+		b.screen.SetCursorPosition(cursor.X, cursor.Y)
 		b.screen.Render()
 		if err := b.screen.Flush(); err != nil {
 			kitelog.Error("uv: flush error after cursor update", "error", err)

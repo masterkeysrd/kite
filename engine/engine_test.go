@@ -814,3 +814,74 @@ func TestEngine_InsertAbove(t *testing.T) {
 		t.Errorf("expected 'i' at (2,1), got %q", c21.Content)
 	}
 }
+
+func TestEngine_InsertAbove_RepaintsInlineActiveFrameEvenWhenDOMUnchanged(t *testing.T) {
+	e, b := newTestEngine(t, engine.Options{Inline: true})
+	defer e.Stop()
+
+	doc := e.Document()
+	box := element.NewBox(doc)
+	box.Style(style.S().Width(style.Cells(30)).Height(style.Cells(2)))
+	txt := doc.CreateTextNode("Active inline UI", nil)
+	box.AppendChild(txt)
+	e.Mount(box)
+
+	// First frame mounts and paints the active inline UI.
+	e.Frame()
+
+	if b.BeginFrameCalls != 1 || b.EndFrameCalls != 1 {
+		t.Fatalf("expected 1 initial frame, got Begin=%d End=%d", b.BeginFrameCalls, b.EndFrameCalls)
+	}
+	lastFrame := b.LastFrame().Surface
+	if lastFrame == nil || lastFrame.Height != 2 {
+		t.Fatalf("expected 2-row initial frame, got %#v", lastFrame)
+	}
+	if lastFrame.CellAt(0, 0).Content != "A" {
+		t.Errorf("expected 'A' at (0, 0), got %q", lastFrame.CellAt(0, 0).Content)
+	}
+
+	// Reset frame counters
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
+
+	// A clean frame without any DOM or dirty changes should NOT repaint.
+	e.Frame()
+	if b.BeginFrameCalls != 0 || b.EndFrameCalls != 0 {
+		t.Fatalf("expected 0 frames when clean, got Begin=%d End=%d", b.BeginFrameCalls, b.EndFrameCalls)
+	}
+
+	// Insert static content above using a detached DOM node.
+	staticDoc := dom.NewDocument()
+	staticEl := element.NewBox(staticDoc)
+	staticEl.Style(style.S().Width(style.Cells(20)).Height(style.Cells(1)))
+	staticEl.AppendChild(staticDoc.CreateTextNode("Static item", nil))
+
+	e.InsertAbove(staticEl)
+
+	if len(b.InsertedAbove) != 1 {
+		t.Fatalf("expected 1 buffer in InsertedAbove, got %d", len(b.InsertedAbove))
+	}
+	if b.InsertedAbove[0].CellAt(0, 0).Content != "S" {
+		t.Errorf("expected 'S' in static buffer, got %q", b.InsertedAbove[0].CellAt(0, 0).Content)
+	}
+
+	// Calling InsertAbove should have marked renderView paint-dirty.
+	if e.RenderView().Flags()&render.DirtyPaint == 0 {
+		t.Errorf("expected RenderView to have DirtyPaint flag set after InsertAbove")
+	}
+
+	// Even though the active DOM tree was NOT modified, the next Frame() must repaint
+	// the active inline content.
+	e.Frame()
+
+	if b.BeginFrameCalls != 1 || b.EndFrameCalls != 1 {
+		t.Fatalf("expected active frame to be repainted after InsertAbove, got Begin=%d End=%d", b.BeginFrameCalls, b.EndFrameCalls)
+	}
+	repaintedFrame := b.LastFrame().Surface
+	if repaintedFrame == nil || repaintedFrame.Height != 2 {
+		t.Fatalf("expected repainted frame height 2, got %#v", repaintedFrame)
+	}
+	if repaintedFrame.CellAt(0, 0).Content != "A" {
+		t.Errorf("expected 'A' at (0, 0) in repainted frame, got %q", repaintedFrame.CellAt(0, 0).Content)
+	}
+}
