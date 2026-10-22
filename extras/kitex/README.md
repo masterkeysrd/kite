@@ -2,6 +2,10 @@
 
 Kitex is a lightweight, reactive Virtual DOM (VDOM) framework for Kite. It provides a declarative, type-safe API for building complex terminal UIs using functional components and hooks, similar to React.
 
+<p align="center">
+  <img width="1000" height="600" alt="kitex_demo" src="https://github.com/user-attachments/assets/0aab873b-8bb8-4f02-9323-6041bfc301a3" />
+</p>
+
 ## ✨ Features
 
 - 🧩 **Functional Components**: Define reusable UI logic using `kitex.FC` (or `kitex.FCC` for components with children). For components without props, use `kitex.SimpleFC` or `kitex.SimpleFCC`.
