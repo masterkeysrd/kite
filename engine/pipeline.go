@@ -201,7 +201,7 @@ func (p *StandardPipeline) Paint(e *Engine, layoutRan bool) {
 		e.paintCtx.Tracer = e.Tracer()
 		e.paintCtx.Selection = selection
 		ctx := &e.paintCtx
-		e.paintEngine.PaintFragment(ctx, root.Fragment(), root.Offset(), e.frameBuffer)
+		e.paintEngine.PaintFragment(ctx, root.Fragment(), e.inlineRootOffset(), e.frameBuffer)
 		for _, overlay := range overlays {
 			e.paintEngine.PaintFragment(ctx, overlay.Fragment(), overlay.Offset(), e.frameBuffer)
 		}

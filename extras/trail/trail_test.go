@@ -607,6 +607,7 @@ func TestTrail_UseFocus_And_FocusManager(t *testing.T) {
 	if inst.Engine().Document().CurrentFocus() == nil {
 		t.Errorf("expected element to be focused after FocusNext")
 	}
+	inst.Frame()
 }
 
 func TestTrail_MeasureElement(t *testing.T) {
@@ -800,5 +801,132 @@ func TestTrail_ResumeSession_ManyStaticItemsWithActiveBottomUI(t *testing.T) {
 	}
 	if frame.CellAt(0, 1).Content != "S" {
 		t.Errorf("expected 'S' at (0, 1) for status, got %q", frame.CellAt(0, 1).Content)
+	}
+}
+
+func TestTrail_StreamingText_BottomUIStaysVisibleThroughoutAndAfterStatic(t *testing.T) {
+	var setLines func([]string)
+	var finishStream func()
+
+	App := trail.SimpleFC("App", func() kitex.Node {
+		streamLines, setStreamLines := kitex.UseState([]string{
+			"stream line 0",
+			"stream line 1",
+			"stream line 2",
+			"stream line 3",
+			"stream line 4",
+		})
+		setLines = setStreamLines
+
+		finishedStatic, setFinishedStatic := kitex.UseState([]string(nil))
+		finishStream = func() {
+			setFinishedStatic(streamLines())
+			setStreamLines(nil)
+		}
+
+		currentStream := streamLines()
+		var streamBoxes []kitex.Node
+		for _, l := range currentStream {
+			streamBoxes = append(streamBoxes, trail.Box(trail.BoxProps{
+				Style: style.S().Height(style.Cells(1)),
+			}, trail.Text(l)))
+		}
+
+		return trail.Fragment(
+			trail.Static(finishedStatic(), func(item string, index int) kitex.Node {
+				return trail.Box(trail.BoxProps{
+					Style: style.S().Height(style.Cells(1)),
+				}, trail.Text(item))
+			}),
+			trail.Box(trail.BoxProps{},
+				streamBoxes...,
+			),
+			trail.Box(trail.BoxProps{
+				Style: style.S().Height(style.Cells(1)),
+			}, trail.Text("Composer: active prompt")),
+			trail.Box(trail.BoxProps{
+				Style: style.S().Height(style.Cells(1)),
+			}, trail.Text("StatusBar: streaming...")),
+		)
+	})
+
+	b := mock.New(80, 20)
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+
+	bufContains := func(buf *backend.Buffer, target string) bool {
+		for y := 0; y < buf.Height; y++ {
+			var sb strings.Builder
+			for x := 0; x < buf.Width; x++ {
+				sb.WriteString(buf.CellAt(x, y).Content)
+			}
+			if strings.Contains(sb.String(), target) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 1. Initial 5 streaming lines + composer (1) + statusbar (1) = 7 lines.
+	inst.Frame()
+	f1 := b.LastFrame().Surface
+	if f1.Height != 7 {
+		t.Fatalf("expected initial frame height 7, got %d", f1.Height)
+	}
+	if !bufContains(f1, "Composer: active prompt") {
+		t.Errorf("expected initial frame to contain composer prompt")
+	}
+	if !bufContains(f1, "StatusBar: streaming...") {
+		t.Errorf("expected initial frame to contain statusbar")
+	}
+
+	// 2. Stream grows to 50 lines.
+	// 50 lines + composer (1) + statusbar (1) = 52 lines (> 20 rows of viewport).
+	fiftyLines := make([]string, 50)
+	for i := 0; i < 50; i++ {
+		fiftyLines[i] = fmt.Sprintf("stream line %02d", i)
+	}
+	setLines(fiftyLines)
+	inst.Frame()
+
+	f2 := b.LastFrame().Surface
+	if f2.Height != 20 {
+		t.Fatalf("expected streaming frame height clamped to 20, got %d", f2.Height)
+	}
+	// Verify that Composer and StatusBar are still visible in the bottom rows of the active frame!
+	if !bufContains(f2, "Composer: active prompt") {
+		t.Errorf("expected streaming frame to retain visible composer prompt at the bottom")
+	}
+	if !bufContains(f2, "StatusBar: streaming...") {
+		t.Errorf("expected streaming frame to retain visible statusbar at the bottom")
+	}
+	// Verify that the frame shows the bottom lines of the stream (e.g. stream line 49), NOT line 00.
+	if !bufContains(f2, "stream line 49") {
+		t.Errorf("expected streaming frame to show tail line 'stream line 49'")
+	}
+	if bufContains(f2, "stream line 00") {
+		t.Errorf("expected streaming frame to have scrolled past 'stream line 00'")
+	}
+
+	// 3. Finish streaming into Static.
+	// All 50 lines are flushed above into InsertedAbove via Static.
+	// Active inline frame shrinks back to just Composer + StatusBar (height 2).
+	finishStream()
+	inst.Frame()
+
+	if len(b.InsertedAbove) != 50 {
+		t.Fatalf("expected 50 items inserted above in static, got %d", len(b.InsertedAbove))
+	}
+	f3 := b.LastFrame().Surface
+	if f3.Height != 2 {
+		t.Fatalf("expected final active frame height 2, got %d", f3.Height)
+	}
+	if !bufContains(f3, "Composer: active prompt") {
+		t.Errorf("expected final active frame to contain composer prompt")
+	}
+	if !bufContains(f3, "StatusBar: streaming...") {
+		t.Errorf("expected final active frame to contain statusbar")
 	}
 }
