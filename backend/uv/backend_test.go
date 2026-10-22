@@ -106,12 +106,12 @@ func TestBackend_InlineMode_And_InsertAbove(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Errorf("expected no immediate terminal write before start, got %q", buf.String())
 	}
-	if len(b.pendingInsertAbove) != 1 {
-		t.Fatalf("expected 1 pending buffer, got %d", len(b.pendingInsertAbove))
+	if len(b.pendingRequests) != 1 {
+		t.Fatalf("expected 1 pending request, got %d", len(b.pendingRequests))
 	}
 
 	// 3. Test processInsertAbove directly
-	b.processInsertAbove(b.pendingInsertAbove[0])
+	b.processInsertAbove(b.pendingRequests[0].insertAbove)
 	output := buf.String()
 	if !strings.Contains(output, "Hi") || !strings.Contains(output, "!") {
 		t.Errorf("expected inserted content to be written to screen, got %q", output)
@@ -133,26 +133,26 @@ func TestBackend_PendingInsertAbove_PreStart(t *testing.T) {
 	buf2 := backend.NewBuffer(10, 1)
 	buf2.Set(0, 0, backend.Cell{Content: "2", Width: 1})
 
-	// Before Start, InsertAbove must queue into pendingInsertAbove without writing to terminal
+	// Before Start, InsertAbove must queue without writing to terminal.
 	b.InsertAbove(buf1)
 	b.InsertAbove(buf2)
 
 	if buf.Len() != 0 {
 		t.Fatalf("expected nothing written to terminal before start, got %q", buf.String())
 	}
-	if len(b.pendingInsertAbove) != 2 {
-		t.Fatalf("expected 2 pending buffers, got %d", len(b.pendingInsertAbove))
+	if len(b.pendingRequests) != 2 {
+		t.Fatalf("expected 2 pending requests, got %d", len(b.pendingRequests))
 	}
 
-	// Now start renderLoop and verify pendingInsertAbove is drained
+	// Now start renderLoop and verify pendingRequests is drained.
 	b.started.Store(true)
 	b.renderWG.Add(1)
 	go b.renderLoop()
 
 	b.stopRenderLoop()
 
-	if len(b.pendingInsertAbove) != 0 {
-		t.Fatalf("expected pendingInsertAbove to be drained, got %d", len(b.pendingInsertAbove))
+	if len(b.pendingRequests) != 0 {
+		t.Fatalf("expected pendingRequests to be drained, got %d", len(b.pendingRequests))
 	}
 	output := buf.String()
 	if !strings.Contains(output, "1") || !strings.Contains(output, "2") {
@@ -317,5 +317,135 @@ func TestBackend_InsertAbove_ThroughRenderCh(t *testing.T) {
 
 	if !strings.Contains(out.String(), "A") {
 		t.Errorf("expected 'A' in output from render loop, got %q", out.String())
+	}
+}
+
+func TestBackend_Clear_ResetsInlineScreen(t *testing.T) {
+	var out bytes.Buffer
+	b := &Backend{
+		screen: uv.NewTerminalScreen(&out, nil),
+		width:  80,
+		height: 24,
+		inline: true,
+	}
+	frame := backend.NewBuffer(80, 2)
+	frame.Set(0, 0, backend.Cell{Content: "C", Width: 1})
+	b.renderFrame(renderRequest{
+		buffer: frame,
+		cursor: cursorRecord{Visible: true, X: 1, Y: 1},
+	})
+	out.Reset()
+
+	b.processClear()
+
+	if b.screen.Height() != 0 {
+		t.Fatalf("expected empty screen, got height %d", b.screen.Height())
+	}
+	if !strings.HasSuffix(out.String(), "\x1b[2J\x1b[3J\x1b[H") {
+		t.Errorf("expected clear and home sequences at end of output, got %q", out.String())
+	}
+	if b.lastInlineBuf != nil || b.lastInlineCursor != (cursorRecord{}) || b.lastPaintedCursor != (cursorRecord{}) {
+		t.Error("expected cached frame and cursor state to be reset")
+	}
+	if b.width != 80 || b.height != 24 {
+		t.Errorf("clear changed terminal dimensions to %dx%d", b.width, b.height)
+	}
+}
+
+func TestBackend_Clear_OutputOrdering(t *testing.T) {
+	for _, preStart := range []bool{false, true} {
+		t.Run(fmt.Sprintf("preStart=%t", preStart), func(t *testing.T) {
+			var out bytes.Buffer
+			b := &Backend{
+				screen:   uv.NewTerminalScreen(&out, nil),
+				renderCh: make(chan renderRequest, 16),
+				width:    80,
+				height:   24,
+				inline:   true,
+			}
+			oldFrame := backend.NewBuffer(80, 2)
+			for x, ch := range "OLD" {
+				oldFrame.Set(x, 0, backend.Cell{Content: string(ch), Width: 1})
+			}
+			b.renderFrame(renderRequest{buffer: oldFrame})
+			out.Reset()
+
+			if !preStart {
+				b.started.Store(true)
+			}
+			message := func(text string) *backend.Buffer {
+				buf := backend.NewBuffer(80, 1)
+				for x, ch := range text {
+					buf.Set(x, 0, backend.Cell{Content: string(ch), Width: 1})
+				}
+				return buf
+			}
+			b.InsertAbove(message("BEFORE"))
+			b.Clear()
+			b.InsertAbove(message("HEADER"))
+			b.Clear()
+			b.InsertAbove(message("NEW"))
+			if out.Len() != 0 {
+				t.Fatalf("output written outside render loop: %q", out.String())
+			}
+			b.started.Store(true)
+			frame := backend.NewBuffer(80, 2)
+			frame.Set(0, 0, backend.Cell{Content: "C", Width: 1})
+			frame.Set(0, 1, backend.Cell{Content: "S", Width: 1})
+			b.renderCh <- renderRequest{buffer: frame}
+			b.renderWG.Add(1)
+			go b.renderLoop()
+			b.stopRenderLoop()
+
+			output := out.String()
+			clearSeq := "\x1b[2J\x1b[3J\x1b[H"
+			before := strings.Index(output, "BEFORE")
+			firstClear := strings.Index(output, clearSeq)
+			header := strings.Index(output, "HEADER")
+			lastClear := strings.LastIndex(output, clearSeq)
+			newHeader := strings.Index(output, "NEW")
+			if before < 0 || firstClear <= before || header <= firstClear || lastClear <= header || newHeader <= lastClear {
+				t.Fatalf("incorrect clear/insert ordering: %q", output)
+			}
+			afterClear := output[lastClear+len(clearSeq):]
+			if strings.Contains(afterClear, "OLD") {
+				t.Errorf("restored stale inline frame after clear: %q", afterClear)
+			}
+			if strings.LastIndex(output, "C") <= newHeader || strings.LastIndex(output, "S") <= newHeader {
+				t.Errorf("expected active frame after new header, got %q", output)
+			}
+			if b.screen.Height() != 2 || b.screen.CellAt(0, 0).Content != "C" || b.screen.CellAt(0, 1).Content != "S" {
+				t.Error("expected active frame to be painted into reset screen")
+			}
+		})
+	}
+}
+
+func TestBackend_Clear_DoesNotRestoreStaleFrame(t *testing.T) {
+	var out bytes.Buffer
+	b := &Backend{
+		screen:   uv.NewTerminalScreen(&out, nil),
+		renderCh: make(chan renderRequest, 4),
+		width:    80,
+		height:   24,
+		inline:   true,
+	}
+	frame := backend.NewBuffer(80, 1)
+	frame.Set(0, 0, backend.Cell{Content: "X", Width: 1})
+	b.renderFrame(renderRequest{buffer: frame})
+	out.Reset()
+	b.started.Store(true)
+	b.InsertAbove(frame)
+	b.Clear()
+	b.renderWG.Add(1)
+	go b.renderLoop()
+	b.stopRenderLoop()
+
+	if !strings.HasSuffix(out.String(), "\x1b[2J\x1b[3J\x1b[H") || b.screen.Height() != 0 {
+		t.Fatalf("expected clear to leave an empty screen without restoring cached frame, got %q", out.String())
+	}
+	b.Clear()
+	if len(b.renderCh) != 0 {
+		t.Error("clear queued output after render loop stopped")
 	}
 }

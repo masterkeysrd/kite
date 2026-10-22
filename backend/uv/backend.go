@@ -35,6 +35,7 @@ type renderRequest struct {
 	buffer      *backend.Buffer
 	cursor      cursorRecord
 	insertAbove *backend.Buffer
+	clear       bool
 }
 
 // Backend is the ultraviolet terminal backend for kite/x. It owns a uv.Terminal
@@ -91,8 +92,8 @@ type Backend struct {
 
 	bufferPool sync.Pool
 
-	// pendingInsertAbove buffers InsertAbove requests received before b.Start().
-	pendingInsertAbove []*backend.Buffer
+	// pendingRequests preserves output ordering before b.Start().
+	pendingRequests []renderRequest
 
 	// lastInlineBuf and lastInlineCursor cache the most recently rendered inline frame
 	// so renderLoop can restore the active inline UI after an InsertAbove batch.
@@ -484,15 +485,23 @@ func (b *Backend) renderLoop() {
 	defer b.renderWG.Done()
 
 	b.block.Lock()
-	pending := b.pendingInsertAbove
-	b.pendingInsertAbove = nil
+	pending := b.pendingRequests
+	b.pendingRequests = nil
 	b.block.Unlock()
 
-	for _, buf := range pending {
-		b.processInsertAbove(buf)
+	for _, req := range pending {
+		if req.clear {
+			b.processClear()
+		} else {
+			b.processInsertAbove(req.insertAbove)
+		}
 	}
 
 	for req := range b.renderCh {
+		if req.clear {
+			b.processClear()
+			continue
+		}
 		if req.insertAbove != nil {
 			b.processInsertAbove(req.insertAbove)
 			renderedFreshFrame := false
@@ -504,7 +513,9 @@ func (b *Backend) renderLoop() {
 					if !ok {
 						break drainLoop
 					}
-					if next.insertAbove != nil {
+					if next.clear {
+						b.processClear()
+					} else if next.insertAbove != nil {
 						b.processInsertAbove(next.insertAbove)
 					} else {
 						b.renderFrame(next)
@@ -529,20 +540,54 @@ func (b *Backend) renderLoop() {
 	}
 }
 
+// Clear queues a terminal reset before subsequent inserts and frames.
+func (b *Backend) Clear() {
+	b.enqueueOutput(renderRequest{clear: true})
+}
+
+func (b *Backend) processClear() {
+	b.block.Lock()
+	defer b.block.Unlock()
+
+	w := b.width
+	if w <= 0 {
+		w = b.screen.Width()
+	}
+	b.screen.HideCursor()
+	b.screen.Resize(w, 0)
+	b.screen.Render()
+	if err := b.screen.Flush(); err != nil {
+		kitelog.Error("uv: flush error before clear", "error", err)
+	}
+	if _, err := b.Write([]byte("\x1b[2J\x1b[3J\x1b[H")); err != nil {
+		kitelog.Error("uv: clear error", "error", err)
+	}
+	b.lastInlineBuf = nil
+	b.lastInlineCursor = cursorRecord{}
+	b.lastPaintedCursor = cursorRecord{}
+	if !b.inline {
+		b.screen.Resize(w, b.height)
+	}
+}
+
 // InsertAbove inserts a rendered cell buffer permanently into the terminal
 // scrollback above the active inline frame.
 func (b *Backend) InsertAbove(buf *backend.Buffer) {
 	if buf == nil || buf.Width <= 0 || buf.Height <= 0 {
 		return
 	}
+	cp := cloneBuffer(buf)
+	b.enqueueOutput(renderRequest{insertAbove: cp})
+}
+
+func (b *Backend) enqueueOutput(req renderRequest) {
 	if b.stopped.Load() {
 		return
 	}
-	cp := cloneBuffer(buf)
 	if !b.started.Load() {
 		b.block.Lock()
 		if !b.started.Load() {
-			b.pendingInsertAbove = append(b.pendingInsertAbove, cp)
+			b.pendingRequests = append(b.pendingRequests, req)
 			b.block.Unlock()
 			return
 		}
@@ -551,7 +596,7 @@ func (b *Backend) InsertAbove(buf *backend.Buffer) {
 	b.stopMu.RLock()
 	defer b.stopMu.RUnlock()
 	if !b.renderClosed {
-		b.renderCh <- renderRequest{insertAbove: cp}
+		b.renderCh <- req
 	}
 }
 

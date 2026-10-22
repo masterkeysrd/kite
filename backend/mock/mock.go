@@ -41,6 +41,8 @@ type Backend struct {
 	EndFrameCalls int
 	// RestoreCalls counts how many times Restore was called.
 	RestoreCalls int
+	// ClearCalls counts how many times Clear was called.
+	ClearCalls int
 	// Frames records all completed frames (EndFrame called successfully).
 	Frames []FrameRecord
 
@@ -184,6 +186,11 @@ func (b *Backend) SetProgramStatus(status *backend.ProgramStatus) {
 
 func (b *Backend) SetInline(inline bool) {
 	b.Inline = inline
+}
+
+func (b *Backend) Clear() {
+	b.ClearCalls++
+	fmt.Fprint(&b.Output, "\x1b[2J\x1b[3J\x1b[H")
 }
 
 func (b *Backend) InsertAbove(buf *backend.Buffer) {

@@ -451,22 +451,112 @@ func TestTrail_Rerender(t *testing.T) {
 
 func TestTrail_Clear(t *testing.T) {
 	b := mock.New(80, 24)
-	App := trail.Box(trail.BoxProps{Style: style.S().Height(style.Cells(1))}, trail.Text("ClearMe"))
-	inst, err := trail.New(App, trail.WithBackend(b))
+	var setCount func(int)
+	var setHeader func(bool)
+	mounts, cleanups := 0, 0
+	App := trail.SimpleFC("App", func() kitex.Node {
+		count, updateCount := trail.UseState(0)
+		header, updateHeader := trail.UseState(false)
+		setCount, setHeader = updateCount, updateHeader
+		trail.UseEffectCleanup(func() func() {
+			mounts++
+			return func() { cleanups++ }
+		}, []any{})
+		trail.UseInput(func(input string, _ event.KeyEvent) {
+			if input == "x" {
+				updateCount(count() + 1)
+			}
+		})
+		var static kitex.Node
+		if header() {
+			static = trail.Static([]string{"New header"}, func(item string, _ int) kitex.Node {
+				return trail.Text(item)
+			})
+		}
+		return trail.Box(trail.BoxProps{}, static,
+			trail.Box(trail.BoxProps{}, trail.Text(fmt.Sprintf("Composer %d", count()))),
+			trail.Box(trail.BoxProps{}, trail.Text("StatusBar")),
+		)
+	})
+	inst, err := trail.New(App(), trail.WithBackend(b))
 	if err != nil {
 		t.Fatalf("failed to create trail instance: %v", err)
 	}
+	defer inst.Unmount()
+	defer inst.Engine().Stop()
 	inst.Frame()
-
-	if b.LastFrame().Surface.Height != 1 {
-		t.Fatalf("expected initial frame height 1, got %d", b.LastFrame().Surface.Height)
-	}
+	setCount(7)
+	inst.Frame()
 
 	inst.Clear()
 	inst.Frame()
 
-	if b.LastFrame().Surface.Height != 0 {
-		t.Errorf("expected frame height 0 after Clear, got %d", b.LastFrame().Surface.Height)
+	if b.ClearCalls != 1 {
+		t.Fatalf("expected one backend clear, got %d", b.ClearCalls)
+	}
+	if mounts != 1 || cleanups != 0 {
+		t.Fatalf("Clear remounted or unmounted App: mounts=%d cleanups=%d", mounts, cleanups)
+	}
+	frame := b.LastFrame().Surface
+	if frame.Height != 2 || frame.CellAt(9, 0).Content != "7" || frame.CellAt(0, 1).Content != "S" {
+		t.Fatalf("expected preserved Composer state and StatusBar at rows 0 and 1, got %#v", frame)
+	}
+
+	setHeader(true)
+	inst.Engine().ProcessRawEvent(&backend.RawKeyEvent{Key: key.Key{Text: "x", Code: 'x'}})
+	for range 3 {
+		inst.Frame()
+	}
+	if len(b.InsertedAbove) != 1 || b.InsertedAbove[0].CellAt(0, 0).Content != "N" {
+		t.Fatalf("expected new Static header after clear, got %v", b.InsertedAbove)
+	}
+	frame = b.LastFrame().Surface
+	if frame.Height != 2 || frame.CellAt(9, 0).Content != "8" || frame.CellAt(0, 1).Content != "S" {
+		t.Fatalf("expected live input and active UI after new header, got %#v", frame)
+	}
+}
+
+func TestTrail_Clear_Running(t *testing.T) {
+	b := mock.New(80, 24)
+	cleanups := 0
+	App := trail.SimpleFC("App", func() kitex.Node {
+		app := trail.UseApp()
+		trail.UseEffectCleanup(func() func() {
+			return func() { cleanups++ }
+		}, []any{})
+		trail.UseInput(func(input string, _ event.KeyEvent) {
+			if input == "c" {
+				app.Clear()
+			}
+		})
+		return trail.Box(trail.BoxProps{}, trail.Text("Composer"))
+	})
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inst.Frame()
+	repainted := false
+	mountedAtRepaint := false
+	inst.Engine().OnFrameRendered(func() {
+		if b.ClearCalls > 0 && !repainted {
+			repainted = b.LastFrame().Surface.CellAt(0, 0).Content == "C"
+			mountedAtRepaint = cleanups == 0
+			inst.Exit(nil)
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go b.PostEvent(&backend.RawKeyEvent{Key: key.Key{Text: "c", Code: 'c'}})
+
+	if err := inst.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !repainted || b.ClearCalls != 1 {
+		t.Fatalf("expected clear to schedule a live repaint, got repainted=%t clears=%d", repainted, b.ClearCalls)
+	}
+	if !mountedAtRepaint {
+		t.Fatal("Clear unmounted App before repaint")
 	}
 }
 

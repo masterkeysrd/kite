@@ -774,6 +774,44 @@ func TestEngine_InlineMode(t *testing.T) {
 	}
 }
 
+func TestEngine_Clear_RepaintsMountedUI(t *testing.T) {
+	for _, inline := range []bool{false, true} {
+		t.Run(fmt.Sprintf("inline=%t", inline), func(t *testing.T) {
+			e, b := newTestEngine(t, engine.Options{Inline: inline})
+			defer e.Stop()
+
+			doc := e.Document()
+			box := element.NewBox(doc)
+			box.Style(style.S().Height(style.Cells(2)))
+			box.AppendChild(doc.CreateTextNode("Composer", nil))
+			e.Mount(box)
+			e.Frame()
+			initial := b.LastFrame().Surface
+			e.Frame()
+			if b.EndFrameCalls != 1 {
+				t.Fatal("expected clean UI not to repaint")
+			}
+
+			e.Clear()
+
+			if b.ClearCalls != 1 {
+				t.Fatalf("expected one backend clear, got %d", b.ClearCalls)
+			}
+			if e.RenderView().Flags()&render.DirtyPaint == 0 {
+				t.Error("expected Clear to mark render view paint-dirty")
+			}
+			e.Frame()
+			if b.EndFrameCalls != 2 {
+				t.Fatalf("expected Clear to force repaint, got %d frames", b.EndFrameCalls)
+			}
+			frame := b.LastFrame().Surface
+			if frame.Height != initial.Height || frame.CellAt(0, 0).Content != "C" {
+				t.Errorf("expected mounted UI repainted at row 0, got %#v", frame)
+			}
+		})
+	}
+}
+
 func TestEngine_InsertAbove(t *testing.T) {
 	b := mock.New(80, 24)
 	e := engine.New(b, engine.Options{Inline: true})
