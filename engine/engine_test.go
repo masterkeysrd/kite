@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -883,5 +884,78 @@ func TestEngine_InsertAbove_RepaintsInlineActiveFrameEvenWhenDOMUnchanged(t *tes
 	}
 	if repaintedFrame.CellAt(0, 0).Content != "A" {
 		t.Errorf("expected 'A' at (0, 0) in repainted frame, got %q", repaintedFrame.CellAt(0, 0).Content)
+	}
+}
+
+func TestEngine_InlineMode_OverflowClampsAndBottomAnchors(t *testing.T) {
+	b := mock.New(80, 20)
+	e := engine.New(b, engine.Options{Inline: true})
+	defer e.Stop()
+
+	doc := e.Document()
+	container := element.NewBox(doc)
+
+	// 50 lines of streaming text
+	for i := 0; i < 50; i++ {
+		line := element.NewBox(doc)
+		line.Style(style.S().Height(style.Cells(1)))
+		line.AppendChild(doc.CreateTextNode(fmt.Sprintf("streaming line %02d", i), nil))
+		container.AppendChild(line)
+	}
+
+	// Bottom input composer (height 1)
+	input := element.NewInput(doc, "composer text")
+	input.Style(style.S().Height(style.Cells(1)).Width(style.Cells(30)))
+	container.AppendChild(input)
+
+	// Bottom status bar (height 1)
+	statusBar := element.NewBox(doc)
+	statusBar.Style(style.S().Height(style.Cells(1)))
+	statusBar.AppendChild(doc.CreateTextNode("Status: Running", nil))
+	container.AppendChild(statusBar)
+
+	e.Mount(container)
+	input.Focus()
+
+	e.Frame()
+
+	// 1. The painted frame buffer height is clamped to viewport.Height (20)
+	lastFrame := b.LastFrame().Surface
+	if lastFrame == nil {
+		t.Fatalf("expected a rendered frame")
+	}
+	if lastFrame.Height != 20 {
+		t.Fatalf("expected painted frame buffer height clamped to 20, got %d", lastFrame.Height)
+	}
+
+	// 2. The frame shows the bottom 20 rows (lines 32..49 + input composer + status bar)
+	getLine := func(buf *backend.Buffer, y int) string {
+		var sb strings.Builder
+		for x := 0; x < buf.Width; x++ {
+			sb.WriteString(buf.CellAt(x, y).Content)
+		}
+		return strings.TrimRight(sb.String(), " ")
+	}
+
+	// Row 0 of the clamped viewport should show line 32 (tail of streaming text, NOT line 00)
+	if !strings.HasPrefix(getLine(lastFrame, 0), "streaming line 32") {
+		t.Errorf("expected row 0 to show 'streaming line 32', got %q", getLine(lastFrame, 0))
+	}
+	// Row 18 shows the input composer
+	if !strings.Contains(getLine(lastFrame, 18), "composer text") {
+		t.Errorf("expected row 18 to contain 'composer text', got %q", getLine(lastFrame, 18))
+	}
+	// Row 19 shows the status bar
+	if !strings.Contains(getLine(lastFrame, 19), "Status: Running") {
+		t.Errorf("expected row 19 to contain 'Status: Running', got %q", getLine(lastFrame, 19))
+	}
+
+	// 3. Hardware cursor for the focused input:
+	// It should be visible and positioned at row 18 within the 20-row viewport.
+	if !b.Cursor.Visible {
+		t.Errorf("expected hardware cursor to be visible")
+	}
+	if b.Cursor.Y != 18 {
+		t.Errorf("expected hardware cursor Y = 18, got %d", b.Cursor.Y)
 	}
 }

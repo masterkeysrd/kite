@@ -459,7 +459,12 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 		}
 	}
 	// Fall through to the main tree.
-	if hit := hitTestFragment(e.renderView.Fragment(), p); hit != nil {
+	offset := e.inlineRootOffset()
+	localP := geom.Point{
+		X: p.X - offset.X,
+		Y: p.Y - offset.Y,
+	}
+	if hit := hitTestFragment(e.renderView.Fragment(), localP); hit != nil {
 		return hit.EventTarget()
 	}
 	return nil
@@ -817,6 +822,15 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 				if state.Visible {
 					rootFrag := root.Fragment()
 					if bounds, clip, found := layout.ScrolledAbsoluteBounds(rootFrag, ro); found {
+						inlineOffset := e.inlineRootOffset()
+						rootOffset := root.Offset()
+						xShift := inlineOffset.X - rootOffset.X
+						yShift := inlineOffset.Y - rootOffset.Y
+						bounds.Origin.X += xShift
+						bounds.Origin.Y += yShift
+						clip.Origin.X += xShift
+						clip.Origin.Y += yShift
+
 						scrollX, scrollY := 0, 0
 						rawX, rawY := focused.Scroll()
 						maxSX, maxSY := layout.MaxScroll(ro.Fragment())
@@ -905,6 +919,24 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 		return true
 	}
 	return false
+}
+
+func (e *Engine) inlineRootOffset() geom.Point {
+	root := e.renderView
+	if root == nil {
+		return geom.Point{}
+	}
+	offset := root.Offset()
+	if !e.inline {
+		return offset
+	}
+	viewport := root.ViewportSize()
+	if viewport.Height > 0 {
+		if frag := root.Fragment(); frag != nil && frag.Size.Height > viewport.Height {
+			offset.Y -= frag.Size.Height - viewport.Height
+		}
+	}
+	return offset
 }
 
 func mapCursorShape(s style.CursorShape) backend.CursorShape {
@@ -1200,7 +1232,7 @@ func (e *Engine) Dump(path string) error {
 	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
 	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 	root := e.renderView
-	e.paintEngine.PaintFragment(nil, root.Fragment(), geom.Point{}, fb)
+	e.paintEngine.PaintFragment(nil, root.Fragment(), e.inlineRootOffset(), fb)
 	for _, overlay := range root.Overlays() {
 		offset := overlay.Offset()
 		e.paintEngine.PaintFragment(nil, overlay.Fragment(), offset, fb)
@@ -1796,10 +1828,14 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 	if len(rs) == 0 {
 		return nil
 	}
+	offset := e.inlineRootOffset()
 	ps := make([]paint.SelectionRect, len(rs))
 	for i, r := range rs {
+		rect := r.Rect
+		rect.Origin.X += offset.X
+		rect.Origin.Y += offset.Y
 		ps[i] = paint.SelectionRect{
-			Rect: r.Rect,
+			Rect: rect,
 			Fg:   r.Fg,
 			Bg:   r.Bg,
 		}
