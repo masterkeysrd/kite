@@ -78,9 +78,9 @@ func keyMatchString(k Key, s string) bool {
 	}
 
 	smod := mod &^ (ModShift | ModCapsLock)
-	if smod == 0 && text == "" && unicode.IsPrint(k.Code) {
+	if smod == 0 && text == "" && unicode.IsPrint(code) {
 		if mod&ModShift != 0 || mod&ModCapsLock != 0 {
-			text = string(unicode.ToUpper(k.Code))
+			text = string(unicode.ToUpper(code))
 		} else {
 			text = string(code)
 		}
