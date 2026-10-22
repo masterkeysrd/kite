@@ -230,7 +230,8 @@ func (inst *Instance) InsertAbove(node kitex.Node) {
 	renderNode := func() {
 		doc := dom.NewDocument()
 		container := element.NewBox(doc)
-		nodes := node.Instantiate(doc)
+		wrapped := appContext.Provider(inst, node)
+		nodes := wrapped.Instantiate(doc)
 		for _, n := range nodes {
 			if n != nil {
 				container.AppendChild(n)

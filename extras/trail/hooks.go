@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/dom"
+	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/geom"
@@ -24,6 +25,9 @@ type AppHandle interface {
 
 	// Clear clears the current dynamic inline frame output.
 	Clear()
+
+	// Engine returns the underlying Kite Engine.
+	Engine() *engine.Engine
 }
 
 // appContext is the kitex context key used to provide the AppHandle to child components.
