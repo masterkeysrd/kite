@@ -1134,6 +1134,14 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	return ro
 }
 
+// Clear clears the terminal and scrollback without unmounting the document,
+// and schedules a repaint of the active UI.
+func (e *Engine) Clear() {
+	e.backend.Clear()
+	e.renderView.MarkDirty(render.DirtyPaint)
+	e.RequestFrame()
+}
+
 // InsertAbove renders an arbitrary dom.Node (detached from the main document)
 // into a *backend.Buffer and passes it to the backend's InsertAbove method.
 func (e *Engine) InsertAbove(node dom.Node) {

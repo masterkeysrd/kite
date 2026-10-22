@@ -23,7 +23,7 @@ type AppHandle interface {
 	// Println permanently writes a text line into the scrollback above the frame.
 	Println(text string)
 
-	// Clear clears the current dynamic inline frame output.
+	// Clear clears the terminal and scrollback and repaints the mounted app.
 	Clear()
 
 	// Engine returns the underlying Kite Engine.

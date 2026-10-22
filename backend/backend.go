@@ -92,6 +92,11 @@ type Backend interface {
 	// relative cursor, dynamic height) instead of fullscreen mode.
 	SetInline(inline bool)
 
+	// Clear clears the visible terminal and scrollback, and resets the inline
+	// frame origin to the top of the terminal. Output is ordered before
+	// subsequent InsertAbove and EndFrame calls.
+	Clear()
+
 	// InsertAbove inserts a rendered cell buffer permanently into the terminal
 	// scrollback above the active inline frame.
 	InsertAbove(buf *Buffer)

@@ -186,19 +186,14 @@ func (inst *Instance) Rerender(app kitex.Node) {
 	}
 }
 
-// Clear clears the current dynamic inline frame output.
+// Clear clears the terminal and scrollback, then repaints the mounted app
+// from the top of the terminal without resetting component state.
 func (inst *Instance) Clear() {
-	empty := Fragment()
-	wrapped := appContext.Provider(inst, empty)
 	if inst.running.Load() {
-		inst.eng.Post(func() {
-			kitex.Render(wrapped, inst.container)
-			inst.eng.RequestFrame()
-		})
+		inst.eng.Post(inst.eng.Clear)
 		inst.eng.RequestFrame()
 	} else {
-		kitex.Render(wrapped, inst.container)
-		inst.eng.RequestFrame()
+		inst.eng.Clear()
 	}
 }
 
