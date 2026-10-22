@@ -930,3 +930,82 @@ func TestTrail_StreamingText_BottomUIStaysVisibleThroughoutAndAfterStatic(t *tes
 		t.Errorf("expected final active frame to contain statusbar")
 	}
 }
+
+func TestTrail_Static_InheritsParentContext(t *testing.T) {
+	themeCtx := trail.CreateContext("default-theme")
+
+	type staticItem struct {
+		id string
+	}
+
+	var addItems func(...staticItem)
+
+	StaticChild := trail.FC("StaticChild", func(props staticItem) kitex.Node {
+		theme := trail.UseContext(themeCtx)
+		return trail.Box(trail.BoxProps{
+			Style: style.S().Height(style.Cells(1)),
+		}, trail.Text(fmt.Sprintf("%s: %s", props.id, theme)))
+	})
+
+	App := trail.SimpleFC("App", func() kitex.Node {
+		items, setItems := kitex.UseState([]staticItem{{id: "item 1"}})
+		addItems = func(newItems ...staticItem) {
+			prev := items()
+			cp := make([]staticItem, len(prev)+len(newItems))
+			copy(cp, prev)
+			copy(cp[len(prev):], newItems)
+			setItems(cp)
+		}
+
+		return themeCtx.Provider("custom-theme",
+			trail.Fragment(
+				trail.Static(items(), func(item staticItem, index int) kitex.Node {
+					return StaticChild(item)
+				}),
+				trail.Box(trail.BoxProps{
+					Style: style.S().Height(style.Cells(1)),
+				}, trail.Text("Live active bar")),
+			),
+		)
+	})
+
+	b := mock.New(80, 24)
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+
+	inst.Frame()
+
+	bufContains := func(buf *backend.Buffer, target string) bool {
+		for y := 0; y < buf.Height; y++ {
+			var sb strings.Builder
+			for x := 0; x < buf.Width; x++ {
+				sb.WriteString(buf.CellAt(x, y).Content)
+			}
+			if strings.Contains(sb.String(), target) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 1. Initial mount: item 1 must have inherited "custom-theme"
+	if len(b.InsertedAbove) != 1 {
+		t.Fatalf("expected 1 item in InsertedAbove on initial mount, got %d", len(b.InsertedAbove))
+	}
+	if !bufContains(b.InsertedAbove[0], "item 1: custom-theme") {
+		t.Errorf("expected inserted item 0 to contain 'item 1: custom-theme'")
+	}
+
+	// 2. Subsequent state update appending item 2
+	addItems(staticItem{id: "item 2"})
+	inst.Frame()
+
+	if len(b.InsertedAbove) != 2 {
+		t.Fatalf("expected 2 items in InsertedAbove after adding item 2, got %d", len(b.InsertedAbove))
+	}
+	if !bufContains(b.InsertedAbove[1], "item 2: custom-theme") {
+		t.Errorf("expected inserted item 1 to contain 'item 2: custom-theme'")
+	}
+}

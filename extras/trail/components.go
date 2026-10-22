@@ -68,22 +68,40 @@ type staticProps[T any] struct {
 func Static[T any](items []T, renderItem func(item T, index int) kitex.Node) kitex.Node {
 	return kitex.FC("Static", func(props staticProps[T]) kitex.Node {
 		app := UseApp()
-		emitted := kitex.UseRef(0)
+		emitted, setEmitted := kitex.UseState(0)
+		boxRef := kitex.UseRef[dom.Element](nil)
+
+		start := emitted()
+		total := len(props.items)
 
 		kitex.UseLayoutEffect(func() {
-			start := emitted.Current
-			total := len(props.items)
 			if app != nil && start < total {
-				for i := start; i < total; i++ {
-					if n := props.renderItem(props.items[i], i); n != nil {
-						app.InsertAbove(n)
+				if box := boxRef.Current; box != nil {
+					for child := box.FirstChild(); child != nil; child = child.NextSibling() {
+						app.Engine().InsertAbove(child)
 					}
 				}
-				emitted.Current = total
+				setEmitted(total)
 			}
-		}, nil)
+		}, []any{start, total})
 
-		return nil
+		if start >= total {
+			return nil
+		}
+
+		children := make([]kitex.Node, 0, total-start)
+		for i := start; i < total; i++ {
+			if n := props.renderItem(props.items[i], i); n != nil {
+				children = append(children, kitex.Box(kitex.BoxProps{}, n))
+			}
+		}
+		if len(children) == 0 {
+			return nil
+		}
+
+		return kitex.Box(kitex.BoxProps{
+			Ref: boxRef,
+		}, children...)
 	})(staticProps[T]{
 		items:      items,
 		renderItem: renderItem,
