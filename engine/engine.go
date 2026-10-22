@@ -1169,6 +1169,10 @@ func (e *Engine) InsertAbove(node dom.Node) {
 			}
 		}
 		e.backend.InsertAbove(buf)
+		if e.renderView != nil {
+			e.renderView.MarkDirty(render.DirtyPaint)
+		}
+		e.RequestFrame()
 	}
 }
 

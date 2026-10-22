@@ -738,3 +738,67 @@ func TestTrail_Transform(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, textNode.Data())
 	}
 }
+
+func TestTrail_ResumeSession_ManyStaticItemsWithActiveBottomUI(t *testing.T) {
+	totalStatic := 60
+	initialItems := make([]string, totalStatic)
+	for i := 0; i < totalStatic; i++ {
+		initialItems[i] = fmt.Sprintf("historical log %02d", i)
+	}
+
+	App := trail.SimpleFC("App", func() kitex.Node {
+		items, _ := kitex.UseState(initialItems)
+
+		return trail.Fragment(
+			trail.Static(items(), func(item string, index int) kitex.Node {
+				return trail.Box(trail.BoxProps{
+					Style: style.S().Height(style.Cells(1)),
+				}, trail.Text(item))
+			}),
+			trail.Box(trail.BoxProps{
+				Style: style.S().Height(style.Cells(2)),
+			},
+				trail.Box(trail.BoxProps{
+					Style: style.S().Height(style.Cells(1)),
+				}, trail.Text("Composer: input message")),
+				trail.Box(trail.BoxProps{
+					Style: style.S().Height(style.Cells(1)),
+				}, trail.Text("Status: Online")),
+			),
+		)
+	})
+
+	b := mock.New(80, 24)
+	inst, err := trail.New(App(), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+
+	inst.Frame()
+
+	// Verify all 60 static items are flushed into InsertedAbove.
+	if len(b.InsertedAbove) != totalStatic {
+		t.Fatalf("expected %d static items flushed into InsertedAbove, got %d", totalStatic, len(b.InsertedAbove))
+	}
+	for i := 0; i < totalStatic; i++ {
+		firstChar := b.InsertedAbove[i].CellAt(0, 0).Content
+		if firstChar != "h" {
+			t.Errorf("item %d: expected 'h' at (0, 0), got %q", i, firstChar)
+		}
+	}
+
+	// Verify the active bottom UI (composer/status bar) is rendered in the inline frame.
+	frame := b.LastFrame().Surface
+	if frame == nil {
+		t.Fatalf("expected active frame to be rendered")
+	}
+	if frame.Height != 2 {
+		t.Errorf("expected active inline frame height 2, got %d", frame.Height)
+	}
+	if frame.CellAt(0, 0).Content != "C" {
+		t.Errorf("expected 'C' at (0, 0) for composer, got %q", frame.CellAt(0, 0).Content)
+	}
+	if frame.CellAt(0, 1).Content != "S" {
+		t.Errorf("expected 'S' at (0, 1) for status, got %q", frame.CellAt(0, 1).Content)
+	}
+}
