@@ -102,6 +102,13 @@ type Backend interface {
 	InsertAbove(buf *Buffer)
 }
 
+// FrameInserter is an optional backend capability for inserts generated while
+// preparing a new frame. Unlike InsertAbove, it must not restore the previous
+// active frame between inserts. The caller must commit a fresh frame afterward.
+type FrameInserter interface {
+	InsertAboveForFrame(buf *Buffer)
+}
+
 type ProgressBarState = terminal.ProgressBarState
 
 const (

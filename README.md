@@ -232,6 +232,8 @@ See the full working example in [`examples/stage/`](examples/stage/).
 
 `extras/trail` is an Ink-inspired inline CLI framework built on top of Kite and `kitex`. Unlike full-screen terminal applications that take over the terminal via an alternate screen buffer (`altscreen`), `trail` apps run directly in the active terminal scrollback, dynamically adjust their viewport height per frame, and allow permanently inserting completed tasks or log items into terminal scrollback above the live active UI via `<Static>`.
 
+The live UI stays immediately after Static output rather than being pinned to the terminal bottom. Growing content scrolls as needed; shrinking content clears the freed rows below it without adding space between Static and live output.
+
 <p align="center">
   <img width="960" height="540" alt="trail_demo" src="https://github.com/user-attachments/assets/2adc3681-c760-4707-84b4-896a47b298fe" />
 </p>
