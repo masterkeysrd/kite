@@ -150,12 +150,11 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	n.update(n.ref, nil, &n.props)
 	parentEl := n.ref.(dom.Element)
 	if n.hasDirectP {
+		for _, child := range n.children {
+			bindChild(child, parentEl, n)
+		}
 		flatChildren := flattenNodes(n.children, nil, nil)
 		for _, childFlat := range flatChildren {
-			setDOMParent(childFlat.node, parentEl)
-			for _, prov := range childFlat.providers {
-				setDOMParent(prov, parentEl)
-			}
 			childReals := instantiateFlat(parentEl, childFlat)
 			for _, childReal := range childReals {
 				if childReal != nil {
@@ -166,7 +165,7 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	} else {
 		for _, child := range n.children {
 			if child != nil {
-				setDOMParent(child, parentEl)
+				bindChild(child, parentEl, n)
 				childReals := child.Instantiate(doc)
 				for _, childReal := range childReals {
 					if childReal != nil {
@@ -2032,9 +2031,17 @@ type componentRef struct {
 	node componentInstance
 }
 
+type passthroughNode interface {
+	setDOMParent(dom.Element)
+	setVDOMParent(Node)
+	getVDOMParent() Node
+}
+
 // componentInstance is the internal interface implemented by all ComponentNode instances
 // to manage hooks state and updates.
 type componentInstance interface {
+	Node
+	passthroughNode
 	getHookState(index int) (any, bool)
 	setHookState(index int, val any)
 	incrementHookIndex() int
@@ -2051,8 +2058,6 @@ type componentInstance interface {
 	getDOMParent() dom.Element
 	setDOMAnchor(dom.Node)
 	getDOMAnchor() dom.Node
-	setParent(componentInstance)
-	updateRefsFromRendered()
 }
 
 // ComponentNode represents a declarative functional component in the VDOM tree.
@@ -2074,7 +2079,7 @@ type ComponentNode[P any] struct {
 	contextSnap  contextSnapshot
 	domParent    dom.Element
 	domAnchor    dom.Node
-	parent       componentInstance
+	vdomParent   Node
 
 	// Memoization: complexityScore holds the node count of the last rendered
 	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
@@ -2104,6 +2109,14 @@ func (c *ComponentNode[P]) setDOMAnchor(anchor dom.Node) {
 
 func (c *ComponentNode[P]) getDOMAnchor() dom.Node {
 	return c.domAnchor
+}
+
+func (c *ComponentNode[P]) setVDOMParent(parent Node) {
+	c.vdomParent = parent
+}
+
+func (c *ComponentNode[P]) getVDOMParent() Node {
+	return c.vdomParent
 }
 
 type componentNodeInspector interface {
@@ -2221,7 +2234,6 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	c.isFirst = true
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
-	setParentRefs(c.rendered, c)
 	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	c.isFirst = false
 	popCurrentComponent()
@@ -2232,7 +2244,7 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 
 	if c.rendered != nil {
-		setDOMParent(c.rendered, c.domParent)
+		bindChild(c.rendered, c.domParent, c)
 		c.refs = c.rendered.Instantiate(doc)
 	}
 	return c.refs
@@ -2252,6 +2264,9 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	c.componentRef = oldComp.componentRef
 	c.contextSnap = oldComp.contextSnap
 	c.domParent = oldComp.domParent
+	if c.vdomParent == nil {
+		c.vdomParent = oldComp.vdomParent
+	}
 	if c.componentRef == nil {
 		cr := &componentRef{}
 		cr.node = c
@@ -2270,19 +2285,18 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	// pathological component.
 	if c.shouldMemo && !oldComp.IsDirty() && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
 		c.rendered = oldComp.rendered
-		setParentRefs(c.rendered, c)
+		bindChild(c.rendered, c.domParent, c)
 		return
 	}
 
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	newRendered := c.RenderFn(c.PropsVal)
-	setParentRefs(newRendered, c)
 	checkKeylessList(c.Name, newRendered, c.declFile, c.declLine)
 	popCurrentComponent()
 
 	c.rendered = newRendered
-	setDOMParent(c.rendered, c.domParent)
+	bindChild(c.rendered, c.domParent, c)
 
 	// Refresh the memoization score after re-rendering so it reflects the
 	// current subtree shape.
@@ -2322,37 +2336,6 @@ func (c *ComponentNode[P]) realNodes() []dom.Node {
 
 func (c *ComponentNode[P]) setRefs(els []dom.Node) {
 	c.refs = els
-	if c.parent != nil {
-		c.parent.updateRefsFromRendered()
-	}
-}
-
-func (c *ComponentNode[P]) setParent(parent componentInstance) {
-	c.parent = parent
-}
-
-func (c *ComponentNode[P]) updateRefsFromRendered() {
-	if c.rendered != nil {
-		if ni, ok := c.rendered.(nodeInternal); ok {
-			c.refs = ni.realNodes()
-		}
-	}
-	if c.parent != nil {
-		c.parent.updateRefsFromRendered()
-	}
-}
-
-func setParentRefs(n Node, parent componentInstance) {
-	if n == nil {
-		return
-	}
-	if comp, ok := n.(componentInstance); ok {
-		comp.setParent(parent)
-		return
-	}
-	for _, child := range n.Children() {
-		setParentRefs(child, parent)
-	}
 }
 
 func (c *ComponentNode[P]) Rendered() Node {
@@ -2363,10 +2346,9 @@ func (c *ComponentNode[P]) ReRender() Node {
 	pushCurrentComponent(c)
 	c.hookIndex = 0
 	c.rendered = c.RenderFn(c.PropsVal)
-	setParentRefs(c.rendered, c)
 	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	popCurrentComponent()
-	setDOMParent(c.rendered, c.domParent)
+	bindChild(c.rendered, c.domParent, c)
 	c.complexityScore = computeComplexity(c.rendered)
 	c.shouldMemo = c.complexityScore > memoComplexityThreshold
 	return c.rendered
@@ -2388,6 +2370,7 @@ func (c *ComponentNode[P]) Release() {
 	c.hooks = nil
 	c.componentRef = nil
 	c.contextSnap = contextSnapshot{}
+	c.vdomParent = nil
 }
 
 func (c *ComponentNode[P]) restoreContexts() func() {

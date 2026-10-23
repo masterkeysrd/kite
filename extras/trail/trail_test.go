@@ -1099,3 +1099,44 @@ func TestTrail_Static_InheritsParentContext(t *testing.T) {
 		t.Errorf("expected inserted item 1 to contain 'item 2: custom-theme'")
 	}
 }
+
+func TestTrail_LateChildKeepsItsPosition(t *testing.T) {
+	var set func(bool)
+	late := kitex.SimpleFC("Late", func() kitex.Node {
+		on, setOn := kitex.UseState(false)
+		set = setOn
+		if !on() {
+			return nil
+		}
+		return kitex.Text("LATE")
+	})
+
+	b := mock.New(40, 10)
+	inst, err := trail.New(trail.Box(trail.BoxProps{
+		Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn),
+	},
+		trail.Text("FIRST"),
+		late(),
+		trail.Text("LAST"),
+	), trail.WithBackend(b))
+	if err != nil {
+		t.Fatalf("failed to create trail instance: %v", err)
+	}
+	inst.Frame()
+	set(true)
+	inst.Frame()
+
+	surf := b.LastFrame().Surface
+	var got strings.Builder
+	for y := 0; y < surf.Height; y++ {
+		for x := 0; x < surf.Width; x++ {
+			c := surf.CellAt(x, y).Content
+			if c != "" && c != " " {
+				got.WriteString(c)
+			}
+		}
+	}
+	if got.String() != "FIRSTLATELAST" {
+		t.Fatalf("want %q, got %q", "FIRSTLATELAST", got.String())
+	}
+}

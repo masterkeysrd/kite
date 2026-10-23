@@ -146,23 +146,33 @@ func Fragment(children ...Node) Node {
 }
 
 type fragmentNode struct {
-	children  []Node
-	refs      []dom.Node
-	domParent dom.Element
+	children   []Node
+	refs       []dom.Node
+	domParent  dom.Element
+	vdomParent Node
 }
 
 func (f *fragmentNode) setDOMParent(parent dom.Element) {
 	f.domParent = parent
 }
 
+func (f *fragmentNode) setVDOMParent(parent Node) {
+	f.vdomParent = parent
+}
+
+func (f *fragmentNode) getVDOMParent() Node {
+	return f.vdomParent
+}
+
 var _ Node = (*fragmentNode)(nil)
 var _ nodeInternal = (*fragmentNode)(nil)
+var _ passthroughNode = (*fragmentNode)(nil)
 
 func (f *fragmentNode) Instantiate(doc dom.Document) []dom.Node {
 	var reals []dom.Node
 	for _, child := range f.children {
 		if child != nil {
-			setDOMParent(child, f.domParent)
+			bindChild(child, f.domParent, f)
 			reals = append(reals, child.Instantiate(doc)...)
 		}
 	}
@@ -174,6 +184,12 @@ func (f *fragmentNode) Update(els []dom.Node, old Node) {
 	f.refs = els
 	if oldFrag, ok := old.(*fragmentNode); ok {
 		f.domParent = oldFrag.domParent
+		if f.vdomParent == nil {
+			f.vdomParent = oldFrag.vdomParent
+		}
+	}
+	for _, child := range f.children {
+		bindChild(child, f.domParent, f)
 	}
 }
 
@@ -187,6 +203,7 @@ func (f *fragmentNode) TagName() string  { return "#fragment" }
 func (f *fragmentNode) Key() string      { return "" }
 func (f *fragmentNode) Release() {
 	f.refs = nil
+	f.vdomParent = nil
 }
 
 func (f *fragmentNode) realNodes() []dom.Node {
