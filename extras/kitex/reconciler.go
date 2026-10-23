@@ -124,9 +124,11 @@ func processDirtyLoop() {
 			newRendered := comp.ReRender()
 			comp.ClearDirty()
 
-			newReals := reconcile(parentEl, oldRendered, newRendered, realNodes, comp.getDOMAnchor())
+			anchor := resolveDOMAnchor(comp, parentEl, realNodes)
+			newReals := reconcile(parentEl, oldRendered, newRendered, realNodes, anchor)
 			restoreCleanup()
 			comp.setRefs(newReals)
+			updateAncestorRefs(comp)
 		}
 		for i := range currentDirty {
 			currentDirty[i] = nil
@@ -269,47 +271,25 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, 
 
 		newProv.updateFrom(oldProv)
 		newProv.pushEntry()
+		for _, child := range newProv.Children() {
+			bindChild(child, parent, newProv)
+		}
 
 		reconcileChildren(parent, oldProv, newProv, oldProv.Children(), newProv.Children(), anchor)
 		newProv.popEntry()
 
-		count := 0
-		for _, child := range newProv.Children() {
-			if child != nil {
-				count += len(child.(nodeInternal).realNodes())
-			}
-		}
-		var reals []dom.Node
-		if count > 0 {
-			reals = make([]dom.Node, 0, count)
-			for _, child := range newProv.Children() {
-				if child != nil {
-					reals = append(reals, child.(nodeInternal).realNodes()...)
-				}
-			}
-		}
+		reals := collectChildrenRealNodes(newProv.Children())
 		newProv.setRefs(reals)
 		return reals
 	}
 
 	// Fragment Node:
 	if oldNode.TagName() == "#fragment" {
-		reconcileChildren(parent, oldNode, newNode, oldNode.Children(), newNode.Children(), anchor)
-		count := 0
 		for _, child := range newNode.Children() {
-			if child != nil {
-				count += len(child.(nodeInternal).realNodes())
-			}
+			bindChild(child, parent, newNode)
 		}
-		var reals []dom.Node
-		if count > 0 {
-			reals = make([]dom.Node, 0, count)
-			for _, child := range newNode.Children() {
-				if child != nil {
-					reals = append(reals, child.(nodeInternal).realNodes()...)
-				}
-			}
-		}
+		reconcileChildren(parent, oldNode, newNode, oldNode.Children(), newNode.Children(), anchor)
+		reals := collectChildrenRealNodes(newNode.Children())
 		newNode.(nodeInternal).setRefs(reals)
 		return reals
 	}
@@ -339,7 +319,7 @@ func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, 
 	if len(realNodes) > 0 && realNodes[0] != nil {
 		el := realNodes[0].(dom.Element)
 		for _, child := range newNode.Children() {
-			setDOMParent(child, el)
+			bindChild(child, el, newNode)
 		}
 		reconcileChildren(el, oldNode, newNode, oldNode.Children(), newNode.Children(), nil)
 	}
@@ -522,7 +502,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			if oldChild != nil {
 				realNodes = oldChild.(nodeInternal).realNodes()
 			}
-			reconcile(parent, oldChild, newChild, realNodes, nil)
+			reconcile(parent, oldChild, newChild, realNodes, anchor)
 			return
 		}
 	}
@@ -640,6 +620,8 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			endNodes := nodeMap[oldEndNode]
 			if len(endNodes) > 0 {
 				afterEndRef = endNodes[len(endNodes)-1].NextSibling()
+			} else {
+				afterEndRef = findNextDOMAnchor(oldS, oldEndIdx+1, n-1, nodeMap, oldChildren, insertBeforeRef)
 			}
 			reconcile(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
 			for _, node := range domNodes {
@@ -941,7 +923,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 		newChild := flatNew[0]
 		if sameNode(oldChild.node, newChild.node) {
 			var realNodes = oldChild.node.(nodeInternal).realNodes()
-			reconcileFlat(parent, oldChild, newChild, realNodes, nil)
+			reconcileFlat(parent, oldChild, newChild, realNodes, anchor)
 			return
 		}
 	}
@@ -1049,6 +1031,8 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 			endNodes := nodeMap[oldEndNode.node]
 			if len(endNodes) > 0 {
 				afterEndRef = endNodes[len(endNodes)-1].NextSibling()
+			} else {
+				afterEndRef = findNextDOMAnchorFlat(oldS, oldEndIdx+1, n-1, nodeMap, flatOld, insertBeforeRef)
 			}
 			reconcileFlat(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
 			for _, node := range domNodes {
@@ -1352,4 +1336,151 @@ func findNextDOMAnchorFlat(oldS []flatNode, startIdx, endIdx int, nodeMap map[No
 		}
 	}
 	return insertBeforeRef
+}
+
+func bindChild(child Node, domParent dom.Element, vdomParent Node) {
+	if child == nil {
+		return
+	}
+	if pn, ok := child.(passthroughNode); ok {
+		pn.setDOMParent(domParent)
+		pn.setVDOMParent(vdomParent)
+		if _, isProv := child.(providerInstance); isProv || child.TagName() == "#fragment" {
+			for _, grandChild := range child.Children() {
+				bindChild(grandChild, domParent, child)
+			}
+		}
+	}
+}
+
+func getVDOMParent(n Node) Node {
+	if n == nil {
+		return nil
+	}
+	if pn, ok := n.(passthroughNode); ok {
+		return pn.getVDOMParent()
+	}
+	return nil
+}
+
+func isPassthroughVDOMNode(n Node) bool {
+	if n == nil {
+		return false
+	}
+	_, ok := n.(passthroughNode)
+	return ok
+}
+
+func collectChildrenRealNodes(children []Node) []dom.Node {
+	count := 0
+	for _, child := range children {
+		if child != nil {
+			count += len(child.(nodeInternal).realNodes())
+		}
+	}
+	if count == 0 {
+		return nil
+	}
+	reals := make([]dom.Node, 0, count)
+	for _, child := range children {
+		if child != nil {
+			reals = append(reals, child.(nodeInternal).realNodes()...)
+		}
+	}
+	return reals
+}
+
+func updateAncestorRefs(n Node) {
+	curr := getVDOMParent(n)
+	for curr != nil {
+		switch p := curr.(type) {
+		case componentInstance:
+			rendered := p.Rendered()
+			if rendered != nil {
+				if ni, ok := rendered.(nodeInternal); ok {
+					p.setRefs(ni.realNodes())
+				} else {
+					p.setRefs(nil)
+				}
+			} else {
+				p.setRefs(nil)
+			}
+		case *fragmentNode:
+			p.refs = collectChildrenRealNodes(p.children)
+		case providerInstance:
+			p.setRefs(collectChildrenRealNodes(p.Children()))
+		default:
+			return
+		}
+		curr = getVDOMParent(curr)
+	}
+}
+
+func resolveDOMAnchor(comp componentInstance, parentEl dom.Element, realNodes []dom.Node) dom.Node {
+	if len(realNodes) > 0 {
+		last := realNodes[len(realNodes)-1]
+		if last != nil && isParent(last, parentEl) {
+			return last.NextSibling()
+		}
+	}
+	if getVDOMParent(comp) != nil {
+		return findNextVDOMSiblingDOMNode(comp, parentEl)
+	}
+	if anchor := comp.getDOMAnchor(); anchor != nil && isParent(anchor, parentEl) {
+		return anchor
+	}
+	return nil
+}
+
+func findNextVDOMSiblingDOMNode(target Node, parentEl dom.Element) dom.Node {
+	curr := target
+	for curr != nil {
+		parent := getVDOMParent(curr)
+		if parent == nil {
+			return nil
+		}
+		children := parent.Children()
+		found := false
+		for _, sibling := range children {
+			if !found {
+				if sibling == curr {
+					found = true
+				}
+				continue
+			}
+			if sibling == nil {
+				continue
+			}
+			if anchor := firstMountedDOMNode(sibling, parentEl); anchor != nil {
+				return anchor
+			}
+		}
+		if !isPassthroughVDOMNode(parent) {
+			return nil
+		}
+		curr = parent
+	}
+	return nil
+}
+
+func firstMountedDOMNode(n Node, parentEl dom.Element) dom.Node {
+	if n == nil {
+		return nil
+	}
+	if ni, ok := n.(nodeInternal); ok {
+		for _, r := range ni.realNodes() {
+			if r != nil && isParent(r, parentEl) {
+				return r
+			}
+		}
+	}
+	if !isPassthroughVDOMNode(n) {
+		return nil
+	}
+	for _, child := range n.Children() {
+		if anchor := firstMountedDOMNode(child, parentEl); anchor != nil {
+			return anchor
+		}
+	}
+	return nil
 }

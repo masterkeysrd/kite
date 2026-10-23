@@ -9,23 +9,33 @@ import (
 
 // ProviderNode is a virtual/passthrough context provider node.
 type ProviderNode[T comparable] struct {
-	ctx       *Context[T]
-	value     T
-	children  []Node
-	entry     *contextEntry[T]
-	pool      *sync.Pool
-	refs      []dom.Node
-	domParent dom.Element
+	ctx        *Context[T]
+	value      T
+	children   []Node
+	entry      *contextEntry[T]
+	pool       *sync.Pool
+	refs       []dom.Node
+	domParent  dom.Element
+	vdomParent Node
 }
 
 func (p *ProviderNode[T]) setDOMParent(parent dom.Element) {
 	p.domParent = parent
 }
 
+func (p *ProviderNode[T]) setVDOMParent(parent Node) {
+	p.vdomParent = parent
+}
+
+func (p *ProviderNode[T]) getVDOMParent() Node {
+	return p.vdomParent
+}
+
 // Ensure compile-time interface compliance.
 var _ Node = (*ProviderNode[int])(nil)
 var _ nodeInternal = (*ProviderNode[int])(nil)
 var _ providerInstance = (*ProviderNode[int])(nil)
+var _ passthroughNode = (*ProviderNode[int])(nil)
 
 // Provider constructs a ProviderNode for the given context and value.
 func (c *Context[T]) Provider(value T, children ...Node) *ProviderNode[T] {
@@ -35,6 +45,9 @@ func (c *Context[T]) Provider(value T, children ...Node) *ProviderNode[T] {
 	p.children = children
 	p.entry = nil
 	p.pool = c.pool
+	p.refs = nil
+	p.domParent = nil
+	p.vdomParent = nil
 	return p
 }
 
@@ -151,7 +164,7 @@ func (p *ProviderNode[T]) Instantiate(doc dom.Document) []dom.Node {
 	var reals []dom.Node
 	for _, child := range p.children {
 		if child != nil {
-			setDOMParent(child, p.domParent)
+			bindChild(child, p.domParent, p)
 			reals = append(reals, child.Instantiate(doc)...)
 		}
 	}
@@ -168,6 +181,9 @@ func (p *ProviderNode[T]) Update(els []dom.Node, old Node) {
 		if op, ok := old.(*ProviderNode[T]); ok {
 			oldProv = op
 			p.domParent = oldProv.domParent
+			if p.vdomParent == nil {
+				p.vdomParent = oldProv.vdomParent
+			}
 			p.updateFrom(oldProv)
 		}
 	}
@@ -176,8 +192,10 @@ func (p *ProviderNode[T]) Update(els []dom.Node, old Node) {
 	p.pushEntry()
 	defer p.popEntry()
 
+	for _, child := range p.children {
+		bindChild(child, p.domParent, p)
+	}
 	if len(p.children) == 1 && oldProv != nil && len(oldProv.children) == 1 {
-		setDOMParent(p.children[0], p.domParent)
 		p.children[0].Update(els, oldProv.children[0])
 	}
 }
