@@ -10,6 +10,7 @@
 
 - **Inline Execution**: Runs directly in the standard terminal scrollback without taking over the screen or entering an alternate screen buffer (`altscreen`).
 - **Dynamic Content Height**: Automatically resizes the active terminal viewport to exactly match the rendered content height.
+- **Contiguous Inline Output**: Starts at the current terminal cursor and keeps the active frame immediately after Static output. Growth scrolls when needed; shrinking clears the freed rows below the frame instead of introducing gaps above it. The frame is not pinned to the terminal bottom. `Clear()` repaints from row 0.
 - **`<Static>` Output**: Permanently write completed logs, tasks, and items above the active inline frame into the terminal's native scrollback buffer while continuing to update live interactive components below.
 - **Ink-Compatible Mental Model**: Declarative component tree with lifecycle controls (`Render`, `WaitUntilExit`, `Rerender`, `Unmount`, `Clear`), hooks (`UseApp`, `UseInput`, `UseFocus`, `UseFocusManager`, `UseStdout`, `UseStderr`), and primitives (`Box`, `Text`, `Span`, `Static`, `Newline`, `Spacer`, `Transform`).
 - **Console & Log Interception**: Automatically redirect standard `log.Default()` or `slog` output (`WithInterceptLog`, `inst.LogWriter()`) cleanly into scrollback above the active frame.
@@ -85,7 +86,7 @@ func TaskList(tasks []string) trail.Node {
 
 - **`inst.WaitUntilExit() error`**: Blocks until the app exits and returns the recorded exit error.
 - **`inst.Rerender(newApp Node)`**: Dynamically updates the root component tree with a new node.
-- **`inst.Clear()` / `app.Clear()`**: Clears the current inline terminal output without exiting.
+- **`inst.Clear()` / `app.Clear()`**: Clears the terminal and scrollback, resets the inline origin, and repaints the mounted app from row 0 without resetting component state.
 - **`inst.Unmount()`**: Executes all `UseEffectCleanup` hooks across the component tree and cleanly halts the engine.
 - **`inst.LogWriter() io.Writer`**: Returns an `io.Writer` that formats log messages and inserts them cleanly into scrollback above the live frame.
 

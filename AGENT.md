@@ -246,6 +246,7 @@ This source map summarises the repository packages, their responsibilities, and 
 - **extras/trail** — Path: `extras/trail/`
     - Description: Ink-inspired inline CLI framework for Kite; supports dynamic height rendering and permanent scrollback insertion via `<Static>`. (See `extras/trail/doc.go`)
     - Key files: `extras/trail/doc.go`, `trail.go`, `components.go`, `hooks.go`
+    - Inline positioning: the UV renderer uses a relative origin immediately after Static output, not sticky-bottom anchoring. Live growth scrolls naturally; shrink erases trailing rows without moving the origin downward.
 
 
 ### Docs and Project Files

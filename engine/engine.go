@@ -1143,7 +1143,7 @@ func (e *Engine) Clear() {
 }
 
 // InsertAbove renders an arbitrary dom.Node (detached from the main document)
-// into a *backend.Buffer and passes it to the backend's InsertAbove method.
+// into a *backend.Buffer and inserts it above the next active frame.
 func (e *Engine) InsertAbove(node dom.Node) {
 	if node == nil {
 		return
@@ -1208,7 +1208,11 @@ func (e *Engine) InsertAbove(node dom.Node) {
 				buf.Set(x, y, cell.Cell)
 			}
 		}
-		e.backend.InsertAbove(buf)
+		if inserter, ok := e.backend.(backend.FrameInserter); ok {
+			inserter.InsertAboveForFrame(buf)
+		} else {
+			e.backend.InsertAbove(buf)
+		}
 		if e.renderView != nil {
 			e.renderView.MarkDirty(render.DirtyPaint)
 		}
