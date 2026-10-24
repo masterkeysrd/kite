@@ -498,7 +498,7 @@ func (e *Engine) SetTitle(s string) {
 	if !e.caps.Title {
 		return
 	}
-	kitelog.Info("engine: set title", slog.String("title", s))
+	kitelog.Debug("engine: set title", slog.String("title", s))
 	e.backend.SetTitle(s)
 }
 
@@ -509,7 +509,7 @@ func (e *Engine) Bell() {
 	if !e.caps.Bell {
 		return
 	}
-	kitelog.Info("engine: bell")
+	kitelog.Debug("engine: bell")
 	e.backend.Bell()
 }
 
@@ -521,7 +521,7 @@ func (e *Engine) SetProgressBar(state backend.ProgressBarState, percentage int) 
 	if !e.caps.ProgressBar {
 		return
 	}
-	kitelog.Info("engine: set progress bar", slog.Int("state", int(state)), slog.Int("percentage", percentage))
+	kitelog.Debug("engine: set progress bar", slog.Int("state", int(state)), slog.Int("percentage", percentage))
 	e.backend.SetProgressBar(state, percentage)
 }
 
@@ -811,7 +811,7 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 	next := cursorRecord{}
 	var ro render.Object
 	if focused != nil {
-		kitelog.Info("engine: determining cursor for focused target")
+		kitelog.Debug("engine: determining cursor for focused target")
 		ro = e.RenderObject(focused.(dom.Node))
 		if ro != nil {
 			provider, ok := ro.(cursor.Provider)

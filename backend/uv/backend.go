@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -363,8 +364,10 @@ func (b *Backend) writeRaw(s string) {
 }
 
 func (b *Backend) Write(p []byte) (n int, err error) {
-	s := strings.ReplaceAll(string(p), "\x1b", "\\x1b")
-	kitelog.Debug("UV TRACING: ", "message", fmt.Sprintf("output: %q", s))
+	if kitelog.Enabled(slog.LevelDebug) {
+		s := strings.ReplaceAll(string(p), "\x1b", "\\x1b")
+		kitelog.Debug("UV TRACING: ", "message", fmt.Sprintf("output: %q", s))
+	}
 	if b.terminal != nil {
 		return b.terminal.Write(p)
 	}
@@ -725,7 +728,9 @@ func (b *Backend) loopEvents() {
 			(mr.Value.IsSet() || mr.Value == ansi.ModeReset) {
 			b.graphemeWidth.Store(true)
 		}
-		kitelog.Info("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
+		if kitelog.Enabled(slog.LevelDebug) {
+			kitelog.Debug("UV: Event from terminal", "event", fmt.Sprintf("%#v", ev))
+		}
 		KiteEv := translateEvent(ev)
 		if KiteEv != nil {
 			select {
@@ -852,7 +857,7 @@ func (b *Backend) paintScreen(buf *backend.Buffer, cursor cursorRecord) {
 	if err := b.flushScreen(); err != nil {
 		kitelog.Error("uv: flush error", "error", err)
 	} else {
-		kitelog.Info("uv: screen.Flush called")
+		kitelog.Debug("uv: screen.Flush called")
 	}
 	if b.inline {
 		return
@@ -879,7 +884,7 @@ func (b *Backend) paintScreen(buf *backend.Buffer, cursor cursorRecord) {
 		if err := b.screen.Flush(); err != nil {
 			kitelog.Error("uv: flush error after cursor update", "error", err)
 		} else {
-			kitelog.Info("uv: screen.Flush called after cursor update")
+			kitelog.Debug("uv: screen.Flush called after cursor update")
 		}
 	}
 }
@@ -1069,6 +1074,9 @@ func populateUVCell(cell *uv.Cell, c backend.Cell) {
 type logWriter struct{}
 
 func (w logWriter) Printf(format string, args ...any) {
+	if !kitelog.Enabled(slog.LevelDebug) {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	msg = strings.ReplaceAll(msg, "\x1b", "\\x1b")
 	kitelog.Debug("UV TRACING: ", "message", msg)
