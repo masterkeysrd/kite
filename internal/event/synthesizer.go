@@ -2,6 +2,7 @@ package event
 
 import (
 	"encoding/base64"
+	"slices"
 	"strings"
 
 	"github.com/masterkeysrd/kite/backend"
@@ -493,8 +494,8 @@ func (s *Synthesizer) appendHoverTransition(
 		}
 	}
 	// Reverse so we dispatch from highest ancestor down to target
-	for i := len(enterNodes) - 1; i >= 0; i-- {
-		n := enterNodes[i]
+	for _, n := range slices.Backward(enterNodes) {
+
 		me := pub.NewMouseEvent(pub.EventMouseEnter, pos, pub.ButtonNone, mods)
 		me.Hit = pub.HitResult{Target: n}
 		if ie, ok := any(me).(pub.InternalEvent); ok {

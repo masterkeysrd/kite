@@ -67,9 +67,9 @@ type NodeSnapshot struct {
 	Text        string          `json:"text,omitempty"`
 	TextContent string          `json:"textContent,omitempty"`
 	Computed    *style.Computed `json:"computed,omitempty"`
-	Default     style.Style     `json:"default,omitempty"`
-	Raw         style.Style     `json:"raw,omitempty"`
-	Intrinsic   style.Style     `json:"intrinsic,omitempty"`
+	Default     style.Style     `json:"default"`
+	Raw         style.Style     `json:"raw"`
+	Intrinsic   style.Style     `json:"intrinsic"`
 	Children    []*NodeSnapshot `json:"children,omitempty"`
 }
 

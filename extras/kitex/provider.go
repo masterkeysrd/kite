@@ -53,7 +53,7 @@ func (c *Context[T]) Provider(value T, children ...Node) *ProviderNode[T] {
 
 // TagName returns a type-specific tag for the provider.
 func (p *ProviderNode[T]) TagName() string {
-	t := reflect.TypeOf((*T)(nil)).Elem()
+	t := reflect.TypeFor[T]()
 	return "provider-" + t.String()
 }
 

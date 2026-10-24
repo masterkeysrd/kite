@@ -185,10 +185,7 @@ func (r *Range) String() string {
 			if t, ok := n.(dom.TextNode); ok {
 				if started {
 					runes := []rune(t.Data())
-					end := r.endOffset
-					if end > len(runes) {
-						end = len(runes)
-					}
+					end := min(r.endOffset, len(runes))
 					if end > 0 {
 						sb.WriteString(string(runes[:end]))
 					}

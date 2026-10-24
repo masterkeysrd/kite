@@ -740,7 +740,7 @@ func TestInlineTail_FrameAndCursorUseSynchronizedOutput(t *testing.T) {
 	output := out.String()
 	start, end := "\x1b[?2026h", "\x1b[?2026l"
 	var frame string
-	for _, write := range strings.Split(output, end) {
+	for write := range strings.SplitSeq(output, end) {
 		if strings.Contains(write, "Composer") {
 			frame = write
 		}

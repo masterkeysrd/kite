@@ -230,7 +230,7 @@ func TestBackend_ProcessInsertAbove_LongBufferExceedingTerminalHeight(t *testing
 
 	totalLines := 60 // 60 lines exceeds terminal height 10
 	insertBuf := backend.NewBuffer(80, totalLines)
-	for y := 0; y < totalLines; y++ {
+	for y := range totalLines {
 		lineText := fmt.Sprintf("Log line %d", y)
 		for x, ch := range lineText {
 			insertBuf.Set(x, y, backend.Cell{Content: string(ch), Width: 1})
@@ -240,7 +240,7 @@ func TestBackend_ProcessInsertAbove_LongBufferExceedingTerminalHeight(t *testing
 	b.processInsertAbove(insertBuf)
 
 	output := buf.String()
-	for y := 0; y < totalLines; y++ {
+	for y := range totalLines {
 		expected := fmt.Sprintf("Log line %d\x1b[K\r\n", y)
 		if !strings.Contains(output, expected) {
 			t.Errorf("expected output to contain %q, but missing", expected)

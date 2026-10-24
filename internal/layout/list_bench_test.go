@@ -11,7 +11,7 @@ func BenchmarkListAlgorithm_Ordinal(b *testing.B) {
 	count := 100
 	var nodes []Node
 
-	for i := 0; i < count; i++ {
+	for range count {
 		li := &mockNode{
 			style: &style.Computed{
 				Display:       style.DisplayListItem,
@@ -47,7 +47,7 @@ func BenchmarkListAlgorithm_FullList(b *testing.B) {
 	count := 100
 	var nodes []Node
 
-	for i := 0; i < count; i++ {
+	for range count {
 		li := &mockNode{
 			style: &style.Computed{
 				Display:       style.DisplayListItem,

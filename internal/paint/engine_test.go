@@ -167,7 +167,7 @@ func TestPaint_OverflowVisible_NoClip(t *testing.T) {
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// All 10 cells should be painted.
-	for x := 0; x < 10; x++ {
+	for x := range 10 {
 		c := fb.CellAt(x, 0)
 		if c.Content == "" {
 			t.Errorf("OverflowVisible: cell (%d,0) should be painted, got empty", x)
@@ -195,7 +195,7 @@ func TestPaint_OverflowHidden_ClipsToContentBox(t *testing.T) {
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// Only cells 0..4 should be painted; 5..9 must remain empty.
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 0).Content == "" {
 			t.Errorf("OverflowHidden: cell (%d,0) should be painted", x)
 		}
@@ -224,7 +224,7 @@ func TestPaint_OverflowClip_BehavesLikeHidden(t *testing.T) {
 	pe := NewPaintEngine()
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 0).Content == "" {
 			t.Errorf("OverflowClip: cell (%d,0) should be painted", x)
 		}
@@ -246,7 +246,7 @@ func TestPaint_AsymmetricOverflow_HiddenXVisibleY(t *testing.T) {
 
 	// Build a 5-row child that is 10 cells wide.
 	var childChildren []layout.FragmentLink
-	for row := 0; row < 5; row++ {
+	for row := range 5 {
 		childChildren = append(childChildren, layout.FragmentLink{
 			Offset:   geom.Point{X: 0, Y: row},
 			Fragment: makeTextFrag("0123456789", childStyle),
@@ -264,7 +264,7 @@ func TestPaint_AsymmetricOverflow_HiddenXVisibleY(t *testing.T) {
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// X >= 5 must be empty (horizontal clip).
-	for row := 0; row < 5; row++ {
+	for row := range 5 {
 		for x := 5; x < 10; x++ {
 			if fb.CellAt(x, row).Content != "" {
 				t.Errorf("AsymmetricX: cell (%d,%d) must be clipped, got %q", x, row, fb.CellAt(x, row).Content)
@@ -273,7 +273,7 @@ func TestPaint_AsymmetricOverflow_HiddenXVisibleY(t *testing.T) {
 	}
 	// Y >= 3 may still be painted (vertical visible).
 	paintedBelow := false
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 4).Content != "" {
 			paintedBelow = true
 			break
@@ -441,7 +441,7 @@ func TestPaint_ZeroSizedContentBox(t *testing.T) {
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// No text content from the child should appear (zero-width content box).
-	for x := 0; x < 10; x++ {
+	for x := range 10 {
 		c := fb.CellAt(x, 0)
 		if c.Content != "" && c.BorderStyle == BorderNone {
 			t.Errorf("ZeroSizedContentBox: non-border cell (%d,0) should be empty, got %q", x, c.Content)
@@ -468,7 +468,7 @@ func TestPaint_Integration_HiddenOverflow10Wide(t *testing.T) {
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// Cells 0..9 should be painted.
-	for x := 0; x < 10; x++ {
+	for x := range 10 {
 		if fb.CellAt(x, 0).Content == "" {
 			t.Errorf("Integration: cell (%d,0) should be painted", x)
 		}
@@ -500,7 +500,7 @@ func TestPaint_Integration_VisibleOverflow10Wide(t *testing.T) {
 	pe.PaintFragment(nil, parentFrag, geom.Point{}, fb)
 
 	// All 30 cells should be painted (spill allowed).
-	for x := 0; x < 30; x++ {
+	for x := range 30 {
 		if fb.CellAt(x, 0).Content == "" {
 			t.Errorf("VisibleOverflow: cell (%d,0) should be painted", x)
 		}
@@ -649,25 +649,25 @@ func TestDrawBorder_FullyVisible(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Top edge: y=0, x in [0,4]
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 0).BorderStyle == BorderNone {
 			t.Errorf("FullyVisible: expected border at (%d,0)", x)
 		}
 	}
 	// Bottom edge: y=2
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 2).BorderStyle == BorderNone {
 			t.Errorf("FullyVisible: expected border at (%d,2)", x)
 		}
 	}
 	// Left edge: x=0
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		if fb.CellAt(0, y).BorderStyle == BorderNone {
 			t.Errorf("FullyVisible: expected border at (0,%d)", y)
 		}
 	}
 	// Right edge: x=4
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		if fb.CellAt(4, y).BorderStyle == BorderNone {
 			t.Errorf("FullyVisible: expected border at (4,%d)", y)
 		}
@@ -684,13 +684,13 @@ func TestDrawBorder_TopEdgeClipped(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{X: 0, Y: 0}, fb)
 
 	// y=0 is outside the framebuffer → CellAt returns an empty Cell.
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 0).BorderStyle != BorderNone {
 			t.Errorf("TopEdgeClipped: unexpected border at (%d,0)", x)
 		}
 	}
 	// Bottom edge (y=2) is inside the framebuffer.
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 2).BorderStyle == BorderNone {
 			t.Errorf("TopEdgeClipped: expected bottom border at (%d,2)", x)
 		}
@@ -706,13 +706,13 @@ func TestDrawBorder_BottomEdgeClipped(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Bottom edge (y=3) must not appear.
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 3).BorderStyle != BorderNone {
 			t.Errorf("BottomEdgeClipped: unexpected border at (%d,3)", x)
 		}
 	}
 	// Top edge (y=0) must still be present.
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		if fb.CellAt(x, 0).BorderStyle == BorderNone {
 			t.Errorf("BottomEdgeClipped: expected top border at (%d,0)", x)
 		}
@@ -728,13 +728,13 @@ func TestDrawBorder_LeftEdgeClipped(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{X: -1, Y: 0}, fb)
 
 	// x=-1 is outside framebuffer → empty.
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		if fb.CellAt(-1, y).BorderStyle != BorderNone {
 			t.Errorf("LeftEdgeClipped: unexpected border at (-1,%d)", y)
 		}
 	}
 	// Right edge is at abs x = -1+5-1 = 3, which is inside the framebuffer.
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		if fb.CellAt(3, y).BorderStyle == BorderNone {
 			t.Errorf("LeftEdgeClipped: expected right border at (3,%d)", y)
 		}
@@ -750,13 +750,13 @@ func TestDrawBorder_RightEdgeClipped(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Right edge at x=7 must not appear.
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		if fb.CellAt(7, y).BorderStyle != BorderNone {
 			t.Errorf("RightEdgeClipped: unexpected border at (7,%d)", y)
 		}
 	}
 	// Left edge (x=0) must still be present.
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		if fb.CellAt(0, y).BorderStyle == BorderNone {
 			t.Errorf("RightEdgeClipped: expected left border at (0,%d)", y)
 		}
@@ -782,7 +782,7 @@ func TestDrawBorder_HorizontalEdgesPartiallyClipped(t *testing.T) {
 		}
 	}
 	// x=0..1 are outside framebuffer → empty.
-	for x := 0; x < 2; x++ {
+	for x := range 2 {
 		if fb.CellAt(x, 0).BorderStyle != BorderNone {
 			t.Errorf("HorizPartialClip: unexpected border at (%d,0)", x)
 		}
@@ -814,7 +814,7 @@ func TestDrawBorder_VerticalEdgesPartiallyClipped(t *testing.T) {
 		}
 	}
 	// Rows 0..1 outside framebuffer → empty.
-	for y := 0; y < 2; y++ {
+	for y := range 2 {
 		if fb.CellAt(0, y).BorderStyle != BorderNone {
 			t.Errorf("VertPartialClip: unexpected border at (0,%d)", y)
 		}
@@ -845,7 +845,7 @@ func TestDrawBorder_HugeHeightClippedToViewport(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Top border row (y=0) is within the viewport.
-	for x := 0; x < viewportW; x++ {
+	for x := range viewportW {
 		if fb.CellAt(x, 0).BorderStyle == BorderNone {
 			t.Errorf("HugeHeight: expected top border at (%d,0)", x)
 		}
@@ -865,7 +865,7 @@ func TestDrawBorder_HugeHeightClippedToViewport(t *testing.T) {
 		}
 	}
 	// Bottom border (y=hugeHeight-1) is far outside the viewport → not written.
-	for x := 0; x < viewportW; x++ {
+	for x := range viewportW {
 		if fb.CellAt(x, hugeHeight-1).BorderStyle != BorderNone {
 			t.Errorf("HugeHeight: unexpected bottom border at (%d,%d)", x, hugeHeight-1)
 		}
@@ -885,7 +885,7 @@ func TestDrawBorder_HugeWidthClippedToViewport(t *testing.T) {
 	pe.PaintFragment(nil, frag, geom.Point{}, fb)
 
 	// Left edge (x=0) is in viewport for all rows.
-	for y := 0; y < viewportH; y++ {
+	for y := range viewportH {
 		if fb.CellAt(0, y).BorderStyle == BorderNone {
 			t.Errorf("HugeWidth: expected left border at (0,%d)", y)
 		}
@@ -897,7 +897,7 @@ func TestDrawBorder_HugeWidthClippedToViewport(t *testing.T) {
 		}
 	}
 	// Right border (x=hugeWidth-1) is far outside → not written.
-	for y := 0; y < viewportH; y++ {
+	for y := range viewportH {
 		if fb.CellAt(hugeWidth-1, y).BorderStyle != BorderNone {
 			t.Errorf("HugeWidth: unexpected right border at (%d,%d)", hugeWidth-1, y)
 		}
@@ -912,8 +912,8 @@ func TestDrawBorder_AllEdgesClipped(t *testing.T) {
 	pe := NewPaintEngine()
 	pe.PaintFragment(nil, frag, geom.Point{X: 0, Y: 10}, fb) // entirely below viewport
 
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 5 {
+		for x := range 10 {
 			if fb.CellAt(x, y).BorderStyle != BorderNone {
 				t.Errorf("AllEdgesClipped: unexpected border at (%d,%d)", x, y)
 			}
@@ -958,7 +958,7 @@ func TestDrawBorder_NestedClipRestrictsBorder(t *testing.T) {
 		}
 	}
 	// Nothing should be painted beyond the outer fragment's bounds (y >= 5).
-	for x := 0; x < 15; x++ {
+	for x := range 15 {
 		if fb.CellAt(x, 5).BorderStyle != BorderNone {
 			t.Errorf("NestedClip: unexpected border outside outer at (%d,5)", x)
 		}
@@ -1066,8 +1066,8 @@ func TestPaint_ZeroWidthBorder(t *testing.T) {
 
 	// Since width is 0, no cells in the framebuffer should be painted with any border or content.
 	// Specifically, it should not paint at x = 4 (which is x + width - 1 = 5 - 1 = 4).
-	for y := 0; y < 10; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 10 {
+		for x := range 10 {
 			c := fb.CellAt(x, y)
 			if c.BorderStyle != BorderNone || c.Content != "" {
 				t.Errorf("Expected cell at (%d,%d) to be empty, got Content=%q, BorderStyle=%v", x, y, c.Content, c.BorderStyle)

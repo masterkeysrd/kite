@@ -11,7 +11,7 @@ func TestFlexLineBuilder_ResolveFlexibleLengths_Grow(t *testing.T) {
 	builder := NewFlexLineBuilder(geom, 0, 0)
 
 	// Add 3 items with flex-grow: 1
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		builder.AddItem(&mockNode{}, 10, 0, 0, 1, 0, 0)
 	}
 

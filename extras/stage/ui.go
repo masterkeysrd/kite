@@ -3,6 +3,7 @@ package stage
 import (
 	"fmt"
 	"image/color"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -123,9 +124,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 	setKnobValue := func(name string, val any) {
 		prev := knobValues()
 		next := make(map[string]any)
-		for k, v := range prev {
-			next[k] = v
-		}
+		maps.Copy(next, prev)
 		next[name] = val
 		setKnobValues(next)
 	}
@@ -775,9 +774,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 	toggleComp := func(path string, node *trieNode) {
 		m := expandedComps()
 		next := make(map[string]bool)
-		for k, v := range m {
-			next[k] = v
-		}
+		maps.Copy(next, m)
 		next[path] = !isExpanded(path, node)
 		setExpandedComps(next)
 	}
@@ -786,9 +783,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		parts := normalizeComponentPath(compName)
 		m := expandedComps()
 		next := make(map[string]bool)
-		for k, v := range m {
-			next[k] = v
-		}
+		maps.Copy(next, m)
 		var pathBuilder []string
 		for _, part := range parts {
 			pathBuilder = append(pathBuilder, part)
@@ -800,9 +795,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 	setGlobalVal := func(name string, val any) {
 		prev := globalValues()
 		next := make(map[string]any)
-		for k, v := range prev {
-			next[k] = v
-		}
+		maps.Copy(next, prev)
 		next[name] = val
 		setGlobalValues(next)
 	}

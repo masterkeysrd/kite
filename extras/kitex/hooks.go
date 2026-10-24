@@ -196,13 +196,13 @@ func UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A)) {
 	return getState, dispatch
 }
 
-var useCallbackSeq uint64
+var useCallbackSeq atomic.Uint64
 
 // UseCallback memoizes a function callback reference across renders, re-evaluating
 // it only when the dependency slice changes.
 func UseCallback[T any](callback T, deps []any) T {
 	if deps == nil {
-		seq := atomic.AddUint64(&useCallbackSeq, 1)
+		seq := useCallbackSeq.Add(1)
 		return UseMemo(func() T { return callback }, []any{seq})
 	}
 	return UseMemo(func() T { return callback }, deps)

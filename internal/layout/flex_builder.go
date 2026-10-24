@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"slices"
 	"sort"
 	"sync"
 
@@ -306,8 +307,8 @@ func (b *FlexLineBuilder) ResolveFlexibleLengths(lineIndex int, availableMain in
 			// If there's still some space left due to rounding and no violations,
 			// we just give it to the last unfrozen item, respecting its min/max bounds.
 			if remainingToDistribute != 0 {
-				for i := len(line.Items) - 1; i >= 0; i-- {
-					item := line.Items[i]
+				for _, item := range slices.Backward(line.Items) {
+
 					if !item.Frozen {
 						newSize := item.MainSize + remainingToDistribute
 						if newSize < item.MinMainSize {

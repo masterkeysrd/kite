@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"slices"
+
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
@@ -152,8 +154,8 @@ func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
 
 	// Check overlays first in reverse order (top-most overlay first)
 	overlays := p.e.renderView.Overlays()
-	for i := len(overlays) - 1; i >= 0; i-- {
-		overlay := overlays[i]
+	for _, overlay := range slices.Backward(overlays) {
+
 		offset := overlay.Offset()
 		frag := overlay.Fragment()
 		if frag != nil {

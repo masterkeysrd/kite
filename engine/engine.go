@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -447,8 +448,8 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 
 	// Walk overlays from the end (topmost) to start.
 	overlays := e.renderView.Overlays()
-	for i := len(overlays) - 1; i >= 0; i-- {
-		ov := overlays[i]
+	for _, ov := range slices.Backward(overlays) {
+
 		offset := ov.Offset()
 		localP := geom.Point{
 			X: p.X - offset.X,
@@ -681,8 +682,8 @@ func hitTestFragment(frag *layout.Fragment, p geom.Point) render.Object {
 	}
 
 	// Walk children in reverse paint order (last child is topmost).
-	for i := len(frag.Children) - 1; i >= 0; i-- {
-		link := frag.Children[i]
+	for _, link := range slices.Backward(frag.Children) {
+
 		// Translate point into child's coordinate space, accounting for scroll.
 		childPoint := geom.Point{
 			X: p.X - link.Offset.X + scrollX,
@@ -739,8 +740,8 @@ func (e *Engine) Frame() {
 		e.lastFrameTime = now
 
 		// Iterate backwards to allow safe removal of finished animations.
-		for i := len(e.activeAnimations) - 1; i >= 0; i-- {
-			anim := e.activeAnimations[i]
+		for i, anim := range slices.Backward(e.activeAnimations) {
+
 			finished := func() bool {
 				if tracer != nil {
 					defer tracer.Begin(fmt.Sprintf("Animation:%T", anim))()
@@ -1468,8 +1469,8 @@ func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent
 
 	// Find index of the absolute last mouse move in the whole batch.
 	lastMoveIdx := -1
-	for i := len(events) - 1; i >= 0; i-- {
-		if m, ok := events[i].(*backend.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
+	for i, event := range slices.Backward(events) {
+		if m, ok := event.(*backend.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
 			lastMoveIdx = i
 			break
 		}

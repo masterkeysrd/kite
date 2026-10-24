@@ -24,7 +24,7 @@ func BenchmarkPaint_All(b *testing.B) {
 		Node: &mockNode{s: &style.Computed{}},
 	}
 
-	for i := 0; i < totalNodes; i++ {
+	for i := range totalNodes {
 		s := &style.Computed{}
 		if i%5 == 0 {
 			s.Border = style.SingleBorder()

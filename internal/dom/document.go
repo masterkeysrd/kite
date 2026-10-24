@@ -559,8 +559,8 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 			for child := range LayoutChildren(n) {
 				childNodes = append(childNodes, child)
 			}
-			for i := len(childNodes) - 1; i >= 0; i-- {
-				stack = append(stack, childNodes[i])
+			for _, childNode := range slices.Backward(childNodes) {
+				stack = append(stack, childNode)
 			}
 
 			if n == d {
@@ -568,8 +568,8 @@ func (d *Document) FindNodeAtByteOffset(root dom.Node, targetOffset int) (dom.No
 				for el := range d.Overlays() {
 					overlayNodes = append(overlayNodes, el)
 				}
-				for i := len(overlayNodes) - 1; i >= 0; i-- {
-					stack = append(stack, overlayNodes[i])
+				for _, overlayNode := range slices.Backward(overlayNodes) {
+					stack = append(stack, overlayNode)
 				}
 			}
 		}

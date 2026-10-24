@@ -204,7 +204,7 @@ func TestOverflow_MinSizeScrollContainer(t *testing.T) {
 
 	// The row Y=4 should contain the text "Foot".
 	var rowContent string
-	for x := 0; x < 40; x++ {
+	for x := range 40 {
 		cell := surf.CellAt(x, 4)
 		if cell.Content != "" {
 			rowContent += cell.Content
@@ -214,9 +214,9 @@ func TestOverflow_MinSizeScrollContainer(t *testing.T) {
 	if !strings.Contains(rowContent, "Foot") {
 		// Dump the screen buffer for debugging
 		var screenLines []string
-		for y := 0; y < 10; y++ {
+		for y := range 10 {
 			var line string
-			for x := 0; x < 40; x++ {
+			for x := range 40 {
 				cell := surf.CellAt(x, y)
 				if cell.Content == "" {
 					line += "."

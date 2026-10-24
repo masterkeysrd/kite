@@ -117,14 +117,14 @@ func BenchmarkSynthesizer_HoverTransition_DeepTree(b *testing.B) {
 
 	// Branch A
 	var lastA dom.Node = root
-	for i := 0; i < depth; i++ {
+	for range depth {
 		node := &mockDomNode{target: event.NewTarget(), parent: lastA}
 		lastA = node
 	}
 
 	// Branch B
 	var lastB dom.Node = root
-	for i := 0; i < depth; i++ {
+	for range depth {
 		node := &mockDomNode{target: event.NewTarget(), parent: lastB}
 		lastB = node
 	}

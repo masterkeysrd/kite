@@ -934,7 +934,7 @@ func TestEngine_InlineMode_OverflowClampsAndBottomAnchors(t *testing.T) {
 	container := element.NewBox(doc)
 
 	// 50 lines of streaming text
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		line := element.NewBox(doc)
 		line.Style(style.S().Height(style.Cells(1)))
 		line.AppendChild(doc.CreateTextNode(fmt.Sprintf("streaming line %02d", i), nil))

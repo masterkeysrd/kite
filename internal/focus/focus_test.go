@@ -2,6 +2,7 @@ package focus_test
 
 import (
 	"iter"
+	"slices"
 	"testing"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -700,13 +701,7 @@ func TestManager_SetFocus_NilClearsFocus(t *testing.T) {
 	}
 
 	// Verify blur events were fired.
-	hasBlur := false
-	for _, typ := range *captured {
-		if typ == event.EventBlur {
-			hasBlur = true
-			break
-		}
-	}
+	hasBlur := slices.Contains(*captured, event.EventBlur)
 	if !hasBlur {
 		t.Error("expected EventBlur to be fired on focus clear")
 	}

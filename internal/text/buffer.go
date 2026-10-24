@@ -105,11 +105,7 @@ func (b *Buffer) Backspace(graphemeCount int) {
 		windowRunes = graphemeCount * 4
 	}
 
-	start := b.gapStart - windowRunes
-	if start < 0 {
-		start = 0
-	}
-
+	start := max(b.gapStart-windowRunes, 0)
 	runes := b.content[start:b.gapStart]
 
 	// Convert runes to bytes using pooled buffer to avoid allocations.
@@ -202,11 +198,7 @@ func (b *Buffer) MoveLeft() {
 	}
 
 	window := 32
-	start := b.gapStart - window
-	if start < 0 {
-		start = 0
-	}
-
+	start := max(b.gapStart-window, 0)
 	runes := b.content[start:b.gapStart]
 	pBuf := getByteBuf()
 	defer putByteBuf(pBuf)

@@ -2,7 +2,7 @@ package flight
 
 // Route represents a target screen or view to navigate to.
 // Concrete route configurations are user-defined structs.
-type Route interface{}
+type Route any
 
 // Navigator defines the operations to manipulate the navigation history stack.
 type Navigator interface {

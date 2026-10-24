@@ -84,7 +84,7 @@ func BenchmarkEngine_HitTest_TextArea(b *testing.B) {
 
 	// 500 lines.
 	var sb strings.Builder
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		sb.WriteString("This is a reasonably long line of text for testing hit testing performance\n")
 	}
 	txa := element.NewTextArea(e.Document(), sb.String())
@@ -104,7 +104,7 @@ func BenchmarkEngine_ScrollBurst_Coalesced(b *testing.B) {
 	defer e.Stop()
 
 	var sb strings.Builder
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		sb.WriteString("Line content\n")
 	}
 	txa := element.NewTextArea(e.Document(), sb.String())
@@ -114,7 +114,7 @@ func BenchmarkEngine_ScrollBurst_Coalesced(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Simulate 500 wheel ticks arriving before the 8ms ticker fires.
-		for j := 0; j < 500; j++ {
+		for range 500 {
 			me := backend.AcquireRawMouseEvent()
 			me.X = 10
 			me.Y = 10
@@ -132,7 +132,7 @@ func BenchmarkEngine_ScrollBurst_NonCoalesced(b *testing.B) {
 	defer e.Stop()
 
 	var sb strings.Builder
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		sb.WriteString("Line content\n")
 	}
 	txa := element.NewTextArea(e.Document(), sb.String())
@@ -142,7 +142,7 @@ func BenchmarkEngine_ScrollBurst_NonCoalesced(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Simulate 500 wheel ticks, each triggering a frame (no coalescing).
-		for j := 0; j < 500; j++ {
+		for range 500 {
 			me := backend.AcquireRawMouseEvent()
 			me.X = 10
 			me.Y = 10
