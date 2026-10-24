@@ -2,7 +2,6 @@ package log
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"os"
 	"sync/atomic"
@@ -27,6 +26,11 @@ func SetLogger(l *slog.Logger) {
 // Logger returns the current global Kite logger.
 func Logger() *slog.Logger {
 	return globalLogger.Load()
+}
+
+// Enabled reports whether the global Kite logger emits records at the given level.
+func Enabled(level slog.Level) bool {
+	return globalLogger.Load().Enabled(context.Background(), level)
 }
 
 // Debug logs at LevelDebug using the global Kite logger.
@@ -62,7 +66,7 @@ func With(args ...any) *slog.Logger {
 // NewNoopLogger creates a logger that safely discards all output.
 // It is ideal as the default logger in a TUI to prevent screen corruption.
 func NewNoopLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 // NewFileLogger creates a JSON logger that writes to the specified file path.

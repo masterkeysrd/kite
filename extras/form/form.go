@@ -2,6 +2,7 @@ package form
 
 import (
 	"encoding/json"
+	"maps"
 
 	"github.com/masterkeysrd/kite/extras/kitex"
 )
@@ -39,9 +40,7 @@ func Use[T any](opts Options[T]) API[T] {
 		s := getState()
 		// Clone errors map
 		newErrors := make(map[string]string)
-		for k, v := range s.Errors {
-			newErrors[k] = v
-		}
+		maps.Copy(newErrors, s.Errors)
 		if message == "" {
 			delete(newErrors, key)
 		} else {
@@ -102,9 +101,7 @@ func Use[T any](opts Options[T]) API[T] {
 			if submitErr != nil {
 				// Clone errors again just in case
 				newErrors := make(map[string]string)
-				for k, v := range s.Errors {
-					newErrors[k] = v
-				}
+				maps.Copy(newErrors, s.Errors)
 				newErrors["root"] = submitErr.Error()
 				s.Errors = newErrors
 				s.IsValid = false

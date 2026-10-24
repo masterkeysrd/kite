@@ -171,6 +171,8 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Wind query cache client & context** | `extras/wind/client.go` |
 | **Wind query hook (`Use`)** | `extras/wind/query.go` |
 | **Wind mutation hook (`UseMutation`)** | `extras/wind/mutation.go` |
+| **Inline mode & scrollback insertion (`InsertAbove`, `SetInline`)** | `engine/engine.go`, `engine/pipeline.go`, `internal/render/view.go`, `backend/backend.go`, `backend/uv/backend.go` |
+| **Trail inline CLI runtime & `<Static>` component** | `extras/trail/trail.go`, `extras/trail/components.go`, `extras/trail/hooks.go` |
 
 ## 📋 Task Workflow
 
@@ -240,6 +242,11 @@ This source map summarises the repository packages, their responsibilities, and 
 - **text** — Path: `text/`
     - Description: High-performance gap buffer, grapheme cluster segmentation, shaping, cell-width measurement, and line-break classification. (See `text/doc.go`)
     - Key files: `text/buffer.go`, `text/cluster.go`, `text/shaper.go`, `shape.go`, tests
+
+- **extras/trail** — Path: `extras/trail/`
+    - Description: Ink-inspired inline CLI framework for Kite; supports dynamic height rendering and permanent scrollback insertion via `<Static>`. (See `extras/trail/doc.go`)
+    - Key files: `extras/trail/doc.go`, `trail.go`, `components.go`, `hooks.go`
+    - Inline positioning: the UV renderer uses a relative origin immediately after Static output, not sticky-bottom anchoring. Live growth scrolls naturally; shrink erases trailing rows without moving the origin downward.
 
 
 ### Docs and Project Files

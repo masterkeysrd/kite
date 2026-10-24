@@ -73,7 +73,7 @@ func TestTextSelectionCustomColors(t *testing.T) {
 	env.Flush()
 
 	// Verify custom colors
-	for x := 0; x < 8; x++ {
+	for x := range 8 {
 		cell := env.Backend.LastFrame().Surface.CellAt(x, 0)
 		if cell.Fg != selFG {
 			t.Errorf("at x=%d, expected FG %v, got %v", x, selFG, cell.Fg)

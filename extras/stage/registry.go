@@ -131,8 +131,8 @@ func buildFieldMetadata(defaultProps any, overrides map[string]ControlOverride) 
 		// 1. Parse struct tags (fallback defaults)
 		tag := field.Tag.Get("stage")
 		if tag != "" {
-			parts := strings.Split(tag, ";")
-			for _, part := range parts {
+			parts := strings.SplitSeq(tag, ";")
+			for part := range parts {
 				part = strings.TrimSpace(part)
 				if part == "" {
 					continue
@@ -169,7 +169,7 @@ func buildFieldMetadata(defaultProps any, overrides map[string]ControlOverride) 
 					meta.Step = n
 				case "options", "select":
 					var opts []string
-					for _, opt := range strings.Split(val, ",") {
+					for opt := range strings.SplitSeq(val, ",") {
 						opts = append(opts, strings.TrimSpace(opt))
 					}
 					meta.Options = opts

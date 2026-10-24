@@ -244,7 +244,7 @@ func BenchmarkClient_InvalidateQueries(b *testing.B) {
 			client.cache["key"] = entry
 
 			entry.mu.Lock()
-			for i := 0; i < numSubs; i++ {
+			for i := range numSubs {
 				entry.subscribers[i] = func() {}
 			}
 			entry.mu.Unlock()
@@ -461,7 +461,7 @@ func TestStream_Coalescing(t *testing.T) {
 	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			// Yield 10 values in a loop as fast as possible
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				yield(fmt.Sprintf("val_%d", i), nil)
 			}
 		}
@@ -549,7 +549,7 @@ func TestStream_InvalidationCoalescing(t *testing.T) {
 	}
 
 	// Trigger invalidations 10 times in a tight loop
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		client.InvalidateQueries("invalidate_key")
 	}
 

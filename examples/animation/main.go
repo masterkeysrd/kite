@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/masterkeysrd/kite/animation"
@@ -43,8 +44,8 @@ var _ animation.Animator = (*GroupAnimator)(nil)
 
 func (g *GroupAnimator) Tick(dt time.Duration) bool {
 	allFinished := true
-	for i := len(g.Animators) - 1; i >= 0; i-- {
-		if g.Animators[i].Tick(dt) {
+	for i, v := range slices.Backward(g.Animators) {
+		if v.Tick(dt) {
 			g.Animators = append(g.Animators[:i], g.Animators[i+1:]...)
 		} else {
 			allFinished = false

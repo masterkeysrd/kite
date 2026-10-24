@@ -83,6 +83,30 @@ type Backend interface {
 
 	// SetProgressBar updates the terminal window's native progress bar.
 	SetProgressBar(state terminal.ProgressBarState, percentage int)
+
+	// SetProgramStatus reports the program status to the terminal using OSC 7501.
+	// Passing nil clears any current program status on the terminal.
+	SetProgramStatus(status *terminal.ProgramStatus)
+
+	// SetInline configures the backend to run in inline mode (non-alt-screen,
+	// relative cursor, dynamic height) instead of fullscreen mode.
+	SetInline(inline bool)
+
+	// Clear clears the visible terminal and scrollback, and resets the inline
+	// frame origin to the top of the terminal. Output is ordered before
+	// subsequent InsertAbove and EndFrame calls.
+	Clear()
+
+	// InsertAbove inserts a rendered cell buffer permanently into the terminal
+	// scrollback above the active inline frame.
+	InsertAbove(buf *Buffer)
+}
+
+// FrameInserter is an optional backend capability for inserts generated while
+// preparing a new frame. Unlike InsertAbove, it must not restore the previous
+// active frame between inserts. The caller must commit a fresh frame afterward.
+type FrameInserter interface {
+	InsertAboveForFrame(buf *Buffer)
 }
 
 type ProgressBarState = terminal.ProgressBarState
@@ -93,6 +117,25 @@ const (
 	ProgressBarError         = terminal.ProgressBarError
 	ProgressBarIndeterminate = terminal.ProgressBarIndeterminate
 	ProgressBarPaused        = terminal.ProgressBarPaused
+)
+
+type ProgramStatus = terminal.ProgramStatus
+type ProgramState = terminal.ProgramState
+type ProgramStatusKind = terminal.ProgramStatusKind
+
+const (
+	ProgramStateIdle    = terminal.ProgramStateIdle
+	ProgramStateWorking = terminal.ProgramStateWorking
+	ProgramStateDone    = terminal.ProgramStateDone
+	ProgramStateBlocked = terminal.ProgramStateBlocked
+	ProgramStateError   = terminal.ProgramStateError
+	ProgramStateClear   = terminal.ProgramStateClear
+)
+
+const (
+	ProgramStatusKindPermission = terminal.ProgramStatusKindPermission
+	ProgramStatusKindQuestion   = terminal.ProgramStatusKindQuestion
+	ProgramStatusKindAuth       = terminal.ProgramStatusKindAuth
 )
 
 // Clipboard is implemented by objects that provide system clipboard access.
@@ -154,6 +197,22 @@ func (b *Buffer) CellAt(x, y int) Cell {
 func (b *Buffer) Reset() {
 	for i := range b.Cells {
 		b.Cells[i] = Cell{}
+	}
+}
+
+// Resize changes the dimensions of the buffer, reallocating Cells if necessary.
+func (b *Buffer) Resize(width, height int) {
+	if b.Width == width && b.Height == height {
+		return
+	}
+	b.Width = width
+	b.Height = height
+	size := width * height
+	if cap(b.Cells) >= size {
+		b.Cells = b.Cells[:size]
+		b.Reset()
+	} else {
+		b.Cells = make([]Cell, size)
 	}
 }
 
@@ -256,6 +315,9 @@ type Caps struct {
 
 	// ProgressBar reports whether the terminal supports native progress bar escape sequences.
 	ProgressBar bool
+
+	// ProgramStatus reports whether the terminal supports OSC 7501 Program Status Protocol.
+	ProgramStatus bool
 
 	// Clipboard is the list of supported clipboard protocols.
 	Clipboard []ClipboardKind

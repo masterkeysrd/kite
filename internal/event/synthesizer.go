@@ -2,6 +2,7 @@ package event
 
 import (
 	"encoding/base64"
+	"slices"
 	"strings"
 
 	"github.com/masterkeysrd/kite/backend"
@@ -99,6 +100,8 @@ func (s *Synthesizer) Process(raw backend.RawEvent) []pub.Event {
 		return s.processBracketedPaste(e)
 	case *backend.RawClipboardEvent:
 		return s.processClipboard(e)
+	case *backend.RawProgramStatusSupportEvent:
+		return s.processProgramStatusSupport(e)
 	case *backend.RawOscEvent:
 		if e.Code == 52 {
 			return s.processOsc52(e)
@@ -491,8 +494,8 @@ func (s *Synthesizer) appendHoverTransition(
 		}
 	}
 	// Reverse so we dispatch from highest ancestor down to target
-	for i := len(enterNodes) - 1; i >= 0; i-- {
-		n := enterNodes[i]
+	for _, n := range slices.Backward(enterNodes) {
+
 		me := pub.NewMouseEvent(pub.EventMouseEnter, pos, pub.ButtonNone, mods)
 		me.Hit = pub.HitResult{Target: n}
 		if ie, ok := any(me).(pub.InternalEvent); ok {
@@ -513,5 +516,11 @@ func (s *Synthesizer) processFocusIn(raw *backend.RawFocusInEvent) []pub.Event {
 func (s *Synthesizer) processFocusOut(raw *backend.RawFocusOutEvent) []pub.Event {
 	be := pub.NewWindowFocusEvent(pub.EventWindowBlur)
 	s.outBuf = append(s.outBuf, be)
+	return s.outBuf
+}
+
+func (s *Synthesizer) processProgramStatusSupport(_ *backend.RawProgramStatusSupportEvent) []pub.Event {
+	pse := pub.NewProgramStatusSupportEvent()
+	s.outBuf = append(s.outBuf, pse)
 	return s.outBuf
 }

@@ -41,7 +41,7 @@ func TestEngine_AnimationRegistryAndTicking(t *testing.T) {
 	if len(e.activeAnimations) != 1 {
 		t.Errorf("len(activeAnimations) = %d; want 1", len(e.activeAnimations))
 	}
-	if !e.frameRequested {
+	if !e.frameRequested.Load() {
 		t.Error("frameRequested is false after registering animation; want true")
 	}
 
@@ -54,7 +54,7 @@ func TestEngine_AnimationRegistryAndTicking(t *testing.T) {
 	if len(e.activeAnimations) != 1 {
 		t.Error("animation was removed prematurely on first frame")
 	}
-	if !e.frameRequested {
+	if !e.frameRequested.Load() {
 		t.Error("frameRequested is false after Frame() with active animation; want true")
 	}
 
@@ -68,7 +68,7 @@ func TestEngine_AnimationRegistryAndTicking(t *testing.T) {
 	if len(e.activeAnimations) != 1 {
 		t.Error("animation was removed prematurely on second frame")
 	}
-	if !e.frameRequested {
+	if !e.frameRequested.Load() {
 		t.Error("frameRequested is false after Frame() with active animation; want true")
 	}
 
@@ -83,7 +83,7 @@ func TestEngine_AnimationRegistryAndTicking(t *testing.T) {
 	if len(e.activeAnimations) != 0 {
 		t.Errorf("len(activeAnimations) = %d; want 0 after animation finished", len(e.activeAnimations))
 	}
-	if e.frameRequested {
+	if e.frameRequested.Load() {
 		t.Error("frameRequested is true after animation finished; want false")
 	}
 	if !e.lastFrameTime.IsZero() {

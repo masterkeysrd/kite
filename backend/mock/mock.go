@@ -41,6 +41,8 @@ type Backend struct {
 	EndFrameCalls int
 	// RestoreCalls counts how many times Restore was called.
 	RestoreCalls int
+	// ClearCalls counts how many times Clear was called.
+	ClearCalls int
 	// Frames records all completed frames (EndFrame called successfully).
 	Frames []FrameRecord
 
@@ -52,6 +54,14 @@ type Backend struct {
 
 	// title holds the simulated terminal window title.
 	title string
+
+	// ProgramStatus records the most recently set program status.
+	ProgramStatus *backend.ProgramStatus
+
+	// Inline reports whether inline mode is enabled.
+	Inline bool
+	// InsertedAbove stores buffers inserted above the inline frame.
+	InsertedAbove []*backend.Buffer
 
 	current *backend.Buffer
 }
@@ -115,6 +125,11 @@ func (b *Backend) Caps() backend.Caps { return b.caps }
 // Events returns a channel of input events.
 func (b *Backend) Events() <-chan backend.RawEvent { return b.events }
 
+// PostEvent sends a raw input event to the mock backend's event channel.
+func (b *Backend) PostEvent(ev backend.RawEvent) {
+	b.events <- ev
+}
+
 // Restore records the call. In the mock backend this is a no-op.
 func (b *Backend) Restore() { b.RestoreCalls++ }
 
@@ -158,6 +173,33 @@ func (b *Backend) Bell() {
 
 func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int) {
 	fmt.Fprintf(&b.Output, "\x1b]9;4;%d;%d\x07", state, percentage)
+}
+
+func (b *Backend) SetProgramStatus(status *backend.ProgramStatus) {
+	b.ProgramStatus = status
+	if status == nil {
+		fmt.Fprint(&b.Output, "\x1b]7501\x1b\\")
+		return
+	}
+	fmt.Fprintf(&b.Output, "\x1b]7501;%s\x1b\\", status.State)
+}
+
+func (b *Backend) SetInline(inline bool) {
+	b.Inline = inline
+}
+
+func (b *Backend) Clear() {
+	b.ClearCalls++
+	fmt.Fprint(&b.Output, "\x1b[2J\x1b[3J\x1b[H")
+}
+
+func (b *Backend) InsertAbove(buf *backend.Buffer) {
+	if buf == nil {
+		return
+	}
+	cp := backend.NewBuffer(buf.Width, buf.Height)
+	copy(cp.Cells, buf.Cells)
+	b.InsertedAbove = append(b.InsertedAbove, cp)
 }
 
 // LastFrame returns the most recently completed frame, or a zero FrameRecord

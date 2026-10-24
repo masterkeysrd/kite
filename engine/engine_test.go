@@ -2,6 +2,7 @@ package engine_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/engine"
+	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/render"
 	"github.com/masterkeysrd/kite/style"
@@ -638,5 +640,360 @@ func TestTerminalProxy_SetTitleAndBell(t *testing.T) {
 	term.SetProgressBar(terminal.ProgressBarNormal, 75)
 	if !strings.Contains(b.Output.String(), "\x1b]9;4;1;75\x07") {
 		t.Errorf("expected SetProgressBar sequence in output, got %q", b.Output.String())
+	}
+
+	// Reset output buffer
+	b.Output.Reset()
+
+	// 4. Test SetProgramStatus
+	e.SetProgramStatus(&terminal.ProgramStatus{
+		State: terminal.ProgramStateWorking,
+	})
+	// Initially Caps.ProgramStatus is false in this test
+	if b.ProgramStatus != nil {
+		t.Errorf("expected SetProgramStatus to be no-op when caps disabled, got %v", b.ProgramStatus)
+	}
+}
+
+func TestEngine_ProgramStatusSupportEvent(t *testing.T) {
+	e, b := newTestEngine(t)
+	defer e.Stop()
+
+	if e.Caps().ProgramStatus {
+		t.Errorf("expected initial Caps.ProgramStatus to be false")
+	}
+
+	received := false
+	e.Document().AddEventListener(event.EventProgramStatusSupport, func(ev event.Event) {
+		if ev.Type() == event.EventProgramStatusSupport {
+			received = true
+		}
+	})
+
+	e.ProcessRawEvent(&backend.RawProgramStatusSupportEvent{})
+
+	if !received {
+		t.Errorf("expected EventProgramStatusSupport to be dispatched to document")
+	}
+
+	if !e.Caps().ProgramStatus {
+		t.Errorf("expected Caps.ProgramStatus to be true after support event")
+	}
+
+	// Now SetProgramStatus should work through TerminalProxy
+	term := e.Document().Terminal()
+	term.SetProgramStatus(&terminal.ProgramStatus{
+		State: terminal.ProgramStateWorking,
+		Title: "Building...",
+	})
+
+	if b.ProgramStatus == nil || b.ProgramStatus.State != terminal.ProgramStateWorking {
+		t.Errorf("expected ProgramStatus to be set on backend, got %v", b.ProgramStatus)
+	}
+
+	if !strings.Contains(b.Output.String(), "\x1b]7501;working\x1b\\") {
+		t.Errorf("expected OSC 7501 sequence in output, got %q", b.Output.String())
+	}
+
+	// Clear program status
+	term.SetProgramStatus(nil)
+	if b.ProgramStatus != nil {
+		t.Errorf("expected ProgramStatus to be nil after clear, got %v", b.ProgramStatus)
+	}
+}
+
+func TestEngine_InlineMode(t *testing.T) {
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{Inline: true})
+	defer e.Stop()
+
+	if !e.IsInline() {
+		t.Fatalf("expected e.IsInline() to be true")
+	}
+	if !b.Inline {
+		t.Fatalf("expected b.Inline to be true")
+	}
+
+	box1 := element.NewBox(e.Document())
+	box1.Style(style.S().Height(style.Cells(1)))
+	box2 := element.NewBox(e.Document())
+	box2.Style(style.S().Height(style.Cells(1)))
+	container := element.NewBox(e.Document())
+	container.AppendChild(box1)
+	container.AppendChild(box2)
+	e.Mount(container)
+
+	e.Frame()
+
+	frame1 := b.LastFrame().Surface
+	if frame1 == nil {
+		t.Fatalf("expected a rendered frame")
+	}
+	if frame1.Height != 2 {
+		t.Errorf("expected 2-row frame, got height %d", frame1.Height)
+	}
+	if frame1.Width != 80 {
+		t.Errorf("expected width 80, got width %d", frame1.Width)
+	}
+
+	// Dynamically grow to 4 rows
+	box3 := element.NewBox(e.Document())
+	box3.Style(style.S().Height(style.Cells(1)))
+	box4 := element.NewBox(e.Document())
+	box4.Style(style.S().Height(style.Cells(1)))
+	container.AppendChild(box3)
+	container.AppendChild(box4)
+
+	e.Frame()
+
+	frame2 := b.LastFrame().Surface
+	if frame2.Height != 4 {
+		t.Errorf("expected 4-row frame after growing, got height %d", frame2.Height)
+	}
+
+	// Dynamically shrink back to 2 rows
+	container.RemoveChild(box3)
+	container.RemoveChild(box4)
+
+	e.Frame()
+
+	frame3 := b.LastFrame().Surface
+	if frame3.Height != 2 {
+		t.Errorf("expected 2-row frame after shrinking, got height %d", frame3.Height)
+	}
+
+	// Shrink to 0 rows
+	container.RemoveChild(box1)
+	container.RemoveChild(box2)
+
+	e.Frame()
+
+	frame4 := b.LastFrame().Surface
+	if frame4.Height != 0 {
+		t.Errorf("expected 0-row frame after removing all, got height %d", frame4.Height)
+	}
+}
+
+func TestEngine_Clear_RepaintsMountedUI(t *testing.T) {
+	for _, inline := range []bool{false, true} {
+		t.Run(fmt.Sprintf("inline=%t", inline), func(t *testing.T) {
+			e, b := newTestEngine(t, engine.Options{Inline: inline})
+			defer e.Stop()
+
+			doc := e.Document()
+			box := element.NewBox(doc)
+			box.Style(style.S().Height(style.Cells(2)))
+			box.AppendChild(doc.CreateTextNode("Composer", nil))
+			e.Mount(box)
+			e.Frame()
+			initial := b.LastFrame().Surface
+			e.Frame()
+			if b.EndFrameCalls != 1 {
+				t.Fatal("expected clean UI not to repaint")
+			}
+
+			e.Clear()
+
+			if b.ClearCalls != 1 {
+				t.Fatalf("expected one backend clear, got %d", b.ClearCalls)
+			}
+			if e.RenderView().Flags()&render.DirtyPaint == 0 {
+				t.Error("expected Clear to mark render view paint-dirty")
+			}
+			e.Frame()
+			if b.EndFrameCalls != 2 {
+				t.Fatalf("expected Clear to force repaint, got %d frames", b.EndFrameCalls)
+			}
+			frame := b.LastFrame().Surface
+			if frame.Height != initial.Height || frame.CellAt(0, 0).Content != "C" {
+				t.Errorf("expected mounted UI repainted at row 0, got %#v", frame)
+			}
+		})
+	}
+}
+
+func TestEngine_InsertAbove(t *testing.T) {
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{Inline: true})
+	defer e.Stop()
+
+	doc := dom.NewDocument()
+	el := element.NewBox(doc)
+	el.Style(style.S().Width(style.Cells(10)).Height(style.Cells(3)).Border(style.SingleBorder()))
+	txt := doc.CreateTextNode("Hi", nil)
+	el.AppendChild(txt)
+
+	e.InsertAbove(el)
+
+	if len(b.InsertedAbove) != 1 {
+		t.Fatalf("expected 1 buffer inserted above, got %d", len(b.InsertedAbove))
+	}
+
+	buf := b.InsertedAbove[0]
+	if buf.Height != 3 {
+		t.Errorf("expected inserted buffer height 3, got %d", buf.Height)
+	}
+	if buf.Width != 80 {
+		t.Errorf("expected inserted buffer width 80, got %d", buf.Width)
+	}
+
+	// Check top-left corner has border
+	c00 := buf.CellAt(0, 0)
+	if c00.Content != "┌" {
+		t.Errorf("expected top-left border ┌, got %q", c00.Content)
+	}
+
+	// Check text "H" at (1, 1) and "i" at (2, 1)
+	c11 := buf.CellAt(1, 1)
+	if c11.Content != "H" {
+		t.Errorf("expected 'H' at (1,1), got %q", c11.Content)
+	}
+	c21 := buf.CellAt(2, 1)
+	if c21.Content != "i" {
+		t.Errorf("expected 'i' at (2,1), got %q", c21.Content)
+	}
+}
+
+func TestEngine_InsertAbove_RepaintsInlineActiveFrameEvenWhenDOMUnchanged(t *testing.T) {
+	e, b := newTestEngine(t, engine.Options{Inline: true})
+	defer e.Stop()
+
+	doc := e.Document()
+	box := element.NewBox(doc)
+	box.Style(style.S().Width(style.Cells(30)).Height(style.Cells(2)))
+	txt := doc.CreateTextNode("Active inline UI", nil)
+	box.AppendChild(txt)
+	e.Mount(box)
+
+	// First frame mounts and paints the active inline UI.
+	e.Frame()
+
+	if b.BeginFrameCalls != 1 || b.EndFrameCalls != 1 {
+		t.Fatalf("expected 1 initial frame, got Begin=%d End=%d", b.BeginFrameCalls, b.EndFrameCalls)
+	}
+	lastFrame := b.LastFrame().Surface
+	if lastFrame == nil || lastFrame.Height != 2 {
+		t.Fatalf("expected 2-row initial frame, got %#v", lastFrame)
+	}
+	if lastFrame.CellAt(0, 0).Content != "A" {
+		t.Errorf("expected 'A' at (0, 0), got %q", lastFrame.CellAt(0, 0).Content)
+	}
+
+	// Reset frame counters
+	b.BeginFrameCalls = 0
+	b.EndFrameCalls = 0
+
+	// A clean frame without any DOM or dirty changes should NOT repaint.
+	e.Frame()
+	if b.BeginFrameCalls != 0 || b.EndFrameCalls != 0 {
+		t.Fatalf("expected 0 frames when clean, got Begin=%d End=%d", b.BeginFrameCalls, b.EndFrameCalls)
+	}
+
+	// Insert static content above using a detached DOM node.
+	staticDoc := dom.NewDocument()
+	staticEl := element.NewBox(staticDoc)
+	staticEl.Style(style.S().Width(style.Cells(20)).Height(style.Cells(1)))
+	staticEl.AppendChild(staticDoc.CreateTextNode("Static item", nil))
+
+	e.InsertAbove(staticEl)
+
+	if len(b.InsertedAbove) != 1 {
+		t.Fatalf("expected 1 buffer in InsertedAbove, got %d", len(b.InsertedAbove))
+	}
+	if b.InsertedAbove[0].CellAt(0, 0).Content != "S" {
+		t.Errorf("expected 'S' in static buffer, got %q", b.InsertedAbove[0].CellAt(0, 0).Content)
+	}
+
+	// Calling InsertAbove should have marked renderView paint-dirty.
+	if e.RenderView().Flags()&render.DirtyPaint == 0 {
+		t.Errorf("expected RenderView to have DirtyPaint flag set after InsertAbove")
+	}
+
+	// Even though the active DOM tree was NOT modified, the next Frame() must repaint
+	// the active inline content.
+	e.Frame()
+
+	if b.BeginFrameCalls != 1 || b.EndFrameCalls != 1 {
+		t.Fatalf("expected active frame to be repainted after InsertAbove, got Begin=%d End=%d", b.BeginFrameCalls, b.EndFrameCalls)
+	}
+	repaintedFrame := b.LastFrame().Surface
+	if repaintedFrame == nil || repaintedFrame.Height != 2 {
+		t.Fatalf("expected repainted frame height 2, got %#v", repaintedFrame)
+	}
+	if repaintedFrame.CellAt(0, 0).Content != "A" {
+		t.Errorf("expected 'A' at (0, 0) in repainted frame, got %q", repaintedFrame.CellAt(0, 0).Content)
+	}
+}
+
+func TestEngine_InlineMode_OverflowClampsAndBottomAnchors(t *testing.T) {
+	b := mock.New(80, 20)
+	e := engine.New(b, engine.Options{Inline: true})
+	defer e.Stop()
+
+	doc := e.Document()
+	container := element.NewBox(doc)
+
+	// 50 lines of streaming text
+	for i := range 50 {
+		line := element.NewBox(doc)
+		line.Style(style.S().Height(style.Cells(1)))
+		line.AppendChild(doc.CreateTextNode(fmt.Sprintf("streaming line %02d", i), nil))
+		container.AppendChild(line)
+	}
+
+	// Bottom input composer (height 1)
+	input := element.NewInput(doc, "composer text")
+	input.Style(style.S().Height(style.Cells(1)).Width(style.Cells(30)))
+	container.AppendChild(input)
+
+	// Bottom status bar (height 1)
+	statusBar := element.NewBox(doc)
+	statusBar.Style(style.S().Height(style.Cells(1)))
+	statusBar.AppendChild(doc.CreateTextNode("Status: Running", nil))
+	container.AppendChild(statusBar)
+
+	e.Mount(container)
+	input.Focus()
+
+	e.Frame()
+
+	// 1. The painted frame buffer height is clamped to viewport.Height (20)
+	lastFrame := b.LastFrame().Surface
+	if lastFrame == nil {
+		t.Fatalf("expected a rendered frame")
+	}
+	if lastFrame.Height != 20 {
+		t.Fatalf("expected painted frame buffer height clamped to 20, got %d", lastFrame.Height)
+	}
+
+	// 2. The frame shows the bottom 20 rows (lines 32..49 + input composer + status bar)
+	getLine := func(buf *backend.Buffer, y int) string {
+		var sb strings.Builder
+		for x := 0; x < buf.Width; x++ {
+			sb.WriteString(buf.CellAt(x, y).Content)
+		}
+		return strings.TrimRight(sb.String(), " ")
+	}
+
+	// Row 0 of the clamped viewport should show line 32 (tail of streaming text, NOT line 00)
+	if !strings.HasPrefix(getLine(lastFrame, 0), "streaming line 32") {
+		t.Errorf("expected row 0 to show 'streaming line 32', got %q", getLine(lastFrame, 0))
+	}
+	// Row 18 shows the input composer
+	if !strings.Contains(getLine(lastFrame, 18), "composer text") {
+		t.Errorf("expected row 18 to contain 'composer text', got %q", getLine(lastFrame, 18))
+	}
+	// Row 19 shows the status bar
+	if !strings.Contains(getLine(lastFrame, 19), "Status: Running") {
+		t.Errorf("expected row 19 to contain 'Status: Running', got %q", getLine(lastFrame, 19))
+	}
+
+	// 3. Hardware cursor for the focused input:
+	// It should be visible and positioned at row 18 within the 20-row viewport.
+	if !b.Cursor.Visible {
+		t.Errorf("expected hardware cursor to be visible")
+	}
+	if b.Cursor.Y != 18 {
+		t.Errorf("expected hardware cursor Y = 18, got %d", b.Cursor.Y)
 	}
 }

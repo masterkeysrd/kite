@@ -2,6 +2,10 @@
 
 Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired development paradigms—such as a logical DOM tree, CSS-style flexbox layout, standard event propagation, and scrolling—to the terminal environment.
 
+<p align="center">
+  <img width="1000" height="600" alt="kitex_demo" src="https://github.com/user-attachments/assets/0aab873b-8bb8-4f02-9323-6041bfc301a3" />
+</p>
+
 ## ✨ Features
 
 - 🌳 **Logical DOM Tree**: Core entities like `Document`, `Element`, and `TextNode` with strict lifecycle hooks.
@@ -19,6 +23,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 🌀 **Async Fetching & Cache**: Ergonomic data fetching and caching with background refetches and mutations (via [`extras/wind`](extras/wind/)).
 - 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`promise`](promise/)).
 - 🎭 **Component Playground**: Interactive component development sandbox with live knobs and action logs (via [`extras/stage`](extras/stage/)).
+- 👣 **Inline CLI Mode**: Ink-inspired inline terminal rendering with permanent scrollback flushing via `Static` (via [`extras/trail`](extras/trail/)).
 
 ## 🏗 Architecture Overview
 
@@ -138,6 +143,10 @@ Analyze execution durations for the rendering pipeline phases and asynchronous b
 
 [`extras/stage`](extras/stage/) is an interactive component development sandbox inspired by Storybook. It lets you build, tweak, and preview Kitex components in complete isolation — without running your main application.
 
+<p align="center">
+  <img width="1100" height="650" alt="stage" src="https://github.com/user-attachments/assets/20458a5f-17a8-488c-8e16-0c71788b99f4" />
+</p>
+
 ### Layout
 
 ```
@@ -218,6 +227,92 @@ See the full working example in [`examples/stage/`](examples/stage/).
 | `Tab` | Move focus to the controls panel inputs |
 | `Ctrl+C` | Quit |
 | `F12` | Toggle web-inspector devtools |
+
+## 👣 Trail – Inline CLI Mode
+
+`extras/trail` is an Ink-inspired inline CLI framework built on top of Kite and `kitex`. Unlike full-screen terminal applications that take over the terminal via an alternate screen buffer (`altscreen`), `trail` apps run directly in the active terminal scrollback, dynamically adjust their viewport height per frame, and allow permanently inserting completed tasks or log items into terminal scrollback above the live active UI via `<Static>`.
+
+The live UI stays immediately after Static output rather than being pinned to the terminal bottom. Growing content scrolls as needed; shrinking content clears the freed rows below it without adding space between Static and live output.
+
+<p align="center">
+  <img width="960" height="540" alt="trail_demo" src="https://github.com/user-attachments/assets/2adc3681-c760-4707-84b4-896a47b298fe" />
+</p>
+
+### Usage Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/trail"
+)
+
+func App() trail.Node {
+	app := trail.UseApp()
+	count, setCount := trail.UseState(0)
+	completed, setCompleted := trail.UseState([]string(nil))
+
+	trail.UseInput(func(input string, k event.KeyEvent) {
+		if input == "q" || k.MatchString("q", "esc") {
+			app.Exit(nil)
+		}
+	})
+
+	trail.UseInterval(func() {
+		c := count()
+		if c < 5 {
+			setCompleted(append(completed(), fmt.Sprintf("Task %d completed", c+1)))
+			setCount(c + 1)
+		} else {
+			app.Exit(nil)
+		}
+	}, 500*time.Millisecond, nil)
+
+	return trail.Fragment(
+		// Static renders completed items permanently above into terminal scrollback:
+		trail.Static(completed(), func(item string, index int) trail.Node {
+			return trail.Box(trail.BoxProps{}, trail.Text("✔ "+item))
+		}),
+		// Active inline area:
+		trail.Box(trail.BoxProps{},
+			trail.Text(fmt.Sprintf("Running task %d/5... (press 'q' to quit)", count()+1)),
+		),
+	)
+}
+
+func main() {
+	inst, err := trail.Render(context.Background(), App())
+	if err != nil {
+		panic(err)
+	}
+	if err := inst.WaitUntilExit(); err != nil {
+		panic(err)
+	}
+}
+```
+
+`trail` also provides Ink-compatible instance controls (`inst.Rerender`, `inst.Clear`, `inst.Unmount`), log interception (`trail.WithInterceptLog(true)`, `inst.LogWriter()`), stream writers (`trail.UseStdout`, `trail.UseStderr`), element measurement (`trail.MeasureElement`), and focus navigation (`trail.UseFocus`, `trail.UseFocusManager`).
+
+Run the demo:
+
+```bash
+go run ./examples/trail_demo
+```
+
+See the full working demo in [`examples/trail_demo/`](examples/trail_demo/) and package documentation in [`extras/trail/`](extras/trail/).
+
+## ✨ Animations & CSS Grid Layout
+
+Kite features a full 3-phase CSS Grid layout algorithm (explicit tracks, `fr` units, and auto-placement) coupled with an imperative tweening engine (`animation.Tween[T]`) capable of smoothly interpolating layout tracks, dimensions, and colors at 60FPS.
+
+<p align="center">
+  <img width="1000" height="560" alt="grid_animation" src="https://github.com/user-attachments/assets/3a3430dd-2d88-4b2f-ab16-40b9a7ec8878" />
+</p>
 
 ## ⚡ Performance & Benchmarks
 
