@@ -7,6 +7,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	kitelog "github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/promise"
+	"github.com/masterkeysrd/kite/terminal"
 )
 
 var (
@@ -16,13 +17,24 @@ var (
 	dirtyComponents    []componentInstance
 	dirtyBuffer        []componentInstance
 	updateScheduled    bool
+	scheduledScheduler terminal.Scheduler
 	updateScheduledMu  sync.Mutex
 )
 
-func scheduleDirtyFlush(comp componentInstance) {
+func resolveComponentScheduler(comp componentInstance) terminal.Scheduler {
 	parent := comp.getDOMParent()
-	if parent != nil && parent.OwnerDocument() != nil && parent.OwnerDocument().Terminal() != nil && scheduler != nil {
-		scheduler.QueueMacrotask(flushDirtyComponents)
+	if parent != nil && parent.OwnerDocument() != nil && parent.OwnerDocument().Terminal() != nil {
+		if sched := parent.OwnerDocument().Terminal().Scheduler(); sched != nil {
+			return sched
+		}
+		return scheduler
+	}
+	return nil
+}
+
+func scheduleDirtyFlush(sched terminal.Scheduler) {
+	if sched != nil {
+		sched.QueueMacrotask(flushDirtyComponents)
 	} else {
 		flushDirtyComponents()
 	}
@@ -31,6 +43,7 @@ func scheduleDirtyFlush(comp componentInstance) {
 func flushDirtyComponents() {
 	updateScheduledMu.Lock()
 	updateScheduled = false
+	scheduledScheduler = nil
 	updateScheduledMu.Unlock()
 
 	renderMutex.Lock()
@@ -72,19 +85,27 @@ func init() {
 			return
 		}
 
+		targetSched := resolveComponentScheduler(compInstance)
+
 		updateScheduledMu.Lock()
-		if updateScheduled {
+		if updateScheduled && scheduledScheduler == targetSched {
 			updateScheduledMu.Unlock()
 			return
 		}
 		updateScheduled = true
+		scheduledScheduler = targetSched
 		updateScheduledMu.Unlock()
 
-		scheduleDirtyFlush(compInstance)
+		scheduleDirtyFlush(targetSched)
 	}
 }
 
 func processDirtyLoop() {
+	updateScheduledMu.Lock()
+	updateScheduled = false
+	scheduledScheduler = nil
+	updateScheduledMu.Unlock()
+
 	for range 10 {
 		if len(dirtyComponents) == 0 {
 			break
