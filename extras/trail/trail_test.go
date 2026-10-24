@@ -14,6 +14,7 @@ import (
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/kites"
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/trail"
 	"github.com/masterkeysrd/kite/geom"
@@ -1138,5 +1139,70 @@ func TestTrail_LateChildKeepsItsPosition(t *testing.T) {
 	}
 	if got.String() != "FIRSTLATELAST" {
 		t.Fatalf("want %q, got %q", "FIRSTLATELAST", got.String())
+	}
+}
+
+func TestTrail_StoreUpdateAfterUnflushedPreviousInstance(t *testing.T) {
+	type transcriptState struct {
+		Epoch int
+	}
+	store := kites.Create(transcriptState{Epoch: 0})
+	resetTranscript := func() {
+		store.Set(func(s transcriptState) transcriptState {
+			return transcriptState{Epoch: s.Epoch + 1}
+		})
+	}
+	clearTranscript := func() {
+		store.Set(func(transcriptState) transcriptState {
+			return transcriptState{Epoch: 0}
+		})
+	}
+
+	// Simulate a previous test that mounted a subscriber, updated the store,
+	// and ran defer clearTranscript() after its last Frame() without Unmount().
+	func() {
+		defer clearTranscript()
+		PrevComp := trail.SimpleFC("PrevComp", func() trail.Node {
+			_ = kites.Use(store, func(s transcriptState) int { return s.Epoch })
+			return trail.Text("prev")
+		})
+		b1 := mock.New(80, 24)
+		inst1, err := trail.New(PrevComp(), trail.WithBackend(b1))
+		if err != nil {
+			t.Fatalf("trail.New failed: %v", err)
+		}
+		inst1.Frame()
+		resetTranscript()
+		inst1.Frame()
+	}()
+
+	// Now run TestUseTranscript on a fresh trail.Instance.
+	clearTranscript()
+	defer clearTranscript()
+
+	var renderedEpoch int
+	Comp := trail.SimpleFC("Comp", func() trail.Node {
+		renderedEpoch = kites.Use(store, func(s transcriptState) int {
+			return s.Epoch
+		})
+		return trail.Text("ok")
+	})
+
+	b2 := mock.New(80, 24)
+	inst2, err := trail.New(Comp(), trail.WithBackend(b2))
+	if err != nil {
+		t.Fatalf("trail.New failed: %v", err)
+	}
+	inst2.Frame()
+
+	if renderedEpoch != 0 {
+		t.Fatalf("expected renderedEpoch 0, got %d", renderedEpoch)
+	}
+
+	resetTranscript()
+	inst2.Frame()
+
+	if renderedEpoch != 1 {
+		t.Fatalf("expected renderedEpoch to update to 1, got %d", renderedEpoch)
 	}
 }
