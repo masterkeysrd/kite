@@ -2,9 +2,11 @@ package uv
 
 import (
 	"fmt"
-	kitelog "github.com/masterkeysrd/kite/log"
+	"log/slog"
 	"strconv"
 	"strings"
+
+	kitelog "github.com/masterkeysrd/kite/log"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/masterkeysrd/kite/backend"
@@ -115,19 +117,27 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		return &backend.RawProgramStatusSupportEvent{}
 	case uv.UnknownOscEvent:
 		s := string(e)
-		kitelog.Info("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))
+		if kitelog.Enabled(slog.LevelDebug) {
+			kitelog.Debug("UV: Received Unknown OSC", "raw", fmt.Sprintf("%q", s))
+		}
 		return parseOsc(s)
 	case *uv.UnknownOscEvent:
 		s := string(*e)
-		kitelog.Info("UV: Received Unknown OSC (ptr)", "raw", fmt.Sprintf("%q", s))
+		if kitelog.Enabled(slog.LevelDebug) {
+			kitelog.Debug("UV: Received Unknown OSC (ptr)", "raw", fmt.Sprintf("%q", s))
+		}
 		return parseOsc(s)
 	case uv.UnknownCsiEvent:
 		s := string(e)
-		kitelog.Info("UV: Received Unknown CSI", "raw", fmt.Sprintf("%q", s))
+		if kitelog.Enabled(slog.LevelDebug) {
+			kitelog.Debug("UV: Received Unknown CSI", "raw", fmt.Sprintf("%q", s))
+		}
 		return &backend.RawUnknownEvent{Payload: prefixCSI + s}
 	case uv.UnknownDcsEvent:
 		s := string(e)
-		kitelog.Info("UV: Received Unknown DCS", "raw", fmt.Sprintf("%q", s))
+		if kitelog.Enabled(slog.LevelDebug) {
+			kitelog.Debug("UV: Received Unknown DCS", "raw", fmt.Sprintf("%q", s))
+		}
 		return &backend.RawUnknownEvent{Payload: prefixDCS + s}
 	case uv.UnknownApcEvent:
 		s := string(e)
@@ -147,7 +157,9 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 		return &backend.RawUnknownEvent{Payload: s}
 	}
 
-	kitelog.Info("UV: Unhandled event type", "type", fmt.Sprintf("%T", ev), "val", fmt.Sprintf("%#v", ev))
+	if kitelog.Enabled(slog.LevelDebug) {
+		kitelog.Debug("UV: Unhandled event type", "type", fmt.Sprintf("%T", ev), "val", fmt.Sprintf("%#v", ev))
+	}
 	return &backend.RawUnknownEvent{
 		Payload: ev,
 	}
@@ -236,7 +248,9 @@ func translateClipboardEvent(e uv.ClipboardEvent) (backend.RawEvent, bool) {
 	case 0:
 		selection = event.UnknownClipboard
 	default:
-		kitelog.Info("UV: Unknown clipboard selection", "selection", e.Selection)
+		if kitelog.Enabled(slog.LevelDebug) {
+			kitelog.Debug("UV: Unknown clipboard selection", "selection", e.Selection)
+		}
 		return nil, false
 	}
 	return &backend.RawClipboardEvent{
