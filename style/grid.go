@@ -12,7 +12,7 @@ func Repeat(count int, sizes ...GridTrackSize) []GridTrackSize {
 	}
 
 	result := make([]GridTrackSize, 0, count*len(sizes))
-	for i := 0; i < count; i++ {
+	for range count {
 		result = append(result, sizes...)
 	}
 	return result

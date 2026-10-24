@@ -422,8 +422,8 @@ func (b *TableFragmentBuilder) buildTableGrid(rows []Node) tableGrid {
 				RowSpan:  rowSpan,
 			})
 
-			for r := 0; r < rowSpan; r++ {
-				for c := 0; c < colSpan; c++ {
+			for r := range rowSpan {
+				for c := range colSpan {
 					markOccupied(rowIdx+r, colIdx+c)
 				}
 			}

@@ -153,7 +153,7 @@ func (a *GridAlgorithm) resolveTracks(ctx *Context, items []gridItem, template [
 		tracks = make([]style.GridTrackSize, count)
 	}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if i < len(template) {
 			tracks[i] = template[i]
 		} else {

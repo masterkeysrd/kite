@@ -73,42 +73,36 @@ func TestStoreConcurrency(t *testing.T) {
 	iterations := 100
 
 	// Readers
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < iterations; j++ {
+	for range numGoroutines {
+		wg.Go(func() {
+			for range iterations {
 				_ = store.Get()
 				time.Sleep(time.Microsecond)
 			}
-		}()
+		})
 	}
 
 	// Writers
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < iterations; j++ {
+	for range numGoroutines {
+		wg.Go(func() {
+			for range iterations {
 				store.Set(func(val int) int {
 					return val + 1
 				})
 				time.Sleep(time.Microsecond)
 			}
-		}()
+		})
 	}
 
 	// Subscribers subscribing and unsubscribing concurrently
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 10; j++ {
+	for range 5 {
+		wg.Go(func() {
+			for range 10 {
 				unsub := store.Subscribe(func(newVal, oldVal int) {})
 				time.Sleep(time.Millisecond)
 				unsub()
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

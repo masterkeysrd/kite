@@ -81,7 +81,7 @@ func TestFlexLayout_ThreePerRowWithGap(t *testing.T) {
 
 	// X offsets: 0, 29 (27+2), 58 (29+29)
 	expectedX := []int{0, 29, 58}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if frag.Children[i].Offset.X != expectedX[i] {
 			t.Errorf("child %d: expected X offset %d, got %d", i, expectedX[i], frag.Children[i].Offset.X)
 		}

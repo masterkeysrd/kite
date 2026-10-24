@@ -179,7 +179,7 @@ func TestStageApp_ReconcilesKnobs(t *testing.T) {
 	var printTree func(dom.Node, int)
 	printTree = func(n dom.Node, depth int) {
 		indent := ""
-		for i := 0; i < depth; i++ {
+		for range depth {
 			indent += "  "
 		}
 		if el, ok := n.(dom.Element); ok {

@@ -164,7 +164,7 @@ func BenchmarkScrolledAbsoluteBounds_Baseline(b *testing.B) {
 		}
 
 		children := make([]FragmentLink, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			childFrag := buildTree(depth+1, isTargetBranch && (i == 2))
 			children[i] = FragmentLink{
 				Fragment: childFrag,
@@ -219,7 +219,7 @@ func BenchmarkScrolledAbsoluteBounds_Path(b *testing.B) {
 
 		children := make([]FragmentLink, 3)
 		var targetPath []Node
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			var childFrag *Fragment
 			if i == 2 && isTargetBranch {
 				childFrag, targetPath = buildTree(depth+1, newPath, true)

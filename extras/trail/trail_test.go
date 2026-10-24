@@ -31,7 +31,7 @@ func TestTrail_New_DynamicFrames(t *testing.T) {
 
 		c := count()
 		boxes := make([]kitex.Node, c)
-		for i := 0; i < c; i++ {
+		for i := range c {
 			boxes[i] = trail.Box(trail.BoxProps{
 				Style: style.S().Height(style.Cells(1)),
 			}, trail.Text("Line"))
@@ -184,8 +184,7 @@ func TestTrail_UseApp_Exit(t *testing.T) {
 		t.Fatalf("failed to create trail instance: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -244,8 +243,7 @@ func TestTrail_WithCtrlCExit(t *testing.T) {
 		t.Fatalf("failed to create trail instance: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -346,8 +344,7 @@ func TestTrail_Exit_FlushesFinalStateAndStatic(t *testing.T) {
 		t.Fatalf("failed to create trail instance: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -834,7 +831,7 @@ func TestTrail_Transform(t *testing.T) {
 func TestTrail_ResumeSession_ManyStaticItemsWithActiveBottomUI(t *testing.T) {
 	totalStatic := 60
 	initialItems := make([]string, totalStatic)
-	for i := 0; i < totalStatic; i++ {
+	for i := range totalStatic {
 		initialItems[i] = fmt.Sprintf("historical log %02d", i)
 	}
 
@@ -872,7 +869,7 @@ func TestTrail_ResumeSession_ManyStaticItemsWithActiveBottomUI(t *testing.T) {
 	if len(b.InsertedAbove) != totalStatic {
 		t.Fatalf("expected %d static items flushed into InsertedAbove, got %d", totalStatic, len(b.InsertedAbove))
 	}
-	for i := 0; i < totalStatic; i++ {
+	for i := range totalStatic {
 		firstChar := b.InsertedAbove[i].CellAt(0, 0).Content
 		if firstChar != "h" {
 			t.Errorf("item %d: expected 'h' at (0, 0), got %q", i, firstChar)
@@ -976,7 +973,7 @@ func TestTrail_StreamingText_BottomUIStaysVisibleThroughoutAndAfterStatic(t *tes
 	// 2. Stream grows to 50 lines.
 	// 50 lines + composer (1) + statusbar (1) = 52 lines (> 20 rows of viewport).
 	fiftyLines := make([]string, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		fiftyLines[i] = fmt.Sprintf("stream line %02d", i)
 	}
 	setLines(fiftyLines)

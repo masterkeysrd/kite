@@ -307,7 +307,7 @@ func TestInput_KeyboardSelection(t *testing.T) {
 
 	// Initial caret at end (offset 11)
 	// Shift + Left 5 times (selects "World")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		env.KeyPress("left", key.ModShift)
 	}
 	env.Flush()
@@ -448,7 +448,7 @@ func BenchmarkTextArea_UpdateSelectionRange(b *testing.B) {
 	doc := dom.NewDocument()
 	// Large textarea content to make mapping expensive.
 	var lines []string
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		lines = append(lines, "This is line number "+strings.Repeat("x", 20))
 	}
 	content := strings.Join(lines, "\n")

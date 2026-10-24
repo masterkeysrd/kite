@@ -65,7 +65,7 @@ func TestTextArea_MultipleSpaces_CursorPosition(t *testing.T) {
 	}
 
 	// Press space 3 more times
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		dispatchKeyDownTextArea(txa, key.Key{Code: ' ', Text: " "})
 	}
 
@@ -344,7 +344,7 @@ func setupBenchTextArea(lines int) (*engine.Engine, *element.TextAreaElement) {
 	eng := engine.New(be, engine.Options{})
 
 	var sb strings.Builder
-	for i := 0; i < lines; i++ {
+	for i := range lines {
 		fmt.Fprintf(&sb, "This is line number %d\n", i)
 	}
 

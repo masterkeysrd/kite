@@ -42,7 +42,7 @@ func keyMatchString(k Key, s string) bool {
 		text string
 	)
 
-	for _, part := range strings.Split(s, "+") {
+	for part := range strings.SplitSeq(s, "+") {
 		switch {
 		case strings.EqualFold(part, "ctrl"):
 			mod |= ModCtrl

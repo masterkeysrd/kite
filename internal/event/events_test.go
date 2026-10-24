@@ -2,6 +2,7 @@ package event_test
 
 import (
 	"iter"
+	"slices"
 	"testing"
 
 	"github.com/masterkeysrd/kite/backend"
@@ -282,7 +283,6 @@ func TestKeyEvent_MatchString(t *testing.T) {
 		{"escape", key.KeyEscape, 0, true},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.pattern, func(t *testing.T) {
 			t.Parallel()
 			ke := event.NewKeyEvent(event.EventKeyDown, key.Key{Code: tc.code, Mod: tc.mods})
@@ -400,8 +400,8 @@ func hitTestObject(obj event.EventTarget, p geom.Point) event.EventTarget {
 		children = append(children, child)
 	}
 
-	for i := len(children) - 1; i >= 0; i-- {
-		if hit := hitTestObject(children[i], p); hit != nil {
+	for _, c := range slices.Backward(children) {
+		if hit := hitTestObject(c, p); hit != nil {
 			return hit
 		}
 	}
@@ -415,8 +415,8 @@ type testHitTester struct {
 func (h *testHitTester) HitTest(x, y int) event.EventTarget {
 	p := geom.Point{X: x, Y: y}
 	overlays := h.view.overlays
-	for i := len(overlays) - 1; i >= 0; i-- {
-		if hit := hitTestObject(overlays[i], p); hit != nil {
+	for _, overlay := range slices.Backward(overlays) {
+		if hit := hitTestObject(overlay, p); hit != nil {
 			return hit
 		}
 	}
