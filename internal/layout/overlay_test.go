@@ -112,25 +112,25 @@ func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
 			name:      "Vertical flip to Top (more space)",
 			anchor:    geom.Rect{Origin: geom.Point{X: 10, Y: 15}, Size: geom.Size{Width: 10, Height: 2}},
 			placement: geom.PlacementBottom,
-			expected:  geom.Point{10, 5}, // anchor.Y - content.H
+			expected:  geom.Point{X: 10, Y: 5}, // anchor.Y - content.H
 		},
 		{
 			name:      "Horizontal flip to Right (more space)",
-			anchor:    geom.Rect{Origin: geom.Point{5, 10}, Size: geom.Size{2, 10}},
+			anchor:    geom.Rect{Origin: geom.Point{X: 5, Y: 10}, Size: geom.Size{Width: 2, Height: 10}},
 			placement: geom.PlacementLeft,
-			expected:  geom.Point{7, 10}, // anchor.X + anchor.W
+			expected:  geom.Point{X: 7, Y: 10}, // anchor.X + anchor.W
 		},
 		{
 			name:      "Horizontal flip to Left (more space)",
-			anchor:    geom.Rect{Origin: geom.Point{65, 10}, Size: geom.Size{2, 10}},
+			anchor:    geom.Rect{Origin: geom.Point{X: 65, Y: 10}, Size: geom.Size{Width: 2, Height: 10}},
 			placement: geom.PlacementRight,
-			expected:  geom.Point{67, 10}, // Does not flip because it fits at Right.
+			expected:  geom.Point{X: 67, Y: 10}, // Does not flip because it fits at Right.
 		},
 		{
 			name:      "Horizontal flip to Right (more space) when at right edge",
-			anchor:    geom.Rect{Origin: geom.Point{75, 10}, Size: geom.Size{2, 10}},
+			anchor:    geom.Rect{Origin: geom.Point{X: 75, Y: 10}, Size: geom.Size{Width: 2, Height: 10}},
 			placement: geom.PlacementRight,
-			expected:  geom.Point{65, 10}, // Still flips to Left because Right overflows.
+			expected:  geom.Point{X: 65, Y: 10}, // Still flips to Left because Right overflows.
 		},
 	}
 
@@ -155,10 +155,10 @@ func TestOverlayAlgorithm_BestFitLogic(t *testing.T) {
 
 			// Manually set the cached fragment on the content node so OverlayAlgorithm
 			// can measure it without running a full block layout.
-			content.SetCachedLayout(ConstraintSpace{}, &Fragment{Size: geom.Size{10, 10}})
+			content.SetCachedLayout(ConstraintSpace{}, &Fragment{Size: geom.Size{Width: 10, Height: 10}})
 			// We must ALSO set it on the overlay node itself because OverlayAlgorithm
 			// will try to use BlockAlgorithm on node.
-			node.SetCachedLayout(space, &Fragment{Size: geom.Size{10, 10}})
+			node.SetCachedLayout(space, &Fragment{Size: geom.Size{Width: 10, Height: 10}})
 
 			algo.Layout(nil, node, space)
 

@@ -68,7 +68,7 @@ func TestTableLayout_UniformGrid(t *testing.T) {
 		firstChild: linkSiblings(row1, row2),
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := &TableAlgorithm{}
 	frag := algo.Layout(nil, table, space)
 
@@ -132,7 +132,7 @@ func TestTableLayout_ColSpan(t *testing.T) {
 		firstChild: linkSiblings(row1, row2),
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := &TableAlgorithm{}
 	frag := algo.Layout(nil, table, space)
 
@@ -173,7 +173,7 @@ func TestTableLayout_FaultTolerance_AnonymousRow(t *testing.T) {
 		firstChild: linkSiblings(c1, c2),
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := &TableAlgorithm{}
 	frag := algo.Layout(nil, table, space)
 
@@ -257,7 +257,7 @@ func TestTableLayout_BorderOverlap(t *testing.T) {
 		firstChild: linkSiblings(row1, row2),
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	frag := (&TableAlgorithm{}).Layout(nil, table, space)
 
 	// Anonymous section
@@ -352,7 +352,7 @@ func TestTableLayout_ColSpanBorderCollapse(t *testing.T) {
 		firstChild: linkSiblings(row1, row2),
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	frag := (&TableAlgorithm{}).Layout(nil, table, space)
 
 	// Table width: col0(10) + col1(10) - 1(junction) = 19.

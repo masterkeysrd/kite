@@ -23,7 +23,7 @@ func TestTableFragmentBuilder_PercentWidthHints(t *testing.T) {
 	colPercent := []float32{1, 1, 100}
 
 	node := &mockNode{style: &style.Computed{Display: style.DisplayTable}}
-	space := NewConstraintSpaceBuilder(geometry.Size{80, 20}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 80, Height: 20}).ToConstraintSpace()
 	builder := NewTableFragmentBuilder(node, space)
 	builder.colMinMax = colMinMax
 	builder.colPercent = colPercent
@@ -45,7 +45,7 @@ func TestTableFragmentBuilder_DistributeSpan(t *testing.T) {
 	node := &mockNode{
 		style: &style.Computed{Display: style.DisplayTable},
 	}
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	builder := NewTableFragmentBuilder(node, space)
 
 	// initialize grid with 3 columns, empty min/max
@@ -93,7 +93,7 @@ func TestTableFragmentBuilder_GetCellShift(t *testing.T) {
 	tableNode := &mockNode{
 		style: &style.Computed{Display: style.DisplayTable},
 	}
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	builder := NewTableFragmentBuilder(tableNode, space)
 
 	t.Run("FirstCell_NoBorders_NoShift", func(t *testing.T) {
