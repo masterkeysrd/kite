@@ -29,7 +29,7 @@ func TestFlexLayout_RowDirection(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -79,7 +79,7 @@ func TestFlexLayout_JustifyCenter(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -113,7 +113,7 @@ func TestFlexLayout_RowReverse(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -220,7 +220,7 @@ func TestFlexLayout_Order(t *testing.T) {
 		firstChild: c3,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{30, 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 30, Height: 1}).SetIsFixedInlineSize(true).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -267,7 +267,7 @@ func TestFlexLayout_InlineFlexWithText(t *testing.T) {
 		firstChild: item,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -319,7 +319,7 @@ func TestFlexLayout_InlineFlexShrinkWrap(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -357,7 +357,7 @@ func TestFlexLayout_NoWrapItems(t *testing.T) {
 		firstChild: item,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -407,7 +407,7 @@ func TestFlexLayout_HorizontalPositioning(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -446,7 +446,7 @@ func TestFlexLayout_InlineFlexHorizontalPositioning(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -483,7 +483,7 @@ func TestFlexLayout_ColumnBaseSize(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -514,7 +514,7 @@ func TestFlexLayout_Margins(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -549,7 +549,7 @@ func TestFlexLayout_AlignEndColumn(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -580,7 +580,7 @@ func TestFlexLayout_AlignCenterRow(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -619,7 +619,7 @@ func TestFlexLayout_WrapStretching(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{30, 10}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 30, Height: 10}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -662,7 +662,7 @@ func TestFlexLayout_WrapItemsVisible(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{25, 10}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 25, Height: 10}).
 		SetIsFixedInlineSize(true).
 		SetIsFixedBlockSize(true).
 		ToConstraintSpace()
@@ -705,7 +705,7 @@ func TestFlexLayout_SpaceBetweenRow(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -731,7 +731,7 @@ func TestFlexLayout_BlockStretch(t *testing.T) {
 		style: &parentStyle,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{80, 24}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 80, Height: 24}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -770,7 +770,7 @@ func BenchmarkFlexLayout_Resolution(b *testing.B) {
 		firstChild: firstChild,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{1000, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 1000, Height: 100}).ToConstraintSpace()
 
 	for b.Loop() {
 		parent.dirty = true
@@ -831,7 +831,7 @@ func BenchmarkFlexLayout_AnonymousBlocks(b *testing.B) {
 		firstChild: firstChild,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{1000, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 1000, Height: 100}).ToConstraintSpace()
 	ctx := &Context{}
 
 	b.ResetTimer()
@@ -877,7 +877,7 @@ func TestFlexLayout_ReproIssue(t *testing.T) {
 		firstChild: rowFlex,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(root)
 	frag := algo.Layout(nil, root, space)
 
@@ -920,7 +920,7 @@ func TestFlexLayout_AlignStart_ShrinkWrap(t *testing.T) {
 		firstChild: rowFlex,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(root)
 	frag := algo.Layout(nil, root, space)
 
@@ -962,7 +962,7 @@ func TestFlexLayout_ColumnItemsWrapAndGrow(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1019,7 +1019,7 @@ func TestFlexLayout_ColumnItemsAlignEndWrap(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1060,7 +1060,7 @@ func TestFlexLayout_ColumnHeightAuto(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1093,7 +1093,7 @@ func TestFlexLayout_ColumnHeightAutoWithGap(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1126,7 +1126,7 @@ func TestFlexLayout_ColumnHeightAutoWithMargins(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1159,7 +1159,7 @@ func TestFlexLayout_ColumnHeightAutoWithMarginsFixed(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1195,7 +1195,7 @@ func TestFlexLayout_RowHeightAutoWithGap(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1231,9 +1231,9 @@ func TestFlexLayout_PercentHeight_FiniteParent(t *testing.T) {
 	}
 
 	// ContainerSpace.Height == 20 (finite), so Percent(50) should resolve to 10.
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 20}).
-		SetContainerSpace(geometry.Size{100, 20}).
-		SetContainingSpace(geometry.Size{100, 20}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 20}).
+		SetContainerSpace(geometry.Size{Width: 100, Height: 20}).
+		SetContainingSpace(geometry.Size{Width: 100, Height: 20}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
@@ -1287,9 +1287,9 @@ func TestFlexLayout_PercentHeight_InfiniteParent_RowFlex(t *testing.T) {
 	// The builder default leaves ContainerSpace at zero, which is < InfiniteBlockSize,
 	// but the real unconstrained scenario comes from IntrinsicBlockSize probes where
 	// AvailableSize.Height == InfiniteBlockSize. We replicate that here.
-	space := NewConstraintSpaceBuilder(geometry.Size{100, InfiniteBlockSize}).
-		SetContainerSpace(geometry.Size{100, InfiniteBlockSize}).
-		SetContainingSpace(geometry.Size{100, InfiniteBlockSize}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
+		SetContainerSpace(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
+		SetContainingSpace(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
@@ -1335,9 +1335,9 @@ func TestFlexLayout_PercentHeight_InfiniteParent_ColumnFlex(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{50, InfiniteBlockSize}).
-		SetContainerSpace(geometry.Size{50, InfiniteBlockSize}).
-		SetContainingSpace(geometry.Size{50, InfiniteBlockSize}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 50, Height: InfiniteBlockSize}).
+		SetContainerSpace(geometry.Size{Width: 50, Height: InfiniteBlockSize}).
+		SetContainingSpace(geometry.Size{Width: 50, Height: InfiniteBlockSize}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
@@ -1418,9 +1418,9 @@ func TestFlexLayout_PercentHeight_NestedLayout_SidebarPattern(t *testing.T) {
 	}
 
 	// Simulate terminal viewport: 100×24, indefinite block size for the root.
-	space := NewConstraintSpaceBuilder(geometry.Size{100, InfiniteBlockSize}).
-		SetContainerSpace(geometry.Size{100, InfiniteBlockSize}).
-		SetContainingSpace(geometry.Size{100, InfiniteBlockSize}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
+		SetContainerSpace(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
+		SetContainingSpace(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(root)
@@ -1469,7 +1469,7 @@ func TestFlexLayout_CenteringWithText(t *testing.T) {
 		firstChild: textNode,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -1510,9 +1510,9 @@ func TestFlexLayout_IndefiniteGrowShrink(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, InfiniteBlockSize}).
-		SetContainerSpace(geometry.Size{100, InfiniteBlockSize}).
-		SetContainingSpace(geometry.Size{100, InfiniteBlockSize}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
+		SetContainerSpace(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
+		SetContainingSpace(geometry.Size{Width: 100, Height: InfiniteBlockSize}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
@@ -1552,9 +1552,9 @@ func TestFlexLayout_ClampedContainerLaysOutChildrenWithinClampedSpace(t *testing
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).
-		SetContainerSpace(geometry.Size{100, 100}).
-		SetContainingSpace(geometry.Size{100, 100}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).
+		SetContainerSpace(geometry.Size{Width: 100, Height: 100}).
+		SetContainingSpace(geometry.Size{Width: 100, Height: 100}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
@@ -1602,9 +1602,9 @@ func TestFlexLayout_GrowWithMinWidth(t *testing.T) {
 		firstChild: child1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{80, 10}).
-		SetContainerSpace(geometry.Size{80, 10}).
-		SetContainingSpace(geometry.Size{80, 10}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 80, Height: 10}).
+		SetContainerSpace(geometry.Size{Width: 80, Height: 10}).
+		SetContainingSpace(geometry.Size{Width: 80, Height: 10}).
 		ToConstraintSpace()
 
 	algo := GetAlgorithm(parent)
@@ -1642,7 +1642,7 @@ func TestFlexLayout_ColumnFixedInlinePropagation(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{40, 20}).
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 40, Height: 20}).
 		SetIsFixedInlineSize(false).
 		ToConstraintSpace()
 
