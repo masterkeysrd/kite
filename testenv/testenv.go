@@ -352,9 +352,9 @@ func (e *Environment) matchGolden(filename string) (actual, expected []byte, gol
 		Cells:  make([][]goldenCell, height),
 	}
 
-	for y := 0; y < height; y++ {
+	for y := range height {
 		gf.Cells[y] = make([]goldenCell, width)
-		for x := 0; x < width; x++ {
+		for x := range width {
 			cell := fb.CellAt(x+bounds.Origin.X, y+bounds.Origin.Y)
 			gf.Cells[y][x] = goldenCell{
 				Content: cell.Content,
@@ -447,6 +447,9 @@ func (e *Environment) DumpANSI() string {
 			if cell.Style&backend.CellReverse != 0 {
 				sb.WriteString("\x1b[7m")
 			}
+			if cell.Style&backend.CellStrikethrough != 0 {
+				sb.WriteString("\x1b[9m")
+			}
 
 			content := cell.Content
 			if content == "" {
@@ -503,6 +506,9 @@ func (e *Environment) DumpHTML() string {
 			if cell.Style&backend.CellReverse != 0 {
 				// Simplified inverse
 				cellStyle += "filter: invert(100%); "
+			}
+			if cell.Style&backend.CellStrikethrough != 0 {
+				cellStyle += "text-decoration: line-through; "
 			}
 
 			content := cell.Content
@@ -662,6 +668,9 @@ func renderSideBySide(expectedJSON, actualJSON []byte) string {
 		if cell.Attrs&uint16(backend.CellReverse) != 0 {
 			cellSb.WriteString("\x1b[7m")
 		}
+		if cell.Attrs&uint16(backend.CellStrikethrough) != 0 {
+			cellSb.WriteString("\x1b[9m")
+		}
 		content := cell.Content
 		if content == "" {
 			content = " "
@@ -671,7 +680,7 @@ func renderSideBySide(expectedJSON, actualJSON []byte) string {
 		return cellSb.String()
 	}
 
-	for y := 0; y < h; y++ {
+	for y := range h {
 		lineDiff := false
 		if y < exp.Height && y < act.Height {
 			for x := 0; x < min(wExp, wAct); x++ {
@@ -691,7 +700,7 @@ func renderSideBySide(expectedJSON, actualJSON []byte) string {
 
 		// Expected line
 		if y < exp.Height {
-			for x := 0; x < wExp; x++ {
+			for x := range wExp {
 				cell := exp.Cells[y][x]
 				sb.WriteString(formatCell(cell))
 			}
@@ -708,7 +717,7 @@ func renderSideBySide(expectedJSON, actualJSON []byte) string {
 
 		// Actual line
 		if y < act.Height {
-			for x := 0; x < wAct; x++ {
+			for x := range wAct {
 				cell := act.Cells[y][x]
 				sb.WriteString(formatCell(cell))
 			}

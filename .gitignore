@@ -1,2 +1,6 @@
 /logs
 *.log
+*.gif
+*.mp4
+*.webm
+.DS_Store

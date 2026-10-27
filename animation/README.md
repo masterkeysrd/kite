@@ -2,6 +2,10 @@
 
 Package `animation` provides a generic, imperative framework for property interpolation and tweening within the Kite framework. It allows for smooth transitions of numeric values, colors, and other types over time using customizable easing functions.
 
+<p align="center">
+  <img width="1000" height="560" alt="grid_animation" src="https://github.com/user-attachments/assets/3a3430dd-2d88-4b2f-ab16-40b9a7ec8878" />
+</p>
+
 ## 🚀 Key Concepts
 
 ### Animator

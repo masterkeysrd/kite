@@ -101,7 +101,7 @@ func TestRegression_SidebarContentDynamicLayout(t *testing.T) {
 	topLineRunes := []rune("┌" + repeatString("─", 38) + "┐")
 	bottomLineRunes := []rune("└" + repeatString("─", 38) + "┘")
 
-	for x := 0; x < 40; x++ {
+	for x := range 40 {
 		expectedTopChar := string(topLineRunes[x])
 		expectedBottomChar := string(bottomLineRunes[x])
 
@@ -118,7 +118,7 @@ func TestRegression_SidebarContentDynamicLayout(t *testing.T) {
 
 func repeatString(s string, count int) string {
 	var result string
-	for i := 0; i < count; i++ {
+	for range count {
 		result += s
 	}
 	return result

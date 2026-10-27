@@ -1440,3 +1440,200 @@ func TestReconcilerStaleParentRefsPropagation(t *testing.T) {
 		t.Fatalf("zombie element left in DOM after transition: %v", container.FirstChild().NextSibling())
 	}
 }
+
+func collectChildText(parent dom.Element) string {
+	var sb strings.Builder
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		sb.WriteString(child.TextContent())
+	}
+	return sb.String()
+}
+
+func TestLateChildKeepsItsPosition(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	var set func(bool)
+	late := SimpleFC("Late", func() Node {
+		on, setOn := UseState(false)
+		set = setOn
+		if !on() {
+			return nil
+		}
+		return Text("LATE")
+	})
+
+	Render(Box(BoxProps{
+		Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn),
+	},
+		Text("FIRST"),
+		late(),
+		Text("LAST"),
+	), container)
+
+	parentEl := container.FirstChild().(dom.Element)
+	if got := collectChildText(parentEl); got != "FIRSTLAST" {
+		t.Fatalf("initial render: want %q, got %q", "FIRSTLAST", got)
+	}
+
+	set(true)
+
+	if got := collectChildText(parentEl); got != "FIRSTLATELAST" {
+		t.Fatalf("after late state update: want %q, got %q", "FIRSTLATELAST", got)
+	}
+
+	// Toggle off and back on via its own state to ensure position is retained across cycles.
+	set(false)
+	if got := collectChildText(parentEl); got != "FIRSTLAST" {
+		t.Fatalf("after hiding late child: want %q, got %q", "FIRSTLAST", got)
+	}
+
+	set(true)
+	if got := collectChildText(parentEl); got != "FIRSTLATELAST" {
+		t.Fatalf("after re-showing late child: want %q, got %q", "FIRSTLATELAST", got)
+	}
+}
+
+func TestLateChildInsideFragmentKeepsItsPosition(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	var set func(bool)
+	late := SimpleFC("Late", func() Node {
+		on, setOn := UseState(false)
+		set = setOn
+		if !on() {
+			return nil
+		}
+		return Text("LATE")
+	})
+
+	Render(Box(BoxProps{},
+		Text("FIRST"),
+		Fragment(
+			Fragment(
+				late(),
+			),
+		),
+		Text("LAST"),
+	), container)
+
+	parentEl := container.FirstChild().(dom.Element)
+	if got := collectChildText(parentEl); got != "FIRSTLAST" {
+		t.Fatalf("initial render: want %q, got %q", "FIRSTLAST", got)
+	}
+
+	set(true)
+
+	if got := collectChildText(parentEl); got != "FIRSTLATELAST" {
+		t.Fatalf("after late state update inside nested Fragment: want %q, got %q", "FIRSTLATELAST", got)
+	}
+}
+
+func TestLateChildBetweenEmptySiblingComponentsKeepsItsPosition(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	emptyBefore := SimpleFC("EmptyBefore", func() Node {
+		return nil
+	})
+	emptyAfter := SimpleFC("EmptyAfter", func() Node {
+		return nil
+	})
+
+	var set1, set2 func(bool)
+	late1 := SimpleFC("Late1", func() Node {
+		on, setOn := UseState(false)
+		set1 = setOn
+		if !on() {
+			return nil
+		}
+		return Text("LATE1")
+	})
+	late2 := SimpleFC("Late2", func() Node {
+		on, setOn := UseState(false)
+		set2 = setOn
+		if !on() {
+			return nil
+		}
+		return Text("LATE2")
+	})
+
+	Render(Box(BoxProps{},
+		Text("FIRST"),
+		emptyBefore(),
+		late1(),
+		emptyAfter(),
+		late2(),
+		emptyAfter(),
+		Text("LAST"),
+	), container)
+
+	parentEl := container.FirstChild().(dom.Element)
+	if got := collectChildText(parentEl); got != "FIRSTLAST" {
+		t.Fatalf("initial render: want %q, got %q", "FIRSTLAST", got)
+	}
+
+	// Activate late2 first, then late1, verifying late1 anchors before late2 (not after it).
+	set2(true)
+	if got := collectChildText(parentEl); got != "FIRSTLATE2LAST" {
+		t.Fatalf("after late2 activates: want %q, got %q", "FIRSTLATE2LAST", got)
+	}
+
+	set1(true)
+	if got := collectChildText(parentEl); got != "FIRSTLATE1LATE2LAST" {
+		t.Fatalf("after late1 activates before late2: want %q, got %q", "FIRSTLATE1LATE2LAST", got)
+	}
+}
+
+func TestLateChildInsideProviderAndWrapperUnmountsCleanly(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+
+	ctx := CreateContext("P:")
+	var setLate func(bool)
+	late := SimpleFC("Late", func() Node {
+		on, setOn := UseState(false)
+		setLate = setOn
+		prefix := UseContext(ctx)
+		if !on() {
+			return nil
+		}
+		return Text(prefix + "LATE")
+	})
+
+	wrapper := SimpleFC("Wrapper", func() Node {
+		return Fragment(late())
+	})
+
+	var setShowWrapper func(bool)
+	app := SimpleFC("App", func() Node {
+		show, setShow := UseState(true)
+		setShowWrapper = setShow
+		if !show() {
+			return Box(BoxProps{}, Text("FIRST"), Text("LAST"))
+		}
+		return Box(BoxProps{},
+			Text("FIRST"),
+			ctx.Provider("CTX:", wrapper()),
+			Text("LAST"),
+		)
+	})
+
+	Render(app(), container)
+	parentEl := container.FirstChild().(dom.Element)
+	if got := collectChildText(parentEl); got != "FIRSTLAST" {
+		t.Fatalf("initial render: want %q, got %q", "FIRSTLAST", got)
+	}
+
+	setLate(true)
+	if got := collectChildText(parentEl); got != "FIRSTCTX:LATELAST" {
+		t.Fatalf("after late activates: want %q, got %q", "FIRSTCTX:LATELAST", got)
+	}
+
+	// Unmounting the wrapper/provider after late mounted on its own must remove late's DOM node.
+	setShowWrapper(false)
+	if got := collectChildText(parentEl); got != "FIRSTLAST" {
+		t.Fatalf("after unmounting wrapper: want %q, got %q", "FIRSTLAST", got)
+	}
+}

@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/masterkeysrd/kite/animation"
@@ -129,7 +131,7 @@ type Engine struct {
 
 	// frameRequested is set when RequestFrame / RequestFrameAt has been
 	// called since the last frame was committed.
-	frameRequested bool
+	frameRequested atomic.Bool
 
 	// nextFrameAt is the scheduled time for the next frame (from
 	// RequestFrameAt). Zero means "as soon as possible".
@@ -184,6 +186,7 @@ type Engine struct {
 
 	closeOnce sync.Once // protects Stop
 	closeCh   chan struct{}
+	inline    bool
 }
 
 // Options configures an Engine.
@@ -201,6 +204,8 @@ type Options struct {
 	ShutdownTimeout time.Duration
 	// Profiler enables the high-level phase profiling and deep-tree tracing.
 	Profiler bool
+	// Inline enables inline mode (relative cursor, dynamic height, no alt-screen).
+	Inline bool
 }
 
 // New creates an Engine configured with the given backend and options.
@@ -230,6 +235,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	}
 
 	e := &Engine{
+		inline:          opts.Inline,
 		renderView:      render.NewRenderView(),
 		document:        dom.NewDocument(),
 		resolver:        styler.NewResolver(),
@@ -248,6 +254,9 @@ func New(b backend.Backend, opts Options) *Engine {
 		scrollablesBuf:  make([]event.Scrollable, 0, 32),
 		layoutPathBuf:   make([]layout.Node, 0, 32),
 	}
+
+	b.SetInline(opts.Inline)
+	e.renderView.SetInline(opts.Inline)
 
 	size := b.Size()
 	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
@@ -298,6 +307,9 @@ func (e *Engine) Document() dom.Document { return e.document }
 
 // PaintEngine returns the internal paint engine.
 func (e *Engine) PaintEngine() *paint.PaintEngine { return e.paintEngine }
+
+// IsInline reports whether inline mode is enabled.
+func (e *Engine) IsInline() bool { return e.inline }
 
 // AddEventListener registers fn as a listener for event of type typ on target.
 // It returns a Subscription that can be used to remove the listener.
@@ -436,8 +448,8 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 
 	// Walk overlays from the end (topmost) to start.
 	overlays := e.renderView.Overlays()
-	for i := len(overlays) - 1; i >= 0; i-- {
-		ov := overlays[i]
+	for _, ov := range slices.Backward(overlays) {
+
 		offset := ov.Offset()
 		localP := geom.Point{
 			X: p.X - offset.X,
@@ -448,7 +460,12 @@ func (e *Engine) HitTest(x, y int) event.EventTarget {
 		}
 	}
 	// Fall through to the main tree.
-	if hit := hitTestFragment(e.renderView.Fragment(), p); hit != nil {
+	offset := e.inlineRootOffset()
+	localP := geom.Point{
+		X: p.X - offset.X,
+		Y: p.Y - offset.Y,
+	}
+	if hit := hitTestFragment(e.renderView.Fragment(), localP); hit != nil {
 		return hit.EventTarget()
 	}
 	return nil
@@ -481,7 +498,7 @@ func (e *Engine) SetTitle(s string) {
 	if !e.caps.Title {
 		return
 	}
-	kitelog.Info("engine: set title", slog.String("title", s))
+	kitelog.Debug("engine: set title", slog.String("title", s))
 	e.backend.SetTitle(s)
 }
 
@@ -492,7 +509,7 @@ func (e *Engine) Bell() {
 	if !e.caps.Bell {
 		return
 	}
-	kitelog.Info("engine: bell")
+	kitelog.Debug("engine: bell")
 	e.backend.Bell()
 }
 
@@ -504,8 +521,19 @@ func (e *Engine) SetProgressBar(state backend.ProgressBarState, percentage int) 
 	if !e.caps.ProgressBar {
 		return
 	}
-	kitelog.Info("engine: set progress bar", slog.Int("state", int(state)), slog.Int("percentage", percentage))
+	kitelog.Debug("engine: set progress bar", slog.Int("state", int(state)), slog.Int("percentage", percentage))
 	e.backend.SetProgressBar(state, percentage)
+}
+
+// SetProgramStatus reports the program status to the terminal using OSC 7501.
+// It is a no-op if Caps.ProgramStatus is false.
+//
+// SetProgramStatus must be called from the main goroutine.
+func (e *Engine) SetProgramStatus(status *terminal.ProgramStatus) {
+	if !e.caps.ProgramStatus {
+		return
+	}
+	e.backend.SetProgramStatus(status)
 }
 
 // SetDebugXRay toggles the visual layout debugging overlay.
@@ -524,7 +552,7 @@ func (e *Engine) SetDebugXRay(enabled bool) {
 //
 // RequestFrame is safe to call from any goroutine.
 func (e *Engine) RequestFrame() {
-	e.frameRequested = true
+	e.frameRequested.Store(true)
 }
 
 // RegisterAnimation registers an active animation to be ticked by the engine.
@@ -548,7 +576,7 @@ func (e *Engine) OnStop(fn func()) {
 //
 // RequestFrameAt must be called from the main goroutine.
 func (e *Engine) RequestFrameAt(t time.Time) {
-	e.frameRequested = true
+	e.frameRequested.Store(true)
 	if e.nextFrameAt.IsZero() || t.Before(e.nextFrameAt) {
 		e.nextFrameAt = t
 	}
@@ -654,8 +682,8 @@ func hitTestFragment(frag *layout.Fragment, p geom.Point) render.Object {
 	}
 
 	// Walk children in reverse paint order (last child is topmost).
-	for i := len(frag.Children) - 1; i >= 0; i-- {
-		link := frag.Children[i]
+	for _, link := range slices.Backward(frag.Children) {
+
 		// Translate point into child's coordinate space, accounting for scroll.
 		childPoint := geom.Point{
 			X: p.X - link.Offset.X + scrollX,
@@ -712,8 +740,8 @@ func (e *Engine) Frame() {
 		e.lastFrameTime = now
 
 		// Iterate backwards to allow safe removal of finished animations.
-		for i := len(e.activeAnimations) - 1; i >= 0; i-- {
-			anim := e.activeAnimations[i]
+		for i, anim := range slices.Backward(e.activeAnimations) {
+
 			finished := func() bool {
 				if tracer != nil {
 					defer tracer.Begin(fmt.Sprintf("Animation:%T", anim))()
@@ -733,7 +761,7 @@ func (e *Engine) Frame() {
 	}
 
 	// 2. Check if a rendering frame is actually required.
-	dirty := e.hasDirtyUIState() || e.frameRequested || len(e.activeAnimations) > 0
+	dirty := e.hasDirtyUIState() || e.frameRequested.Load() || len(e.activeAnimations) > 0
 	if !dirty {
 		return
 	}
@@ -747,7 +775,7 @@ func (e *Engine) Frame() {
 	pipe.Paint(e, layoutRan)
 
 	e.nextFrameAt = time.Time{}
-	e.frameRequested = false
+	e.frameRequested.Store(false)
 
 	// Self-scheduling: keep waking up as long as we have active animations.
 	if len(e.activeAnimations) > 0 {
@@ -783,7 +811,7 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 	next := cursorRecord{}
 	var ro render.Object
 	if focused != nil {
-		kitelog.Info("engine: determining cursor for focused target")
+		kitelog.Debug("engine: determining cursor for focused target")
 		ro = e.RenderObject(focused.(dom.Node))
 		if ro != nil {
 			provider, ok := ro.(cursor.Provider)
@@ -795,6 +823,15 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 				if state.Visible {
 					rootFrag := root.Fragment()
 					if bounds, clip, found := layout.ScrolledAbsoluteBounds(rootFrag, ro); found {
+						inlineOffset := e.inlineRootOffset()
+						rootOffset := root.Offset()
+						xShift := inlineOffset.X - rootOffset.X
+						yShift := inlineOffset.Y - rootOffset.Y
+						bounds.Origin.X += xShift
+						bounds.Origin.Y += yShift
+						clip.Origin.X += xShift
+						clip.Origin.Y += yShift
+
 						scrollX, scrollY := 0, 0
 						rawX, rawY := focused.Scroll()
 						maxSX, maxSY := layout.MaxScroll(ro.Fragment())
@@ -883,6 +920,24 @@ func (e *Engine) updateHardwareCursor(layoutRan bool) bool {
 		return true
 	}
 	return false
+}
+
+func (e *Engine) inlineRootOffset() geom.Point {
+	root := e.renderView
+	if root == nil {
+		return geom.Point{}
+	}
+	offset := root.Offset()
+	if !e.inline {
+		return offset
+	}
+	viewport := root.ViewportSize()
+	if viewport.Height > 0 {
+		if frag := root.Fragment(); frag != nil && frag.Size.Height > viewport.Height {
+			offset.Y -= frag.Size.Height - viewport.Height
+		}
+	}
+	return offset
 }
 
 func mapCursorShape(s style.CursorShape) backend.CursorShape {
@@ -1080,6 +1135,92 @@ func (e *Engine) createRenderObject(n dom.Node) render.Object {
 	return ro
 }
 
+// Clear clears the terminal and scrollback without unmounting the document,
+// and schedules a repaint of the active UI.
+func (e *Engine) Clear() {
+	e.backend.Clear()
+	e.renderView.MarkDirty(render.DirtyPaint)
+	e.RequestFrame()
+}
+
+// InsertAbove renders an arbitrary dom.Node (detached from the main document)
+// into a *backend.Buffer and inserts it above the next active frame.
+func (e *Engine) InsertAbove(node dom.Node) {
+	if node == nil {
+		return
+	}
+	ro := e.createRenderObject(node)
+	defer func() {
+		var cleanupRO func(obj render.Object)
+		cleanupRO = func(obj render.Object) {
+			if obj == nil {
+				return
+			}
+			if ln := obj.LogicalNode(); ln != nil {
+				e.setRenderObject(ln, nil)
+				e.resolver.Invalidate(ln)
+			}
+			for child := obj.FirstChild(); child != nil; child = child.NextSibling() {
+				cleanupRO(child)
+			}
+		}
+		cleanupRO(ro)
+	}()
+
+	e.resolver.ResolveTree(ro, nil, false)
+
+	viewport := e.renderView.ViewportSize()
+	if viewport.Width <= 0 {
+		viewport.Width = e.backend.Size().Width
+	}
+	if viewport.Width <= 0 {
+		viewport.Width = 80
+	}
+	if viewport.Height <= 0 {
+		viewport.Height = e.backend.Size().Height
+	}
+	if viewport.Height <= 0 {
+		viewport.Height = 24
+	}
+
+	space := layout.NewConstraintSpaceBuilder(viewport).
+		SetContainingSpace(viewport).
+		SetContainerSpace(viewport).
+		SetIsFixedInlineSize(true).
+		SetIsFixedBlockSize(false).
+		ToConstraintSpace()
+
+	var layoutCtx layout.Context
+	layoutCtx.Tracer = e.Tracer()
+	frag := render.LayoutSubtree(&layoutCtx, ro, space)
+
+	if frag != nil && frag.Size.Height > 0 && frag.Size.Width > 0 {
+		fb := paint.NewFrameBuffer(0, 0, viewport.Width, frag.Size.Height)
+		var paintCtx paint.Context
+		paintCtx.Tracer = e.Tracer()
+		e.paintEngine.PaintFragment(&paintCtx, frag, geom.Point{}, fb)
+		e.paintEngine.ResolveBorders(&paintCtx, fb)
+
+		buf := backend.NewBuffer(viewport.Width, frag.Size.Height)
+		bounds := fb.Bounds()
+		for y := 0; y < bounds.Size.Height; y++ {
+			for x := 0; x < bounds.Size.Width; x++ {
+				cell := fb.CellAt(bounds.Origin.X+x, bounds.Origin.Y+y)
+				buf.Set(x, y, cell.Cell)
+			}
+		}
+		if inserter, ok := e.backend.(backend.FrameInserter); ok {
+			inserter.InsertAboveForFrame(buf)
+		} else {
+			e.backend.InsertAbove(buf)
+		}
+		if e.renderView != nil {
+			e.renderView.MarkDirty(render.DirtyPaint)
+		}
+		e.RequestFrame()
+	}
+}
+
 // recoverFrame is a deferred function that catches panics in the frame loop.
 // It restores the terminal, logs the panic and stack trace, and re-panics so
 // the process exits with a usable terminal.
@@ -1104,7 +1245,7 @@ func (e *Engine) Dump(path string) error {
 	// We cannot use e.backend.BeginFrame() because it returns an empty surface.
 	fb := paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 	root := e.renderView
-	e.paintEngine.PaintFragment(nil, root.Fragment(), geom.Point{}, fb)
+	e.paintEngine.PaintFragment(nil, root.Fragment(), e.inlineRootOffset(), fb)
 	for _, overlay := range root.Overlays() {
 		offset := overlay.Offset()
 		e.paintEngine.PaintFragment(nil, overlay.Fragment(), offset, fb)
@@ -1328,8 +1469,8 @@ func (e *Engine) coalesceRawEvents(events []backend.RawEvent) []backend.RawEvent
 
 	// Find index of the absolute last mouse move in the whole batch.
 	lastMoveIdx := -1
-	for i := len(events) - 1; i >= 0; i-- {
-		if m, ok := events[i].(*backend.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
+	for i, event := range slices.Backward(events) {
+		if m, ok := event.(*backend.RawMouseEvent); ok && m.Move && m.DeltaX == 0 && m.DeltaY == 0 {
 			lastMoveIdx = i
 			break
 		}
@@ -1434,6 +1575,11 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 	case *event.ResizeEvent:
 		e.handleResize(evt)
 	case *event.WindowFocusEvent:
+		if e.document != nil {
+			e.document.DispatchTo(evt)
+		}
+	case *event.ProgramStatusSupportEvent:
+		e.caps.ProgramStatus = true
 		if e.document != nil {
 			e.document.DispatchTo(evt)
 		}
@@ -1695,10 +1841,14 @@ func (e *Engine) resolveSelection() []paint.SelectionRect {
 	if len(rs) == 0 {
 		return nil
 	}
+	offset := e.inlineRootOffset()
 	ps := make([]paint.SelectionRect, len(rs))
 	for i, r := range rs {
+		rect := r.Rect
+		rect.Origin.X += offset.X
+		rect.Origin.Y += offset.Y
 		ps[i] = paint.SelectionRect{
-			Rect: r.Rect,
+			Rect: rect,
 			Fg:   r.Fg,
 			Bg:   r.Bg,
 		}
@@ -1875,7 +2025,7 @@ func (e *Engine) hasDirtyUIState() bool {
 }
 
 func (e *Engine) shouldRunFrame() bool {
-	if e.frameRequested {
+	if e.frameRequested.Load() {
 		kitelog.Debug("shouldRunFrame returning true due to frameRequested")
 		return true
 	}

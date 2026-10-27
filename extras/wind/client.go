@@ -241,7 +241,7 @@ func isMatch(cachedKey, searchKey any) bool {
 		if sLen > cLen {
 			return false
 		}
-		for i := 0; i < sLen; i++ {
+		for i := range sLen {
 			se := sv.Index(i).Interface()
 			ce := cv.Index(i).Interface()
 			if !safeEqual(se, ce) {

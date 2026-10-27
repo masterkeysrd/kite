@@ -28,7 +28,7 @@ func TestFlexLayout_PercentWidthItem(t *testing.T) {
 		firstChild: child,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -71,7 +71,7 @@ func TestFlexLayout_ThreePerRowWithGap(t *testing.T) {
 		firstChild: c1,
 	}
 
-	space := NewConstraintSpaceBuilder(geometry.Size{100, 100}).ToConstraintSpace()
+	space := NewConstraintSpaceBuilder(geometry.Size{Width: 100, Height: 100}).ToConstraintSpace()
 	algo := GetAlgorithm(parent)
 	frag := algo.Layout(nil, parent, space)
 
@@ -81,7 +81,7 @@ func TestFlexLayout_ThreePerRowWithGap(t *testing.T) {
 
 	// X offsets: 0, 29 (27+2), 58 (29+29)
 	expectedX := []int{0, 29, 58}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if frag.Children[i].Offset.X != expectedX[i] {
 			t.Errorf("child %d: expected X offset %d, got %d", i, expectedX[i], frag.Children[i].Offset.X)
 		}

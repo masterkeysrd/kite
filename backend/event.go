@@ -98,3 +98,9 @@ func (RawFocusInEvent) isRawEvent() {}
 type RawFocusOutEvent struct{}
 
 func (RawFocusOutEvent) isRawEvent() {}
+
+// RawProgramStatusSupportEvent is the backend representation of a confirmation
+// that the terminal supports the Program Status Protocol (OSC 7501).
+type RawProgramStatusSupportEvent struct{}
+
+func (RawProgramStatusSupportEvent) isRawEvent() {}

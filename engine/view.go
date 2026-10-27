@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"slices"
+
 	"github.com/masterkeysrd/kite/cursor"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/geom"
@@ -40,6 +42,11 @@ func (p *domViewProxy) GetBoundingClientRect(n dom.Node) (geom.Rect, bool) {
 		return geom.Rect{}, false
 	}
 	rect, _, found := layout.ScrolledAbsoluteBoundsPath(root, ro, path)
+	if found {
+		offset := p.e.inlineRootOffset()
+		rect.Origin.X += offset.X
+		rect.Origin.Y += offset.Y
+	}
 	return rect, found
 }
 
@@ -147,8 +154,8 @@ func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
 
 	// Check overlays first in reverse order (top-most overlay first)
 	overlays := p.e.renderView.Overlays()
-	for i := len(overlays) - 1; i >= 0; i-- {
-		overlay := overlays[i]
+	for _, overlay := range slices.Backward(overlays) {
+
 		offset := overlay.Offset()
 		frag := overlay.Fragment()
 		if frag != nil {
@@ -167,7 +174,8 @@ func (p *domViewProxy) NodeAtPoint(x, y int) (dom.Node, int) {
 	if root == nil {
 		return nil, 0
 	}
-	byteOffset := cursor.ByteOffsetAtPoint(root, x, y)
+	offset := p.e.inlineRootOffset()
+	byteOffset := cursor.ByteOffsetAtPoint(root, x-offset.X, y-offset.Y)
 	return p.e.document.FindNodeAtByteOffset(p.e.document, byteOffset)
 }
 
@@ -200,7 +208,15 @@ func (p *domViewProxy) GetScrolledAbsoluteBounds(n dom.Node) (geom.Rect, geom.Re
 	if root == nil {
 		return geom.Rect{}, geom.Rect{}, false
 	}
-	return layout.ScrolledAbsoluteBoundsPath(root, ro, path)
+	rect, clip, found := layout.ScrolledAbsoluteBoundsPath(root, ro, path)
+	if found {
+		offset := p.e.inlineRootOffset()
+		rect.Origin.X += offset.X
+		rect.Origin.Y += offset.Y
+		clip.Origin.X += offset.X
+		clip.Origin.Y += offset.Y
+	}
+	return rect, clip, found
 }
 
 func (p *domViewProxy) ViewportSize() geom.Size {

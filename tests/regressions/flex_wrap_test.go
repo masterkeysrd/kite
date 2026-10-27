@@ -26,7 +26,7 @@ func TestFlexWrapMinSize(t *testing.T) {
 		Gap(1),
 	)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		tools.AddChild(element.Box().Style(style.S().
 			Width(style.Cells(10)).
 			Height(style.Cells(1)),
@@ -85,7 +85,7 @@ func TestFlexWrapMinSizeFail(t *testing.T) {
 		FlexWrap(style.FlexWrapOn).
 		Gap(1),
 	)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		tools.AddChild(element.Box().Style(style.S().
 			Width(style.Cells(10)).
 			Height(style.Cells(1)),

@@ -54,11 +54,11 @@ type PodInfo struct {
 
 var PodViewer = kitex.FC("PodViewer", func(props PodKey) kitex.Node {
 	// res holds Data, IsLoading, IsFetching, IsError, Error, and Refetch()
-	res := wind.Use(props, func(ctx context.Context, key PodKey) *promise.Promise[PodInfo] {
-		return promise.New(func(ctx context.Context) (PodInfo, error) {
+	res := wind.Use(props, promise.WrapWithProps(
+		func(ctx context.Context, key PodKey) (PodInfo, error) {
 			return fetchPodDetails(ctx, key.Namespace, key.PodName)
-		})
-	})
+		},
+	))
 
 	if res.IsLoading {
 		return kitex.Text("Loading pod details...")
@@ -89,11 +89,11 @@ type DeletePodVariables struct {
 
 var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node {
 	mutation := wind.UseMutation(
-		func(ctx context.Context, vars DeletePodVariables) *promise.Promise[string] {
-			return promise.New(func(ctx context.Context) (string, error) {
+		promise.WrapWithProps(
+			func(ctx context.Context, vars DeletePodVariables) (string, error) {
 				return apiDeletePod(ctx, vars.Namespace, vars.PodName)
-			})
-		},
+			},
+		),
 		wind.MutationOptions[DeletePodVariables, string]{
 			OnSuccess: func(result string, vars DeletePodVariables, ctx wind.MutationContext) {
 				// Invalidate the query key to auto-trigger a background refetch
@@ -130,6 +130,11 @@ var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node 
 
 ### Hooks
 
+Query and mutation functions must propagate the context supplied by Wind to the
+underlying request. `promise.Wrap` and `promise.WrapWithProps` do this while also
+honoring scheduler shutdown. Using `promise.New` and only its executor context
+does not preserve Wind's cancellation.
+
 - **`Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.Promise[T], opts ...Options) Result[T]`**:
   - `Options.Enabled`: Set to `false` to disable automatic fetching on mount.
   - `Options.StaleTime`: Max age before the cache entry is considered stale and re-fetched on mount/dependency change.
@@ -138,3 +143,6 @@ var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node 
   - `Mutate(vars V)`: Triggers mutation function.
   - `OnSuccess(result R, variables V, ctx MutationContext)`: Fired when mutationFn succeeds.
   - `OnError(err error, variables V, ctx MutationContext)`: Fired when mutationFn fails.
+  - Unmounting cancels all outstanding mutation contexts and suppresses later
+    callbacks. This is cooperative cancellation, not a rollback of server-side
+    changes. A retained `Mutate` function does not start work after unmount.

@@ -37,6 +37,16 @@ func fetchUserSync(ctx context.Context, props UserProps) (User, error) { /* ... 
 var FetchUserAsync = promise.WrapWithProps(fetchUserSync)
 ```
 
+Both wrappers preserve the supplied context's values, deadline, and cancellation,
+and also cancel the execution context when the scheduler shuts down. A call
+canceled before execution is rejected without invoking the wrapped function.
+Once execution starts, the function must honor its context (for example, by
+passing it to `http.NewRequestWithContext`).
+
+`promise.New` still supplies only the scheduler's context. Calling `Await(ctx)`
+limits the wait; it does not cancel the underlying operation. Use a wrapper or
+explicitly propagate your request context when operation cancellation matters.
+
 ## Thread Safety
 
 - **Background Execution**: The executor function runs in the engine's background worker pool, preventing UI freezes during expensive operations.

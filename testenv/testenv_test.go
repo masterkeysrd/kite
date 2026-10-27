@@ -132,7 +132,7 @@ func TestMoreNewFeatures(t *testing.T) {
 	// 2. Test Eventually
 	counter := 0
 	go func() {
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			time.Sleep(5 * time.Millisecond)
 			counter++
 		}
