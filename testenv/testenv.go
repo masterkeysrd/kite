@@ -447,6 +447,9 @@ func (e *Environment) DumpANSI() string {
 			if cell.Style&backend.CellReverse != 0 {
 				sb.WriteString("\x1b[7m")
 			}
+			if cell.Style&backend.CellStrikethrough != 0 {
+				sb.WriteString("\x1b[9m")
+			}
 
 			content := cell.Content
 			if content == "" {
@@ -503,6 +506,9 @@ func (e *Environment) DumpHTML() string {
 			if cell.Style&backend.CellReverse != 0 {
 				// Simplified inverse
 				cellStyle += "filter: invert(100%); "
+			}
+			if cell.Style&backend.CellStrikethrough != 0 {
+				cellStyle += "text-decoration: line-through; "
 			}
 
 			content := cell.Content
@@ -661,6 +667,9 @@ func renderSideBySide(expectedJSON, actualJSON []byte) string {
 		}
 		if cell.Attrs&uint16(backend.CellReverse) != 0 {
 			cellSb.WriteString("\x1b[7m")
+		}
+		if cell.Attrs&uint16(backend.CellStrikethrough) != 0 {
+			cellSb.WriteString("\x1b[9m")
 		}
 		content := cell.Content
 		if content == "" {

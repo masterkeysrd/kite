@@ -42,6 +42,8 @@ const (
 	AttrUnderline = backend.CellUnderline
 	// AttrInverse swaps the foreground and background colors.
 	AttrInverse = backend.CellReverse
+	// AttrStrikethrough strikes through the cell's text.
+	AttrStrikethrough = backend.CellStrikethrough
 )
 
 // BorderStyle selects the pre-defined glyph set for a border.
