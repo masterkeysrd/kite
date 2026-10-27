@@ -1036,6 +1036,7 @@ func populateUVCell(cell *uv.Cell, c backend.Cell) {
 	cell.Width = max(1, c.Width)
 
 	cell.Style.Attrs = 0
+	cell.Style.Underline = uv.UnderlineNone
 	cell.Style.Fg = c.Fg
 	if c.Bg != nil {
 		_, _, _, a := c.Bg.RGBA()
@@ -1056,6 +1057,9 @@ func populateUVCell(cell *uv.Cell, c backend.Cell) {
 	}
 	if c.Style&backend.CellItalic != 0 {
 		cell.Style.Attrs |= uv.AttrItalic
+	}
+	if c.Style&backend.CellUnderline != 0 {
+		cell.Style.Underline = uv.UnderlineSingle
 	}
 	if c.Style&backend.CellBlink != 0 {
 		cell.Style.Attrs |= uv.AttrBlink

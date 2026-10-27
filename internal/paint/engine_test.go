@@ -32,6 +32,7 @@ func TestPaint_InheritedStyle(t *testing.T) {
 		parentStyle *style.Computed
 		wantFg      color.Color
 		wantBg      color.Color
+		wantAttrs   backend.CellStyle
 	}{
 		{
 			name: "Default style",
@@ -86,6 +87,37 @@ func TestPaint_InheritedStyle(t *testing.T) {
 			wantFg: color.RGBA{255, 255, 255, 255},
 			wantBg: red,
 		},
+		{
+			name: "Explicit bold on node",
+			nodeStyle: &style.Computed{
+				Bold: true,
+			},
+			wantFg:    color.RGBA{255, 255, 255, 255},
+			wantBg:    color.Transparent,
+			wantAttrs: backend.CellBold,
+		},
+		{
+			name:      "Inherit bold and italic from parent",
+			nodeStyle: &style.Computed{},
+			parentStyle: &style.Computed{
+				Bold:   true,
+				Italic: true,
+			},
+			wantFg:    color.RGBA{255, 255, 255, 255},
+			wantBg:    color.Transparent,
+			wantAttrs: backend.CellBold | backend.CellItalic,
+		},
+		{
+			name: "Underline, strikethrough, and reverse attributes",
+			nodeStyle: &style.Computed{
+				Underline:     true,
+				Strikethrough: true,
+				Reverse:       true,
+			},
+			wantFg:    color.RGBA{255, 255, 255, 255},
+			wantBg:    color.Transparent,
+			wantAttrs: backend.CellUnderline | backend.CellStrikethrough | backend.CellReverse,
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,12 +129,15 @@ func TestPaint_InheritedStyle(t *testing.T) {
 				frag.ParentNode = &mockNode{s: tt.parentStyle}
 			}
 
-			gotFG, gotBG := pe.getInheritedStyle(frag)
+			gotFG, gotBG, gotAttrs := pe.getInheritedStyle(frag)
 			if gotFG != tt.wantFg {
 				t.Errorf("gotFG = %v, want %v", gotFG, tt.wantFg)
 			}
 			if gotBG != tt.wantBg {
 				t.Errorf("gotBG = %v, want %v", gotBG, tt.wantBg)
+			}
+			if gotAttrs != tt.wantAttrs {
+				t.Errorf("gotAttrs = %v, want %v", gotAttrs, tt.wantAttrs)
 			}
 		})
 	}

@@ -37,6 +37,34 @@ func TestPopulateUVCell(t *testing.T) {
 	if uvCell.Style.Attrs&uv.AttrReverse != 0 {
 		t.Errorf("Style leaked: expected AttrReverse to be cleared, but got Attrs=%d", uvCell.Style.Attrs)
 	}
+
+	// 3. Populate a cell with Bold and Underline
+	c3 := backend.Cell{
+		Content: "C",
+		Style:   backend.CellBold | backend.CellUnderline,
+	}
+	populateUVCell(&uvCell, c3)
+
+	if uvCell.Style.Attrs&uv.AttrBold == 0 {
+		t.Errorf("Expected uv.AttrBold to be set, but got Attrs=%d", uvCell.Style.Attrs)
+	}
+	if uvCell.Style.Underline != uv.UnderlineSingle {
+		t.Errorf("Expected uv.UnderlineSingle to be set, but got Underline=%v", uvCell.Style.Underline)
+	}
+
+	// 4. Populate another plain cell and ensure Underline and Bold are reset
+	c4 := backend.Cell{
+		Content: "D",
+		Style:   0,
+	}
+	populateUVCell(&uvCell, c4)
+
+	if uvCell.Style.Attrs&uv.AttrBold != 0 {
+		t.Errorf("Style leaked: expected AttrBold to be cleared, but got Attrs=%d", uvCell.Style.Attrs)
+	}
+	if uvCell.Style.Underline != uv.UnderlineNone {
+		t.Errorf("Style leaked: expected Underline to be UnderlineNone, but got %v", uvCell.Style.Underline)
+	}
 }
 
 func TestTranslateProgramStatusSupportEvent(t *testing.T) {

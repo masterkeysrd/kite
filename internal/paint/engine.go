@@ -218,7 +218,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 
 	// 2. Render text clusters for THIS fragment.
 	if len(frag.Text) > 0 {
-		fg, bg := p.getInheritedStyle(frag)
+		fg, bg, attrs := p.getInheritedStyle(frag)
 		textBg := bg
 		if colorsEqual(bg, blockBg) {
 			textBg = color.Transparent
@@ -240,6 +240,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 							Width:   1,
 							Fg:      fg,
 							Bg:      textBg,
+							Style:   attrs,
 						},
 					})
 				}
@@ -250,6 +251,7 @@ func (p *PaintEngine) paintFragment(ctx *Context, frag *layout.Fragment, origin 
 						Width:   cluster.CellWidth,
 						Fg:      fg,
 						Bg:      textBg,
+						Style:   attrs,
 					},
 				})
 			}
@@ -992,7 +994,7 @@ func (p *PaintEngine) drawBorder(r geom.Rect, border style.Border, bg color.Colo
 	}
 }
 
-func (p *PaintEngine) getInheritedStyle(frag *layout.Fragment) (fg, bg color.Color) {
+func (p *PaintEngine) getInheritedStyle(frag *layout.Fragment) (fg, bg color.Color, attrs backend.CellStyle) {
 	// Default values
 	fg = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	bg = color.Transparent
@@ -1027,7 +1029,33 @@ func (p *PaintEngine) getInheritedStyle(frag *layout.Fragment) (fg, bg color.Col
 		}
 	}
 
-	return fg, bg
+	// 3. Determine Text Attributes (Bold, Italic, Underline, Strikethrough, Reverse)
+	var s *style.Computed
+	if frag.Node != nil && frag.Node.Style() != nil {
+		s = frag.Node.Style()
+	}
+	var ps *style.Computed
+	if frag.ParentNode != nil && frag.ParentNode.Style() != nil {
+		ps = frag.ParentNode.Style()
+	}
+
+	if (s != nil && s.Bold) || (ps != nil && ps.Bold) {
+		attrs |= AttrBold
+	}
+	if (s != nil && s.Italic) || (ps != nil && ps.Italic) {
+		attrs |= AttrItalic
+	}
+	if (s != nil && s.Underline) || (ps != nil && ps.Underline) {
+		attrs |= AttrUnderline
+	}
+	if (s != nil && s.Strikethrough) || (ps != nil && ps.Strikethrough) {
+		attrs |= AttrStrikethrough
+	}
+	if (s != nil && s.Reverse) || (ps != nil && ps.Reverse) {
+		attrs |= AttrInverse
+	}
+
+	return fg, bg, attrs
 }
 
 func isTransparent(c color.Color) bool {
