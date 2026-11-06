@@ -9,7 +9,7 @@ import (
 )
 
 func TestPaint_ScrollbarRendering(t *testing.T) {
-	env := testenv.Default(20, 10)
+	env := testenv.New(t, 20, 10)
 	defer env.Close()
 
 	// Create a scrollable box with a scrollbar.
@@ -44,7 +44,7 @@ func TestPaint_ScrollbarRendering(t *testing.T) {
 }
 
 func TestPaint_HorizontalScrollbarRendering(t *testing.T) {
-	env := testenv.Default(20, 10)
+	env := testenv.New(t, 20, 10)
 	defer env.Close()
 
 	// Create a horizontally scrollable box.
@@ -81,7 +81,7 @@ func TestPaint_HorizontalScrollbarRendering(t *testing.T) {
 }
 
 func TestPaint_ScrollbarAutoHidden(t *testing.T) {
-	env := testenv.Default(20, 10)
+	env := testenv.New(t, 20, 10)
 	defer env.Close()
 
 	// Create a box with OverflowAuto and ScrollbarY=true, but NO overflow.
@@ -99,7 +99,7 @@ func TestPaint_ScrollbarAutoHidden(t *testing.T) {
 }
 
 func TestPaint_ScrollbarAutoShown(t *testing.T) {
-	env := testenv.Default(20, 10)
+	env := testenv.New(t, 20, 10)
 	defer env.Close()
 
 	// Create a box with OverflowAuto and ScrollbarY=true, WITH overflow.
@@ -116,7 +116,7 @@ func TestPaint_ScrollbarAutoShown(t *testing.T) {
 }
 
 func TestPaint_ScrollbarWithBorderPadding(t *testing.T) {
-	env := testenv.Default(20, 10)
+	env := testenv.New(t, 20, 10)
 	defer env.Close()
 
 	// Create a box with border, padding and overflow.

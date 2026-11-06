@@ -13,7 +13,7 @@ import (
 )
 
 func TestTextArea_Regression_Nav(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	// 10 cells wide to force wrapping
@@ -38,7 +38,7 @@ func TestTextArea_Regression_Nav(t *testing.T) {
 }
 
 func TestTextArea_Regression_SoftWrapNav(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "123456789012345")
@@ -56,7 +56,7 @@ func TestTextArea_Regression_SoftWrapNav(t *testing.T) {
 }
 
 func TestTextArea_Bug1_UpFromLastChar(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "abc\ndef")
@@ -78,7 +78,7 @@ func TestTextArea_Bug1_UpFromLastChar(t *testing.T) {
 }
 
 func TestTextArea_Bug2_WithPadding(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "abc\ndef")
@@ -100,7 +100,7 @@ func TestTextArea_Bug2_WithPadding(t *testing.T) {
 }
 
 func TestTextArea_Bug3_StuckInThirdLine(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	initialText := "Welcome!\n\nThird line"
@@ -129,7 +129,7 @@ func TestTextArea_Bug3_StuckInThirdLine(t *testing.T) {
 // Regression for: pressing Down from mid-last-row moves buffer offset to the
 // end of the last line (perceived as cursor jumping to last+1).
 func TestTextArea_Bug4_DownFromLastRowStaysOnLastRow(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	// Two lines: move cursor to the START of the last line (not the end).
@@ -163,7 +163,7 @@ func TestTextArea_Bug4_DownFromLastRowStaysOnLastRow(t *testing.T) {
 // TestTextArea_Bug4_DownFromLastRowSoftWrap verifies the same invariant when
 // the last line is produced by soft-wrap rather than a hard newline.
 func TestTextArea_Bug4_DownFromLastRowSoftWrap(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	// Single long line that soft-wraps at column 10 → produces two visual rows.
@@ -198,7 +198,7 @@ func TestTextArea_Bug4_DownFromLastRowSoftWrap(t *testing.T) {
 // and a non-zero scroll offset is in effect. The mid-row variant checks that
 // the buffer offset does not jump to the end of the line.
 func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	// 12 lines in a 4-row viewport — forces scrolling.
@@ -270,7 +270,7 @@ func TestTextArea_Bug4_DownFromLastRowWhenOverflow(t *testing.T) {
 // bar incorrectly showed Pos:(insetLeft,insetTop) instead of the real cursor
 // position, making subsequent navigation appear to jump.
 func TestTextArea_Bug5_CursorStateStaleFragment(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "hello\nworld")
@@ -307,7 +307,7 @@ func TestTextArea_Bug5_CursorStateStaleFragment(t *testing.T) {
 }
 
 func TestTextArea_CrashOverflow(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "line1")
@@ -328,7 +328,7 @@ func TestTextArea_CrashOverflow(t *testing.T) {
 }
 
 func TestTextArea_IsFocusable(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "")
@@ -338,7 +338,7 @@ func TestTextArea_IsFocusable(t *testing.T) {
 }
 
 func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	txa := element.NewTextArea(e.Document(), "")
@@ -373,7 +373,7 @@ func TestTextArea_AutoFocus_And_Sync(t *testing.T) {
 // This handles the regression where content was panned incorrectly relative
 // to the cursor due to border/padding insets in the paint engine's clamping logic.
 func TestTextArea_Regression_ScrollCursorPos(t *testing.T) {
-	e := testenv.Default(80, 26)
+	e := testenv.New(t, 80, 26)
 	defer e.Close()
 
 	// 5 lines of text

@@ -1345,6 +1345,8 @@ type mockTerminal struct {
 
 func (m *mockTerminal) SetTitle(title string)         { m.title = title }
 func (m *mockTerminal) Scheduler() terminal.Scheduler { return testScheduler }
+func (m *mockTerminal) OnClose(fn func())             {}
+func (m *mockTerminal) IsClosed() bool                { return false }
 
 func TestUseTerminal(t *testing.T) {
 	doc := dom.NewDocument()
@@ -1392,6 +1394,8 @@ func (m *mockTitleBellTerminal) SetProgressBar(state terminal.ProgressBarState, 
 	m.progressPercent = percentage
 }
 func (m *mockTitleBellTerminal) Scheduler() terminal.Scheduler { return testScheduler }
+func (m *mockTitleBellTerminal) OnClose(fn func())             {}
+func (m *mockTitleBellTerminal) IsClosed() bool                { return false }
 
 func TestUseTitleAndUseBell(t *testing.T) {
 	doc := dom.NewDocument()

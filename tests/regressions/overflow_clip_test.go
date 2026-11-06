@@ -51,7 +51,7 @@ func overflowFrame(t *testing.T, env *testenv.Environment) *backend.Buffer {
 // only paints inside its own boundary; the framebuffer cells beyond the right
 // edge of the content box remain at their pre-paint (zero/empty) value.
 func TestOverflowClip_BoxHiddenOverflow(t *testing.T) {
-	env := testenv.Default(40, 5)
+	env := testenv.New(t, 40, 5)
 	defer env.Close()
 
 	// A 10-wide clipping box containing a 30-wide red child box.
@@ -73,7 +73,7 @@ func TestOverflowClip_BoxHiddenOverflow(t *testing.T) {
 // TestOverflowClip_BoxVisibleOverflow verifies that overflow: visible (default)
 // allows content to spill past the parent's boundary.
 func TestOverflowClip_BoxVisibleOverflow(t *testing.T) {
-	env := testenv.Default(40, 5)
+	env := testenv.New(t, 40, 5)
 	defer env.Close()
 
 	root := element.Box(
@@ -92,7 +92,7 @@ func TestOverflowClip_BoxVisibleOverflow(t *testing.T) {
 // TestOverflowClip_HiddenInsideVisible verifies that only the inner clip is
 // applied when a hidden-overflow box sits inside a visible-overflow box.
 func TestOverflowClip_HiddenInsideVisible(t *testing.T) {
-	env := testenv.Default(40, 5)
+	env := testenv.New(t, 40, 5)
 	defer env.Close()
 
 	// outer (30 wide, visible) → inner (8 wide, hidden) → 30-wide red child.
@@ -117,7 +117,7 @@ func TestOverflowClip_HiddenInsideVisible(t *testing.T) {
 // a visible border retains its full border decoration; the border cells are NOT
 // eaten by the overflow clip.
 func TestOverflowClip_BorderIntact(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	// A 10×3 box with a single border and overflow: hidden. The inner child is
@@ -148,7 +148,7 @@ func TestOverflowClip_BorderIntact(t *testing.T) {
 // TestOverflowClip_Asymmetric_HiddenX_VisibleY clips only horizontal overflow
 // and allows vertical spill.
 func TestOverflowClip_Asymmetric_HiddenX_VisibleY(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	// Clipping container: 6 wide, overflow-x: hidden, overflow-y: visible.
@@ -174,7 +174,7 @@ func TestOverflowClip_Asymmetric_HiddenX_VisibleY(t *testing.T) {
 // have an automatic minimum main size of 0, allowing them to shrink to fit
 // within the available space.
 func TestOverflow_MinSizeScrollContainer(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	// Parent has height 5.

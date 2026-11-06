@@ -18,6 +18,8 @@ type Terminal interface {
 	Bell()
 	SetProgressBar(state ProgressBarState, percentage int)
 	SetProgramStatus(status *ProgramStatus)
+	OnClose(fn func())
+	IsClosed() bool
 }
 
 type ProgressBarState uint8

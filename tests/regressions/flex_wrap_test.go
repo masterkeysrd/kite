@@ -3,7 +3,6 @@ package regressions
 import (
 	"testing"
 
-	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/testenv"
@@ -12,7 +11,7 @@ import (
 // Regression test for FlexWrap — covers issue where wrapping flex containers
 // don't shrink because their Min intrinsic size is calculated as sum of children.
 func TestFlexWrapMinSize(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	// Create a wrapping flex container with 5 items, each 10 wide.
@@ -44,7 +43,7 @@ func TestFlexWrapMinSize(t *testing.T) {
 
 	// The tools box should have wrapped.
 	node := env.GetNodeByID("tools")
-	rect, ok := node.(dom.Element).GetBoundingClientRect()
+	rect, ok := node.GetBoundingClientRect()
 	if !ok {
 		t.Fatal("could not get bounding client rect for tools")
 	}
@@ -61,7 +60,7 @@ func TestFlexWrapMinSize(t *testing.T) {
 }
 
 func TestFlexWrapMinSizeFail(t *testing.T) {
-	env := testenv.Default(40, 20)
+	env := testenv.New(t, 40, 20)
 	defer env.Close()
 
 	// Root is a FlexRow (reproducing L14 in the dump).
@@ -98,7 +97,7 @@ func TestFlexWrapMinSizeFail(t *testing.T) {
 	env.Flush()
 
 	node := env.GetNodeByID("tools")
-	rect, ok := node.(dom.Element).GetBoundingClientRect()
+	rect, ok := node.GetBoundingClientRect()
 	if !ok {
 		t.Fatal("could not get bounding client rect for tools")
 	}

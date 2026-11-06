@@ -11,7 +11,7 @@ import (
 )
 
 func TestPaste_CtrlV(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	// Set initial clipboard content in backend.

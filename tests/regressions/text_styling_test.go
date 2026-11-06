@@ -10,7 +10,7 @@ import (
 )
 
 func TestTextStyling_BoldAndAttributes(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	root := element.Box(

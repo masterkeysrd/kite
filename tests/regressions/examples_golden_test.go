@@ -13,8 +13,7 @@ import (
 )
 
 func TestExampleApp1Golden(t *testing.T) {
-	env := testenv.Default(80, 50)
-	defer env.Close()
+	env := testenv.New(t, 80, 50)
 
 	// Replicate root from examples/app1/main.go
 	flexItems := make([]any, 0, 6)
@@ -71,8 +70,7 @@ func TestExampleApp1Golden(t *testing.T) {
 }
 
 func TestExampleFlexGolden(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	headerStyle := style.S().Foreground(color.RGBA{R: 255, G: 255, B: 0, A: 255}).Margin(0, 0, 1, 0)
 
@@ -142,8 +140,7 @@ func TestExampleFlexGolden(t *testing.T) {
 }
 
 func TestExampleInputGolden(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	colCard := color.RGBA{R: 28, G: 30, B: 40, A: 255}      // card surface
 	colBorder := color.RGBA{R: 60, G: 65, B: 90, A: 255}    // card border
@@ -230,8 +227,7 @@ func TestExampleInputGolden(t *testing.T) {
 }
 
 func TestExampleListGolden(t *testing.T) {
-	env := testenv.Default(80, 40)
-	defer env.Close()
+	env := testenv.New(t, 80, 40)
 
 	headerStyle := style.S().Margin(1, 0, 0, 0).Underline(true)
 
@@ -284,8 +280,7 @@ func TestExampleListGolden(t *testing.T) {
 }
 
 func TestExampleOverlayGolden(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	// Create a main background element
 	root := element.Box(
@@ -315,8 +310,7 @@ func TestExampleOverlayGolden(t *testing.T) {
 }
 
 func TestExampleTableGolden(t *testing.T) {
-	env := testenv.Default(80, 50)
-	defer env.Close()
+	env := testenv.New(t, 80, 50)
 
 	styles := map[string]style.Style{
 		"title":     style.S().Width(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 100, A: 255})),
@@ -397,8 +391,7 @@ func TestExampleTableGolden(t *testing.T) {
 }
 
 func TestExampleTextAreaGolden(t *testing.T) {
-	env := testenv.Default(80, 30)
-	defer env.Close()
+	env := testenv.New(t, 80, 30)
 
 	colBG := color.RGBA{R: 18, G: 18, B: 23, A: 255}        // app background
 	colCard := color.RGBA{R: 28, G: 30, B: 40, A: 255}      // editor surface

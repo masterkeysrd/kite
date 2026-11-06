@@ -24,7 +24,7 @@ For high-level component testing, use the `testenv` package. It allows you to si
 
 ```go
 func TestComponent(t *testing.T) {
-    env := testenv.Default(80, 24)
+    env := testenv.New(t, 80, 24)
     defer env.Close()
 
     // Declarative setup
@@ -46,7 +46,7 @@ Catch visual regressions by snapshotting the framebuffer state.
 
 ```go
 func TestVisual(t *testing.T) {
-    env := testenv.Default(20, 5)
+    env := testenv.New(t, 20, 5)
     defer env.Close()
 
     env.Mount(element.Box().Style(style.Style{
@@ -108,7 +108,7 @@ Two helper families make headless assertions ergonomic:
     - Example:
 
 ```go
-env := testenv.Default(10,5)
+env := testenv.New(t, 10,5)
 defer env.Close()
 
 tree := element.Box(
@@ -136,7 +136,7 @@ testenv.Expect(t, tree).
     - Example:
 
 ```go
-env := testenv.Default(20,10)
+env := testenv.New(t, 20,10)
 defer env.Close()
 
 // ... mount and render ...

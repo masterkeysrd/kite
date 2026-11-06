@@ -10,8 +10,7 @@ import (
 )
 
 func TestSelectionInteraction(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	env.Mount(element.Box(
 		element.Text("Hello World"),
@@ -66,8 +65,7 @@ func TestSelectionInteraction(t *testing.T) {
 }
 
 func TestSelectionInteraction_Reverse(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	env.Mount(element.Box(
 		element.Text("Hello World"),
@@ -93,8 +91,7 @@ func TestSelectionInteraction_Reverse(t *testing.T) {
 }
 
 func TestSelectionInteraction_ClearOnClick(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	env.Mount(element.Box(
 		element.Text("Hello World"),
@@ -122,8 +119,7 @@ func TestSelectionInteraction_ClearOnClick(t *testing.T) {
 }
 
 func TestSelectionInteraction_MultiLine(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	// Box with fixed width to force wrapping
 	env.Mount(element.Box(

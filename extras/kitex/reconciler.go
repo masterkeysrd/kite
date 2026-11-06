@@ -183,6 +183,12 @@ func processDirtyLoop() {
 		if parentEl == nil {
 			continue
 		}
+		if doc := parentEl.OwnerDocument(); doc != nil {
+			if term := doc.Terminal(); term != nil && term.IsClosed() {
+				comp.ClearDirty()
+				continue
+			}
+		}
 		realNodes := comp.realNodes()
 
 		oldRendered := comp.Rendered()
@@ -256,6 +262,17 @@ func Render(root Node, container dom.Element) {
 	if oldRoot != nil {
 		reconcile(container, oldRoot, root, oldRoot.(nodeInternal).realNodes(), nil)
 	} else {
+		if doc := container.OwnerDocument(); doc != nil {
+			if term := doc.Terminal(); term != nil {
+				if term.IsClosed() {
+					delete(activeRoots, container)
+					return
+				}
+				term.OnClose(func() {
+					Render(nil, container)
+				})
+			}
+		}
 		realNodes := root.Instantiate(container.OwnerDocument())
 		for _, realNode := range realNodes {
 			if realNode != nil {
@@ -266,6 +283,11 @@ func Render(root Node, container dom.Element) {
 
 	drainLayoutEffects()
 	finishFlush()
+}
+
+// Unmount unmounts and destroys the Virtual DOM tree in container.
+func Unmount(container dom.Element) {
+	Render(nil, container)
 }
 
 func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, anchor dom.Node) []dom.Node {

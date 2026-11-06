@@ -40,6 +40,19 @@ func (tp *TerminalProxy) SetProgramStatus(status *terminal.ProgramStatus) {
 	tp.e.SetProgramStatus(status)
 }
 
+func (tp *TerminalProxy) OnClose(fn func()) {
+	tp.e.OnStop(fn)
+}
+
+func (tp *TerminalProxy) IsClosed() bool {
+	select {
+	case <-tp.e.Done():
+		return true
+	default:
+		return false
+	}
+}
+
 type pendingRead struct {
 	mime string
 	ch   chan []byte

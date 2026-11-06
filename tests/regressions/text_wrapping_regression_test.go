@@ -13,7 +13,7 @@ import (
 
 func TestTextWrappingInFlexScrollContainer(t *testing.T) {
 	// A viewport of width 40, height 20.
-	e := testenv.Default(40, 20)
+	e := testenv.New(t, 40, 20)
 	defer e.Close()
 
 	var textRef kitex.Ref[dom.Element]
@@ -71,7 +71,7 @@ func TestTextWrappingInFlexScrollContainer(t *testing.T) {
 	}
 
 	// Find the root render object to print the whole tree.
-	var rootObj render.Object = ro
+	var rootObj = ro
 	for rootObj.Parent() != nil {
 		rootObj = rootObj.Parent()
 	}

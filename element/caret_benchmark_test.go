@@ -9,8 +9,7 @@ import (
 )
 
 func BenchmarkCaretMovement(b *testing.B) {
-	env := testenv.Default(80, 25)
-	defer env.Close()
+	env := testenv.New(b, 80, 25)
 
 	// Create a cursor-navigable button
 	btn := element.Button("  Hello World  ").WithID("btn").CursorNavigable(true)

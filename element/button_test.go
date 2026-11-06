@@ -134,8 +134,7 @@ func TestButton_Disabled_Click(t *testing.T) {
 }
 
 func TestButton_Disabled_Click_TestEnv(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	clicked := false
 	btn := element.Button("Click Me").Disabled(true).OnEvent(event.EventClick, func(e event.Event) {

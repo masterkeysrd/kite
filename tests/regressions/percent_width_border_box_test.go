@@ -28,7 +28,7 @@ var colorGreen = color.RGBA{0, 200, 0, 255}
 // Green cells [1..9] at row 1 confirm the width is 9 (content-box percent).
 // Cells at x=10..17 inside the content area must NOT be green.
 func TestRegression_PercentWidthContentBox(t *testing.T) {
-	env := testenv.Default(40, 5)
+	env := testenv.New(t, 40, 5)
 	defer env.Close()
 
 	inner := element.Box().Style(style.S().Width(style.Percent(50)).Height(style.Cells(1)).Background(colorGreen))
@@ -52,7 +52,7 @@ func TestRegression_PercentWidthContentBox(t *testing.T) {
 // with width:100% were overflowing the card's right border because percent was
 // resolved against the border-box (55) instead of the content-box (49).
 func TestRegression_PercentWidth100_NoOverflow(t *testing.T) {
-	env := testenv.Default(40, 5)
+	env := testenv.New(t, 40, 5)
 	defer env.Close()
 
 	// inner fills 100% of outer's content area.  With border=1 and padding=2 on each
@@ -80,7 +80,7 @@ func TestRegression_PercentWidth100_NoOverflow(t *testing.T) {
 //	  level2 – width:50%                  → must be 20 (50% of 40)
 //	    level3 – width:50%                → must be 10 (50% of 20)
 func TestRegression_NestedPercentResolution(t *testing.T) {
-	env := testenv.Default(60, 5)
+	env := testenv.New(t, 60, 5)
 	defer env.Close()
 
 	level3 := element.Box().Style(style.S().Width(style.Percent(50)).Height(style.Cells(1)).Background(colorGreen))

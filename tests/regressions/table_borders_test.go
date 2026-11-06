@@ -9,7 +9,7 @@ import (
 )
 
 func TestTableBorders(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	// Table with borders on every cell, no manual margins

@@ -10,7 +10,7 @@ import (
 )
 
 func TestFlexWrapItemsVisible(t *testing.T) {
-	ev := testenv.Default(80, 24)
+	ev := testenv.New(t, 80, 24)
 	defer ev.Close()
 
 	// 80 wide. items are 17 wide.
@@ -53,7 +53,7 @@ func TestFlexWrapItemsVisible(t *testing.T) {
 }
 
 func TestFlexWrapStretchToLineHeight(t *testing.T) {
-	ev := testenv.Default(80, 24)
+	ev := testenv.New(t, 80, 24)
 	defer ev.Close()
 
 	containerStyle := style.S().

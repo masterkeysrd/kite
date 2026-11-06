@@ -11,8 +11,7 @@ import (
 )
 
 func TestSelect_LayoutWidth(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	// Case 1: Select with explicit width.
 	// The internal button should stretch to match this width.
@@ -81,8 +80,7 @@ func TestSelect_LayoutWidth(t *testing.T) {
 }
 
 func TestSelect_LayoutHeight(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	// Select inside a tall flex container.
 	// It should NOT stretch to fill the height unless explicitly told to.
@@ -110,8 +108,7 @@ func TestSelect_LayoutHeight(t *testing.T) {
 
 func TestSelect_KeyboardNavigation(t *testing.T) {
 	t.Skip("Skipping until we implement proper focus management for select dropdowns")
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	s := element.Select(
 		element.Option("Option 1", "opt1"),

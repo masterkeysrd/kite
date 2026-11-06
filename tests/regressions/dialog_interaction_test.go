@@ -12,8 +12,7 @@ import (
 // TestDialogInteraction ensures that the dialog correctly handles focus and
 // closing events (Enter/Esc).
 func TestDialogInteraction(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	var activeDialog *element.DialogElement
 

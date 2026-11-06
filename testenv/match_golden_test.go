@@ -25,8 +25,7 @@ func TestMatchGolden(t *testing.T) {
 
 	os.Mkdir("testdata", 0755)
 
-	env := Default(10, 5)
-	defer env.Close()
+	env := New(t, 10, 5)
 
 	env.Mount(element.Box().Style(style.S().Width(style.Cells(5)).Height(style.Cells(2)).Background(color.Color(color.RGBA{R: 255, G: 0, B: 0, A: 255}))))
 	env.Flush()
@@ -61,8 +60,7 @@ func TestMatchGolden(t *testing.T) {
 }
 
 func TestDumps(t *testing.T) {
-	env := Default(10, 2)
-	defer env.Close()
+	env := New(t, 10, 2)
 
 	env.Mount(element.Box().Style(style.S().Width(style.Cells(10)).Height(style.Cells(2)).Background(color.Color(color.RGBA{R: 0, G: 0, B: 255, A: 255})).Foreground(color.Color(color.RGBA{R: 255, G: 255, B: 255, A: 255}))).AddChild(element.Text("Hello")))
 	env.Flush()

@@ -9,7 +9,7 @@ import (
 )
 
 func TestTableGrouping_Sorting(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	// Create sections in "wrong" order: tfoot, tbody, thead
@@ -28,7 +28,7 @@ func TestTableGrouping_Sorting(t *testing.T) {
 }
 
 func TestTableGrouping_AnonymousGroups(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	// Table with direct TRs
@@ -56,7 +56,7 @@ func TestTableGrouping_AnonymousGroups(t *testing.T) {
 }
 
 func TestTableGrouping_ColumnSynchronization(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	// Table with wide cell in tbody and narrow cell in thead

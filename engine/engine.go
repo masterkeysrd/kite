@@ -153,6 +153,7 @@ type Engine struct {
 	onFrameRenderedHooks []func()
 
 	// onStopHooks are called when the engine is stopping.
+	stopHooksMu sync.Mutex
 	onStopHooks []func()
 
 	// eventBuffer holds raw events to be processed before the next frame.
@@ -566,9 +567,22 @@ func (e *Engine) OnFrameRendered(fn func()) {
 	e.onFrameRenderedHooks = append(e.onFrameRenderedHooks, fn)
 }
 
-// OnStop registers a hook to be called when the engine stops.
+// OnStop registers a hook to be called when the engine stops. If the engine
+// is already stopped, fn is invoked immediately.
 func (e *Engine) OnStop(fn func()) {
-	e.onStopHooks = append(e.onStopHooks, fn)
+	if fn == nil {
+		return
+	}
+	e.stopHooksMu.Lock()
+	select {
+	case <-e.closeCh:
+		e.stopHooksMu.Unlock()
+		fn()
+		return
+	default:
+		e.onStopHooks = append(e.onStopHooks, fn)
+		e.stopHooksMu.Unlock()
+	}
 }
 
 // RequestFrameAt schedules a frame wake-up at time t. If t is before
@@ -1343,7 +1357,12 @@ func (e *Engine) Done() <-chan struct{} {
 
 func (e *Engine) Stop() {
 	e.closeOnce.Do(func() {
-		for _, fn := range e.onStopHooks {
+		e.stopHooksMu.Lock()
+		hooks := e.onStopHooks
+		e.onStopHooks = nil
+		e.stopHooksMu.Unlock()
+
+		for _, fn := range hooks {
 			fn()
 		}
 		close(e.closeCh)

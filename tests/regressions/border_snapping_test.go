@@ -9,8 +9,7 @@ import (
 )
 
 func TestBorderSnapping_Integration(t *testing.T) {
-	e := testenv.Default(20, 10)
-	defer e.Close()
+	e := testenv.New(t, 20, 10)
 
 	// Create two boxes flush against each other.
 	// Box 1: (0,0) to (10, 5)

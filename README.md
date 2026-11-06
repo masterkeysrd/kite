@@ -95,7 +95,7 @@ Kite provides a headless testing environment via the `testenv` package. This all
 
 ```go
 func TestMyApp(t *testing.T) {
-    env := testenv.Default(80, 24)
+    env := testenv.New(t, 80, 24)
     defer env.Close()
 
     env.Mount(element.Input("").WithID("my-input"))

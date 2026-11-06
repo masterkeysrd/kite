@@ -14,7 +14,7 @@ import (
 // distribution are handled correctly.
 func TestFlexWrapMinWidthAuto(t *testing.T) {
 	// Total width 64
-	env := testenv.Default(64, 20)
+	env := testenv.New(t, 64, 20)
 	defer env.Close()
 
 	// 6 items with base-size 10 and min-size auto (which should resolve to content size).

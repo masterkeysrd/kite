@@ -8,8 +8,7 @@ import (
 )
 
 func TestDeclarative_NestedSlices(t *testing.T) {
-	e := testenv.Default(10, 5)
-	defer e.Close()
+	e := testenv.New(t, 10, 5)
 
 	// Nested variadic slices: Box([]any{Box("a"), []any{Box("b"), Box("c")}})
 	tree := element.Box(

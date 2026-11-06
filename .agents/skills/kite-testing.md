@@ -23,10 +23,10 @@ This skill provides comprehensive guidelines and patterns for testing Kite compo
 ## Implementation Guidelines
 
 ### 1. Environment Setup
-Always use `testenv.Default(width, height)` for standard tests. This initializes the mock backend and engine automatically. Use `defer env.Close()` to ensure proper cleanup.
+Always use `testenv.New(t, width, height)` for standard tests. This initializes the mock backend and engine automatically. Use `defer env.Close()` to ensure proper cleanup.
 
 ```go
-env := testenv.Default(80, 24)
+env := testenv.New(t, 80, 24)
 defer env.Close()
 ```
 
@@ -105,7 +105,7 @@ os.WriteFile("dump.html", []byte(env.DumpHTML()), 0644)
 
 ```go
 func TestButtonCounter(t *testing.T) {
-    env := testenv.Default(80, 24)
+    env := testenv.New(t, 80, 24)
     defer env.Close()
 
     count := 0

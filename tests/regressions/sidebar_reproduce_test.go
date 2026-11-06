@@ -11,7 +11,7 @@ import (
 
 func TestRegression_SidebarContentDynamicLayout(t *testing.T) {
 	// Total width 40, height 10.
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	colorSidebar := color.RGBA{100, 100, 100, 255}
@@ -125,7 +125,7 @@ func repeatString(s string, count int) string {
 }
 
 func TestRegression_OverlayJunctionBug(t *testing.T) {
-	env := testenv.Default(10, 5)
+	env := testenv.New(t, 10, 5)
 	defer env.Close()
 
 	// Outer box with border.

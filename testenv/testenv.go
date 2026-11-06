@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -29,8 +30,9 @@ var (
 
 // Environment provides ergonomic tools for testing Kite components headless.
 type Environment struct {
-	Engine  *engine.Engine
-	Backend *mock.Backend
+	Engine   *engine.Engine
+	Backend  *mock.Backend
+	cleanups []func()
 }
 
 // DispatchKey sends a key down event to the target EventTarget by building
@@ -63,26 +65,84 @@ func (e *Environment) DispatchKey(target event.EventTarget, k key.Key) {
 	d.Dispatch(ev, path)
 }
 
-// New creates a new test environment wrapping the given engine.
-func New(eng *engine.Engine) *Environment {
-	return &Environment{
-		Engine: eng,
+// Option configures an Environment created with New.
+type Option func(*envOptions)
+
+type envOptions struct {
+	engine  *engine.Engine
+	backend *mock.Backend
+	caps    *backend.Caps
+}
+
+// WithEngine specifies a custom pre-configured engine.
+func WithEngine(eng *engine.Engine) Option {
+	return func(o *envOptions) {
+		o.engine = eng
 	}
 }
 
-// Default creates a new test environment with a mock backend of the given
-// dimensions and a default engine.
-func Default(width, height int) *Environment {
-	b := mock.New(width, height)
-	eng := engine.New(b, engine.Options{})
-	return &Environment{
+// WithBackend specifies a custom mock backend.
+func WithBackend(b *mock.Backend) Option {
+	return func(o *envOptions) {
+		o.backend = b
+	}
+}
+
+// WithCaps specifies simulated terminal capabilities for the mock backend.
+func WithCaps(caps backend.Caps) Option {
+	return func(o *envOptions) {
+		o.caps = &caps
+	}
+}
+
+// New creates a new test environment bound to testing.TB.
+// It initializes a mock backend and engine of the given dimensions,
+// and automatically registers teardown via t.Cleanup when t is non-nil.
+func New(t testing.TB, width, height int, opts ...Option) *Environment {
+	var o envOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	b := o.backend
+	if b == nil && o.engine == nil {
+		if o.caps != nil {
+			b = mock.NewWithCaps(width, height, *o.caps)
+		} else {
+			b = mock.New(width, height)
+		}
+	}
+
+	eng := o.engine
+	if eng == nil {
+		eng = engine.New(b, engine.Options{})
+	}
+
+	env := &Environment{
 		Engine:  eng,
 		Backend: b,
 	}
+
+	if t != nil {
+		t.Cleanup(env.Close)
+	}
+
+	return env
 }
 
-// Teardown gracefully stops the engine.
+// Cleanup registers a function to be executed when the environment is torn down.
+func (e *Environment) Cleanup(fn func()) {
+	if fn != nil {
+		e.cleanups = append(e.cleanups, fn)
+	}
+}
+
+// Teardown gracefully stops the engine and runs all registered cleanups.
 func (e *Environment) Teardown() {
+	for _, v := range slices.Backward(e.cleanups) {
+		v()
+	}
+	e.cleanups = nil
 	e.Engine.Stop()
 }
 
@@ -639,8 +699,16 @@ func renderSideBySide(expectedJSON, actualJSON []byte) string {
 	actHeader := "ACTUAL"
 	paddingExp := max(0, wExp-len(expHeader))
 	paddingAct := max(0, wAct-len(actHeader))
-	sb.WriteString(expHeader + strings.Repeat(" ", paddingExp) + "  ┃  " + actHeader + strings.Repeat(" ", paddingAct) + "\n")
-	sb.WriteString(strings.Repeat("━", wExp) + "━━╋━━" + strings.Repeat("━", wAct) + "\n")
+	sb.WriteString(expHeader)
+	sb.WriteString(strings.Repeat(" ", paddingExp))
+	sb.WriteString("  ┃  ")
+	sb.WriteString(actHeader)
+	sb.WriteString(strings.Repeat(" ", paddingAct))
+	sb.WriteString("\n")
+	sb.WriteString(strings.Repeat("━", wExp))
+	sb.WriteString("━━╋━━")
+	sb.WriteString(strings.Repeat("━", wAct))
+	sb.WriteString("\n")
 
 	formatCell := func(cell goldenCell) string {
 		var cellSb strings.Builder

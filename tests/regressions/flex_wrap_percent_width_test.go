@@ -33,7 +33,7 @@ import (
 
 func TestFlexWrapOn_PercentWidthWithTextItems(t *testing.T) {
 	// Viewport wider than the outer box so overflow would be visible.
-	env := testenv.Default(80, 10)
+	env := testenv.New(t, 80, 10)
 	defer env.Close()
 
 	// Three text nodes that exceed the 38-cell content area when combined.
@@ -90,7 +90,7 @@ func TestFlexWrapOn_PercentWidthWithTextItems(t *testing.T) {
 // block-level flex items (element.Box children), confirming the existing fix
 // still works and providing a baseline for the text-item regression above.
 func TestFlexWrapOn_PercentWidthWithBlockItems(t *testing.T) {
-	env := testenv.Default(80, 10)
+	env := testenv.New(t, 80, 10)
 	defer env.Close()
 
 	// Each item is 14 cells wide. Three items total = 42 > 38-cell content area.

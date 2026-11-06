@@ -15,7 +15,7 @@ import (
 // TestRegression_StartupAutofocus verifies that the first focusable element
 // is automatically focused on the first frame, and its cursor is shown.
 func TestRegression_StartupAutofocus(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	inp := element.NewInput(env.Document(), "initial")
@@ -40,7 +40,7 @@ func TestRegression_StartupAutofocus(t *testing.T) {
 // the focus manager blurs the disconnected element and automatically focuses the first
 // focusable child in the new scope even if the autofocus target (the route root) is not focusable.
 func TestRegression_StackNavigation_FocusTransition(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	// 1. Initial screen structure
@@ -93,7 +93,7 @@ func TestRegression_StackNavigation_FocusTransition(t *testing.T) {
 // TestRegression_StackNavigation_UseKeyboard verifies that key hooks inside
 // routed screens are registered correctly and handle keystrokes like Esc.
 func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	container := element.NewBox(env.Document())

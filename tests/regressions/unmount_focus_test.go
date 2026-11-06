@@ -10,7 +10,7 @@ import (
 // TestUnmountFocusReset verifies that if the currently focused element is
 // unmounted and no other element remains in the document, focus is cleared to nil.
 func TestUnmountFocusReset(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	doc := env.Engine.Document()
@@ -39,7 +39,7 @@ func TestUnmountFocusReset(t *testing.T) {
 // TestUnmountFocusResetsToNilIfNoFocusableAncestor verifies that if a focused element is unmounted
 // and no focusable parent exists in its ancestry, focus is cleared to nil (allowing autofocus recovery).
 func TestUnmountFocusResetsToNilIfNoFocusableAncestor(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	doc := env.Engine.Document()
@@ -72,7 +72,7 @@ func TestUnmountFocusResetsToNilIfNoFocusableAncestor(t *testing.T) {
 // but a parent container in the unmounted path's parent chain is focusable, focus falls back
 // to that nearest focusable ancestor instead of the root Box.
 func TestUnmountFocusFallbackToFocusableAncestor(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	doc := env.Engine.Document()

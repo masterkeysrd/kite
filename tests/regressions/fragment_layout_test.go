@@ -10,7 +10,7 @@ import (
 )
 
 func TestFragmentLayout_OverflowAuto(t *testing.T) {
-	e := testenv.Default(80, 20)
+	e := testenv.New(t, 80, 20)
 	defer e.Close()
 
 	var setItems func([]string)

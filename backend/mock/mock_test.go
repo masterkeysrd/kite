@@ -85,31 +85,25 @@ func TestBackend_Mock_ThreadSafety(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Goroutine 1: Frame loop (renderer)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for i := range iterations {
 			s := b.BeginFrame()
 			s.Set(i%80, 0, backend.Cell{Content: "A", Width: 1})
 			_ = b.EndFrame()
 		}
-	}()
+	})
 
 	// Goroutine 2: Event poster
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for i := range iterations {
 			b.PostEvent(&backend.RawKeyEvent{
 				Key: key.Key{Code: rune('a' + (i % 26))},
 			})
 		}
-	}()
+	})
 
 	// Goroutine 3: Event consumer (simulates engine select)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		events := b.Events()
 		count := 0
 		for count < iterations {
@@ -120,38 +114,32 @@ func TestBackend_Mock_ThreadSafety(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	// Goroutine 4: Frame reader / assertion checker
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for i := range iterations {
 			_ = b.LastFrame()
 			_ = b.FrameCount()
 			_ = b.AllFrames()
 			_, _ = b.Frame(i)
 		}
-	}()
+	})
 
 	// Goroutine 5: Cursor updater and reader
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for i := range iterations {
 			b.ShowCursor(i%2 == 0)
 			b.SetCursorPos(i%80, (i*2)%24)
 			b.SetCursorShape(backend.CursorBar)
 			b.SetCursorColor(color.RGBA{R: 255, A: 255})
 			_ = b.CursorState()
 		}
-	}()
+	})
 
 	// Goroutine 6: Output / terminal writes & reads
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for i := range iterations {
 			b.SetTitle(fmt.Sprintf("Title %d", i))
 			_ = b.Title()
 			b.Bell()
@@ -159,26 +147,22 @@ func TestBackend_Mock_ThreadSafety(t *testing.T) {
 			_ = b.Output.String()
 			_ = b.Output.Bytes()
 		}
-	}()
+	})
 
 	// Goroutine 7: InsertAbove calls & readers
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for range iterations {
 			buf := backend.NewBuffer(20, 1)
 			buf.Set(0, 0, backend.Cell{Content: "S"})
 			b.InsertAbove(buf)
 			_ = b.InsertedAboveCount()
 			_ = b.AllInsertedAbove()
 		}
-	}()
+	})
 
 	// Goroutine 8: Resizes and status updates
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < iterations; i++ {
+	wg.Go(func() {
+		for i := range iterations {
 			b.Resize(geom.Size{Width: 80 + (i % 20), Height: 24 + (i % 10)})
 			_ = b.Size()
 			b.SetProgramStatus(&backend.ProgramStatus{State: backend.ProgramStateWorking})
@@ -186,7 +170,7 @@ func TestBackend_Mock_ThreadSafety(t *testing.T) {
 			b.SetInline(i%2 == 0)
 			_ = b.IsInline()
 		}
-	}()
+	})
 
 	wg.Wait()
 
@@ -240,7 +224,7 @@ func TestBackend_Mock_OutputBuffer(t *testing.T) {
 	var buf mock.OutputBuffer
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()

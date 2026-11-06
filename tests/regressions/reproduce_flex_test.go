@@ -10,7 +10,7 @@ import (
 )
 
 func TestFragmentLayout_NegativeShrink(t *testing.T) {
-	e := testenv.Default(160, 80)
+	e := testenv.New(t, 160, 80)
 	defer e.Close()
 
 	var child4Ref kitex.Ref[dom.Element]

@@ -12,8 +12,10 @@ import (
 	"image/color"
 	"slices"
 
+	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
+	"github.com/masterkeysrd/kite/engine"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/log"
@@ -1686,5 +1688,97 @@ func TestDirtyDuringRenderIsNotLost(t *testing.T) {
 	box := container.FirstChild().(dom.Element)
 	if got := collectChildText(box); got != "7" {
 		t.Errorf("expected the value flagged during render to reach the DOM, got %q", got)
+	}
+}
+
+func TestReconciler_AutoUnmountOnEngineStop(t *testing.T) {
+	prevSched := getInternalScheduler()
+	defer setInternalScheduler(prevSched)
+
+	b := mock.New(80, 24)
+	eng := engine.New(b, engine.Options{})
+	doc := eng.Document()
+
+	container := Div(BoxProps{ID: "test-container"}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+
+	cleanedUp := false
+	comp := SimpleFC("LifecycleComp", func() Node {
+		UseLayoutEffectCleanup(func() func() {
+			return func() {
+				cleanedUp = true
+			}
+		}, nil)
+		return Box(BoxProps{}, Text("running"))
+	})
+
+	Render(comp(), container)
+
+	if container.FirstChild() == nil {
+		t.Fatal("expected component to be mounted")
+	}
+
+	// Verify it is registered in activeRoots
+	if activeRoots[container] == nil {
+		t.Fatal("expected container to be in activeRoots")
+	}
+
+	// Stop engine -> must trigger auto-unmount of Kitex tree
+	eng.Stop()
+
+	if !cleanedUp {
+		t.Errorf("expected effect cleanup to run on engine stop")
+	}
+	if activeRoots[container] != nil {
+		t.Errorf("expected container to be removed from activeRoots on engine stop")
+	}
+	if container.FirstChild() != nil {
+		t.Errorf("expected DOM nodes to be unmounted from container on engine stop")
+	}
+}
+
+func TestReconciler_AutoUnmount_AsyncEffectCleanup(t *testing.T) {
+	prevSched := getInternalScheduler()
+	defer setInternalScheduler(prevSched)
+
+	b := mock.New(80, 24)
+	eng := engine.New(b, engine.Options{})
+	doc := eng.Document()
+
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+
+	cleanedUp := false
+	comp := SimpleFC("AsyncComp", func() Node {
+		UseEffectCleanup(func() func() {
+			return func() {
+				cleanedUp = true
+			}
+		}, nil)
+		return Box(BoxProps{}, Text("async"))
+	})
+
+	Render(comp(), container)
+	eng.Frame() // Flushes macrotasks, running effect setup
+
+	eng.Stop()
+
+	if !cleanedUp {
+		t.Errorf("expected async effect cleanup to run on engine stop")
+	}
+}
+
+func TestUnmount_Helper(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	Render(Box(BoxProps{}, Text("content")), container)
+	if container.FirstChild() == nil {
+		t.Fatal("expected mounted child")
+	}
+
+	Unmount(container)
+	if container.FirstChild() != nil {
+		t.Errorf("expected container to be empty after Unmount")
 	}
 }

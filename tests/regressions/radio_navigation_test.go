@@ -12,7 +12,7 @@ import (
 )
 
 func TestRadioArrowNavigationFocus(t *testing.T) {
-	env := testenv.Default(80, 24)
+	env := testenv.New(t, 80, 24)
 	defer env.Close()
 
 	cb := element.Checkbox(false)

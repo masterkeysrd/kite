@@ -14,7 +14,7 @@ import (
 )
 
 func TestTextSelectionPaint(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	// 1. Build a document with some text.
@@ -50,7 +50,7 @@ func TestTextSelectionPaint(t *testing.T) {
 }
 
 func TestTextSelectionCustomColors(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	selFG := color.RGBA{R: 255, G: 0, B: 0, A: 255}
@@ -85,7 +85,7 @@ func TestTextSelectionCustomColors(t *testing.T) {
 }
 
 func TestPartialTextSelectionPaint(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -116,7 +116,7 @@ func TestPartialTextSelectionPaint(t *testing.T) {
 }
 
 func TestMultilineTextSelectionPaint(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -157,7 +157,7 @@ func TestMultilineTextSelectionPaint(t *testing.T) {
 }
 
 func TestListItemTextSelectionPaint(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -204,7 +204,7 @@ func TestListItemTextSelectionPaint(t *testing.T) {
 }
 
 func TestListItemClickSelection(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -235,7 +235,7 @@ func TestListItemClickSelection(t *testing.T) {
 }
 
 func TestListSelectInto(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -264,7 +264,7 @@ func TestListSelectInto(t *testing.T) {
 }
 
 func TestListItemOmitAdornments(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -294,7 +294,7 @@ func TestListItemOmitAdornments(t *testing.T) {
 }
 
 func TestSelectLastCharOfLine(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -318,7 +318,7 @@ func TestSelectLastCharOfLine(t *testing.T) {
 }
 
 func TestSelectLastCharOfWrappedLine(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -347,7 +347,7 @@ func TestSelectLastCharOfWrappedLine(t *testing.T) {
 }
 
 func TestListItemDragDownSelection(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -378,7 +378,7 @@ func TestListItemDragDownSelection(t *testing.T) {
 }
 
 func TestListItemReverseSelection(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -402,7 +402,7 @@ func TestListItemReverseSelection(t *testing.T) {
 }
 
 func TestSelectionOverPaddingArea(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()
@@ -453,7 +453,7 @@ func TestSelectionOverPaddingArea(t *testing.T) {
 }
 
 func TestOverlaySelectionPaint(t *testing.T) {
-	env := testenv.Default(40, 10)
+	env := testenv.New(t, 40, 10)
 	defer env.Close()
 
 	doc := env.Document()

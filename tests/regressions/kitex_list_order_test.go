@@ -30,7 +30,7 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 })
 
 func TestKitexReverseWithButtonClick(t *testing.T) {
-	env := testenv.Default(80, 20)
+	env := testenv.New(t, 80, 20)
 	defer env.Close()
 
 	App := kitex.FC("App", func(props struct{}) kitex.Node {
@@ -50,10 +50,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 		}
 
 		renderItem := func(item ItemData, _ int) kitex.Node {
-			return ListItem(ItemProps{
-				Key: item.Key,
-				ID:  item.ID,
-			})
+			return ListItem(ItemProps(item))
 		}
 
 		return kitex.Box(kitex.BoxProps{
@@ -75,7 +72,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 	env.Flush()
 
 	// Initial check
-	listContainer := env.QuerySelector("#list-container").(dom.Element)
+	listContainer := env.QuerySelector("#list-container")
 	getIDs := func() []string {
 		var ids []string
 		for child := range listContainer.ChildNodes() {
@@ -95,7 +92,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 	}
 
 	// Reverse via button click
-	btn := env.QuerySelector("#reverse-btn").(dom.Element)
+	btn := env.QuerySelector("#reverse-btn")
 	rect, _ := btn.GetBoundingClientRect()
 	env.Click(rect.Origin.X, rect.Origin.Y)
 	env.Flush()
@@ -114,7 +111,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 }
 
 func TestKitexInsertAtStartWithReverse(t *testing.T) {
-	env := testenv.Default(80, 20)
+	env := testenv.New(t, 80, 20)
 	defer env.Close()
 
 	App := kitex.FC("App", func(props struct{}) kitex.Node {
@@ -132,10 +129,7 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 		}
 
 		renderItem := func(item ItemData, _ int) kitex.Node {
-			return ListItem(ItemProps{
-				Key: item.Key,
-				ID:  item.ID,
-			})
+			return ListItem(ItemProps(item))
 		}
 
 		return kitex.Box(kitex.BoxProps{
@@ -157,12 +151,12 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 	env.Flush()
 
 	// Action via button click
-	btn := env.QuerySelector("#action-btn").(dom.Element)
+	btn := env.QuerySelector("#action-btn")
 	rect, _ := btn.GetBoundingClientRect()
 	env.Click(rect.Origin.X, rect.Origin.Y)
 	env.Flush()
 
-	listContainer := env.QuerySelector("#list-container").(dom.Element)
+	listContainer := env.QuerySelector("#list-container")
 	var ids []string
 	for child := range listContainer.ChildNodes() {
 		if el, ok := child.(dom.Element); ok {

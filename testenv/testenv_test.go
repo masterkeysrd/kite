@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
 	"github.com/masterkeysrd/kite/testenv"
 )
 
 func TestEnvironment_Type(t *testing.T) {
-	// 1. Setup default environment.
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	// 1. Setup environment.
+	env := testenv.New(t, 80, 24)
 
 	// 2. Mount an input field declaratively.
 	env.Mount(element.Input("").WithID("my-input"))
@@ -32,8 +32,7 @@ func TestEnvironment_Type(t *testing.T) {
 }
 
 func TestEnvironment_QuerySelector(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	env.Mount(element.Box().WithID("target").WithClass("my-class"))
 	env.Flush()
@@ -58,8 +57,7 @@ func TestEnvironment_QuerySelector(t *testing.T) {
 }
 
 func TestEnvironment_Wheel(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	box := element.Box().WithID("scroller")
 	// Make it scrollable by giving it fixed size and content that exceeds it
@@ -85,8 +83,7 @@ func TestEnvironment_Wheel(t *testing.T) {
 }
 
 func TestNewAssertions(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	box := element.Box().WithID("my-box").WithClass("active")
 	box.AddChild(element.Text("Hello World"))
@@ -110,8 +107,7 @@ func TestNewAssertions(t *testing.T) {
 }
 
 func TestMoreNewFeatures(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	box := element.Box().WithID("my-box").Style(style.S().Width(style.Cells(5)).Height(style.Cells(5)))
 	input := element.Input("").WithID("input-field")
@@ -153,4 +149,30 @@ func TestMoreNewFeatures(t *testing.T) {
 	spy2 := testenv.SpyEvents(t, box, "click")
 	env.DoubleClick(0, 0)
 	spy2.AssertFiredCount(2)
+}
+
+func TestEnvironment_New_And_Options(t *testing.T) {
+	cleanupCalled := false
+
+	t.Run("subtest with New and options", func(subT *testing.T) {
+		caps := backend.Caps{TrueColor: true}
+		env := testenv.New(subT, 80, 24, testenv.WithCaps(caps))
+		env.Cleanup(func() {
+			cleanupCalled = true
+		})
+
+		if !env.Backend.Caps().TrueColor {
+			subT.Error("expected TrueColor capability to be set on backend")
+		}
+
+		env.Mount(element.Box().WithID("my-box"))
+		env.Flush()
+		if env.GetNodeByID("my-box") == nil {
+			subT.Fatal("expected my-box to be found")
+		}
+	})
+
+	if !cleanupCalled {
+		t.Errorf("expected cleanup to have been called when subtest finished")
+	}
 }

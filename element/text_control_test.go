@@ -242,8 +242,7 @@ func TestTextArea_Panic_InvalidBROffset(t *testing.T) {
 }
 
 func TestTextArea_Repro_StepByStep(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	content := "ABC\nDEF\nGHI"
 	txa := element.TextArea(content)
@@ -293,8 +292,7 @@ func TestTextArea_Repro_StepByStep(t *testing.T) {
 }
 
 func TestInput_KeyboardSelection(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	inp := element.Input("Hello World").WithID("inp")
 	env.Mount(inp)
@@ -343,8 +341,7 @@ func TestInput_KeyboardSelection(t *testing.T) {
 }
 
 func TestInput_MouseSelection(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	inp := element.Input("Hello World").WithID("inp")
 	env.Mount(inp)
@@ -377,8 +374,7 @@ func TestInput_MouseSelection(t *testing.T) {
 }
 
 func TestTextArea_Selection(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	txa := element.TextArea("Line One\nLine Two")
 	env.Mount(txa)
@@ -408,8 +404,7 @@ func TestTextArea_Selection(t *testing.T) {
 }
 
 func TestTextArea_SelectAllBugReproduction(t *testing.T) {
-	env := testenv.Default(80, 24)
-	defer env.Close()
+	env := testenv.New(t, 80, 24)
 
 	// Text with multiple lines.
 	content := "Line One\nLine Two\nLine Three"
