@@ -1,6 +1,7 @@
 package testenv_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -130,16 +131,16 @@ func TestMoreNewFeatures(t *testing.T) {
 	testenv.Expect(t, input).ToHaveValue("hello world")
 
 	// 2. Test Eventually
-	counter := 0
+	var counter atomic.Int64
 	go func() {
 		for range 3 {
 			time.Sleep(5 * time.Millisecond)
-			counter++
+			counter.Add(1)
 		}
 	}()
 
 	testenv.Eventually(t, func() bool {
-		return counter == 3
+		return counter.Load() == 3
 	}, 100*time.Millisecond)
 
 	// 3. Test EventSpy / SpyEvents

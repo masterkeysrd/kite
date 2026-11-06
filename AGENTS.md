@@ -92,6 +92,12 @@ This document provides guidelines and architectural context for AI assistants an
     *   Animations are self-scheduling: if any animations are active, the engine calls `RequestFrame()` to keep the loop running at 60FPS.
     *   `Tween[T]` is the primary animator, combining a `Duration`, `EasingFunction`, and `Interpolator[T]` with an `OnUpdate` callback.
     *   Property updates within an `OnUpdate` callback should typically use `element.RawStyle()` as a base, mutate it, and call `element.Style(s)` to trigger a style-dirty flag.
+16. **Kitex Reconciler Threading Model:**
+    *   Components are flagged dirty from arbitrary goroutines (promise callbacks, stream iterators, timers), so all global reconciler state must be mutex- or atomic-guarded. Never assume a `MarkDirty` call runs on the main thread.
+    *   `renderMutex` serializes whole-tree work (`Render`, dirty flushes). `flushMu` guards the dirty queue and the `flushing` guard. Keep them separate so a worker goroutine can queue work while the main thread renders.
+    *   The flush guard must be cleared **inside** the critical section that proves the dirty queue is empty (`finishFlush`). Clearing it after unlocking lets a concurrent `MarkDirty` observe an in-progress flush, skip scheduling, and have its update dropped.
+    *   `ClearDirty` must run **before** `ReRender`. Clearing afterwards erases any flag raised by a worker during the render and silently loses that update.
+    *   Per-component mutable state reachable from callbacks (`ComponentNode.dirty`, `hookState.value`, `componentRef.node`) is individually guarded. Do not widen the surface by caching those values in unsynchronized locals shared across goroutines.
 
 ## 🗺️ Concern → File Map
 

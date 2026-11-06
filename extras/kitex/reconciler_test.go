@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+
+	"image/color"
+	"slices"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
@@ -14,8 +18,6 @@ import (
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/log"
 	"github.com/masterkeysrd/kite/style"
-	"image/color"
-	"slices"
 )
 
 func TestReconcilerMountAndUnmount(t *testing.T) {
@@ -1635,5 +1637,54 @@ func TestLateChildInsideProviderAndWrapperUnmountsCleanly(t *testing.T) {
 	setShowWrapper(false)
 	if got := collectChildText(parentEl); got != "FIRSTLAST" {
 		t.Fatalf("after unmounting wrapper: want %q, got %q", "FIRSTLAST", got)
+	}
+}
+
+// A component flagged dirty while it is being rendered must still be re-rendered.
+//
+// This reproduces the interleaving a worker goroutine produces: a state change
+// starts a flush, the flush swaps the component out of the dirty queue and
+// renders it, and a second state change lands while that render is running. The
+// dirty flag used to be cleared after ReRender, which erased the second flag;
+// the re-queued component was then skipped as clean and the update was dropped
+// silently.
+func TestDirtyDuringRenderIsNotLost(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer Render(nil, container)
+
+	renderCount := 0
+	var setVal func(int)
+
+	comp := SimpleFC("FlagDuringRender", func() Node {
+		val, setter := UseState(0)
+		setVal = setter
+		renderCount++
+
+		// Re-flag exactly once, from inside a flush-driven render.
+		if val() == 1 {
+			setter(7)
+		}
+
+		return Box(BoxProps{}, Text(strconv.Itoa(val())))
+	})
+
+	Render(comp(), container)
+	if renderCount != 1 {
+		t.Fatalf("expected 1 render on mount, got %d", renderCount)
+	}
+
+	// External state change drives the flush during which the component
+	// re-flags itself.
+	setVal(1)
+
+	if renderCount < 3 {
+		t.Fatalf("expected the flag raised during the flush render to trigger another pass, got %d render(s)", renderCount)
+	}
+
+	box := container.FirstChild().(dom.Element)
+	if got := collectChildText(box); got != "7" {
+		t.Errorf("expected the value flagged during render to reach the DOM, got %q", got)
 	}
 }

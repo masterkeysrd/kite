@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/masterkeysrd/kite/dom"
@@ -2073,7 +2074,7 @@ type ComponentNode[P any] struct {
 	hooks        []any
 	hookIndex    int
 	isFirst      bool
-	dirty        bool
+	dirty        atomic.Bool
 	componentRef *componentRef
 	key          string
 	contextSnap  contextSnapshot
@@ -2362,7 +2363,7 @@ func (c *ComponentNode[P]) complexity() int {
 
 // IsDirty returns whether the component is dirty.
 func (c *ComponentNode[P]) IsDirty() bool {
-	return c.dirty
+	return c.dirty.Load()
 }
 
 func (c *ComponentNode[P]) Release() {
@@ -2388,12 +2389,19 @@ func noopCleanup() {}
 
 // ClearDirty clears the dirty flag of the component.
 func (c *ComponentNode[P]) ClearDirty() {
-	c.dirty = false
+	c.dirty.Store(false)
 }
 
 // MarkDirty flags the component as dirty.
+//
+// The flag is atomic because async sources (promise callbacks, stream
+// iterators, timers) legitimately flag components from worker goroutines while
+// the reconciler reads and clears it on the main thread. Every call notifies the
+// reconciler: the flag alone does not prove the component is queued, since it
+// can be raised while the component is already mid-render and therefore already
+// removed from the dirty list.
 func (c *ComponentNode[P]) MarkDirty() {
-	c.dirty = true
+	c.dirty.Store(true)
 	if OnComponentDirty != nil {
 		OnComponentDirty(c)
 	}

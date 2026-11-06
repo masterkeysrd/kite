@@ -140,7 +140,7 @@ func TestUseStatePersistence(t *testing.T) {
 		t.Errorf("expected dirtyNode callback to be triggered with component node")
 	}
 	compNode := node2.(*ComponentNode[struct{}])
-	if !compNode.dirty {
+	if !compNode.dirty.Load() {
 		t.Errorf("expected component to be marked dirty")
 	}
 

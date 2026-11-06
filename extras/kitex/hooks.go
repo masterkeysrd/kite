@@ -12,10 +12,27 @@ import (
 	"github.com/masterkeysrd/kite/terminal"
 )
 
+// hookState holds one UseState slot. The mutex is required because state is
+// written from subscriber callbacks (promise resolution, stream events) that
+// run on arbitrary goroutines, so two notifications can land concurrently on
+// the same component.
 type hookState[T any] struct {
+	mu    sync.Mutex
 	value T
 	get   func() T
 	set   func(T)
+}
+
+func (h *hookState[T]) load() T {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.value
+}
+
+func (h *hookState[T]) store(v T) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.value = v
 }
 
 type hookValuer interface {
@@ -23,7 +40,7 @@ type hookValuer interface {
 }
 
 func (h *hookState[T]) getValue() any {
-	return h.value
+	return h.load()
 }
 
 // UseState initializes a state variable on first render, persists it across render cycles,
@@ -53,10 +70,10 @@ func UseState[T any](initial T) (func() T, func(T)) {
 			activeNode := ref.node
 			ref.mu.Unlock()
 			if activeNode == nil {
-				return hs.value
+				return hs.load()
 			}
 			val, _ := activeNode.getHookState(idx)
-			return val.(*hookState[T]).value
+			return val.(*hookState[T]).load()
 		}
 
 		set := func(newVal T) {
@@ -70,7 +87,7 @@ func UseState[T any](initial T) (func() T, func(T)) {
 
 			val, _ := activeNode.getHookState(idx)
 			hsPtr := val.(*hookState[T])
-			hsPtr.value = newVal
+			hsPtr.store(newVal)
 			activeNode.MarkDirty()
 		}
 
@@ -223,17 +240,29 @@ var (
 	pendingEffects       []*effectHookState
 	effectsBuffer        []*effectHookState
 	effectsMutex         sync.Mutex
-	scheduler            terminal.Scheduler
+
+	// schedulerMu guards the internal scheduler, which Render assigns from the
+	// host document while effect scheduling reads it from any goroutine.
+	schedulerMu sync.Mutex
+	scheduler   terminal.Scheduler
 )
 
 func setInternalScheduler(s terminal.Scheduler) {
+	schedulerMu.Lock()
+	defer schedulerMu.Unlock()
 	scheduler = s
+}
+
+func getInternalScheduler() terminal.Scheduler {
+	schedulerMu.Lock()
+	defer schedulerMu.Unlock()
+	return scheduler
 }
 
 // PostMacro schedules a function to run as a macrotask on the main thread.
 func PostMacro(fn func()) {
-	if scheduler != nil {
-		scheduler.QueueMacrotask(fn)
+	if sched := getInternalScheduler(); sched != nil {
+		sched.QueueMacrotask(fn)
 	} else {
 		// Fallback or run directly if not registered (e.g. in tests)
 		go fn()
@@ -241,8 +270,8 @@ func PostMacro(fn func()) {
 }
 
 func scheduleEffectFlush() {
-	if scheduler != nil {
-		scheduler.QueueMacrotask(flushPendingEffects)
+	if sched := getInternalScheduler(); sched != nil {
+		sched.QueueMacrotask(flushPendingEffects)
 	}
 }
 
@@ -477,11 +506,12 @@ func UseLayoutEffectCleanup(effect func() func(), deps []any) {
 
 // flushPendingEffects runs all pending post-commit effect functions and registers their cleanups.
 func flushPendingEffects() {
-	if len(pendingEffects) == 0 {
-		return
-	}
 	effectsMutex.Lock()
 	queue := pendingEffects
+	if len(queue) == 0 {
+		effectsMutex.Unlock()
+		return
+	}
 	if cap(effectsBuffer) < len(queue) {
 		effectsBuffer = make([]*effectHookState, 0, len(queue))
 	}
@@ -509,11 +539,12 @@ func flushPendingEffects() {
 
 // drainLayoutEffects runs all pending layout effect functions synchronously and registers their cleanups.
 func drainLayoutEffects() {
-	if len(pendingLayoutEffects) == 0 {
-		return
-	}
 	effectsMutex.Lock()
 	queue := pendingLayoutEffects
+	if len(queue) == 0 {
+		effectsMutex.Unlock()
+		return
+	}
 	if cap(layoutEffectsBuffer) < len(queue) {
 		layoutEffectsBuffer = make([]*effectHookState, 0, len(queue))
 	}

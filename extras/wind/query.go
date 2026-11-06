@@ -186,12 +186,13 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *
 
 			shouldRefetch := entry.invalidatedDuringFetch
 			entry.invalidatedDuringFetch = false
+			refetch := entry.refetch
 			entry.mu.Unlock()
 
 			entry.notifySubscribers()
 
-			if shouldRefetch && entry.refetch != nil {
-				entry.refetch()
+			if shouldRefetch && refetch != nil {
+				refetch()
 			}
 		}, func(err error) {
 			entry.mu.Lock()
@@ -207,12 +208,13 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *
 
 			shouldRefetch := entry.invalidatedDuringFetch
 			entry.invalidatedDuringFetch = false
+			refetch := entry.refetch
 			entry.mu.Unlock()
 
 			entry.notifySubscribers()
 
-			if shouldRefetch && entry.refetch != nil {
-				entry.refetch()
+			if shouldRefetch && refetch != nil {
+				refetch()
 			}
 		})
 }

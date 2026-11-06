@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +14,77 @@ import (
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/promise"
 )
+
+// capture hands a value written during a component render to the test
+// goroutine. Renders run on whichever goroutine flushed the dirty queue, so
+// promise callbacks and stream events re-render off the test goroutine and a
+// plain variable would be a data race.
+type capture[T any] struct {
+	mu    sync.Mutex
+	value T
+}
+
+func (c *capture[T]) set(v T) {
+	c.mu.Lock()
+	c.value = v
+	c.mu.Unlock()
+}
+
+func (c *capture[T]) get() T {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.value
+}
+
+// waitFor polls cond until it holds or the timeout elapses. It replaces fixed
+// sleeps, which are both flaky under -race and a source of false positives.
+func waitFor(t *testing.T, cond func() bool) bool {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return true
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	return cond()
+}
+
+type mutationSuccess struct {
+	result    string
+	variables int
+	client    *Client
+}
+
+// counter tallies fetch or connection attempts that happen on worker
+// goroutines.
+type counter struct {
+	n atomic.Int64
+}
+
+func (c *counter) inc() int { return int(c.n.Add(1)) }
+func (c *counter) get() int { return int(c.n.Load()) }
+
+// recorder collects every value a component renders. Tests that need to assert
+// on an early render pass (for example the initial loading state) cannot read a
+// single "latest" value, because a settled fetch may already have re-rendered
+// with new data by the time the test looks.
+type recorder[T any] struct {
+	mu     sync.Mutex
+	values []T
+}
+
+func (r *recorder[T]) add(v T) {
+	r.mu.Lock()
+	r.values = append(r.values, v)
+	r.mu.Unlock()
+}
+
+func (r *recorder[T]) all() []T {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.values)
+}
 
 func TestContextCancellationOnUnmount(t *testing.T) {
 	doc := dom.NewDocument()
@@ -131,40 +204,36 @@ func TestQueryInvalidation(t *testing.T) {
 		})
 	}
 
-	var result Result[string]
+	var result capture[Result[string]]
 	app := kitex.SimpleFC("App", func() kitex.Node {
-		result = Use("test_key", fetcher)
-		return kitex.Box(kitex.BoxProps{ID: "box"}, kitex.Text(result.Data))
+		res := Use("test_key", fetcher)
+		result.set(res)
+		return kitex.Box(kitex.BoxProps{ID: "box"}, kitex.Text(res.Data))
 	})
 
 	// Render initially
 	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
 
-	// Wait for fetcher to complete
-	time.Sleep(20 * time.Millisecond)
-
-	if result.Data != "value_1" {
-		t.Fatalf("expected initial data to be value_1, got %q", result.Data)
+	if !waitFor(t, func() bool { return result.get().Data == "value_1" }) {
+		t.Fatalf("expected initial data to be value_1, got %q", result.get().Data)
 	}
-	if result.IsFetching {
+	if result.get().IsFetching {
 		t.Fatal("expected isFetching to be false after completion")
 	}
 
 	// Invalidate the query
 	client.InvalidateQueries("test_key")
 
-	// The query should immediately transition to isFetching = true
-	if !result.IsFetching {
-		t.Error("expected IsFetching to be true immediately after InvalidateQueries")
+	// The query should transition to isFetching = true
+	if !waitFor(t, func() bool { return result.get().IsFetching }) {
+		t.Error("expected IsFetching to be true after InvalidateQueries")
 	}
 
 	// Wait for the second fetch to complete
-	time.Sleep(20 * time.Millisecond)
-
-	if result.Data != "value_2" {
-		t.Errorf("expected updated data to be value_2, got %q", result.Data)
+	if !waitFor(t, func() bool { return result.get().Data == "value_2" }) {
+		t.Errorf("expected updated data to be value_2, got %q", result.get().Data)
 	}
-	if result.IsFetching {
+	if result.get().IsFetching {
 		t.Error("expected IsFetching to be false after invalidation fetch completes")
 	}
 }
@@ -177,47 +246,44 @@ func TestMutation(t *testing.T) {
 
 	client := NewClient()
 
-	var successResult string
-	var successVariables int
-	var successClient *Client
+	var success capture[mutationSuccess]
 
 	mutOpts := MutationOptions[int, string]{
 		OnSuccess: func(res string, vars int, ctx MutationContext) {
-			successResult = res
-			successVariables = vars
-			successClient = ctx.Client
+			success.set(mutationSuccess{result: res, variables: vars, client: ctx.Client})
 		},
 	}
 
-	var mutation MutationResult[int]
+	var mutation capture[MutationResult[int]]
 	app := kitex.SimpleFC("App", func() kitex.Node {
-		mutation = UseMutation(func(ctx context.Context, vars int) *promise.Promise[string] {
+		res := UseMutation(func(ctx context.Context, vars int) *promise.Promise[string] {
 			return promise.New(func(ctx context.Context) (string, error) {
 				return "mut_res", nil
 			})
 		}, mutOpts)
+		mutation.set(res)
 		return kitex.Box(kitex.BoxProps{})
 	})
 
 	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
 
-	if mutation.IsPending {
+	if mutation.get().IsPending {
 		t.Fatal("expected mutation not to be pending initially")
 	}
 
-	mutation.Mutate(42)
+	mutation.get().Mutate(42)
 
-	// Wait for background mutation to complete
-	time.Sleep(20 * time.Millisecond)
-
-	if successResult != "mut_res" {
-		t.Errorf("expected onSuccess result 'mut_res', got %q", successResult)
+	if !waitFor(t, func() bool { return success.get().client != nil }) {
+		t.Fatal("expected onSuccess to fire")
 	}
-	if successVariables != 42 {
-		t.Errorf("expected onSuccess variables 42, got %d", successVariables)
+	if success.get().result != "mut_res" {
+		t.Errorf("expected onSuccess result 'mut_res', got %q", success.get().result)
 	}
-	if successClient != client {
-		t.Errorf("expected onSuccess client to match, got %v", successClient)
+	if success.get().variables != 42 {
+		t.Errorf("expected onSuccess variables 42, got %d", success.get().variables)
+	}
+	if success.get().client != client {
+		t.Errorf("expected onSuccess client to match, got %v", success.get().client)
 	}
 }
 
@@ -274,8 +340,7 @@ func BenchmarkUseQuery(b *testing.B) {
 		return kitex.Box(kitex.BoxProps{ID: res.Data})
 	})
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		kitex.Render(Provider(ProviderProps{Client: client}, comp()), container)
 	}
 }
@@ -303,8 +368,7 @@ func BenchmarkUseMutation(b *testing.B) {
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(string(char)))
 	})
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		kitex.Render(Provider(ProviderProps{Client: client}, comp()), container)
 	}
 }
@@ -324,34 +388,43 @@ func TestQueryInitialLoadingState(t *testing.T) {
 		})
 	}
 
-	var capturedIsLoading bool
-	var capturedData string
+	var observed recorder[Result[string]]
 	app := kitex.SimpleFC("App", func() kitex.Node {
 		res := Use("test_loading_key", fetcher)
-		capturedIsLoading = res.IsLoading
-		capturedData = res.Data
+		observed.add(res)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
 
 	// Render initially. On this very first render, the hook should report IsLoading as true.
 	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
 
-	if !capturedIsLoading {
+	first := observed.all()[0]
+	if !first.IsLoading {
 		t.Error("expected IsLoading to be true on the first render pass")
 	}
-	if capturedData != "" {
-		t.Errorf("expected initial data to be empty, got %q", capturedData)
+	if first.Data != "" {
+		t.Errorf("expected initial data to be empty, got %q", first.Data)
 	}
 
-	// Wait for the fetch to complete
-	time.Sleep(20 * time.Millisecond)
+	// After the fetch settles, a later render pass should report it complete.
+	if !waitFor(t, func() bool {
+		for _, r := range observed.all() {
+			if r.Data == "data" {
+				return true
+			}
+		}
+		return false
+	}) {
+		t.Error("expected a render pass with settled data 'data'")
+	}
 
-	// After completion, the state should update and report IsLoading as false.
-	if capturedIsLoading {
+	latestAll := observed.all()
+	latest := latestAll[len(latestAll)-1]
+	if latest.IsLoading {
 		t.Error("expected IsLoading to be false after query settles")
 	}
-	if capturedData != "data" {
-		t.Errorf("expected settled data to be 'data', got %q", capturedData)
+	if latest.Data != "data" {
+		t.Errorf("expected settled data to be 'data', got %q", latest.Data)
 	}
 }
 
@@ -576,46 +649,35 @@ func TestStream_ManualReconnection(t *testing.T) {
 	defer kitex.Render(nil, container)
 
 	client := NewClient()
-	var startCount int
-	var mu sync.Mutex
+	var startCount counter
+
+	starts := startCount.get
 
 	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
-			mu.Lock()
-			startCount++
-			mu.Unlock()
+			startCount.inc()
 			yield("val", nil)
 		}
 	}
 
-	var capturedResult StreamResult[string]
+	var capturedResult capture[StreamResult[string]]
 	app := kitex.SimpleFC("App", func() kitex.Node {
-		capturedResult = UseStream("reconnect_key", fetcher)
+		res := UseStream("reconnect_key", fetcher)
+		capturedResult.set(res)
 		return kitex.Box(kitex.BoxProps{})
 	})
 
 	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
-	time.Sleep(20 * time.Millisecond)
 
-	mu.Lock()
-	count1 := startCount
-	mu.Unlock()
-
-	if count1 != 1 {
-		t.Fatalf("expected stream to connect initially, got %d", count1)
+	if !waitFor(t, func() bool { return starts() == 1 }) {
+		t.Fatalf("expected stream to connect initially, got %d", starts())
 	}
 
 	// Trigger manual refetch (reconnection)
-	capturedResult.Refetch()
+	capturedResult.get().Refetch()
 
-	time.Sleep(20 * time.Millisecond)
-
-	mu.Lock()
-	count2 := startCount
-	mu.Unlock()
-
-	if count2 != 2 {
-		t.Errorf("expected stream to reconnect, total starts should be 2, got %d", count2)
+	if !waitFor(t, func() bool { return starts() == 2 }) {
+		t.Errorf("expected stream to reconnect, total starts should be 2, got %d", starts())
 	}
 }
 
@@ -803,14 +865,10 @@ func TestInvalidateQueries_SequencesActiveFetch(t *testing.T) {
 	client := NewClient()
 
 	var fetchStarted = make(chan struct{}, 5)
-	var fetchCount int
-	var mu sync.Mutex
+	var fetchCount counter
 
 	fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
-		mu.Lock()
-		fetchCount++
-		currentCount := fetchCount
-		mu.Unlock()
+		currentCount := fetchCount.inc()
 		fetchStarted <- struct{}{}
 		return promise.New(func(ctx context.Context) (string, error) {
 			select {
@@ -822,10 +880,11 @@ func TestInvalidateQueries_SequencesActiveFetch(t *testing.T) {
 		})
 	}
 
-	var result Result[string]
+	var result capture[Result[string]]
 	app := kitex.SimpleFC("App", func() kitex.Node {
-		result = Use("test_cancel_key", fetcher)
-		return kitex.Box(kitex.BoxProps{}, kitex.Text(result.Data))
+		res := Use("test_cancel_key", fetcher)
+		result.set(res)
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
 
 	// Mount initially
@@ -840,18 +899,12 @@ func TestInvalidateQueries_SequencesActiveFetch(t *testing.T) {
 	// Wait for the second fetch to start (starts after the first fetch finishes)
 	<-fetchStarted
 
-	// Wait for the second fetch to complete
-	time.Sleep(25 * time.Millisecond)
-
-	mu.Lock()
-	count := fetchCount
-	mu.Unlock()
-
-	if count != 2 {
-		t.Fatalf("expected fetch to be triggered exactly 2 times, got %d", count)
+	// Wait for the second fetch to land in the rendered result
+	if !waitFor(t, func() bool { return result.get().Data == "val_2" }) {
+		t.Errorf("expected final data to be 'val_2' from the second fetch, got %q", result.get().Data)
 	}
 
-	if result.Data != "val_2" {
-		t.Errorf("expected final data to be 'val_2' from the second fetch, got %q", result.Data)
+	if count := fetchCount.get(); count != 2 {
+		t.Fatalf("expected fetch to be triggered exactly 2 times, got %d", count)
 	}
 }

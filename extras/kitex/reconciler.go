@@ -11,9 +11,15 @@ import (
 )
 
 var (
-	renderMutex        sync.Mutex
+	renderMutex sync.Mutex
+
+	// flushMu guards the dirty-set globals. It is deliberately separate from
+	// renderMutex: components are flagged dirty from promise callbacks, stream
+	// iterators and timers, so the queue is written by worker goroutines while
+	// the main thread drains it.
+	flushMu            sync.Mutex
+	flushing           bool
 	activeRoots        = make(map[dom.Element]Node)
-	inOnComponentDirty bool
 	dirtyComponents    []componentInstance
 	dirtyBuffer        []componentInstance
 	updateScheduled    bool
@@ -21,13 +27,18 @@ var (
 	updateScheduledMu  sync.Mutex
 )
 
+// flushPassBudget bounds how many full dirty-list drains a single flush may
+// perform, so a component that re-flags itself from a layout effect cannot
+// hold the flush guard forever.
+const flushPassBudget = 10
+
 func resolveComponentScheduler(comp componentInstance) terminal.Scheduler {
 	parent := comp.getDOMParent()
 	if parent != nil && parent.OwnerDocument() != nil && parent.OwnerDocument().Terminal() != nil {
 		if sched := parent.OwnerDocument().Terminal().Scheduler(); sched != nil {
 			return sched
 		}
-		return scheduler
+		return getInternalScheduler()
 	}
 	return nil
 }
@@ -47,18 +58,49 @@ func flushDirtyComponents() {
 	updateScheduledMu.Unlock()
 
 	renderMutex.Lock()
-	if inOnComponentDirty {
+
+	flushMu.Lock()
+	if flushing {
 		renderMutex.Unlock()
+		flushMu.Unlock()
 		return
 	}
-	inOnComponentDirty = true
+	flushing = true
+	flushMu.Unlock()
+
 	defer func() {
-		inOnComponentDirty = false
+		flushMu.Lock()
+		flushing = false
+		flushMu.Unlock()
 		renderMutex.Unlock()
 	}()
 
 	flushPendingEffects()
-	processDirtyLoop()
+	finishFlush()
+}
+
+// finishFlush drains the dirty list until one full pass finds nothing queued,
+// then clears the flush guard inside that same critical section. Clearing the
+// guard outside that check would let a worker goroutine that flags a component
+// in between observe an active flush, skip scheduling, and have its update
+// dropped, because the flush had already completed its last pass.
+//
+// When the pass budget runs out the guard is still released by the caller, so
+// whatever is left over is picked up by the next trigger instead of being stuck
+// behind a guard nobody can clear.
+func finishFlush() {
+	for range flushPassBudget {
+		processDirtyLoop()
+		flushMu.Lock()
+		empty := len(dirtyComponents) == 0
+		if empty {
+			flushing = false
+		}
+		flushMu.Unlock()
+		if empty {
+			return
+		}
+	}
 }
 
 func init() {
@@ -74,14 +116,15 @@ func init() {
 			return
 		}
 
-		effectsMutex.Lock()
+		flushMu.Lock()
 		exists := slices.Contains(dirtyComponents, compInstance)
 		if !exists {
 			dirtyComponents = append(dirtyComponents, compInstance)
 		}
-		effectsMutex.Unlock()
+		alreadyFlushing := flushing
+		flushMu.Unlock()
 
-		if inOnComponentDirty {
+		if alreadyFlushing {
 			return
 		}
 
@@ -100,71 +143,81 @@ func init() {
 	}
 }
 
+// processDirtyLoop renders every component currently queued as dirty exactly
+// once. Re-flagging during the pass appends to the queue, which the caller
+// (finishFlush) drains on its next pass up to the re-entrancy budget.
 func processDirtyLoop() {
 	updateScheduledMu.Lock()
 	updateScheduled = false
 	scheduledScheduler = nil
 	updateScheduledMu.Unlock()
 
-	for range 10 {
-		if len(dirtyComponents) == 0 {
-			break
-		}
-		effectsMutex.Lock()
-		if len(dirtyComponents) == 0 {
-			effectsMutex.Unlock()
-			break
-		}
-		currentDirty := dirtyComponents
-		if cap(dirtyBuffer) < cap(currentDirty) {
-			dirtyBuffer = make([]componentInstance, 0, cap(currentDirty))
-		}
-		dirtyComponents = dirtyBuffer[:0]
-		dirtyBuffer = currentDirty
-		effectsMutex.Unlock()
-
-		for _, comp := range currentDirty {
-			if !comp.IsDirty() {
-				continue
-			}
-			ref := comp.getRef()
-			if ref == nil {
-				continue
-			}
-			if ref.node != comp {
-				continue
-			}
-			parentEl := comp.getDOMParent()
-			if parentEl == nil {
-				continue
-			}
-			realNodes := comp.realNodes()
-
-			oldRendered := comp.Rendered()
-			restoreCleanup := comp.restoreContexts()
-			newRendered := comp.ReRender()
-			comp.ClearDirty()
-
-			anchor := resolveDOMAnchor(comp, parentEl, realNodes)
-			newReals := reconcile(parentEl, oldRendered, newRendered, realNodes, anchor)
-			restoreCleanup()
-			comp.setRefs(newReals)
-			updateAncestorRefs(comp)
-		}
-		for i := range currentDirty {
-			currentDirty[i] = nil
-		}
-
-		drainLayoutEffects()
+	flushMu.Lock()
+	if len(dirtyComponents) == 0 {
+		flushMu.Unlock()
+		return
 	}
+	currentDirty := dirtyComponents
+	if cap(dirtyBuffer) < cap(currentDirty) {
+		dirtyBuffer = make([]componentInstance, 0, cap(currentDirty))
+	}
+	dirtyComponents = dirtyBuffer[:0]
+	dirtyBuffer = currentDirty
+	flushMu.Unlock()
+
+	for _, comp := range currentDirty {
+		if !comp.IsDirty() {
+			continue
+		}
+		ref := comp.getRef()
+		if ref == nil {
+			continue
+		}
+		ref.mu.Lock()
+		activeNode := ref.node
+		ref.mu.Unlock()
+		if activeNode != comp {
+			continue
+		}
+		parentEl := comp.getDOMParent()
+		if parentEl == nil {
+			continue
+		}
+		realNodes := comp.realNodes()
+
+		oldRendered := comp.Rendered()
+		restoreCleanup := comp.restoreContexts()
+		// Clear before rendering: a worker goroutine that flags the component
+		// while it is rendering must survive into the next pass, otherwise its
+		// update is dropped and the queue entry for it is skipped as clean.
+		comp.ClearDirty()
+		newRendered := comp.ReRender()
+
+		anchor := resolveDOMAnchor(comp, parentEl, realNodes)
+		newReals := reconcile(parentEl, oldRendered, newRendered, realNodes, anchor)
+		restoreCleanup()
+		comp.setRefs(newReals)
+		updateAncestorRefs(comp)
+	}
+	for i := range currentDirty {
+		currentDirty[i] = nil
+	}
+
+	drainLayoutEffects()
 }
 
 // Render mounts or reconciles a Virtual DOM root node into the specified host container.
 func Render(root Node, container dom.Element) {
 	renderMutex.Lock()
-	inOnComponentDirty = true
+
+	flushMu.Lock()
+	flushing = true
+	flushMu.Unlock()
+
 	defer func() {
-		inOnComponentDirty = false
+		flushMu.Lock()
+		flushing = false
+		flushMu.Unlock()
 		renderMutex.Unlock()
 	}()
 
@@ -212,7 +265,7 @@ func Render(root Node, container dom.Element) {
 	}
 
 	drainLayoutEffects()
-	processDirtyLoop()
+	finishFlush()
 }
 
 func reconcile(parent dom.Element, oldNode, newNode Node, realNodes []dom.Node, anchor dom.Node) []dom.Node {
