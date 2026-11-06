@@ -691,7 +691,7 @@ func TestEngine_ProgramStatusSupportEvent(t *testing.T) {
 		t.Errorf("expected ProgramStatus to be set on backend, got %v", b.ProgramStatus)
 	}
 
-	if !strings.Contains(b.Output.String(), "\x1b]7501;working\x1b\\") {
+	if !strings.Contains(b.Output.String(), "\x1b]7501;state=working") {
 		t.Errorf("expected OSC 7501 sequence in output, got %q", b.Output.String())
 	}
 
@@ -699,6 +699,9 @@ func TestEngine_ProgramStatusSupportEvent(t *testing.T) {
 	term.SetProgramStatus(nil)
 	if b.ProgramStatus != nil {
 		t.Errorf("expected ProgramStatus to be nil after clear, got %v", b.ProgramStatus)
+	}
+	if !strings.Contains(b.Output.String(), "\x1b]7501;state=clear\x07") {
+		t.Errorf("expected OSC 7501 clear sequence in output, got %q", b.Output.String())
 	}
 }
 

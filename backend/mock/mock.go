@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"io"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/geom"
 )
@@ -178,10 +179,20 @@ func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int)
 func (b *Backend) SetProgramStatus(status *backend.ProgramStatus) {
 	b.ProgramStatus = status
 	if status == nil {
-		fmt.Fprint(&b.Output, "\x1b]7501\x1b\\")
+		fmt.Fprint(&b.Output, ansi.ClearProgramStatus)
 		return
 	}
-	fmt.Fprintf(&b.Output, "\x1b]7501;%s\x1b\\", status.State)
+	ps := ansi.ProgramStatus{
+		State:       ansi.ProgramState(status.State),
+		ID:          status.ID,
+		App:         status.App,
+		Kind:        ansi.ProgramStatusKind(status.Kind),
+		Progress:    status.Progress,
+		HasProgress: status.HasProgress,
+		Title:       status.Title,
+		Message:     status.Message,
+	}
+	fmt.Fprint(&b.Output, ansi.SetProgramStatus(ps))
 }
 
 func (b *Backend) SetInline(inline bool) {

@@ -204,7 +204,7 @@ func (b *Backend) Start() error {
 	// Save window title on terminal stack.
 	b.writeRaw("\x1b[22;0t")
 	// Query Program Status Protocol support (OSC 7501).
-	b.writeRaw("\x1b]7501;?\x1b\\")
+	b.writeRaw(ansi.RequestProgramStatusSupport)
 
 	// Update dimensions from the now-started terminal/screen.
 	if w := b.screen.Width(); w > 0 {
@@ -810,6 +810,11 @@ func (b *Backend) paintScreen(buf *backend.Buffer, cursor cursorRecord) {
 		b.inlineResized = false
 	}
 
+	if b.inline {
+		b.ensureInlineRenderer()
+		b.inlineFrame.Resize(buf.Width, buf.Height)
+	}
+
 	// Reuse a single uv.Cell object to avoid thousands of allocations per frame.
 	var uvCell uv.Cell
 	for y := 0; y < buf.Height; y++ {
@@ -817,6 +822,9 @@ func (b *Backend) paintScreen(buf *backend.Buffer, cursor cursorRecord) {
 			c := buf.CellAt(x, y)
 			populateUVCell(&uvCell, c)
 			b.screen.SetCell(x, y, &uvCell)
+			if b.inline {
+				b.inlineFrame.SetCell(x, y, &uvCell)
+			}
 			x += max(1, uvCell.Width)
 		}
 	}
@@ -889,8 +897,19 @@ func (b *Backend) paintScreen(buf *backend.Buffer, cursor cursorRecord) {
 	}
 }
 
+func (b *Backend) ensureInlineRenderer() {
+	if b.inlineRenderer == nil {
+		b.inlineRenderer = uv.NewTerminalRenderer(&b.inlineOutput, os.Environ())
+		b.inlineRenderer.SetRelativeCursor(true)
+		b.inlineRenderer.SetColorProfile(b.profile)
+		b.inlineRenderer.Erase()
+		b.inlineFrame = uv.NewRenderBuffer(0, 0)
+	}
+}
+
 func (b *Backend) resizeScreen(width, height int) {
-	if b.inline && b.inlineRenderer != nil {
+	if b.inline {
+		b.ensureInlineRenderer()
 		size := b.renderDimensions()
 		if b.inlineFrame.Width() > 0 && size.Width > 0 && size.Width != b.inlineFrame.Width() {
 			x, y := b.inlineRenderer.Position()
@@ -898,6 +917,7 @@ func (b *Backend) resizeScreen(width, height int) {
 			b.inlineRenderer.SetPosition(x, y)
 		}
 		b.inlineRenderer.Resize(width, height)
+		b.inlineFrame.Resize(width, height)
 		if b.inlineResized || b.inlineFrame.Width() != width {
 			b.inlineRenderer.Erase()
 		}
@@ -910,23 +930,10 @@ func (b *Backend) renderScreen() {
 		b.screen.Render()
 		return
 	}
-	if b.inlineRenderer == nil {
-		b.inlineRenderer = uv.NewTerminalRenderer(&b.inlineOutput, os.Environ())
-		b.inlineRenderer.SetRelativeCursor(true)
-		b.inlineRenderer.SetColorProfile(b.profile)
-		b.inlineRenderer.Erase()
-		b.inlineFrame = uv.NewRenderBuffer(0, 0)
-	}
+	b.ensureInlineRenderer()
 	width, height := b.screen.Width(), b.screen.Height()
 	b.inlineFrame.Resize(width, height)
 	b.inlineRenderer.SetGraphemeWidth(b.graphemeWidth.Load())
-	for y := range height {
-		for x := 0; x < width; {
-			cell := b.screen.CellAt(x, y)
-			b.inlineFrame.SetCell(x, y, cell)
-			x += max(1, cell.Width)
-		}
-	}
 	b.inlineRenderer.Render(b.inlineFrame)
 	if err := b.inlineRenderer.Flush(); err != nil {
 		kitelog.Error("uv: inline frame flush error", "error", err)
