@@ -79,7 +79,6 @@ func TestBackend_Mock_ThreadSafety(t *testing.T) {
 	t.Parallel()
 
 	b := mock.New(80, 24)
-	const workers = 8
 	const iterations = 100
 
 	var wg sync.WaitGroup

@@ -97,8 +97,7 @@ func identity[T any](v T) T {
 }
 
 func makeDefaultEqual[U any]() func(a, b U) bool {
-	t := reflect.TypeFor[U]()
-	if t != nil && t.Comparable() {
+	if reflect.TypeFor[U]().Comparable() {
 		return func(a, b U) bool {
 			return any(a) == any(b)
 		}
