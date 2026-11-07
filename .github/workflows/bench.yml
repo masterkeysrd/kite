@@ -1,0 +1,79 @@
+name: Benchmarks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BENCH_PKGS: ./engine/... ./internal/layout/... ./internal/paint/... ./internal/styler/... ./extras/kitex/... ./extras/kites/...
+  BENCH_COUNT: "3"
+
+jobs:
+  benchmark:
+    name: Benchmark & Compare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR / HEAD
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Run benchmarks on HEAD
+        run: |
+          go test -timeout 10m -run=^$ -bench=. -benchmem -count=${BENCH_COUNT} ${BENCH_PKGS} | tee new.txt
+
+      - name: Run benchmarks on Base (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          git checkout --detach "${{ github.event.pull_request.base.sha }}"
+          go test -timeout 10m -run=^$ -bench=. -benchmem -count=${BENCH_COUNT} ${BENCH_PKGS} | tee old.txt
+
+      - name: Write Benchmark Summary (PR vs Base)
+        if: github.event_name == 'pull_request'
+        run: |
+          {
+            echo "## ⚡ Benchmark Comparison (PR vs \`${{ github.event.pull_request.base.ref }}\`)"
+            echo ""
+            echo "\`\`\`text"
+            benchstat old.txt new.txt
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write Benchmark Summary (Main / Manual)
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "## ⚡ Benchmark Results (\`${{ github.ref_name }}\`)"
+            echo ""
+            echo "\`\`\`text"
+            benchstat new.txt
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: |
+            new.txt
+            old.txt
+          if-no-files-found: ignore
