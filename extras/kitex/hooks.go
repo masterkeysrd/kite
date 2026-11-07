@@ -66,14 +66,7 @@ func UseState[T any](initial T) (func() T, func(T)) {
 		}
 
 		get := func() T {
-			ref.mu.Lock()
-			activeNode := ref.node
-			ref.mu.Unlock()
-			if activeNode == nil {
-				return hs.load()
-			}
-			val, _ := activeNode.getHookState(idx)
-			return val.(*hookState[T]).load()
+			return hs.load()
 		}
 
 		set := func(newVal T) {
@@ -85,9 +78,7 @@ func UseState[T any](initial T) (func() T, func(T)) {
 				return
 			}
 
-			val, _ := activeNode.getHookState(idx)
-			hsPtr := val.(*hookState[T])
-			hsPtr.store(newVal)
+			hs.store(newVal)
 			activeNode.MarkDirty()
 		}
 

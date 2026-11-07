@@ -320,11 +320,11 @@ Kite is engineered for speed, leveraging a batch-coalesced rendering pipeline an
 
 We run a realistic benchmark ([`BenchmarkEngine_RealisticApp_1000Nodes`](engine/bench_test.go#L61)) that mounts a complex UI structure containing a header, sidebar, and a scrollable content area with over **1,200 nested nodes** (styled with borders, colors, padding, and Flexbox layouts). On every iteration, we mutate a dynamic text node to trigger dirtiness and force the engine through a complete frame execution (Sync → Style Cascade → Layout Reflow → FrameBuffer Paint).
 
-### Results (Tested on Apple M1 Max)
+### Results (Tested on Apple M5 Max)
 
 | Benchmark | Latency / Frame | Frame Rate (FPS) | Memory / Frame | Allocations / Frame |
 | :--- | :--- | :--- | :--- | :--- |
-| **Realistic App (1,200+ Nodes)** | `~0.84 ms` | **~1,190 FPS** | `0.97 MB` | `7,123` |
+| **Realistic App (1,200+ Nodes)** | `~0.43 ms` | **~2,340 FPS** | `0.97 MB` | `7,122` |
 
 To run the benchmark yourself:
 ```bash

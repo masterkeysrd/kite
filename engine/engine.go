@@ -262,7 +262,7 @@ func New(b backend.Backend, opts Options) *Engine {
 	size := b.Size()
 	e.frameBuffer = paint.NewFrameBuffer(0, 0, size.Width, size.Height)
 
-	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, nil)
+	e.scheduler = newDefaultScheduler(numWorkers, clk, macroTaskDuration, e.RequestFrame)
 	promise.SetScheduler(e.scheduler)
 
 	if opts.Profiler {

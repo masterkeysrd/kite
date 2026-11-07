@@ -1,38 +1,109 @@
 package kites
 
 import (
+	"reflect"
+	"sync"
+	"sync/atomic"
+
 	"github.com/masterkeysrd/kite/extras/kitex"
 )
 
+var hookTickSeq atomic.Uint64
+
+type storeHookInst[T any, U any] struct {
+	mu          sync.Mutex
+	selector    func(T) U
+	isEqual     func(U, U) bool
+	snapshot    U
+	hasSnapshot bool
+}
+
 // Use integrates the external kites.Store with the kitex VDOM tree.
 // It retrieves the current slice of the store using the provided selector,
-// registers a state variable, and subscribes to the store changes.
-// The subscription is established on mount and cleaned up on unmount using UseLayoutEffectCleanup.
-// If the selected state has not changed (determined via comparison of selector(new) != selector(old)),
-// it bails out and avoids triggering a VDOM re-render.
-func Use[T any, U comparable](s *Store[T], selector func(T) U) U {
-	// Retrieve initial slice value
-	initialSlice := selector(s.Get())
+// and subscribes to store changes using a thread-safe external-store bridge
+// (modeled after React's useSyncExternalStore).
+//
+// Selector outputs may be comparable primitives, structs, slices, or maps.
+// If the selected slice has not changed between updates, Use bails out without
+// marking the component dirty or scheduling a VDOM re-render.
+func Use[T any, U any](s *Store[T], selector func(T) U) U {
+	return UseWith(s, selector, nil)
+}
 
-	// Register local state in kitex
-	getState, setState := kitex.UseState(initialSlice)
+// UseStore subscribes the component to the entire state of s and returns the
+// current state snapshot.
+func UseStore[T any](s *Store[T]) T {
+	return UseWith(s, identity[T], nil)
+}
 
-	// Store selector in ref to avoid stale closures and unnecessary re-subscriptions
-	selectorRef := kitex.UseRef(selector)
-	selectorRef.Current = selector
+// UseWith integrates the external kites.Store with the kitex VDOM tree using a
+// custom equality function isEqual to determine whether the selected slice changed.
+func UseWith[T any, U any](s *Store[T], selector func(T) U, isEqual func(a, b U) bool) U {
+	instRef := kitex.UseRef[*storeHookInst[T, U]](nil)
+	if instRef.Current == nil {
+		instRef.Current = &storeHookInst[T, U]{
+			isEqual: makeDefaultEqual[U](),
+		}
+	}
+	inst := instRef.Current
 
-	// Subscribe to store changes. The effect runs on mount and cleans up on unmount.
+	_, setTick := kitex.UseState[uint64](0)
+
+	inst.mu.Lock()
+	currentSlice := selector(s.Get())
+	inst.selector = selector
+	if isEqual != nil {
+		inst.isEqual = isEqual
+	}
+	inst.snapshot = currentSlice
+	inst.hasSnapshot = true
+	inst.mu.Unlock()
+
 	kitex.UseLayoutEffectCleanup(func() func() {
-		unsubscribe := s.Subscribe(func(newVal T, oldVal T) {
-			currentSelector := selectorRef.Current
-			newSlice := currentSelector(newVal)
-			oldSlice := currentSelector(oldVal)
-			if newSlice != oldSlice {
-				setState(newSlice)
+		checkForUpdates := func() {
+			inst.mu.Lock()
+			if inst.selector == nil || inst.isEqual == nil {
+				inst.mu.Unlock()
+				return
 			}
+			next := inst.selector(s.Get())
+			if inst.hasSnapshot && inst.isEqual(inst.snapshot, next) {
+				inst.mu.Unlock()
+				return
+			}
+			inst.snapshot = next
+			inst.hasSnapshot = true
+			inst.mu.Unlock()
+
+			setTick(hookTickSeq.Add(1))
+		}
+
+		unsubscribe := s.Subscribe(func(_, _ T) {
+			checkForUpdates()
 		})
+
+		// Re-check immediately after subscribing to close the tearing window
+		// between s.Get() during Render and s.Subscribe() during layout effect.
+		checkForUpdates()
+
 		return unsubscribe
 	}, []any{s})
 
-	return getState()
+	return currentSlice
+}
+
+func identity[T any](v T) T {
+	return v
+}
+
+func makeDefaultEqual[U any]() func(a, b U) bool {
+	t := reflect.TypeFor[U]()
+	if t != nil && t.Comparable() {
+		return func(a, b U) bool {
+			return any(a) == any(b)
+		}
+	}
+	return func(a, b U) bool {
+		return reflect.DeepEqual(a, b)
+	}
 }

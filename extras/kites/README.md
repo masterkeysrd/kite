@@ -91,12 +91,18 @@ defer unsubscribe()
 ### Store
 
 - **`Create[T](initial T) *Store[T]`**: Instantiates a new store containing type `T`.
-- **`Store.Get() T`**: Returns the current state.
-- **`Store.Set(updater func(T) T)`**: Updates the state thread-safely. Calls the updater and dispatches listener notifications after unlocking.
+- **`Store.Get() T`**: Returns the current state snapshot.
+- **`Store.Set(updater func(T) T)`**: Updates the state thread-safely using an isolated copy-on-write draft and dispatches listener notifications after unlocking.
+- **`Store.Update(mutator func(*T))`**: Mutates an isolated copy-on-write draft of the state in-place via pointer and commits the result.
+- **`Store.SetState(next T)`**: Replaces the store's state directly with `next`.
 - **`Store.Subscribe(listener func(newVal T, oldVal T)) func()`**: Subscribes to store changes. Returns an unsubscribe function.
 
 ### Hooks
 
-- **`Use[T any, U comparable](s *Store[T], selector func(T) U) U`**:
-  - Connects the store to a functional component.
-  - Generically bound to any `U comparable` slice for zero-cost comparison checks during updates.
+- **`Use[T any, U any](s *Store[T], selector func(T) U) U`**:
+  - Connects the store to a functional component using a thread-safe `useSyncExternalStore` bridge.
+  - Supports comparable primitives, structs, slices, and maps, automatically bailing out when the selected value has not changed.
+- **`UseStore[T any](s *Store[T]) T`**:
+  - Subscribes a functional component to the entire state `T` of the store.
+- **`UseWith[T any, U any](s *Store[T], selector func(T) U, isEqual func(a, b U) bool) U`**:
+  - Connects the store to a functional component with a custom equality function `isEqual`.

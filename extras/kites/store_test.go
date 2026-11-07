@@ -144,3 +144,67 @@ func TestStoreNoDeadlock(t *testing.T) {
 		t.Fatal("deadlock detected when calling Get/Set from inside subscriber notification")
 	}
 }
+
+func TestStoreCopyOnWriteIsolation(t *testing.T) {
+	type Message struct {
+		Role    string
+		Content string
+		Tags    []string
+	}
+	type SessionState struct {
+		Status   string
+		Messages []Message
+		Meta     map[string]string
+	}
+
+	store := Create(SessionState{
+		Status: "ready",
+		Messages: []Message{
+			{Role: "assistant", Content: "Hello", Tags: []string{"greeting"}},
+		},
+		Meta: map[string]string{"model": "kite-1"},
+	})
+
+	snapBefore := store.Get()
+
+	var subOld, subNew SessionState
+	unsub := store.Subscribe(func(newVal, oldVal SessionState) {
+		subNew = newVal
+		subOld = oldVal
+	})
+	defer unsub()
+
+	// Mutate slice element in-place, append to slice, and mutate map inside Update.
+	store.Update(func(s *SessionState) {
+		s.Messages[0].Content += " world"
+		s.Messages[0].Tags[0] = "updated"
+		s.Messages = append(s.Messages, Message{Role: "user", Content: "Hi"})
+		s.Meta["model"] = "kite-2"
+	})
+
+	// Previous snapshot held by a reader (e.g., the UI drawing thread) must remain untouched.
+	if snapBefore.Messages[0].Content != "Hello" {
+		t.Fatalf("expected previous snapshot Content to remain 'Hello', got %q", snapBefore.Messages[0].Content)
+	}
+	if snapBefore.Messages[0].Tags[0] != "greeting" {
+		t.Fatalf("expected previous snapshot Tag to remain 'greeting', got %q", snapBefore.Messages[0].Tags[0])
+	}
+	if snapBefore.Meta["model"] != "kite-1" {
+		t.Fatalf("expected previous snapshot Meta['model'] to remain 'kite-1', got %q", snapBefore.Meta["model"])
+	}
+
+	// Subscriber must receive genuine oldVal and newVal snapshots.
+	if subOld.Messages[0].Content != "Hello" {
+		t.Fatalf("expected subscriber oldVal Content 'Hello', got %q", subOld.Messages[0].Content)
+	}
+	if subNew.Messages[0].Content != "Hello world" || len(subNew.Messages) != 2 {
+		t.Fatalf("unexpected subscriber newVal: %+v", subNew)
+	}
+
+	// Direct SetState replacement.
+	store.SetState(SessionState{Status: "done"})
+	if store.Get().Status != "done" || len(store.Get().Messages) != 0 {
+		t.Fatalf("expected SetState to replace state, got %+v", store.Get())
+	}
+}
+
