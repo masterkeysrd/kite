@@ -472,7 +472,7 @@ func flattenNodesRec(nodes []Node, activeProviders []providerInstance, out []fla
 	return out
 }
 
-func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []dom.Node, anchor dom.Node) {
+func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []dom.Node, anchor dom.Node) []dom.Node {
 	for i := 0; i < len(newFlat.providers); i++ {
 		newProv := newFlat.providers[i]
 		setDOMParent(newProv, parent)
@@ -486,11 +486,13 @@ func reconcileFlat(parent dom.Element, oldFlat, newFlat flatNode, realNodes []do
 		prov.pushEntry()
 	}
 
-	reconcile(parent, oldFlat.node, newFlat.node, realNodes, anchor)
+	newReals := reconcile(parent, oldFlat.node, newFlat.node, realNodes, anchor)
 
 	for _, v := range slices.Backward(newFlat.providers) {
 		v.popEntry()
 	}
+
+	return newReals
 }
 
 func instantiateFlat(parent dom.Element, newFlat flatNode) []dom.Node {
@@ -675,6 +677,7 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			}
 			refNode := findNextDOMAnchor(oldS, oldStartIdx+1, oldEndIdx, nodeMap, oldChildren, insertBeforeRef)
 			reconcile(parent, oldStartNode, newStartNode, realNodes, refNode)
+			oldS[oldStartIdx] = nil
 			oldStartIdx++
 			newStartIdx++
 			continue
@@ -689,11 +692,11 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 				realNodes = oldChildren[oldEndIdx].(nodeInternal).realNodes()
 			}
 			refNode := findNextDOMAnchor(oldS, oldEndIdx+1, n-1, nodeMap, oldChildren, insertBeforeRef)
-			reconcile(parent, oldEndNode, newEndNode, realNodes, refNode)
-			newReals := newEndNode.(nodeInternal).realNodes()
+			newReals := reconcile(parent, oldEndNode, newEndNode, realNodes, refNode)
 			if len(newReals) > 0 {
 				insertBeforeRef = newReals[0]
 			}
+			oldS[oldEndIdx] = nil
 			oldEndIdx--
 			newEndIdx--
 			continue
@@ -702,9 +705,9 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 		// Case 3-5: Move needed. Ensure map is populated.
 		if nodeMap == nil {
 			nodeMap = nodeSliceMapPool.Get().(map[Node][]dom.Node)
-			for i := range n {
-				if oldChildren[i] != nil {
-					nodeMap[oldChildren[i]] = oldChildren[i].(nodeInternal).realNodes()
+			for i := oldStartIdx; i <= oldEndIdx; i++ {
+				if oldS[i] != nil {
+					nodeMap[oldS[i]] = oldS[i].(nodeInternal).realNodes()
 				}
 			}
 		}
@@ -719,11 +722,10 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			} else {
 				afterEndRef = findNextDOMAnchor(oldS, oldEndIdx+1, n-1, nodeMap, oldChildren, insertBeforeRef)
 			}
-			reconcile(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
-			for _, node := range domNodes {
+			newReals := reconcile(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
+			for _, node := range newReals {
 				safeInsertBefore(parent, node, afterEndRef)
 			}
-			newReals := newEndNode.(nodeInternal).realNodes()
 			if len(newReals) > 0 {
 				insertBeforeRef = newReals[0]
 			}
@@ -754,8 +756,8 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
-			reconcile(parent, oldEndNode, newStartNode, domNodes, refNode)
-			for _, node := range domNodes {
+			newReals := reconcile(parent, oldEndNode, newStartNode, domNodes, refNode)
+			for _, node := range newReals {
 				safeInsertBefore(parent, node, refNode)
 			}
 			oldS[oldEndIdx] = nil
@@ -837,8 +839,8 @@ func reconcileChildren(parent dom.Element, oldParent, newParent Node, oldChildre
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
-			reconcile(parent, matchedNode, newStartNode, matchedReal, refNode)
-			for _, node := range matchedReal {
+			newReals := reconcile(parent, matchedNode, newStartNode, matchedReal, refNode)
+			for _, node := range newReals {
 				safeInsertBefore(parent, node, refNode)
 			}
 			if key := matchedNode.Key(); key != "" && oldKeyMap != nil {
@@ -1088,6 +1090,7 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 			}
 			refNode := findNextDOMAnchorFlat(oldS, oldStartIdx+1, oldEndIdx, nodeMap, flatOld, insertBeforeRef)
 			reconcileFlat(parent, oldStartNode, newStartNode, realNodes, refNode)
+			oldS[oldStartIdx] = flatNode{}
 			oldStartIdx++
 			newStartIdx++
 			continue
@@ -1102,11 +1105,11 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 				realNodes = flatOld[oldEndIdx].node.(nodeInternal).realNodes()
 			}
 			refNode := findNextDOMAnchorFlat(oldS, oldEndIdx+1, n-1, nodeMap, flatOld, insertBeforeRef)
-			reconcileFlat(parent, oldEndNode, newEndNode, realNodes, refNode)
-			newReals := newEndNode.node.(nodeInternal).realNodes()
+			newReals := reconcileFlat(parent, oldEndNode, newEndNode, realNodes, refNode)
 			if len(newReals) > 0 {
 				insertBeforeRef = newReals[0]
 			}
+			oldS[oldEndIdx] = flatNode{}
 			oldEndIdx--
 			newEndIdx--
 			continue
@@ -1115,8 +1118,10 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 		// Case 3-5: Move needed. Ensure map is populated.
 		if nodeMap == nil {
 			nodeMap = nodeSliceMapPool.Get().(map[Node][]dom.Node)
-			for i := range n {
-				nodeMap[flatOld[i].node] = flatOld[i].node.(nodeInternal).realNodes()
+			for i := oldStartIdx; i <= oldEndIdx; i++ {
+				if oldS[i].node != nil {
+					nodeMap[oldS[i].node] = oldS[i].node.(nodeInternal).realNodes()
+				}
 			}
 		}
 
@@ -1130,11 +1135,10 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 			} else {
 				afterEndRef = findNextDOMAnchorFlat(oldS, oldEndIdx+1, n-1, nodeMap, flatOld, insertBeforeRef)
 			}
-			reconcileFlat(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
-			for _, node := range domNodes {
+			newReals := reconcileFlat(parent, oldStartNode, newEndNode, domNodes, afterEndRef)
+			for _, node := range newReals {
 				safeInsertBefore(parent, node, afterEndRef)
 			}
-			newReals := newEndNode.node.(nodeInternal).realNodes()
 			if len(newReals) > 0 {
 				insertBeforeRef = newReals[0]
 			}
@@ -1165,8 +1169,8 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
-			reconcileFlat(parent, oldEndNode, newStartNode, domNodes, refNode)
-			for _, node := range domNodes {
+			newReals := reconcileFlat(parent, oldEndNode, newStartNode, domNodes, refNode)
+			for _, node := range newReals {
 				safeInsertBefore(parent, node, refNode)
 			}
 			oldS[oldEndIdx] = flatNode{}
@@ -1248,8 +1252,8 @@ func reconcileChildrenFlat(parent dom.Element, oldChildren, newChildren []Node, 
 			if refNode == nil {
 				refNode = insertBeforeRef
 			}
-			reconcileFlat(parent, matchedNode, newStartNode, matchedReal, refNode)
-			for _, node := range matchedReal {
+			newReals := reconcileFlat(parent, matchedNode, newStartNode, matchedReal, refNode)
+			for _, node := range newReals {
 				safeInsertBefore(parent, node, refNode)
 			}
 			if key := matchedNode.node.Key(); key != "" && oldKeyMap != nil {

@@ -1782,3 +1782,239 @@ func TestUnmount_Helper(t *testing.T) {
 		t.Errorf("expected container to be empty after Unmount")
 	}
 }
+
+func collectElementSummary(parent dom.Element) []string {
+	var out []string
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		if el, ok := child.(dom.Element); ok {
+			out = append(out, el.TagName()+":"+el.ID()+":"+el.TextContent())
+		} else {
+			out = append(out, "#text::"+child.TextContent())
+		}
+	}
+	return out
+}
+
+func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
+	type modeProps struct {
+		Key     string
+		ID      string
+		Label   string
+		WithSep bool
+		Hide    bool
+		Multi   bool
+	}
+
+	ModeSegment := FC("ModeSegment", func(p modeProps) Node {
+		if p.Hide {
+			return nil
+		}
+		if p.Multi {
+			return Fragment(
+				Span(SpanProps{ID: p.ID + "-1"}, Text(p.Label)),
+				Span(SpanProps{ID: p.ID + "-2"}, Text("!")),
+			)
+		}
+		if p.WithSep {
+			return Box(BoxProps{ID: p.ID + "-box"},
+				Span(SpanProps{}, Text(p.Label)),
+				Span(SpanProps{}, Text(" · ")),
+			)
+		}
+		return Span(SpanProps{ID: p.ID + "-span"}, Text(p.Label))
+	})
+
+	UsageSegment := FC("UsageSegment", func(p modeProps) Node {
+		if p.WithSep {
+			return Box(BoxProps{ID: p.ID + "-box"},
+				Span(SpanProps{}, Text(p.Label)),
+				Span(SpanProps{}, Text(" · ")),
+			)
+		}
+		return Span(SpanProps{ID: p.ID + "-span"}, Text(p.Label))
+	})
+
+	HintSegment := SimpleFC("HintSegment", func() Node {
+		return Span(SpanProps{ID: "hint"}, Text("hint"))
+	})
+
+	SpacerSegment := SimpleFC("SpacerSegment", func() Node {
+		return Box(BoxProps{ID: "spacer"}, Text(" "))
+	})
+
+	ModelSegment := SimpleFC("ModelSegment", func() Node {
+		return Span(SpanProps{ID: "model"}, Text("model"))
+	})
+
+	ctx := CreateContext("theme")
+
+	tests := []struct {
+		name    string
+		before  []Node
+		after   []Node
+		wantDOM []string
+	}{
+		{
+			name: "Case3_OldStartToNewEnd_BoxToSpan",
+			before: []Node{
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+			},
+			after: []Node{
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+			},
+			wantDOM: []string{
+				"span:other:other",
+				"span:mode-span:auto",
+			},
+		},
+		{
+			name: "Case4_OldEndToNewStart_BoxToSpan",
+			before: []Node{
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+			},
+			after: []Node{
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+			},
+			wantDOM: []string{
+				"span:mode-span:auto",
+				"span:other:other",
+			},
+		},
+		{
+			name: "Case5_KeyedMiddleMove_BoxToSpan",
+			before: []Node{
+				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
+				Span(SpanProps{Key: "b", ID: "b"}, Text("B")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				Span(SpanProps{Key: "c", ID: "c"}, Text("C")),
+			},
+			after: []Node{
+				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+				Span(SpanProps{Key: "b", ID: "b"}, Text("B")),
+				Span(SpanProps{Key: "c", ID: "c"}, Text("C")),
+			},
+			wantDOM: []string{
+				"span:a:A",
+				"span:mode-span:auto",
+				"span:b:B",
+				"span:c:C",
+			},
+		},
+		{
+			name: "Case5_KeylessShift_TaskSmithStatusLine",
+			before: []Node{
+				HintSegment(),
+				SpacerSegment(),
+				ModeSegment(modeProps{ID: "mode", Label: "auto", WithSep: true}),
+				UsageSegment(modeProps{ID: "usage", Label: "Usage", WithSep: true}),
+				ModelSegment(),
+			},
+			after: []Node{
+				ModeSegment(modeProps{ID: "mode", Label: "auto", WithSep: false}),
+				SpacerSegment(),
+				UsageSegment(modeProps{ID: "usage", Label: "Usage", WithSep: false}),
+				ModelSegment(),
+			},
+			wantDOM: []string{
+				"span:mode-span:auto",
+				"box:spacer: ",
+				"span:usage-span:Usage",
+				"span:model:model",
+			},
+		},
+		{
+			name: "MovedComponent_BoxToNil",
+			before: []Node{
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+			},
+			after: []Node{
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", Hide: true}),
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+			},
+			wantDOM: []string{
+				"span:other:other",
+			},
+		},
+		{
+			name: "MovedComponent_BoxToFragment",
+			before: []Node{
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+			},
+			after: []Node{
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", Multi: true}),
+				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
+			},
+			wantDOM: []string{
+				"span:mode-1:auto",
+				"span:mode-2:!",
+				"span:other:other",
+			},
+		},
+		{
+			name: "Case2RootChange_WithCase3MoveAcrossEmptyEnd",
+			before: []Node{
+				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
+				Empty(),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+			},
+			after: []Node{
+				Empty(),
+				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
+				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+			},
+			wantDOM: []string{
+				"span:a:A",
+				"span:mode-span:auto",
+			},
+		},
+	}
+
+	for _, flatMode := range []bool{false, true} {
+		modeName := "standard"
+		if flatMode {
+			modeName = "flat_with_provider"
+		}
+		for _, tc := range tests {
+			t.Run(modeName+"/"+tc.name, func(t *testing.T) {
+				doc := dom.NewDocument()
+				container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+				doc.AppendChild(container)
+				defer Unmount(container)
+
+				wrap := func(children []Node) Node {
+					if flatMode {
+						return Box(BoxProps{ID: "row"}, ctx.Provider("dark", children...))
+					}
+					return Box(BoxProps{ID: "row"}, children...)
+				}
+
+				Render(wrap(tc.before), container)
+				rowEl := container.FirstChild().(dom.Element)
+				oldBox := doc.GetElementByID("mode-box")
+				if oldBox == nil {
+					t.Fatalf("expected mode-box to be mounted in initial state")
+				}
+
+				Render(wrap(tc.after), container)
+
+				got := collectElementSummary(rowEl)
+				if !slices.Equal(got, tc.wantDOM) {
+					t.Fatalf("DOM children mismatch:\n got: %v\nwant: %v", got, tc.wantDOM)
+				}
+				if oldBox.Parent() != nil || oldBox.IsConnected() {
+					t.Errorf("expected replaced mode-box DOM node to remain detached, got parent=%v connected=%v", oldBox.Parent(), oldBox.IsConnected())
+				}
+				if doc.GetElementByID("mode-box") != nil {
+					t.Errorf("expected mode-box ID to be unregistered from document")
+				}
+			})
+		}
+	}
+}
