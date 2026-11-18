@@ -90,7 +90,6 @@ func NewDocument() *Document {
 	d.AddEventListener(event.EventMouseUp, d.handleMouseUp)
 	d.AddEventListener(event.EventCopy, d.handleCopy)
 	d.AddEventListener(event.EventCut, d.handleCopy) // Cut also copies to clipboard
-	d.AddEventListener(event.EventPaste, d.handlePaste)
 
 	return d
 }
@@ -893,6 +892,9 @@ func (d *Document) handleCopy(ev event.Event) {
 }
 
 func (d *Document) handlePaste(ev event.Event) {
+	if ev.DefaultPrevented() {
+		return
+	}
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return

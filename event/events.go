@@ -443,6 +443,14 @@ func (c *ClipboardEvent) Text() string {
 	return ""
 }
 
+// DefaultActionHandler is implemented by event targets that perform a
+// post-dispatch default action (e.g., <input> or <textarea> inserting pasted
+// text) after capture, target, and bubble phases complete, unless a listener
+// called PreventDefault().
+type DefaultActionHandler interface {
+	HandleDefaultAction(e Event)
+}
+
 // Scrollable is implemented by render objects that handle wheel event.
 // The Dispatcher stops wheel-event bubbling at the first ancestor that
 // implements Scrollable and calls OnWheel.

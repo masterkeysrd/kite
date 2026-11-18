@@ -24,6 +24,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 - 🔗 **Idiomatic Promises**: Chainable async primitive with main-thread safety guarantees (via [`promise`](promise/)).
 - 🎭 **Component Playground**: Interactive component development sandbox with live knobs and action logs (via [`extras/stage`](extras/stage/)).
 - 👣 **Inline CLI Mode**: Ink-inspired inline terminal rendering with permanent scrollback flushing via `Static` (via [`extras/trail`](extras/trail/)).
+- 📋 **Multi-MIME Clipboard**: Browser-aligned `paste` events with preloaded MIME items and optional OS-native clipboard support (via [`extras/clipboard`](extras/clipboard/)).
 
 ## 🏗 Architecture Overview
 
@@ -305,6 +306,33 @@ go run ./examples/trail_demo
 ```
 
 See the full working demo in [`examples/trail_demo/`](examples/trail_demo/) and package documentation in [`extras/trail/`](extras/trail/).
+
+## 📋 Multi-MIME Clipboard
+
+Kite's paste pipeline follows the browser `ClipboardEvent` model:
+
+1. Calling `PreventDefault()` on a `Ctrl+V` / `Cmd+V` `KeyDown` event aborts `EventPaste`.
+2. Before dispatching `EventPaste` to the focused element, the engine queries `doc.Clipboard().ListFormats()` and `Read(mime)` to populate `ce.Items` (including enriching bracketed paste with non-text formats when available).
+3. Text controls (`<input>`, `<textarea>`) insert `ce.Text()` as a post-dispatch default action—so calling `ce.PreventDefault()` in a `paste` listener cleanly cancels text insertion (e.g., when handling an image attachment).
+
+By default, Kite uses terminal OSC 52 (`text/plain`, SSH-safe). For local apps that need images, HTML, or URI lists, install the optional OS-native provider from [`extras/clipboard`](extras/clipboard/):
+
+```go
+import "github.com/masterkeysrd/kite/extras/clipboard"
+
+doc.SetClipboardProvider(clipboard.New())
+
+textarea.AddEventListener(event.EventPaste, func(e event.Event) {
+    ce, ok := e.(*event.ClipboardEvent)
+    if !ok {
+        return
+    }
+    if img, ok := ce.Items["image/png"]; ok {
+        ce.PreventDefault() // cancels textarea text insertion
+        attachImage(img)
+    }
+})
+```
 
 ## ✨ Animations & CSS Grid Layout
 

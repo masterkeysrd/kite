@@ -23,6 +23,13 @@ func (m *mockClipboard) WriteText(text string) *promise.Promise[struct{}] {
 	return promise.Resolved(struct{}{})
 }
 
+func (m *mockClipboard) ListFormats() *promise.Promise[[]string] {
+	if m.data == "" {
+		return promise.Resolved([]string(nil))
+	}
+	return promise.Resolved([]string{"text/plain"})
+}
+
 func (m *mockClipboard) Read(mime string) *promise.Promise[[]byte] {
 	if mime == "text/plain" {
 		return promise.Resolved([]byte(m.data))

@@ -158,6 +158,25 @@ func TestInput_HandlePaste(t *testing.T) {
 	}
 }
 
+// TestInput_HandlePaste_PreventDefault verifies that calling PreventDefault()
+// in a paste listener registered on the input cancels the default text insertion.
+func TestInput_HandlePaste_PreventDefault(t *testing.T) {
+	inp := element.Input("hello ")
+	inp.AddEventListener(event.EventPaste, func(e event.Event) {
+		e.PreventDefault()
+	})
+
+	ce := event.NewClipboardEvent(event.EventPaste, event.ClipboardPaste)
+	ce.Items["text/plain"] = []byte("world")
+
+	d := event.NewDispatcher()
+	d.Dispatch(ce, []event.EventTarget{inp})
+
+	if got := inp.Value(); got != "hello " {
+		t.Errorf("Value() after prevented paste = %q, want %q", got, "hello ")
+	}
+}
+
 type mockClipboard struct {
 	data string
 }

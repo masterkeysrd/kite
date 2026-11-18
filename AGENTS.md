@@ -179,6 +179,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Wind mutation hook (`UseMutation`)** | `extras/wind/mutation.go` |
 | **Inline mode & scrollback insertion (`InsertAbove`, `SetInline`)** | `engine/engine.go`, `engine/pipeline.go`, `internal/render/view.go`, `backend/backend.go`, `backend/uv/backend.go` |
 | **Trail inline CLI runtime & `<Static>` component** | `extras/trail/trail.go`, `extras/trail/components.go`, `extras/trail/hooks.go` |
+| **OS-native multi-MIME clipboard provider** | `extras/clipboard/clipboard.go` |
 
 ## 📋 Task Workflow
 
@@ -253,6 +254,10 @@ This source map summarises the repository packages, their responsibilities, and 
     - Description: Ink-inspired inline CLI framework for Kite; supports dynamic height rendering and permanent scrollback insertion via `<Static>`. (See `extras/trail/doc.go`)
     - Key files: `extras/trail/doc.go`, `trail.go`, `components.go`, `hooks.go`
     - Inline positioning: the UV renderer uses a relative origin immediately after Static output, not sticky-bottom anchoring. Live growth scrolls naturally; shrink erases trailing rows without moving the origin downward.
+
+- **extras/clipboard** — Path: `extras/clipboard/`
+    - Description: Optional OS-native `terminal.Clipboard` implementation supporting multi-MIME `ListFormats`, `Read`, and `Write` on macOS, Linux, and Windows. (See `extras/clipboard/doc.go`)
+    - Key files: `extras/clipboard/doc.go`, `clipboard.go`, `clipboard_darwin.go`, `clipboard_linux.go`, `clipboard_windows.go`, `clipboard_other.go`
 
 
 ### Docs and Project Files

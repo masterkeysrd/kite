@@ -102,9 +102,19 @@ func (b *TextControlBase[T]) InitTextControlBase(
 func (b *TextControlBase[T]) WireTextControlEvents() {
 	b.host.AddEventListener(event.EventMouseDown, b.handleMouseDown)
 	b.host.AddEventListener(event.EventKeyDown, b.handleKeyDown)
-	b.host.AddEventListener(event.EventPaste, b.handlePaste)
 	b.host.AddEventListener(event.EventCopy, b.handleCopy)
 	b.host.AddEventListener(event.EventCut, b.handleCut)
+}
+
+// HandleDefaultAction performs post-dispatch default actions for the text
+// control (e.g., inserting pasted text) unless a listener called PreventDefault().
+func (b *TextControlBase[T]) HandleDefaultAction(ev event.Event) {
+	if ev.DefaultPrevented() {
+		return
+	}
+	if ev.Type() == event.EventPaste {
+		b.handlePaste(ev)
+	}
 }
 
 // SetSelectionRange sets the selection to the given byte offsets.
@@ -684,6 +694,9 @@ func (b *TextControlBase[T]) handleKeyDown(ev event.Event) {
 }
 
 func (b *TextControlBase[T]) handlePaste(ev event.Event) {
+	if ev.DefaultPrevented() {
+		return
+	}
 	ce, ok := ev.(*event.ClipboardEvent)
 	if !ok {
 		return
@@ -704,7 +717,6 @@ func (b *TextControlBase[T]) handlePaste(ev event.Event) {
 	b.host.DispatchEvent(event.NewInput(b.buf.Value()))
 
 	ev.PreventDefault()
-	ev.StopPropagation()
 }
 
 func (b *TextControlBase[T]) handleCopy(ev event.Event) {

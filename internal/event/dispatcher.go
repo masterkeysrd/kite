@@ -37,6 +37,23 @@ func (d *Dispatcher) Dispatch(e event.Event, path []event.EventTarget) {
 		return
 	}
 
+	d.dispatchPhases(e, ie, path, targets, realTarget)
+
+	// Post-dispatch default action runs unless a listener called PreventDefault().
+	if !e.DefaultPrevented() {
+		if dh, ok := realTarget.(event.DefaultActionHandler); ok {
+			dh.HandleDefaultAction(e)
+		}
+	}
+}
+
+func (d *Dispatcher) dispatchPhases(
+	e event.Event,
+	ie event.InternalEvent,
+	path []event.EventTarget,
+	targets []event.EventTarget,
+	realTarget event.EventTarget,
+) {
 	// Phase 1: Capture — root → target's parent.
 	ie.SetPhase(event.PhaseCapture)
 	for i, et := range path[:len(path)-1] {

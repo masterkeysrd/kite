@@ -95,7 +95,7 @@ type Clipboard interface {
 
 	// ListFormats returns a list of MIME types representing the formats currently available in
 	// the clipboard. If the clipboard is unavailable or access is denied, it returns an error.
-	// ListFormats() ([]string, error)
+	ListFormats() *promise.Promise[[]string]
 
 	// Read returns the current content of the clipboard as a byte slice. If the clipboard is
 	// empty or unavailable, it returns an empty byte slice and an error.

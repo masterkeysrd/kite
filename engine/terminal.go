@@ -63,13 +63,15 @@ type clipboardState struct {
 	pending []pendingRead
 }
 
-func (s *clipboardState) resolvePending(items map[string][]byte) {
+func (s *clipboardState) resolvePending(items map[string][]byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	resolved := false
 	var stillPending []pendingRead
 	for _, p := range s.pending {
 		if data, ok := items[p.mime]; ok {
+			resolved = true
 			select {
 			case p.ch <- data:
 			default:
@@ -79,6 +81,7 @@ func (s *clipboardState) resolvePending(items map[string][]byte) {
 		}
 	}
 	s.pending = stillPending
+	return resolved
 }
 
 type ClipboardProxy struct {
@@ -100,6 +103,10 @@ func (c *ClipboardProxy) ReadText() *promise.Promise[string] {
 
 func (c *ClipboardProxy) WriteText(text string) *promise.Promise[struct{}] {
 	return c.Write("text/plain", []byte(text))
+}
+
+func (c *ClipboardProxy) ListFormats() *promise.Promise[[]string] {
+	return promise.Resolved([]string{"text/plain"})
 }
 
 func (c *ClipboardProxy) Read(mime string) *promise.Promise[[]byte] {

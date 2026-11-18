@@ -1603,13 +1603,53 @@ func (e *Engine) dispatchEvent(ev event.Event) {
 			e.document.DispatchTo(evt)
 		}
 	case *event.ClipboardEvent:
-		if evt.Type() == event.EventPaste {
-			e.clipboard.resolvePending(evt.Items)
-		}
-		e.dispatchGenericEvent(evt)
+		e.dispatchClipboardEvent(evt)
 	default:
 		e.dispatchGenericEvent(ev)
 	}
+}
+
+func (e *Engine) dispatchClipboardEvent(ce *event.ClipboardEvent) {
+	if ce.Type() != event.EventPaste || e.document == nil || e.document.Clipboard() == nil {
+		e.dispatchGenericEvent(ce)
+		return
+	}
+
+	cb := e.document.Clipboard()
+	cb.ListFormats().Then(func(formats []string) {
+		var missing []string
+		for _, mime := range formats {
+			if _, ok := ce.Items[mime]; !ok {
+				missing = append(missing, mime)
+			}
+		}
+
+		if len(missing) == 0 {
+			e.dispatchGenericEvent(ce)
+			return
+		}
+
+		remaining := len(missing)
+		for _, mime := range missing {
+			m := mime
+			cb.Read(m).Then(func(data []byte) {
+				if len(data) > 0 {
+					ce.Items[m] = data
+				}
+				remaining--
+				if remaining == 0 {
+					e.dispatchGenericEvent(ce)
+				}
+			}, func(_ error) {
+				remaining--
+				if remaining == 0 {
+					e.dispatchGenericEvent(ce)
+				}
+			})
+		}
+	}, func(_ error) {
+		e.dispatchGenericEvent(ce)
+	})
 }
 
 func (e *Engine) dispatchGenericEvent(ev event.Event) {
@@ -1628,7 +1668,26 @@ func (e *Engine) dispatchGenericEvent(ev event.Event) {
 
 func (e *Engine) processRawEvent(raw backend.RawEvent) {
 	evts := e.synthesizer.Process(raw)
+	_, isAsyncClipResp := raw.(*backend.RawClipboardEvent)
+	if osc, ok := raw.(*backend.RawOscEvent); ok && osc.Code == 52 {
+		isAsyncClipResp = true
+	}
+
+	var lastKeyDown *event.KeyEvent
 	for _, ev := range evts {
+		if ke, ok := ev.(*event.KeyEvent); ok && ke.Type() == event.EventKeyDown {
+			lastKeyDown = ke
+		}
+		if ce, ok := ev.(*event.ClipboardEvent); ok {
+			if lastKeyDown != nil && lastKeyDown.DefaultPrevented() {
+				continue
+			}
+			if isAsyncClipResp && ce.Type() == event.EventPaste {
+				if e.clipboard.resolvePending(ce.Items) {
+					continue
+				}
+			}
+		}
 		e.dispatchEvent(ev)
 	}
 }
