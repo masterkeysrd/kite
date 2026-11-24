@@ -35,6 +35,24 @@ type inlineTerminal struct {
 	archiveErase bool
 	savedX       int
 	savedY       int
+	lastRune     rune
+	hasLast      bool
+}
+
+func (v *inlineTerminal) printRune(r rune) {
+	if v.x >= v.width {
+		if v.wrap {
+			v.x = 0
+			v.linefeed()
+			v.wrapped[v.y] = true
+		} else {
+			v.x = v.width - 1
+		}
+	}
+	v.rows[v.y][v.x] = r
+	v.x++
+	v.lastRune = r
+	v.hasLast = true
 }
 
 func newInlineTerminal(t *testing.T, width, height int) *inlineTerminal {
@@ -47,17 +65,7 @@ func newInlineTerminal(t *testing.T, width, height int) *inlineTerminal {
 	v.parser = ansi.NewParser()
 	v.parser.SetHandler(ansi.Handler{
 		Print: func(r rune) {
-			if v.x >= v.width {
-				if v.wrap {
-					v.x = 0
-					v.linefeed()
-					v.wrapped[v.y] = true
-				} else {
-					v.x = v.width - 1
-				}
-			}
-			v.rows[v.y][v.x] = r
-			v.x++
+			v.printRune(r)
 		},
 		Execute: func(b byte) {
 			switch b {
@@ -122,6 +130,12 @@ func newInlineTerminal(t *testing.T, width, height int) *inlineTerminal {
 				clear(v.rows[v.y][min(v.x, v.width):])
 			case 'X':
 				clear(v.rows[v.y][min(v.x, v.width):min(v.width, v.x+n)])
+			case 'b':
+				if v.hasLast {
+					for range n {
+						v.printRune(v.lastRune)
+					}
+				}
 			case 'h', 'l':
 				switch param(0, 0) {
 				case 7:
