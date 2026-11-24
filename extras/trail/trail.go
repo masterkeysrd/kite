@@ -211,9 +211,22 @@ func (inst *Instance) Unmount() {
 	}
 }
 
-// Frame runs a single render pipeline frame (useful in tests).
+// Frame runs a render pipeline pass and drains any follow-up pending tasks
+// (such as passive effects queued during reconciliation), useful in headless tests.
 func (inst *Instance) Frame() {
+	const maxFramePasses = 16
 	inst.eng.Frame()
+	for range maxFramePasses - 1 {
+		select {
+		case <-inst.eng.Done():
+			return
+		default:
+		}
+		if !inst.eng.HasPendingTasks() {
+			break
+		}
+		inst.eng.Frame()
+	}
 }
 
 // InsertAbove renders a kitex node into a temporary container and permanently

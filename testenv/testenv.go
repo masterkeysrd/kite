@@ -115,7 +115,9 @@ func New(t testing.TB, width, height int, opts ...Option) *Environment {
 
 	eng := o.engine
 	if eng == nil {
-		eng = engine.New(b, engine.Options{})
+		eng = engine.New(b, engine.Options{
+			MacroTaskDuration: engine.UnlimitedMacroTaskDuration,
+		})
 	}
 
 	env := &Environment{
@@ -170,9 +172,24 @@ func (e *Environment) Resize(width, height int) {
 	})
 }
 
-// Flush blocks until the engine completes a frame, allowing assertions on the newly painted state.
+const maxFlushPasses = 16
+
+// Flush blocks until the engine completes a frame and drains any follow-up
+// pending tasks (such as passive effects queued during reconciliation),
+// bounded by maxFlushPasses to prevent infinite loops.
 func (e *Environment) Flush() {
 	e.Engine.Frame()
+	for range maxFlushPasses - 1 {
+		select {
+		case <-e.Engine.Done():
+			return
+		default:
+		}
+		if !e.Engine.HasPendingTasks() {
+			break
+		}
+		e.Engine.Frame()
+	}
 }
 
 // RenderFrame is an alias for Flush.

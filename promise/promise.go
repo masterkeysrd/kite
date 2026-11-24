@@ -27,10 +27,40 @@ func SetScheduler(s Scheduler) {
 	globalScheduler = s
 }
 
+// ClearSchedulerIf clears the global scheduler to nil if and only if it
+// currently matches s. Returns true if the global scheduler was cleared.
+func ClearSchedulerIf(s Scheduler) bool {
+	if s == nil {
+		return false
+	}
+	schedMu.Lock()
+	defer schedMu.Unlock()
+	if globalScheduler == s {
+		globalScheduler = nil
+		return true
+	}
+	return false
+}
+
 func getScheduler() Scheduler {
 	schedMu.RLock()
 	defer schedMu.RUnlock()
 	return globalScheduler
+}
+
+type backgroundTryScheduler interface {
+	TryRunBackground(task func(ctx context.Context)) bool
+}
+
+type stoppableScheduler interface {
+	IsStopped() bool
+}
+
+func isSchedulerStopped(s Scheduler) bool {
+	if ss, ok := s.(stoppableScheduler); ok {
+		return ss.IsStopped()
+	}
+	return false
 }
 
 type State int
@@ -72,6 +102,19 @@ func New[T any](executor func(context.Context) (T, error)) *Promise[T] {
 		return p
 	}
 
+	if ts, ok := sched.(backgroundTryScheduler); ok {
+		if !ts.TryRunBackground(func(ctx context.Context) {
+			p.run(ctx, executor)
+		}) {
+			p.mu.Lock()
+			p.state = Rejected
+			p.err = context.Canceled
+			p.mu.Unlock()
+			close(p.done)
+		}
+		return p
+	}
+
 	sched.RunBackground(func(ctx context.Context) {
 		p.run(ctx, executor)
 	})
@@ -95,7 +138,7 @@ func (p *Promise[T]) run(ctx context.Context, executor func(context.Context) (T,
 	close(p.done)
 
 	sched := getScheduler()
-	if sched == nil {
+	if sched == nil || isSchedulerStopped(sched) {
 		p.dispatchSync()
 		return
 	}
@@ -157,7 +200,7 @@ func (p *Promise[T]) Then(onFulfilled func(T), onRejected func(error)) *Promise[
 	p.mu.Unlock()
 
 	sched := getScheduler()
-	if sched == nil {
+	if sched == nil || isSchedulerStopped(sched) {
 		if state == Fulfilled && onFulfilled != nil {
 			onFulfilled(val)
 		} else if state == Rejected && onRejected != nil {
@@ -195,7 +238,7 @@ func (p *Promise[T]) Finally(onFinally func()) *Promise[T] {
 	p.mu.Unlock()
 
 	sched := getScheduler()
-	if sched == nil {
+	if sched == nil || isSchedulerStopped(sched) {
 		onFinally()
 		return p
 	}

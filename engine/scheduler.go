@@ -55,18 +55,40 @@ func newDefaultScheduler(numWorkers int, clk Clock, macroTaskDuration time.Durat
 	return s
 }
 
-func (s *defaultScheduler) RunBackground(task func(ctx context.Context)) {
+func (s *defaultScheduler) IsStopped() bool {
+	return s.workerCtx.Err() != nil
+}
+
+func (s *defaultScheduler) TryRunBackground(task func(ctx context.Context)) bool {
+	select {
+	case <-s.workerCtx.Done():
+		return false
+	default:
+	}
+
 	var endSubmit func()
 	if s.onJobSubmit != nil {
 		endSubmit = s.onJobSubmit("anonymous")
 	}
 
-	s.jobQueue <- func(ctx context.Context) {
+	select {
+	case <-s.workerCtx.Done():
+		if endSubmit != nil {
+			endSubmit()
+		}
+		return false
+	case s.jobQueue <- func(ctx context.Context) {
 		if endSubmit != nil {
 			endSubmit()
 		}
 		task(ctx)
+	}:
+		return true
 	}
+}
+
+func (s *defaultScheduler) RunBackground(task func(ctx context.Context)) {
+	_ = s.TryRunBackground(task)
 }
 
 func (s *defaultScheduler) QueueMicrotask(task func()) {
@@ -104,11 +126,14 @@ func (s *defaultScheduler) drainMicrotasks() {
 }
 
 func (s *defaultScheduler) drainMacrotasks(budget int) {
-	deadline := s.clock.Now().Add(s.macroTaskDuration)
+	var deadline time.Time
+	if s.macroTaskDuration > 0 {
+		deadline = s.clock.Now().Add(s.macroTaskDuration)
+	}
 	drained := 0
 	for {
 		s.taskMu.Lock()
-		if len(s.macroQueue) == 0 || drained >= budget || s.clock.Now().After(deadline) {
+		if len(s.macroQueue) == 0 || drained >= budget || (drained > 0 && !deadline.IsZero() && s.clock.Now().After(deadline)) {
 			s.taskMu.Unlock()
 			break
 		}

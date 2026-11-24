@@ -180,3 +180,29 @@ func TestPromise_Await(t *testing.T) {
 		t.Errorf("expected awaited, got %s", res)
 	}
 }
+
+func TestPromise_ClearSchedulerIf(t *testing.T) {
+	s1 := &mockScheduler{}
+	s2 := &mockScheduler{}
+	SetScheduler(s1)
+	defer SetScheduler(nil)
+
+	if ClearSchedulerIf(nil) {
+		t.Fatal("ClearSchedulerIf(nil) should return false")
+	}
+	if ClearSchedulerIf(s2) {
+		t.Fatal("ClearSchedulerIf(s2) should return false when s1 is active")
+	}
+	if getScheduler() != s1 {
+		t.Fatal("expected s1 to remain active")
+	}
+	if !ClearSchedulerIf(s1) {
+		t.Fatal("ClearSchedulerIf(s1) should return true when s1 is active")
+	}
+	if getScheduler() != nil {
+		t.Fatal("expected globalScheduler to be nil after ClearSchedulerIf(s1)")
+	}
+	if ClearSchedulerIf(s1) {
+		t.Fatal("second ClearSchedulerIf(s1) should return false")
+	}
+}

@@ -52,6 +52,11 @@ const DefaultMacroTaskBudget = 1024
 // phase per frame.
 const DefaultMacroTaskDuration = 4 * time.Millisecond
 
+// UnlimitedMacroTaskDuration disables the wall-clock budget during macrotask
+// draining (draining remains bounded by MacroTaskBudget). Intended for
+// deterministic headless tests.
+const UnlimitedMacroTaskDuration time.Duration = -1
+
 // MinFrameInterval is the minimum elapsed time between two consecutive frames.
 // Frame requests within this window coalesce into a single frame.
 const MinFrameInterval = 8 * time.Millisecond
@@ -197,6 +202,7 @@ type Options struct {
 	// MacroTaskBudget caps macrotasks per frame by count (default DefaultMacroTaskBudget).
 	MacroTaskBudget int
 	// MacroTaskDuration caps macrotasks per frame by wall clock (default DefaultMacroTaskDuration).
+	// Set to UnlimitedMacroTaskDuration (or any negative duration) to disable the wall-clock cap.
 	MacroTaskDuration time.Duration
 	// Clock is the injectable time source. Defaults to RealClock().
 	Clock Clock
@@ -223,8 +229,10 @@ func New(b backend.Backend, opts Options) *Engine {
 		macroTaskBudget = DefaultMacroTaskBudget
 	}
 	macroTaskDuration := opts.MacroTaskDuration
-	if macroTaskDuration <= 0 {
+	if macroTaskDuration == 0 {
 		macroTaskDuration = DefaultMacroTaskDuration
+	} else if macroTaskDuration < 0 {
+		macroTaskDuration = 0
 	}
 	clk := opts.Clock
 	if clk == nil {
@@ -1355,6 +1363,12 @@ func (e *Engine) Done() <-chan struct{} {
 	return e.closeCh
 }
 
+// HasPendingTasks reports whether the engine's scheduler has any queued
+// microtasks or macrotasks waiting to be drained.
+func (e *Engine) HasPendingTasks() bool {
+	return e.scheduler.hasPendingTasks()
+}
+
 func (e *Engine) Stop() {
 	e.closeOnce.Do(func() {
 		e.stopHooksMu.Lock()
@@ -1366,6 +1380,7 @@ func (e *Engine) Stop() {
 			fn()
 		}
 		close(e.closeCh)
+		promise.ClearSchedulerIf(e.scheduler)
 		e.scheduler.stop()
 		e.backend.Restore()
 	})

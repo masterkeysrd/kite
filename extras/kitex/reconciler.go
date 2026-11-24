@@ -231,14 +231,6 @@ func Render(root Node, container dom.Element) {
 		return
 	}
 
-	if doc := container.OwnerDocument(); doc != nil {
-		if term := doc.Terminal(); term != nil {
-			sched := term.Scheduler()
-			setInternalScheduler(sched)
-			promise.SetScheduler(sched)
-		}
-	}
-
 	oldRoot := activeRoots[container]
 	if root == nil {
 		delete(activeRoots, container)
@@ -254,7 +246,20 @@ func Render(root Node, container dom.Element) {
 				}
 			}
 		}
+		if doc := container.OwnerDocument(); doc != nil {
+			if term := doc.Terminal(); term != nil && term.IsClosed() {
+				clearInternalSchedulerIf(term.Scheduler())
+			}
+		}
 		return
+	}
+
+	if doc := container.OwnerDocument(); doc != nil {
+		if term := doc.Terminal(); term != nil && !term.IsClosed() {
+			sched := term.Scheduler()
+			setInternalScheduler(sched)
+			promise.SetScheduler(sched)
+		}
 	}
 
 	activeRoots[container] = root
@@ -268,8 +273,10 @@ func Render(root Node, container dom.Element) {
 					delete(activeRoots, container)
 					return
 				}
+				sched := term.Scheduler()
 				term.OnClose(func() {
 					Render(nil, container)
+					clearInternalSchedulerIf(sched)
 				})
 			}
 		}

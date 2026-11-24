@@ -244,6 +244,19 @@ func setInternalScheduler(s terminal.Scheduler) {
 	scheduler = s
 }
 
+func clearInternalSchedulerIf(s terminal.Scheduler) bool {
+	if s == nil {
+		return false
+	}
+	schedulerMu.Lock()
+	defer schedulerMu.Unlock()
+	if scheduler == s {
+		scheduler = nil
+		return true
+	}
+	return false
+}
+
 func getInternalScheduler() terminal.Scheduler {
 	schedulerMu.Lock()
 	defer schedulerMu.Unlock()
@@ -630,7 +643,7 @@ func UseTimeout(handler func(), delay time.Duration, deps []any) {
 		if doc.Terminal() != nil {
 			sched = doc.Terminal().Scheduler()
 		} else {
-			sched = scheduler
+			sched = getInternalScheduler()
 		}
 		if sched == nil {
 			return nil
@@ -661,7 +674,7 @@ func UseInterval(handler func(), interval time.Duration, deps []any) {
 		if doc.Terminal() != nil {
 			sched = doc.Terminal().Scheduler()
 		} else {
-			sched = scheduler
+			sched = getInternalScheduler()
 		}
 		if sched == nil {
 			return nil
