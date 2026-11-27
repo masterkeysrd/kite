@@ -23,7 +23,7 @@ func TestStackNavigation(t *testing.T) {
 
 	var nav Navigator
 
-	HomeView := kitex.SimpleFC("HomeView", func() kitex.Node {
+	HomeView := kitex.FC("HomeView", func(_ kitex.NoProps) kitex.Node {
 		nav = UseNavigation()
 		return kitex.Box(kitex.BoxProps{ID: "home"})
 	})
@@ -40,7 +40,7 @@ func TestStackNavigation(t *testing.T) {
 			case HomeRoute:
 				return HomeView()
 			case DetailsRoute:
-				return DetailsView(struct{ ID string }{ID: route.ID})
+				return DetailsView.Props(struct{ ID string }{ID: route.ID})
 			default:
 				return kitex.Box(kitex.BoxProps{ID: "unknown"})
 			}
@@ -52,6 +52,9 @@ func TestStackNavigation(t *testing.T) {
 
 	if nav == nil {
 		t.Fatal("expected UseNavigation to retrieve navigator")
+	}
+	if nav.CanPop() {
+		t.Error("expected CanPop() to be false at initial root")
 	}
 
 	// Verify home is rendered
@@ -69,6 +72,9 @@ func TestStackNavigation(t *testing.T) {
 
 	// 2. Push DetailsRoute
 	nav.Push(DetailsRoute{ID: "42"})
+	if !nav.CanPop() {
+		t.Error("expected CanPop() to be true after pushing route")
+	}
 
 	// Verify details rendered
 	screen = container.FirstChild().(dom.Element)
@@ -78,6 +84,9 @@ func TestStackNavigation(t *testing.T) {
 
 	// 3. Pop
 	nav.Pop()
+	if nav.CanPop() {
+		t.Error("expected CanPop() to be false after popping back to root")
+	}
 	screen = container.FirstChild().(dom.Element)
 	if screen.ID() != "home" {
 		t.Errorf("expected active screen to return to 'home', got %q", screen.ID())
@@ -85,6 +94,9 @@ func TestStackNavigation(t *testing.T) {
 
 	// 4. Pop beyond bounds (bounds check)
 	nav.Pop()
+	if nav.CanPop() {
+		t.Error("expected CanPop() to remain false after popping beyond bounds")
+	}
 	screen = container.FirstChild().(dom.Element)
 	if screen.ID() != "home" {
 		t.Errorf("expected active screen to remain 'home' after popping beyond bounds, got %q", screen.ID())
@@ -92,13 +104,23 @@ func TestStackNavigation(t *testing.T) {
 
 	// 5. Replace
 	nav.Replace(DetailsRoute{ID: "99"})
+	if nav.CanPop() {
+		t.Error("expected CanPop() to be false when replacing sole root route")
+	}
 	screen = container.FirstChild().(dom.Element)
 	if screen.ID() != "details_99" {
 		t.Errorf("expected active screen to be replaced with 'details_99', got %q", screen.ID())
 	}
 
-	// 6. Reset
+	// 6. Reset from depth > 1
+	nav.Push(DetailsRoute{ID: "100"})
+	if !nav.CanPop() {
+		t.Error("expected CanPop() to be true after push")
+	}
 	nav.Reset(HomeRoute{})
+	if nav.CanPop() {
+		t.Error("expected CanPop() to be false after Reset")
+	}
 	screen = container.FirstChild().(dom.Element)
 	if screen.ID() != "home" {
 		t.Errorf("expected active screen to be reset to 'home', got %q", screen.ID())
@@ -114,7 +136,7 @@ func TestFocusScopeIsolation(t *testing.T) {
 	doc.AppendChild(container)
 	defer kitex.Render(nil, container)
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{},
 			kitex.Button(kitex.ButtonProps{ID: "outer-btn"}),
 			Stack(StackProps{

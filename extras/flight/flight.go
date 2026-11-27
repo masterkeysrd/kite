@@ -10,6 +10,8 @@ type Navigator interface {
 	Push(r Route)
 	// Pop pops the current route from the stack, returning to the previous one.
 	Pop()
+	// CanPop reports whether there is a previous route on the stack to pop to.
+	CanPop() bool
 	// Replace replaces the current top route with a new one.
 	Replace(r Route)
 	// Reset clears the stack and sets the given route as the only entry.

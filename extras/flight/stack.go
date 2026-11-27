@@ -37,6 +37,10 @@ func (n *stackNavigator) Pop() {
 	n.setStack(next)
 }
 
+func (n *stackNavigator) CanPop() bool {
+	return len(n.getStack()) > 1
+}
+
 func (n *stackNavigator) Replace(r Route) {
 	s := n.getStack()
 	if len(s) == 0 {
@@ -56,7 +60,11 @@ func (n *stackNavigator) Reset(r Route) {
 // Stack is a reactive navigation component that maintains a stack of active routes.
 // It wraps the active route with NavigatorContext provider and dynamically isolates
 // keyboard interaction to the top-most view using the active route's DOM node.
-var Stack = kitex.FC("Stack", func(props StackProps) kitex.Node {
+func Stack(props StackProps) kitex.Node {
+	return stackFC.Props(props)
+}
+
+var stackFC = kitex.FC("Stack", func(props StackProps) kitex.Node {
 	if props.InitialRoute == nil {
 		panic("flight.Stack requires an InitialRoute")
 	}
@@ -71,7 +79,7 @@ var Stack = kitex.FC("Stack", func(props StackProps) kitex.Node {
 			getStack: getStack,
 			setStack: setStack,
 		}
-	}, []any{})
+	})
 
 	stack := getStack()
 	if len(stack) == 0 {
@@ -114,7 +122,7 @@ var Stack = kitex.FC("Stack", func(props StackProps) kitex.Node {
 		return func() {
 			doc.PopScope()
 		}
-	}, []any{active})
+	}, active)
 
 	return navigatorContext.Provider(nav, rendered)
 })

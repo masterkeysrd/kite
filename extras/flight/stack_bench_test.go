@@ -20,7 +20,7 @@ func BenchmarkStack_PushPop(b *testing.B) {
 
 	var nav Navigator
 
-	HomeView := kitex.SimpleFC("HomeView", func() kitex.Node {
+	HomeView := kitex.FC("HomeView", func(_ kitex.NoProps) kitex.Node {
 		nav = UseNavigation()
 		return kitex.Box(kitex.BoxProps{ID: "home"},
 			kitex.Button(kitex.ButtonProps{ID: "btn-home"}),
@@ -41,7 +41,7 @@ func BenchmarkStack_PushPop(b *testing.B) {
 			case HomeRoute:
 				return HomeView()
 			case DetailsRoute:
-				return DetailsView(struct{ ID string }{ID: route.ID})
+				return DetailsView.Props(struct{ ID string }{ID: route.ID})
 			default:
 				return kitex.Box(kitex.BoxProps{})
 			}
@@ -67,7 +67,7 @@ func BenchmarkStack_Init(b *testing.B) {
 		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 		doc.AppendChild(container)
 
-		HomeView := kitex.SimpleFC("HomeView", func() kitex.Node {
+		HomeView := kitex.FC("HomeView", func(_ kitex.NoProps) kitex.Node {
 			return kitex.Box(kitex.BoxProps{ID: "home"})
 		})
 
