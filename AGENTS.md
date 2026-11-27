@@ -92,7 +92,8 @@ This document provides guidelines and architectural context for AI assistants an
     *   Animations are self-scheduling: if any animations are active, the engine calls `RequestFrame()` to keep the loop running at 60FPS.
     *   `Tween[T]` is the primary animator, combining a `Duration`, `EasingFunction`, and `Interpolator[T]` with an `OnUpdate` callback.
     *   Property updates within an `OnUpdate` callback should typically use `element.RawStyle()` as a base, mutate it, and call `element.Style(s)` to trigger a style-dirty flag.
-16. **Kitex Reconciler Threading Model:**
+16. **Kitex Component Model & Reconciler Threading Model:**
+    *   Functional components use only two constructors: `FC[P]` returning `Component[P]` and `FCC[P]` returning `Container[P]` (with `NoProps = struct{}` for zero-prop components). Call `comp()` / `cont(children...)` for zero-value `P` and `comp.Props(p)` / `cont.Props(p, children...)` for explicit props. Hot paths are reflection-free: `keyFn` (byte-offset read) and `isSafelyComparable` (`any(old) == any(new)`) are precomputed once at registration time, `PassedChildren` are passed directly without struct injection (and bypass memoization when non-empty), and `refCarrier` replaces `getRefSetter` reflection.
     *   Components are flagged dirty from arbitrary goroutines (promise callbacks, stream iterators, timers), so all global reconciler state must be mutex- or atomic-guarded. Never assume a `MarkDirty` call runs on the main thread.
     *   `renderMutex` serializes whole-tree work (`Render`, dirty flushes). `flushMu` guards the dirty queue and the `flushing` guard. Keep them separate so a worker goroutine can queue work while the main thread renders.
     *   The flush guard must be cleared **inside** the critical section that proves the dirty queue is empty (`finishFlush`). Clearing it after unlocking lets a concurrent `MarkDirty` observe an in-progress flush, skip scheduling, and have its update dropped.
@@ -166,10 +167,10 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Regression test suite** | `tests/regressions/` |
 | **ADR documents** | `docs/adrs/` |
 | **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
-| **VDOM primitive wrappers & API** | `extras/kitex/node.go`, `extras/kitex/elements.go`, `extras/kitex/component.go`, `extras/kitex/listeners.go` |
-| **Kitex hooks (UseState, StateSetter, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback, UseProgramResume)** | `extras/kitex/hooks.go` |
+| **VDOM primitive wrappers & API** | `extras/kitex/node.go`, `extras/kitex/elements.go`, `extras/kitex/props_gen.go`, `extras/kitex/internal/genprops/main.go`, `extras/kitex/component.go`, `extras/kitex/listeners.go`, `extras/kitex/form.go` |
+| **Kitex hooks (UseState, StateSetter, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseEffectEveryRender, UseEffectEveryRenderCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseLayoutEffectEveryRender, UseLayoutEffectEveryRenderCleanup, UseReducer, UseCallback, UseKeyboard, UseTimeout, UseInterval, UseProgramResume)** | `extras/kitex/hooks.go` |
 | **Kitex Context System (CreateContext, UseContext, Provider)** | `extras/kitex/context.go`, `extras/kitex/provider.go` |
-| **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/memo.go` |
+| **Kitex automatic memoization & prop equality (`complexity`, `isSafelyComparable`, `deepEqualProps`)** | `extras/kitex/memo.go`, `extras/kitex/component.go` |
 | **Global state store & subscriber API** | `extras/kites/store.go` |
 | **Kites global state integration hook** | `extras/kites/hooks.go` |
 | **Stack Navigation component & interfaces** | `extras/flight/flight.go`, `extras/flight/stack.go` |

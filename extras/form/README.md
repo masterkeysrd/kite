@@ -14,13 +14,13 @@ Form provides a high-level form state and validation engine for Kitex applicatio
 
 ### 1. Define your form structure
 
-Create a Go struct that represents your form data. You can use JSON tags to map field names from the UI:
+Create a Go struct that represents your form data. You can use `form` tags (or fall back to `json` tags or field names) to map field names from the UI; string values from text inputs are automatically converted for numeric and boolean fields:
 
 ```go
 type UserForm struct {
-	Name     string `json:"name"`
-	Age      int    `json:"age"`
-	IsActive bool   `json:"is_active"`
+	Name     string `form:"name"`
+	Age      int    `form:"age"`
+	IsActive bool   `form:"is_active"`
 }
 ```
 
@@ -38,7 +38,7 @@ import (
 	"github.com/masterkeysrd/kite/extras/kitex"
 )
 
-var MyForm = kitex.SimpleFC("MyForm", func() kitex.Node {
+var MyForm = kitex.FC("MyForm", func(_ kitex.NoProps) kitex.Node {
 	formAPI := form.Use(form.Options[UserForm]{
 		InitialValues: UserForm{Name: "Default User", Age: 18},
 		Validate: func(values UserForm) map[string]string {
@@ -69,17 +69,19 @@ Use `kitex.Form` or manually wire form elements to the `HandleSubmit` function:
 	return kitex.Form(kitex.FormProps{
 		OnSubmit: formAPI.HandleSubmit(onSubmit),
 	},
-		kitex.Box(kitex.BoxProps{},
+		kitex.Box.Style(
+			style.S().Margin(0, 0, 1, 0),
 			kitex.Input(kitex.InputProps{
 				Name:  "name",
 				Value: state.Values.Name,
 			}),
 			kitex.If(state.Errors["name"] != "", func() kitex.Node {
-				return kitex.Text(state.Errors["name"])
+				return kitex.Span.Style(style.S().Foreground(style.Hex("#f87171")), kitex.Text(state.Errors["name"]))
 			}),
 		),
 		
-		kitex.Box(kitex.BoxProps{},
+		kitex.Box.Style(
+			style.S().Margin(0, 0, 1, 0),
 			kitex.Checkbox(kitex.CheckboxProps{
 				Name:    "is_active",
 				Checked: state.Values.IsActive,

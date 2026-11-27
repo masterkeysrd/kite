@@ -30,7 +30,7 @@ type DetailsRoute struct {
 }
 
 // Parent App component rendering the stack
-var App = kitex.SimpleFC("App", func() kitex.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	return flight.Stack(flight.StackProps{
 		InitialRoute: HomeRoute{},
 		RenderRoute: func(r flight.Route) kitex.Node {
@@ -38,7 +38,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			case HomeRoute:
 				return HomeView()
 			case DetailsRoute:
-				return DetailsView(route.ItemID)
+				return DetailsView.Props(route.ItemID)
 			default:
 				panic("unknown route")
 			}
@@ -52,11 +52,12 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 Use the `flight.UseNavigation()` hook to access the `Navigator` interface and execute actions:
 
 ```go
-var HomeView = kitex.SimpleFC("HomeView", func() kitex.Node {
+var HomeView = kitex.FC("HomeView", func(_ kitex.NoProps) kitex.Node {
 	nav := flight.UseNavigation()
 
-	return kitex.Box(kitex.BoxProps{},
-		kitex.Text("Welcome Home"),
+	return kitex.Box.Style(
+		style.S().Padding(1, 2),
+		kitex.Span.Style(style.S().Bold(true), kitex.Text("Welcome Home")),
 		kitex.Button(kitex.ButtonProps{
 			OnPress: func() {
 				// Push a new details route onto the stack
@@ -69,7 +70,8 @@ var HomeView = kitex.SimpleFC("HomeView", func() kitex.Node {
 var DetailsView = kitex.FC("DetailsView", func(props string) kitex.Node {
 	nav := flight.UseNavigation()
 
-	return kitex.Box(kitex.BoxProps{},
+	return kitex.Box.Style(
+		style.S().Padding(1, 2),
 		kitex.Text("Item Details: " + props),
 		kitex.Button(kitex.ButtonProps{
 			OnPress: func() {
@@ -87,6 +89,7 @@ The `Navigator` interface returned by `UseNavigation()` provides the following o
 
 - **`Push(r Route)`**: Pushes a new route onto the stack, making it the active screen.
 - **`Pop()`**: Pops the current top route from the stack, returning to the previous one (does nothing if only the initial route is present).
+- **`CanPop() bool`**: Reports whether the stack has more than one route (i.e., whether `Pop()` will navigate back).
 - **`Replace(r Route)`**: Replaces the current top route with a new one.
 - **`Reset(r Route)`**: Clears the stack entirely and sets the given route as the sole entry.
 

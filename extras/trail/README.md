@@ -28,9 +28,10 @@ import (
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/trail"
+	"github.com/masterkeysrd/kite/style"
 )
 
-func App() trail.Node {
+var App = trail.FC("App", func(_ trail.NoProps) trail.Node {
 	count, setCount := trail.UseState(0)
 	app := trail.UseApp()
 
@@ -42,12 +43,13 @@ func App() trail.Node {
 
 	trail.UseInterval(func() {
 		setCount(count() + 1)
-	}, time.Second, nil)
+	}, time.Second)
 
-	return trail.Box(trail.BoxProps{},
-		trail.Text(fmt.Sprintf("Counter: %d (press 'q' to exit)", count())),
+	return trail.Box.Style(
+		style.S().Padding(0, 1),
+		trail.Span.Style(style.S().Bold(true), trail.Text(fmt.Sprintf("Counter: %d (press 'q' to exit)", count()))),
 	)
-}
+})
 
 func main() {
 	// Start with trail.Render and block on WaitUntilExit (Ink-style)

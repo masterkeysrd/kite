@@ -56,7 +56,7 @@ func main() {
 			wrapperStyle = wrapperStyle.Border(true, style.BorderSingle, color.RGBA{R: 79, G: 70, B: 229, A: 255})
 		}
 
-		return kitex.Box(kitex.BoxProps{Style: wrapperStyle}, node)
+		return kitex.Box.Style(wrapperStyle, node)
 	})
 
 	// 3. Register components and scenes

@@ -47,16 +47,20 @@ import (
 	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/kites"
 	"github.com/masterkeysrd/kite/store"
+	"github.com/masterkeysrd/kite/style"
 )
 
-var CounterDisplay = kitex.SimpleFC("CounterDisplay", func() kitex.Node {
+var CounterDisplay = kitex.FC("CounterDisplay", func(_ kitex.NoProps) kitex.Node {
 	// Component will ONLY re-render when store.Counter changes.
 	// Changes to store.Theme will be ignored.
 	count := kites.Use(store.GlobalStore, func(s store.AppState) int {
 		return s.Counter
 	})
 
-	return kitex.Text(fmt.Sprintf("Current count: %d", count))
+	return kitex.Box.Style(
+		style.S().Padding(1),
+		kitex.Span.Style(style.S().Bold(true), kitex.Text(fmt.Sprintf("Current count: %d", count))),
+	)
 })
 ```
 

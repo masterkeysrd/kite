@@ -69,10 +69,13 @@ Every API addition is governed by a strict four-layer placement rule:
   - Add `OnCheckedChange func(bool)` to `CheckboxProps` (delegating to `CheckboxElement.OnChange`).
   - Add `OnPress func()` to `ButtonProps` for zero-arg button actions.
   - Fix all `*Props.elementProps()` converters so `Attributes: p.Attributes` and `OnInput: p.OnInput` are forwarded consistently, and replace `setStyle`/`setHidden` 22-case switches with `el.SetStyle(new.Style)` / `el.SetHidden(new.Hidden)`.
-- **Text & Hook Primitives:**
+- **Text, Component API, & Hook Primitives:**
   - Add `kitex.Textf(format string, args ...any) Node` backed by `textNodePool`.
+  - Unify functional components on two constructors: `FC[P any](name string, render func(P) Node) Component[P]` and `FCC[P any](name string, render func(P, ...Node) Node) Container[P]` (with `NoProps = struct{}`), removing `SimpleFC` and `SimpleFCC`. Callers invoke `comp()` / `cont(children...)` for zero-value `P` and `comp.Props(p)` / `cont.Props(p, children...)` for explicit props, backed by a weak-pointer `componentRegistry` (`weak.Pointer` + `runtime.AddCleanup`).
+  - Eliminate hot-path reflection in `extras/kitex`: remove `injectChildren` (passing `PassedChildren` directly to `RenderContainerFn`, bypassing memoization when passed children are non-empty), precompute `Key` field byte-offsets (`keyFn`) and `isSafelyComparable` (fast `any(old) == any(new)` before `deepEqualProps`) once at `FC`/`FCC` registration time, and replace `getRefSetter` reflection with the `refCarrier` interface on `ElementProps` and generated `*Props` structs.
+  - Provide `.Style(...)` shorthand on all built-in VDOM element constructors via generic `ContainerTag[P StylableProps[P]]` and `LeafTag[P StylableProps[P]]` function types (`StylableProps[P]` implemented on `ElementProps` and generated on all `*Props` structs). Callers can pass full props with `kitex.Box(kitex.BoxProps{...}, children...)` / `kitex.Input(kitex.InputProps{...})` or omit the props struct literal when only setting `Style` via `kitex.Box.Style(s, children...)` / `kitex.Input.Style(s)` with zero allocation overhead and accurate DevTools caller source tracking.
   - Update `kitex.UseState[T any](initial T) (func() T, StateSetter[T])` where `type StateSetter[T any] func(T)` supports both direct replacement calls (`set(val)`) and atomic functional updates via `set.Update(func(T) T)` executing the transformation atomically under `hookState[T].mu` before calling `MarkDirty()`, while remaining directly assignable to `func(T)` callbacks.
-- **Internal File Modularization:** Split monolithic `extras/kitex/kitex.go` into focused files (`node.go`, `memo.go`, `listeners.go`, `elements.go`, `component.go`) without changing package boundaries.
+- **Internal File Modularization:** Split monolithic `extras/kitex/kitex.go` into focused files (`node.go`, `memo.go`, `listeners.go`, `elements.go`, `component.go`, `form.go`) without changing package boundaries.
 
 ## Consequences
 

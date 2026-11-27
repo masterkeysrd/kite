@@ -29,7 +29,7 @@ import (
 func main() {
 	client := wind.NewClient()
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		return wind.Provider(wind.ProviderProps{Client: client}, /* Your Views */)
 	})
 	
@@ -67,11 +67,12 @@ var PodViewer = kitex.FC("PodViewer", func(props PodKey) kitex.Node {
 		return kitex.Text("Error: " + res.Error.Error())
 	}
 
-	return kitex.Box(kitex.BoxProps{},
-		kitex.Text("Status: " + res.Data.Status),
+	return kitex.Box.Style(
+		style.S().Padding(1),
+		kitex.Span.Style(style.S().Bold(true), kitex.Text("Status: " + res.Data.Status)),
 		kitex.Text("CPU Usage: " + res.Data.CPU),
 		kitex.Button(kitex.ButtonProps{
-			OnClick: func(e event.Event) { res.Refetch() },
+			OnClick: func(e *event.MouseEvent) { res.Refetch() },
 		}, kitex.Text("Manual Refresh")),
 	)
 })
@@ -111,7 +112,7 @@ var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node 
 	}
 
 	return kitex.Button(kitex.ButtonProps{
-		OnClick: func(e event.Event) {
+		OnClick: func(e *event.MouseEvent) {
 			mutation.Mutate(DeletePodVariables{
 				Namespace: props.Namespace,
 				PodName:   props.PodName,

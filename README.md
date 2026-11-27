@@ -107,7 +107,7 @@ func TestMyApp(t *testing.T) {
     env.Type("hello")
     env.Flush()
 
-    input := env.GetNodeByID("my-input").(*element.InputElement)
+    input := testenv.ByID[*element.InputElement](t, env, "my-input")
     if input.Value() != "hello" {
         t.Errorf("expected 'hello', got %q", input.Value())
     }
