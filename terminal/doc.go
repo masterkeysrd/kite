@@ -5,9 +5,9 @@
 // # Terminal
 //
 // The Terminal interface exposes clipboard access, a Scheduler for
-// background/microtask/macrotask execution, and simple operations like
-// SetTitle and Bell. It is accessible from any DOM element via
-// el.Document().Terminal().
+// background/microtask/macrotask execution, and terminal protocol operations
+// like SetTitle, Bell, SetProgramStatus, and SetProgramResume. It is
+// accessible from any DOM element via el.Document().Terminal().
 //
 // # Scheduler
 //

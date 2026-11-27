@@ -752,7 +752,7 @@ func TestInlineTail_FrameAndCursorUseSynchronizedOutput(t *testing.T) {
 	queueInlineFrame(b, "Composer", "Status")
 	drainInline(b)
 	output := out.String()
-	start, end := "\x1b[?2026h", "\x1b[?2026l"
+	start, end := ansi.SetModeSynchronizedOutput, ansi.ResetModeSynchronizedOutput
 	var frame string
 	for write := range strings.SplitSeq(output, end) {
 		if strings.Contains(write, "Composer") {

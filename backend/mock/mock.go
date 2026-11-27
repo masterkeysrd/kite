@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"slices"
 	"sync"
 	"time"
 
@@ -91,7 +92,8 @@ type Backend struct {
 	width, height int
 
 	// events is the channel returned by Events().
-	events chan backend.RawEvent
+	events       chan backend.RawEvent
+	eventsClosed bool
 
 	// caps holds the simulated terminal capabilities for this backend.
 	// Tests may set fields on caps before passing the backend to an engine.
@@ -119,6 +121,9 @@ type Backend struct {
 
 	// ProgramStatus records the most recently set program status.
 	ProgramStatus *backend.ProgramStatus
+
+	// ProgramResume records the most recently set program resume.
+	ProgramResume *backend.ProgramResume
 
 	// Inline reports whether inline mode is enabled.
 	Inline bool
@@ -260,6 +265,19 @@ func (b *Backend) TryPostEvent(ev backend.RawEvent) bool {
 	}
 }
 
+// CloseEvents closes the mock backend's event channel to simulate terminal loss.
+func (b *Backend) CloseEvents() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.events == nil {
+		b.events = make(chan backend.RawEvent, 256)
+	}
+	if !b.eventsClosed {
+		b.eventsClosed = true
+		close(b.events)
+	}
+}
+
 // Restore records the call. In the mock backend this is a no-op.
 func (b *Backend) Restore() {
 	b.mu.Lock()
@@ -337,7 +355,7 @@ func (b *Backend) SetTitle(s string) {
 	b.mu.Lock()
 	b.title = s
 	b.mu.Unlock()
-	fmt.Fprintf(&b.Output, "\x1b]2;%s\x07", s)
+	fmt.Fprint(&b.Output, ansi.SetWindowTitle(s))
 }
 
 // Title returns the current simulated terminal window title.
@@ -354,7 +372,22 @@ func (b *Backend) Bell() {
 
 // SetProgressBar updates the terminal native progress bar escape sequence in Output.
 func (b *Backend) SetProgressBar(state backend.ProgressBarState, percentage int) {
-	fmt.Fprintf(&b.Output, "\x1b]9;4;%d;%d\x07", state, percentage)
+	var seq string
+	switch state {
+	case backend.ProgressBarHide:
+		seq = ansi.ResetProgressBar
+	case backend.ProgressBarNormal:
+		seq = ansi.SetProgressBar(percentage)
+	case backend.ProgressBarError:
+		seq = ansi.SetErrorProgressBar(percentage)
+	case backend.ProgressBarIndeterminate:
+		seq = ansi.SetIndeterminateProgressBar
+	case backend.ProgressBarPaused:
+		seq = ansi.SetWarningProgressBar(percentage)
+	}
+	if seq != "" {
+		fmt.Fprint(&b.Output, seq)
+	}
 }
 
 // SetProgramStatus records and writes OSC 7501 Program Status to Output.
@@ -387,6 +420,46 @@ func (b *Backend) CurrentProgramStatus() *backend.ProgramStatus {
 	return b.ProgramStatus
 }
 
+// SetProgramResume records and writes OSC 7577 Program Resume to Output.
+func (b *Backend) SetProgramResume(resume *backend.ProgramResume) {
+	b.mu.Lock()
+	if resume == nil {
+		b.ProgramResume = nil
+	} else {
+		b.ProgramResume = &backend.ProgramResume{
+			Args: slices.Clone(resume.Args),
+			Dir:  resume.Dir,
+		}
+	}
+	b.mu.Unlock()
+
+	var seq string
+	if resume == nil {
+		seq = ansi.ClearProgramResume("mock-token", 1, time.Unix(1, 0))
+	} else {
+		seq = ansi.SetProgramResume("mock-token", 1, time.Unix(1, 0), ansi.ProgramResume{
+			Args: resume.Args,
+			Dir:  resume.Dir,
+		})
+	}
+	if seq != "" {
+		fmt.Fprint(&b.Output, seq)
+	}
+}
+
+// CurrentProgramResume returns a copy of the most recently set program resume.
+func (b *Backend) CurrentProgramResume() *backend.ProgramResume {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	if b.ProgramResume == nil {
+		return nil
+	}
+	return &backend.ProgramResume{
+		Args: slices.Clone(b.ProgramResume.Args),
+		Dir:  b.ProgramResume.Dir,
+	}
+}
+
 // SetInline configures whether inline mode is enabled.
 func (b *Backend) SetInline(inline bool) {
 	b.mu.Lock()
@@ -406,7 +479,7 @@ func (b *Backend) Clear() {
 	b.mu.Lock()
 	b.ClearCalls++
 	b.mu.Unlock()
-	fmt.Fprint(&b.Output, "\x1b[2J\x1b[3J\x1b[H")
+	fmt.Fprint(&b.Output, ansi.EraseEntireScreen+ansi.EraseEntireDisplay+ansi.CursorHomePosition)
 }
 
 // InsertAbove stores a copy of the given buffer in InsertedAbove.

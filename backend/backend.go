@@ -88,6 +88,10 @@ type Backend interface {
 	// Passing nil clears any current program status on the terminal.
 	SetProgramStatus(status *terminal.ProgramStatus)
 
+	// SetProgramResume reports the command to resume this process using OSC 7577.
+	// Passing nil clears any previously registered resume command.
+	SetProgramResume(resume *terminal.ProgramResume)
+
 	// SetInline configures the backend to run in inline mode (non-alt-screen,
 	// relative cursor, dynamic height) instead of fullscreen mode.
 	SetInline(inline bool)
@@ -122,6 +126,7 @@ const (
 type ProgramStatus = terminal.ProgramStatus
 type ProgramState = terminal.ProgramState
 type ProgramStatusKind = terminal.ProgramStatusKind
+type ProgramResume = terminal.ProgramResume
 
 const (
 	ProgramStateIdle    = terminal.ProgramStateIdle
@@ -318,6 +323,9 @@ type Caps struct {
 
 	// ProgramStatus reports whether the terminal supports OSC 7501 Program Status Protocol.
 	ProgramStatus bool
+
+	// ProgramResume reports whether the terminal supports OSC 7577 Program Resume Protocol.
+	ProgramResume bool
 
 	// Clipboard is the list of supported clipboard protocols.
 	Clipboard []ClipboardKind

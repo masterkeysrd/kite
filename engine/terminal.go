@@ -40,6 +40,10 @@ func (tp *TerminalProxy) SetProgramStatus(status *terminal.ProgramStatus) {
 	tp.e.SetProgramStatus(status)
 }
 
+func (tp *TerminalProxy) SetProgramResume(resume *terminal.ProgramResume) {
+	tp.e.SetProgramResume(resume)
+}
+
 func (tp *TerminalProxy) OnClose(fn func()) {
 	tp.e.OnStop(fn)
 }

@@ -9,6 +9,7 @@ import (
 	kitelog "github.com/masterkeysrd/kite/log"
 
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/key"
@@ -21,6 +22,7 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 			Key: key.Key{
 				Text:     e.Text,
 				Code:     e.Code,
+				BaseCode: e.BaseCode,
 				IsRepeat: e.IsRepeat,
 				Mod:      translateModifiers(e.Mod),
 			},
@@ -29,9 +31,10 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 	case uv.KeyReleaseEvent:
 		return &backend.RawKeyEvent{
 			Key: key.Key{
-				Text: e.Text,
-				Code: e.Code,
-				Mod:  translateModifiers(e.Mod),
+				Text:     e.Text,
+				Code:     e.Code,
+				BaseCode: e.BaseCode,
+				Mod:      translateModifiers(e.Mod),
 			},
 			Up: true,
 		}
@@ -150,11 +153,9 @@ func translateEvent(ev uv.Event) (out backend.RawEvent) {
 	case uv.PixelSizeEvent:
 		return &backend.RawUnknownEvent{Payload: e}
 	case uv.ModeReportEvent:
-		s := fmt.Sprintf("\x1b[?%d;%d$y", e.Mode, e.Value)
-		return &backend.RawUnknownEvent{Payload: s}
+		return &backend.RawUnknownEvent{Payload: ansi.ReportMode(e.Mode, e.Value)}
 	case *uv.ModeReportEvent:
-		s := fmt.Sprintf("\x1b[?%d;%d$y", e.Mode, e.Value)
-		return &backend.RawUnknownEvent{Payload: s}
+		return &backend.RawUnknownEvent{Payload: ansi.ReportMode(e.Mode, e.Value)}
 	}
 
 	if kitelog.Enabled(slog.LevelDebug) {

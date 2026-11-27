@@ -705,6 +705,101 @@ func TestEngine_ProgramStatusSupportEvent(t *testing.T) {
 	}
 }
 
+func TestEngine_ProgramResume_CapabilityAndLifecycle(t *testing.T) {
+	t.Run("no-op when Caps.ProgramResume is false", func(t *testing.T) {
+		e, b := newTestEngine(t)
+		defer e.Stop()
+
+		e.SetProgramResume(&terminal.ProgramResume{Args: []string{"kite-app"}})
+		if b.CurrentProgramResume() != nil {
+			t.Fatalf("expected SetProgramResume to be a no-op when capability is disabled, got %+v", b.CurrentProgramResume())
+		}
+	})
+
+	t.Run("forwards through TerminalProxy and clears on normal Stop", func(t *testing.T) {
+		b := mock.NewWithCaps(80, 24, backend.Caps{ProgramResume: true})
+		e := engine.New(b, engine.Options{})
+
+		term := e.Document().Terminal()
+		term.SetProgramResume(&terminal.ProgramResume{
+			Args: []string{"kite-app", "--session", "abc"},
+			Dir:  "/tmp",
+		})
+
+		got := b.CurrentProgramResume()
+		if got == nil || len(got.Args) != 3 || got.Dir != "/tmp" {
+			t.Fatalf("expected ProgramResume to be forwarded to backend, got %+v", got)
+		}
+
+		e.Stop()
+		if b.CurrentProgramResume() != nil {
+			t.Fatalf("expected normal Stop() to clear ProgramResume, got %+v", b.CurrentProgramResume())
+		}
+		if !strings.Contains(b.Output.String(), "clear=1") {
+			t.Fatalf("expected OSC 7577 clear sequence on normal Stop(), got %q", b.Output.String())
+		}
+	})
+
+	t.Run("preserves ProgramResume when Run exits via ctx cancellation", func(t *testing.T) {
+		b := mock.NewWithCaps(80, 24, backend.Caps{ProgramResume: true})
+		e := engine.New(b, engine.Options{})
+		defer e.Stop()
+
+		e.SetProgramResume(&terminal.ProgramResume{Args: []string{"kite-app"}, Dir: "/tmp"})
+
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() {
+			done <- e.Run(ctx)
+		}()
+
+		time.Sleep(15 * time.Millisecond)
+		cancel()
+
+		select {
+		case err := <-done:
+			if err != context.Canceled {
+				t.Fatalf("expected context.Canceled, got %v", err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for Engine.Run to exit on ctx cancellation")
+		}
+
+		if got := b.CurrentProgramResume(); got == nil || len(got.Args) != 1 || got.Args[0] != "kite-app" {
+			t.Fatalf("expected ProgramResume to be preserved after ctx cancellation, got %+v", got)
+		}
+	})
+
+	t.Run("preserves ProgramResume when backend Events channel closes", func(t *testing.T) {
+		b := mock.NewWithCaps(80, 24, backend.Caps{ProgramResume: true})
+		e := engine.New(b, engine.Options{})
+		defer e.Stop()
+
+		e.SetProgramResume(&terminal.ProgramResume{Args: []string{"kite-app"}, Dir: "/tmp"})
+
+		done := make(chan error, 1)
+		go func() {
+			done <- e.Run(context.Background())
+		}()
+
+		time.Sleep(15 * time.Millisecond)
+		b.CloseEvents()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("expected nil error when backend events close, got %v", err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for Engine.Run to exit on closed Events channel")
+		}
+
+		if got := b.CurrentProgramResume(); got == nil || len(got.Args) != 1 || got.Args[0] != "kite-app" {
+			t.Fatalf("expected ProgramResume to be preserved after backend Events close, got %+v", got)
+		}
+	})
+}
+
 func TestEngine_InlineMode(t *testing.T) {
 	b := mock.New(80, 24)
 	e := engine.New(b, engine.Options{Inline: true})

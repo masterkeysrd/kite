@@ -190,9 +190,11 @@ type Engine struct {
 	diffMaps  []map[render.Object]struct{}
 	diffDepth int
 
-	closeOnce sync.Once // protects Stop
-	closeCh   chan struct{}
-	inline    bool
+	closeOnce             sync.Once // protects Stop
+	closeCh               chan struct{}
+	inline                bool
+	hasProgramResume      atomic.Bool
+	preserveProgramResume atomic.Bool
 }
 
 // Options configures an Engine.
@@ -543,6 +545,18 @@ func (e *Engine) SetProgramStatus(status *terminal.ProgramStatus) {
 		return
 	}
 	e.backend.SetProgramStatus(status)
+}
+
+// SetProgramResume reports the command to resume this process using OSC 7577.
+// It is a no-op if Caps.ProgramResume is false.
+//
+// SetProgramResume must be called from the main goroutine.
+func (e *Engine) SetProgramResume(resume *terminal.ProgramResume) {
+	if !e.caps.ProgramResume {
+		return
+	}
+	e.hasProgramResume.Store(resume != nil)
+	e.backend.SetProgramResume(resume)
 }
 
 // SetDebugXRay toggles the visual layout debugging overlay.
@@ -1382,6 +1396,9 @@ func (e *Engine) Stop() {
 		close(e.closeCh)
 		promise.ClearSchedulerIf(e.scheduler)
 		e.scheduler.stop()
+		if e.caps.ProgramResume && e.hasProgramResume.Swap(false) && !e.preserveProgramResume.Load() {
+			e.backend.SetProgramResume(nil)
+		}
 		e.backend.Restore()
 	})
 }
@@ -1408,11 +1425,13 @@ func (e *Engine) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			e.preserveProgramResume.Store(true)
 			return ctx.Err()
 		case <-e.closeCh:
 			return nil
 		case raw, ok := <-input:
 			if !ok {
+				e.preserveProgramResume.Store(true)
 				return nil
 			}
 			e.eventBuffer = append(e.eventBuffer, raw)

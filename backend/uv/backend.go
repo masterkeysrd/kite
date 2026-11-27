@@ -2,7 +2,6 @@ package uv
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"image/color"
 	"io"
@@ -51,10 +50,11 @@ type renderRequest struct {
 // Buffer to the TerminalScreen and signals the render goroutine to diff
 // and flush.
 type Backend struct {
-	terminal *uv.Terminal
-	screen   *uv.TerminalScreen
-	caps     backend.Caps
-	profile  colorprofile.Profile
+	terminal    *uv.Terminal
+	screen      *uv.TerminalScreen
+	caps        backend.Caps
+	profile     colorprofile.Profile
+	resumeToken string
 
 	wg      sync.WaitGroup
 	eventCh chan backend.RawEvent
@@ -172,8 +172,17 @@ func New() (*Backend, error) {
 	b.bufferPool.New = func() any {
 		return backend.NewBuffer(b.width, b.height)
 	}
-	b.caps = probeCapabilities(os.Environ())
+	b.configureCapabilitiesFromEnv(os.Environ(), os.Getenv, os.Unsetenv)
 	return b, nil
+}
+
+func (b *Backend) configureCapabilitiesFromEnv(environ []string, getenv func(string) string, unsetenv func(string) error) {
+	resumeToken := getenv(ansi.ProgramResumeTokenEnv)
+	b.caps = probeCapabilities(environ)
+	b.resumeToken = resumeToken
+	if resumeToken != "" {
+		_ = unsetenv(ansi.ProgramResumeTokenEnv)
+	}
 }
 
 // SetResizeHandler registers fn as the callback invoked when the terminal is
@@ -200,9 +209,9 @@ func (b *Backend) Start() error {
 	}
 	b.screen.HideCursor()
 	// Enable focus events reporting.
-	b.writeRaw("\x1b[?1004h")
+	b.writeRaw(ansi.SetModeFocusEvent)
 	// Save window title on terminal stack.
-	b.writeRaw("\x1b[22;0t")
+	b.writeRaw(ansi.WindowOp(22, 0))
 	// Query Program Status Protocol support (OSC 7501).
 	b.writeRaw(ansi.RequestProgramStatusSupport)
 
@@ -292,9 +301,9 @@ func (b *Backend) Restore() {
 	_ = b.terminal.Stop()
 
 	// Restore window title from terminal stack.
-	b.writeRaw("\x1b[23;0t")
+	b.writeRaw(ansi.WindowOp(23, 0))
 	// Disable focus events reporting.
-	b.writeRaw("\x1b[?1004l")
+	b.writeRaw(ansi.ResetModeFocusEvent)
 	if !b.inline {
 		b.screen.ExitAltScreen()
 	}
@@ -344,15 +353,14 @@ func (c *osc52Clipboard) Set(mime string, data []byte) {
 	if mime != "text/plain" {
 		return
 	}
-	b64 := base64.StdEncoding.EncodeToString(data)
-	c.b.writeRaw(fmt.Sprintf("\x1b]52;c;%s\x1b\\", b64))
+	c.b.writeRaw(ansi.SetSystemClipboard(string(data)))
 }
 
 func (c *osc52Clipboard) Request(mime string) {
 	if mime != "text/plain" {
 		return
 	}
-	c.b.writeRaw("\x1b]52;c;?\x1b\\")
+	c.b.writeRaw(ansi.RequestSystemClipboard)
 }
 
 func (b *Backend) Clipboard() backend.Clipboard {
@@ -443,6 +451,24 @@ func (b *Backend) SetProgramStatus(status *terminal.ProgramStatus) {
 		Message:     status.Message,
 	}
 	b.screen.SetProgramStatus(uvStatus)
+}
+
+func (b *Backend) SetProgramResume(resume *terminal.ProgramResume) {
+	if b.resumeToken == "" {
+		return
+	}
+	var seq string
+	if resume == nil {
+		seq = ansi.ClearProgramResume(b.resumeToken, os.Getpid(), time.Now())
+	} else {
+		seq = ansi.SetProgramResume(b.resumeToken, os.Getpid(), time.Now(), ansi.ProgramResume{
+			Args: resume.Args,
+			Dir:  resume.Dir,
+		})
+	}
+	if seq != "" {
+		b.writeRaw(seq)
+	}
 }
 
 func (b *Backend) DumpState() {
@@ -611,7 +637,7 @@ func (b *Backend) processClear() {
 	if err := b.flushScreen(); err != nil {
 		kitelog.Error("uv: flush error before clear", "error", err)
 	}
-	if _, err := b.Write([]byte("\x1b[2J\x1b[3J\x1b[H")); err != nil {
+	if _, err := b.Write([]byte(ansi.EraseEntireScreen + ansi.EraseEntireDisplay + ansi.CursorHomePosition)); err != nil {
 		kitelog.Error("uv: clear error", "error", err)
 	}
 	if b.inlineRenderer != nil {
@@ -714,7 +740,7 @@ func (b *Backend) processInsertAbove(buf *backend.Buffer) {
 	sb.WriteByte('\r')
 	for _, line := range uvBuf.Lines {
 		sb.WriteString(line.Render())
-		sb.WriteString("\x1b[K\r\n")
+		sb.WriteString(ansi.EraseLineRight + "\r\n")
 	}
 	b.writeRaw(sb.String())
 }
@@ -951,9 +977,9 @@ func (b *Backend) flushScreen() error {
 	if bytes.Contains(output, []byte(ansi.EraseScreenBelow)) {
 		// ED at the top-left can archive the live screen in tmux. Erase
 		// lines without scrolling, restoring the cursor even when CUD clamps.
-		erase := "\x1b7\x1b[K" +
-			strings.Repeat("\x1b[B\r\x1b[K", max(0, b.renderDimensions().Height-1)) +
-			"\x1b8"
+		erase := ansi.SaveCursor + ansi.EraseLineRight +
+			strings.Repeat(ansi.CursorDown1+"\r"+ansi.EraseLineRight, max(0, b.renderDimensions().Height-1)) +
+			ansi.RestoreCursor
 		output = bytes.ReplaceAll(output, []byte(ansi.EraseScreenBelow), []byte(erase))
 	}
 	if b.terminal != nil {

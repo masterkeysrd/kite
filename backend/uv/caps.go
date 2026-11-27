@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/masterkeysrd/kite/backend"
 )
@@ -28,8 +29,14 @@ func probeCapabilities(environ []string) backend.Caps {
 		Bell:           true, // BEL is universally supported
 		ProgressBar:    probeProgressBar(env),
 		ProgramStatus:  probeProgramStatus(env),
+		ProgramResume:  probeProgramResume(env),
 		Clipboard:      []backend.ClipboardKind{backend.ClipboardOSC52},
 	}
+}
+
+// probeProgramResume reports whether the terminal supplied an OSC 7577 signing token.
+func probeProgramResume(env map[string]string) bool {
+	return env[ansi.ProgramResumeTokenEnv] != ""
 }
 
 // probeProgramStatus checks whether the terminal is known to support OSC 7501 Program Status.

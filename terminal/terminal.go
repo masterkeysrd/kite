@@ -18,6 +18,7 @@ type Terminal interface {
 	Bell()
 	SetProgressBar(state ProgressBarState, percentage int)
 	SetProgramStatus(status *ProgramStatus)
+	SetProgramResume(resume *ProgramResume)
 	OnClose(fn func())
 	IsClosed() bool
 }
@@ -72,6 +73,18 @@ type ProgramStatus struct {
 	Title string
 	// Message is one human-readable line describing the record.
 	Message string
+}
+
+// ProgramResume describes the command and working directory used by a
+// supporting terminal to restore the process via the Program Resume Protocol
+// (OSC 7577) after the terminal restarts.
+type ProgramResume struct {
+	// Args is the command that resumes the program, starting with a bare
+	// command name or absolute path. Required.
+	Args []string
+	// Dir is the absolute working directory to resume the program in.
+	// When empty, the terminal chooses one.
+	Dir string
 }
 
 type Scheduler interface {

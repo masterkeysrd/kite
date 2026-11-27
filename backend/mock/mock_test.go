@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/masterkeysrd/kite/backend"
 	"github.com/masterkeysrd/kite/backend/mock"
 	"github.com/masterkeysrd/kite/geom"
@@ -166,6 +167,12 @@ func TestBackend_Mock_ThreadSafety(t *testing.T) {
 			_ = b.Size()
 			b.SetProgramStatus(&backend.ProgramStatus{State: backend.ProgramStateWorking})
 			_ = b.CurrentProgramStatus()
+			if i%2 == 0 {
+				b.SetProgramResume(&backend.ProgramResume{Args: []string{"app", fmt.Sprintf("%d", i)}, Dir: "/tmp"})
+			} else {
+				b.SetProgramResume(nil)
+			}
+			_ = b.CurrentProgramResume()
 			b.SetInline(i%2 == 0)
 			_ = b.IsInline()
 		}
@@ -260,5 +267,32 @@ func TestBackend_Mock_TryPostEvent(t *testing.T) {
 	defer cancel()
 	if err := b.PostEventContext(ctx, ev); err != nil {
 		t.Fatalf("PostEventContext failed: %v", err)
+	}
+}
+
+func TestBackend_Mock_SetProgressBarStates(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		state      backend.ProgressBarState
+		percentage int
+		want       string
+	}{
+		{name: "hide", state: backend.ProgressBarHide, percentage: 0, want: ansi.ResetProgressBar},
+		{name: "normal", state: backend.ProgressBarNormal, percentage: 42, want: ansi.SetProgressBar(42)},
+		{name: "error", state: backend.ProgressBarError, percentage: 80, want: ansi.SetErrorProgressBar(80)},
+		{name: "indeterminate", state: backend.ProgressBarIndeterminate, percentage: 0, want: ansi.SetIndeterminateProgressBar},
+		{name: "paused_maps_to_warning", state: backend.ProgressBarPaused, percentage: 65, want: ansi.SetWarningProgressBar(65)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b := mock.New(80, 24)
+			b.SetProgressBar(tc.state, tc.percentage)
+			if got := b.Output.String(); got != tc.want {
+				t.Fatalf("SetProgressBar(%v, %d) = %q; want %q", tc.state, tc.percentage, got, tc.want)
+			}
+		})
 	}
 }

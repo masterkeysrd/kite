@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"image/color"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/masterkeysrd/kite/backend"
 )
 
@@ -475,5 +477,141 @@ func TestBackend_Clear_DoesNotRestoreStaleFrame(t *testing.T) {
 	b.Clear()
 	if len(b.renderCh) != 0 {
 		t.Error("clear queued output after render loop stopped")
+	}
+}
+
+func TestTranslateKeyEvent_PreservesBaseCode(t *testing.T) {
+	press := translateEvent(uv.KeyPressEvent(uv.Key{
+		Code:     'с',
+		BaseCode: 'c',
+		Mod:      uv.ModCtrl,
+		IsRepeat: true,
+	}))
+	rk, ok := press.(*backend.RawKeyEvent)
+	if !ok {
+		t.Fatalf("expected *backend.RawKeyEvent, got %T", press)
+	}
+	if rk.Up {
+		t.Fatal("expected Up=false for KeyPressEvent")
+	}
+	if rk.Key.Code != 'с' || rk.Key.BaseCode != 'c' || !rk.Key.IsRepeat {
+		t.Fatalf("unexpected key fields: %+v", rk.Key)
+	}
+	if !rk.Key.MatchString("ctrl+c") {
+		t.Fatal("expected translated Cyrillic key to match ctrl+c via BaseCode")
+	}
+
+	release := translateEvent(uv.KeyReleaseEvent(uv.Key{
+		Code:     'с',
+		BaseCode: 'c',
+		Mod:      uv.ModCtrl,
+	}))
+	rkRel, ok := release.(*backend.RawKeyEvent)
+	if !ok {
+		t.Fatalf("expected *backend.RawKeyEvent, got %T", release)
+	}
+	if !rkRel.Up {
+		t.Fatal("expected Up=true for KeyReleaseEvent")
+	}
+	if rkRel.Key.Code != 'с' || rkRel.Key.BaseCode != 'c' {
+		t.Fatalf("unexpected release key fields: %+v", rkRel.Key)
+	}
+}
+
+func TestBackend_ProgramResume_EnvTokenAndSequences(t *testing.T) {
+	const testToken = "secret-osc7577-token"
+	t.Setenv(ansi.ProgramResumeTokenEnv, testToken)
+
+	var out bytes.Buffer
+	b := &Backend{
+		screen: uv.NewTerminalScreen(&out, nil),
+	}
+	b.configureCapabilitiesFromEnv(os.Environ(), os.Getenv, os.Unsetenv)
+
+	if !b.caps.ProgramResume {
+		t.Fatal("expected caps.ProgramResume to be true when token env var is set")
+	}
+	if got := os.Getenv(ansi.ProgramResumeTokenEnv); got != "" {
+		t.Fatalf("expected %s to be unset for child subprocesses, got %q", ansi.ProgramResumeTokenEnv, got)
+	}
+
+	b.SetProgramResume(&backend.ProgramResume{
+		Args: []string{"myapp", "--resume"},
+		Dir:  "/tmp",
+	})
+	setOut := out.String()
+	if !strings.Contains(setOut, "\x1b]7577;") || !strings.Contains(setOut, "argv=") {
+		t.Fatalf("expected OSC 7577 set sequence, got %q", setOut)
+	}
+	if strings.Contains(setOut, testToken) {
+		t.Fatal("resume token must never be written in OSC 7577 output")
+	}
+
+	out.Reset()
+	b.SetProgramResume(nil)
+	clearOut := out.String()
+	if !strings.Contains(clearOut, "\x1b]7577;") || !strings.Contains(clearOut, "clear=1") {
+		t.Fatalf("expected OSC 7577 clear sequence, got %q", clearOut)
+	}
+
+	// Without a token, SetProgramResume is a no-op.
+	var noTokenOut bytes.Buffer
+	bNoToken := &Backend{
+		screen: uv.NewTerminalScreen(&noTokenOut, nil),
+	}
+	bNoToken.configureCapabilitiesFromEnv([]string{"TERM=xterm-256color"}, func(string) string { return "" }, os.Unsetenv)
+	if bNoToken.caps.ProgramResume {
+		t.Fatal("expected caps.ProgramResume to be false without token")
+	}
+	bNoToken.SetProgramResume(&backend.ProgramResume{Args: []string{"myapp"}})
+	if noTokenOut.Len() != 0 {
+		t.Fatalf("expected no output without token, got %q", noTokenOut.String())
+	}
+}
+
+func TestBackend_OSC52Clipboard(t *testing.T) {
+	var out bytes.Buffer
+	b := &Backend{
+		screen: uv.NewTerminalScreen(&out, nil),
+	}
+	cb := b.Clipboard()
+
+	cb.Set("text/plain", []byte("hello"))
+	if got, want := out.String(), ansi.SetSystemClipboard("hello"); got != want {
+		t.Fatalf("Clipboard.Set output = %q; want %q", got, want)
+	}
+
+	out.Reset()
+	cb.Set("image/png", []byte("ignored"))
+	if out.Len() != 0 {
+		t.Fatalf("expected non-text/plain Set to be ignored, got %q", out.String())
+	}
+
+	cb.Request("text/plain")
+	if got, want := out.String(), ansi.RequestSystemClipboard; got != want {
+		t.Fatalf("Clipboard.Request output = %q; want %q", got, want)
+	}
+
+	out.Reset()
+	cb.Request("image/png")
+	if out.Len() != 0 {
+		t.Fatalf("expected non-text/plain Request to be ignored, got %q", out.String())
+	}
+}
+
+func TestTranslateModeReportEvent_UsesReportMode(t *testing.T) {
+	ev := uv.ModeReportEvent{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet}
+	want := ansi.ReportMode(ev.Mode, ev.Value)
+
+	rawVal := translateEvent(ev)
+	unkVal, ok := rawVal.(*backend.RawUnknownEvent)
+	if !ok || unkVal.Payload != want {
+		t.Fatalf("value ModeReportEvent payload = %#v; want %q", rawVal, want)
+	}
+
+	rawPtr := translateEvent(&ev)
+	unkPtr, ok := rawPtr.(*backend.RawUnknownEvent)
+	if !ok || unkPtr.Payload != want {
+		t.Fatalf("pointer ModeReportEvent payload = %#v; want %q", rawPtr, want)
 	}
 }
