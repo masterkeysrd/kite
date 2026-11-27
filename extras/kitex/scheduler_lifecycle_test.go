@@ -2,6 +2,7 @@ package kitex
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -64,5 +65,51 @@ func TestRender_UnmountDoesNotClobberNewerEngineScheduler(t *testing.T) {
 	e2.Stop()
 	if getInternalScheduler() != nil {
 		t.Fatal("expected internalScheduler to be nil after e2.Stop()")
+	}
+}
+
+func TestUseAsyncEffect_SchedulerStopCancelsAndDrains(t *testing.T) {
+	prevSched := getInternalScheduler()
+	defer setInternalScheduler(prevSched)
+
+	b := mock.New(80, 24)
+	e := engine.New(b, engine.Options{NumWorkers: 2})
+	c := element.NewBox(e.Document())
+	e.Mount(c)
+
+	started := make(chan struct{})
+	cancelled := make(chan struct{})
+	var exited atomic.Bool
+
+	comp := SimpleFC("AsyncStopComp", func() Node {
+		UseAsyncEffect(func(ctx context.Context) {
+			close(started)
+			<-ctx.Done()
+			time.Sleep(5 * time.Millisecond)
+			exited.Store(true)
+			close(cancelled)
+		}, []any{})
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), c)
+	e.Frame()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("expected UseAsyncEffect to start via scheduler.Spawn")
+	}
+
+	// Stop engine BEFORE unmounting component.
+	e.Stop()
+
+	select {
+	case <-cancelled:
+	default:
+		t.Fatal("expected e.Stop() to cancel UseAsyncEffect context and drain before returning")
+	}
+	if !exited.Load() {
+		t.Fatal("expected UseAsyncEffect goroutine to finish before e.Stop() returned")
 	}
 }

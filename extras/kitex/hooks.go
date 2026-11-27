@@ -1,6 +1,7 @@
 package kitex
 
 import (
+	"context"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -9,6 +10,7 @@ import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
+	"github.com/masterkeysrd/kite/promise"
 	"github.com/masterkeysrd/kite/terminal"
 )
 
@@ -432,6 +434,46 @@ func UseEffectCleanup(effect func() func(), deps []any) {
 		effectsMutex.Unlock()
 		scheduleEffectFlush()
 	}
+}
+
+// UseAsyncEffect schedules a post-commit asynchronous side effect using the
+// active scheduler's Spawn method (or promise.Spawn when no host scheduler is
+// attached). The context passed to effect is cancelled before re-running when
+// deps change, when the component unmounts, and when the scheduler stops.
+func UseAsyncEffect(effect func(ctx context.Context), deps []any) {
+	UseEffectCleanup(func() func() {
+		if effect == nil {
+			return nil
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		task := func(schedCtx context.Context) {
+			stopLink := context.AfterFunc(schedCtx, cancel)
+			defer stopLink()
+			if schedCtx.Err() != nil {
+				cancel()
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			effect(ctx)
+		}
+
+		if sched := getInternalScheduler(); sched != nil {
+			if ts, ok := sched.(interface{ TrySpawn(func(context.Context)) bool }); ok {
+				if !ts.TrySpawn(task) {
+					cancel()
+					return nil
+				}
+			} else {
+				sched.Spawn(task)
+			}
+		} else if !promise.Spawn(task) {
+			cancel()
+			return nil
+		}
+
+		return cancel
+	}, deps)
 }
 
 // UseLayoutEffect schedules a layout side effect that runs synchronously after reconciliation.

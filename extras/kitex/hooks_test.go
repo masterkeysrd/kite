@@ -1,8 +1,10 @@
 package kitex
 
 import (
+	"context"
 	"fmt"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1510,6 +1512,133 @@ func TestUseWindowFocus(t *testing.T) {
 	}
 
 	// Unmount
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+}
+
+func TestUseAsyncEffect(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	type runRecord struct {
+		dep       int
+		cancelled chan struct{}
+		started   chan struct{}
+	}
+
+	var mu sync.Mutex
+	var runs []*runRecord
+
+	comp := FC("AsyncComp", func(props struct{ Dep int }) Node {
+		dep := props.Dep
+		UseAsyncEffect(func(ctx context.Context) {
+			rec := &runRecord{
+				dep:       dep,
+				cancelled: make(chan struct{}),
+				started:   make(chan struct{}),
+			}
+			mu.Lock()
+			runs = append(runs, rec)
+			mu.Unlock()
+			close(rec.started)
+
+			<-ctx.Done()
+			close(rec.cancelled)
+		}, []any{dep})
+		return Box(BoxProps{})
+	})
+
+	// Mount with Dep=1
+	Render(comp(struct{ Dep int }{Dep: 1}), container)
+	testScheduler.flushMacrotasks()
+
+	var run1 *runRecord
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		if len(runs) >= 1 {
+			run1 = runs[0]
+		}
+		mu.Unlock()
+		if run1 != nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if run1 == nil {
+		t.Fatal("expected initial async effect to start")
+	}
+	<-run1.started
+
+	select {
+	case <-run1.cancelled:
+		t.Fatal("did not expect initial async effect ctx to be cancelled while mounted")
+	default:
+	}
+
+	// Re-render with same Dep=1: must not cancel or re-run
+	Render(comp(struct{ Dep int }{Dep: 1}), container)
+	testScheduler.flushMacrotasks()
+
+	mu.Lock()
+	countSameDep := len(runs)
+	mu.Unlock()
+	if countSameDep != 1 {
+		t.Fatalf("expected 1 run when dep is unchanged, got %d", countSameDep)
+	}
+
+	// Re-render with Dep=2: cancels run1 and starts run2
+	Render(comp(struct{ Dep int }{Dep: 2}), container)
+	testScheduler.flushMacrotasks()
+
+	select {
+	case <-run1.cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("expected run1 ctx to be cancelled when dep changed")
+	}
+
+	var run2 *runRecord
+	deadline = time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		if len(runs) >= 2 {
+			run2 = runs[1]
+		}
+		mu.Unlock()
+		if run2 != nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if run2 == nil {
+		t.Fatal("expected second async effect to start on dep change")
+	}
+	<-run2.started
+
+	// Unmount: cancels run2
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+
+	select {
+	case <-run2.cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("expected run2 ctx to be cancelled on unmount")
+	}
+}
+
+func TestUseAsyncEffect_NilEffect(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	comp := SimpleFC("NilAsyncComp", func() Node {
+		UseAsyncEffect(nil, nil)
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
 	Render(nil, container)
 	testScheduler.flushMacrotasks()
 }
