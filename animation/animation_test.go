@@ -192,3 +192,90 @@ func TestInterpolateGridTracks(t *testing.T) {
 		}
 	})
 }
+
+func TestTypedTweenConstructorsAndBuilders(t *testing.T) {
+	t.Run("Int defaults to EaseOutQuad and fires OnComplete once", func(t *testing.T) {
+		var latest int
+		var completed int
+
+		tw := Int(0, 100, 100*time.Millisecond, func(v int) {
+			latest = v
+		}).OnComplete(func() {
+			completed++
+		})
+
+		if tw.Tick(50 * time.Millisecond) {
+			t.Fatal("expected tween not to finish at 50ms")
+		}
+		// EaseOutQuad(0.5) = 0.75 -> 75
+		if latest != 75 {
+			t.Errorf("expected latest 75 with default EaseOutQuad, got %d", latest)
+		}
+		if completed != 0 {
+			t.Errorf("expected OnComplete not yet called, got %d", completed)
+		}
+
+		if !tw.Tick(50 * time.Millisecond) {
+			t.Fatal("expected tween to finish at 100ms")
+		}
+		if latest != 100 {
+			t.Errorf("expected latest 100 at completion, got %d", latest)
+		}
+		if completed != 1 {
+			t.Errorf("expected OnComplete called once, got %d", completed)
+		}
+
+		// Subsequent ticks should not invoke OnComplete again.
+		if !tw.Tick(10 * time.Millisecond) {
+			t.Fatal("expected tween to remain finished")
+		}
+		if completed != 1 {
+			t.Errorf("expected OnComplete still called once, got %d", completed)
+		}
+	})
+
+	t.Run("Float with Ease override", func(t *testing.T) {
+		var latest float64
+		tw := Float(0, 10, 100*time.Millisecond, func(v float64) {
+			latest = v
+		}).Ease(Linear)
+
+		tw.Tick(50 * time.Millisecond)
+		if latest != 5.0 {
+			t.Errorf("expected 5.0 with Linear ease, got %f", latest)
+		}
+		if !tw.Tick(50 * time.Millisecond) {
+			t.Fatal("expected Float tween to finish")
+		}
+		if latest != 10.0 {
+			t.Errorf("expected 10.0 at end, got %f", latest)
+		}
+	})
+
+	t.Run("Color with zero duration triggers OnComplete once", func(t *testing.T) {
+		c1 := color.RGBA{R: 0, G: 0, B: 0, A: 255}
+		c2 := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+		var latest color.Color
+		completed := 0
+
+		tw := Color(c1, c2, 0, func(c color.Color) {
+			latest = c
+		}).OnComplete(func() {
+			completed++
+		})
+
+		if !tw.Tick(0) {
+			t.Fatal("expected zero-duration tween to finish immediately")
+		}
+		if latest != c2 {
+			t.Errorf("expected end color %v, got %v", c2, latest)
+		}
+		if completed != 1 {
+			t.Errorf("expected OnComplete called once, got %d", completed)
+		}
+		tw.Tick(time.Millisecond)
+		if completed != 1 {
+			t.Errorf("expected OnComplete still called once, got %d", completed)
+		}
+	})
+}

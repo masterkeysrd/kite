@@ -84,7 +84,8 @@ type Tween[T any] struct {
 	Interp   Interpolator[T]
 	OnUpdate func(current T)
 
-	elapsed time.Duration
+	onComplete func()
+	elapsed    time.Duration
 }
 
 // NewTween creates a new Tween animator.
@@ -99,6 +100,33 @@ func NewTween[T any](start, end T, duration time.Duration, easing EasingFunction
 	}
 }
 
+// Int creates a Tween interpolating between two int values using EaseOutQuad by default.
+func Int(start, end int, duration time.Duration, onUpdate func(int)) *Tween[int] {
+	return NewTween(start, end, duration, EaseOutQuad, IntInterpolator, onUpdate)
+}
+
+// Float creates a Tween interpolating between two float64 values using EaseOutQuad by default.
+func Float(start, end float64, duration time.Duration, onUpdate func(float64)) *Tween[float64] {
+	return NewTween(start, end, duration, EaseOutQuad, FloatInterpolator, onUpdate)
+}
+
+// Color creates a Tween interpolating between two color.Color values using EaseOutQuad by default.
+func Color(start, end color.Color, duration time.Duration, onUpdate func(color.Color)) *Tween[color.Color] {
+	return NewTween(start, end, duration, EaseOutQuad, ColorInterpolator, onUpdate)
+}
+
+// Ease sets the easing function for the tween and returns the tween for chaining.
+func (t *Tween[T]) Ease(easing EasingFunction) *Tween[T] {
+	t.Easing = easing
+	return t
+}
+
+// OnComplete registers a callback invoked once when the tween finishes.
+func (t *Tween[T]) OnComplete(fn func()) *Tween[T] {
+	t.onComplete = fn
+	return t
+}
+
 // Tick ticks the animation by dt. Returns true if the animation is finished.
 func (t *Tween[T]) Tick(dt time.Duration) bool {
 	t.elapsed += dt
@@ -106,7 +134,11 @@ func (t *Tween[T]) Tick(dt time.Duration) bool {
 		if t.OnUpdate != nil {
 			t.OnUpdate(t.End)
 		}
+		onComplete := t.onComplete
 		t.cleanup()
+		if onComplete != nil {
+			onComplete()
+		}
 		return true
 	}
 
@@ -115,7 +147,11 @@ func (t *Tween[T]) Tick(dt time.Duration) bool {
 		if t.OnUpdate != nil {
 			t.OnUpdate(t.End)
 		}
+		onComplete := t.onComplete
 		t.cleanup()
+		if onComplete != nil {
+			onComplete()
+		}
 		return true
 	}
 
@@ -138,6 +174,7 @@ func (t *Tween[T]) cleanup() {
 	t.Easing = nil
 	t.Interp = nil
 	t.OnUpdate = nil
+	t.onComplete = nil
 }
 
 // InterpolateGridTracks interpolates between two slices of GridTrackSize.
