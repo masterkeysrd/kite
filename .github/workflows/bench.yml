@@ -6,6 +6,11 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      base_ref:
+        description: "Base git ref/SHA to compare against (defaults to HEAD~1)"
+        required: false
+        type: string
 
 concurrency:
   group: bench-${{ github.workflow }}-${{ github.ref }}
@@ -15,8 +20,9 @@ permissions:
   contents: read
 
 env:
-  BENCH_PKGS: ./engine/... ./internal/layout/... ./internal/paint/... ./internal/styler/... ./extras/kitex/... ./extras/kites/...
-  BENCH_COUNT: "3"
+  BENCH_PKGS: ./engine/... ./internal/layout/... ./internal/paint/... ./internal/styler/... ./extras/kitex/... ./extras/kites/... ./extras/wind/...
+  BENCH_COUNT: "6"
+  BENCH_TIME: "250ms"
 
 jobs:
   benchmark:
@@ -37,36 +43,101 @@ jobs:
       - name: Install benchstat
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
+      - name: Resolve base and head refs
+        id: refs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          INPUT_BASE_REF: ${{ inputs.base_ref }}
+        run: |
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_SHA=""
+          BASE_LABEL=""
+
+          case "$EVENT_NAME" in
+            pull_request)
+              BASE_SHA="$PR_BASE_SHA"
+              BASE_LABEL="$PR_BASE_REF"
+              ;;
+            push)
+              if [ -n "$PUSH_BEFORE_SHA" ] && [ "$PUSH_BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${PUSH_BEFORE_SHA}^{commit}" 2>/dev/null; then
+                BASE_SHA="$PUSH_BEFORE_SHA"
+                BASE_LABEL="${PUSH_BEFORE_SHA:0:7}"
+              elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+                BASE_SHA="$(git rev-parse HEAD~1)"
+                BASE_LABEL="HEAD~1"
+              fi
+              ;;
+            workflow_dispatch)
+              if [ -n "$INPUT_BASE_REF" ]; then
+                BASE_SHA="$(git rev-parse --verify "${INPUT_BASE_REF}^{commit}")"
+                BASE_LABEL="$INPUT_BASE_REF"
+              elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+                BASE_SHA="$(git rev-parse HEAD~1)"
+                BASE_LABEL="HEAD~1"
+              fi
+              ;;
+          esac
+
+          {
+            printf 'head_sha=%s\n' "$HEAD_SHA"
+            printf 'base_sha=%s\n' "$BASE_SHA"
+            printf 'base_label=%s\n' "$BASE_LABEL"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run benchmarks on HEAD
         run: |
-          go test -timeout 10m -run=^$ -bench=. -benchmem -count=${BENCH_COUNT} ${BENCH_PKGS} | tee new.txt
+          set -o pipefail
+          go test -timeout 10m -run=^$ -bench=. -benchmem -benchtime="${BENCH_TIME}" -count="${BENCH_COUNT}" ${BENCH_PKGS} | tee "${RUNNER_TEMP}/new.txt"
 
-      - name: Run benchmarks on Base (PR only)
-        if: github.event_name == 'pull_request'
+      - name: Run benchmarks on Base
+        if: steps.refs.outputs.base_sha != ''
+        env:
+          BASE_SHA: ${{ steps.refs.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.refs.outputs.head_sha }}
         run: |
-          git checkout --detach "${{ github.event.pull_request.base.sha }}"
-          go test -timeout 10m -run=^$ -bench=. -benchmem -count=${BENCH_COUNT} ${BENCH_PKGS} | tee old.txt
+          set -o pipefail
+          git checkout --detach "$BASE_SHA"
+          trap 'git checkout --detach "$HEAD_SHA" >/dev/null 2>&1 || true' EXIT
 
-      - name: Write Benchmark Summary (PR vs Base)
-        if: github.event_name == 'pull_request'
+          BASE_PKGS=""
+          for pkg in ${BENCH_PKGS}; do
+            dir="${pkg%/...}"
+            if [ -d "$dir" ]; then
+              BASE_PKGS="${BASE_PKGS} ${pkg}"
+            fi
+          done
+
+          if [ -n "${BASE_PKGS}" ]; then
+            go test -timeout 10m -run=^$ -bench=. -benchmem -benchtime="${BENCH_TIME}" -count="${BENCH_COUNT}" ${BASE_PKGS} | tee "${RUNNER_TEMP}/old.txt"
+          fi
+
+      - name: Prepare benchmark result files
+        run: |
+          cp "${RUNNER_TEMP}/new.txt" new.txt
+          if [ -s "${RUNNER_TEMP}/old.txt" ]; then
+            cp "${RUNNER_TEMP}/old.txt" old.txt
+          fi
+
+      - name: Write Benchmark Summary
+        env:
+          BASE_LABEL: ${{ steps.refs.outputs.base_label }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           {
-            echo "## ⚡ Benchmark Comparison (PR vs \`${{ github.event.pull_request.base.ref }}\`)"
-            echo ""
-            echo "\`\`\`text"
-            benchstat old.txt new.txt
-            echo "\`\`\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Write Benchmark Summary (Main / Manual)
-        if: github.event_name != 'pull_request'
-        run: |
-          {
-            echo "## ⚡ Benchmark Results (\`${{ github.ref_name }}\`)"
-            echo ""
-            echo "\`\`\`text"
-            benchstat new.txt
-            echo "\`\`\`"
+            if [ -s old.txt ]; then
+              printf '## ⚡ Benchmark Comparison (HEAD vs `%s`)\n\n' "$BASE_LABEL"
+              echo '```text'
+              benchstat old.txt new.txt
+              echo '```'
+            else
+              printf '## ⚡ Benchmark Results (`%s`)\n\n' "$REF_NAME"
+              echo '```text'
+              benchstat new.txt
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark artifacts
