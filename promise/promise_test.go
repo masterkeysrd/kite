@@ -9,11 +9,16 @@ import (
 
 type mockScheduler struct {
 	backgroundTasks []func(ctx context.Context)
+	spawnedTasks    []func(ctx context.Context)
 	microtasks      []func()
 }
 
 func (m *mockScheduler) RunBackground(task func(ctx context.Context)) {
 	m.backgroundTasks = append(m.backgroundTasks, task)
+}
+
+func (m *mockScheduler) Spawn(task func(ctx context.Context)) {
+	m.spawnedTasks = append(m.spawnedTasks, task)
 }
 
 func (m *mockScheduler) QueueMicrotask(task func()) {
@@ -204,5 +209,75 @@ func TestPromise_ClearSchedulerIf(t *testing.T) {
 	}
 	if ClearSchedulerIf(s1) {
 		t.Fatal("second ClearSchedulerIf(s1) should return false")
+	}
+}
+
+type tryStoppableMock struct {
+	mockScheduler
+	stopped    bool
+	trySpawned bool
+}
+
+func (m *tryStoppableMock) IsStopped() bool { return m.stopped }
+func (m *tryStoppableMock) TrySpawn(task func(ctx context.Context)) bool {
+	if m.stopped {
+		return false
+	}
+	m.trySpawned = true
+	go task(context.Background())
+	return true
+}
+
+func TestPromise_Spawn(t *testing.T) {
+	prev := getScheduler()
+	defer SetScheduler(prev)
+
+	if Spawn(nil) {
+		t.Fatal("expected Spawn(nil) to return false")
+	}
+
+	SetScheduler(nil)
+	fallbackDone := make(chan struct{})
+	if !Spawn(func(ctx context.Context) {
+		if ctx == nil {
+			t.Error("expected non-nil context in fallback Spawn")
+		}
+		close(fallbackDone)
+	}) {
+		t.Fatal("expected Spawn with nil scheduler to return true")
+	}
+	select {
+	case <-fallbackDone:
+	case <-time.After(time.Second):
+		t.Fatal("expected fallback Spawn task to execute")
+	}
+
+	ms := &mockScheduler{}
+	SetScheduler(ms)
+	if !Spawn(func(ctx context.Context) {}) {
+		t.Fatal("expected Spawn with mockScheduler to return true")
+	}
+	if len(ms.spawnedTasks) != 1 {
+		t.Fatalf("expected 1 spawned task recorded on mockScheduler, got %d", len(ms.spawnedTasks))
+	}
+
+	ts := &tryStoppableMock{}
+	SetScheduler(ts)
+	ran := make(chan struct{})
+	if !Spawn(func(ctx context.Context) { close(ran) }) {
+		t.Fatal("expected Spawn with active tryStoppableMock to return true")
+	}
+	if !ts.trySpawned {
+		t.Fatal("expected TrySpawn to be used when implemented")
+	}
+	select {
+	case <-ran:
+	case <-time.After(time.Second):
+		t.Fatal("expected spawned task to run")
+	}
+
+	ts.stopped = true
+	if Spawn(func(ctx context.Context) {}) {
+		t.Fatal("expected Spawn on stopped scheduler to return false")
 	}
 }

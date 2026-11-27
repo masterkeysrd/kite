@@ -14,6 +14,10 @@ type Scheduler interface {
 	// RunBackground executes a task on a background worker pool.
 	// The provided context is managed by the scheduler.
 	RunBackground(task func(ctx context.Context))
+	// Spawn launches a long-lived or unbounded task in its own goroutine outside
+	// the fixed-size worker pool, while binding its context and shutdown lifecycle
+	// to the scheduler.
+	Spawn(task func(ctx context.Context))
 	// QueueMicrotask schedules a task to run as a microtask on the main thread.
 	QueueMicrotask(task func())
 	// QueueMacrotask schedules a task to run as a macrotask on the main thread.
@@ -52,6 +56,10 @@ type backgroundTryScheduler interface {
 	TryRunBackground(task func(ctx context.Context)) bool
 }
 
+type trySpawnScheduler interface {
+	TrySpawn(task func(ctx context.Context)) bool
+}
+
 type stoppableScheduler interface {
 	IsStopped() bool
 }
@@ -61,6 +69,34 @@ func isSchedulerStopped(s Scheduler) bool {
 		return ss.IsStopped()
 	}
 	return false
+}
+
+// Spawn launches a long-lived or unbounded task outside the bounded worker
+// pool via the active global scheduler, binding its context and shutdown
+// lifecycle to that scheduler. Returns false if task is nil or the scheduler is
+// already stopped. When no scheduler is registered, Spawn runs task in a new
+// goroutine with context.Background() and returns true.
+func Spawn(task func(ctx context.Context)) bool {
+	if task == nil {
+		return false
+	}
+
+	sched := getScheduler()
+	if sched == nil {
+		go task(context.Background())
+		return true
+	}
+
+	if ts, ok := sched.(trySpawnScheduler); ok {
+		return ts.TrySpawn(task)
+	}
+
+	if isSchedulerStopped(sched) {
+		return false
+	}
+
+	sched.Spawn(task)
+	return true
 }
 
 type State int

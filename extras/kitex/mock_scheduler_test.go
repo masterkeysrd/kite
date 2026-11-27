@@ -11,6 +11,7 @@ type mockScheduler struct {
 }
 
 func (m *mockScheduler) RunBackground(task func(ctx context.Context)) { go task(context.Background()) }
+func (m *mockScheduler) Spawn(task func(ctx context.Context))         { go task(context.Background()) }
 func (m *mockScheduler) QueueMicrotask(task func())                   { task() }
 func (m *mockScheduler) QueueMacrotask(task func()) {
 	m.mu.Lock()

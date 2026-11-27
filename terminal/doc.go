@@ -12,8 +12,9 @@
 // # Scheduler
 //
 // Scheduler mirrors the promise package's Scheduler interface, providing
-// RunBackground for worker-pool tasks, QueueMicrotask for main-thread
-// microtasks, and QueueMacrotask for main-thread macrotasks.
+// RunBackground for worker-pool tasks, Spawn for long-lived tasks outside
+// the bounded worker pool, QueueMicrotask for main-thread microtasks, and
+// QueueMacrotask for main-thread macrotasks.
 //
 // # Clipboard
 //

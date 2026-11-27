@@ -15,9 +15,10 @@ We will replace `engine.Job` with a Go-idiomatic `promise` package backed by a d
 We will define a `Scheduler` capability within the `terminal` package to centralize concurrency limits and main-thread synchronization.
 ```go
 type Scheduler interface {
-    RunBackground(task func())     // Executes on a bounded worker pool
-    QueueMicrotask(task func())    // Executes on the main UI thread (next drain)
-    QueueMacrotask(task func())    // Executes on the main UI thread (budgeted)
+    RunBackground(task func(ctx context.Context)) // Executes on a bounded worker pool
+    Spawn(task func(ctx context.Context))         // Executes long-lived tasks outside the worker pool with scheduler-managed lifecycle
+    QueueMicrotask(task func())                   // Executes on the main UI thread (next drain)
+    QueueMacrotask(task func())                   // Executes on the main UI thread (budgeted)
 }
 ```
 The concrete implementation of this Scheduler will live in the `engine` package (e.g., `engine.NewScheduler(workers)`), effectively extracting the worker pool and queue management out of the core `Engine` struct. The Engine will simply coordinate by calling `DrainMicrotasks()` on the Scheduler during its frame loop.

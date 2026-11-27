@@ -690,6 +690,10 @@ func (s *testScheduler) RunBackground(task func(ctx context.Context)) {
 	go task(context.Background())
 }
 
+func (s *testScheduler) Spawn(task func(ctx context.Context)) {
+	go task(context.Background())
+}
+
 func (s *testScheduler) QueueMicrotask(task func()) {
 	s.mu.Lock()
 	s.microtasks = append(s.microtasks, task)

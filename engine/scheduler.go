@@ -22,6 +22,10 @@ type defaultScheduler struct {
 	workerSem    chan struct{}
 	jobQueue     chan func(ctx context.Context)
 
+	spawnMu  sync.Mutex
+	stopping bool
+	spawnWG  sync.WaitGroup
+
 	clock             Clock
 	macroTaskDuration time.Duration
 	onRequestFrame    func()
@@ -91,6 +95,39 @@ func (s *defaultScheduler) RunBackground(task func(ctx context.Context)) {
 	_ = s.TryRunBackground(task)
 }
 
+func (s *defaultScheduler) TrySpawn(task func(ctx context.Context)) bool {
+	if task == nil {
+		return false
+	}
+
+	s.spawnMu.Lock()
+	if s.stopping || s.workerCtx.Err() != nil {
+		s.spawnMu.Unlock()
+		return false
+	}
+	s.spawnWG.Add(1)
+	s.spawnMu.Unlock()
+
+	var endSubmit func()
+	if s.onJobSubmit != nil {
+		endSubmit = s.onJobSubmit("spawn")
+	}
+
+	go func() {
+		defer s.spawnWG.Done()
+		if endSubmit != nil {
+			endSubmit()
+		}
+		s.executeTask(s.workerCtx, task, 0, "spawn")
+	}()
+
+	return true
+}
+
+func (s *defaultScheduler) Spawn(task func(ctx context.Context)) {
+	_ = s.TrySpawn(task)
+}
+
 func (s *defaultScheduler) QueueMicrotask(task func()) {
 	s.taskMu.Lock()
 	s.microQueue = append(s.microQueue, task)
@@ -155,8 +192,13 @@ func (s *defaultScheduler) hasPendingTasks() bool {
 }
 
 func (s *defaultScheduler) stop() {
+	s.spawnMu.Lock()
+	s.stopping = true
 	s.workerCancel()
+	s.spawnMu.Unlock()
+
 	s.workerWG.Wait()
+	s.spawnWG.Wait()
 }
 
 func (s *defaultScheduler) runWorker(ctx context.Context, workerID int) {
@@ -166,16 +208,16 @@ func (s *defaultScheduler) runWorker(ctx context.Context, workerID int) {
 		case <-ctx.Done():
 			return
 		case task := <-s.jobQueue:
-			s.executeTask(ctx, task, workerID)
+			s.executeTask(ctx, task, workerID, "anonymous")
 			task = nil
 		}
 	}
 }
 
-func (s *defaultScheduler) executeTask(ctx context.Context, task func(ctx context.Context), workerID int) {
+func (s *defaultScheduler) executeTask(ctx context.Context, task func(ctx context.Context), workerID int, name string) {
 	var endRun func()
 	if s.onJobRun != nil {
-		endRun = s.onJobRun("anonymous", workerID)
+		endRun = s.onJobRun(name, workerID)
 	}
 
 	defer func() {

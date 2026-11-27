@@ -78,6 +78,10 @@ type Scheduler interface {
 	// RunBackground executes a task on a background worker pool.
 	// The provided context is managed by the scheduler.
 	RunBackground(task func(ctx context.Context))
+	// Spawn launches a long-lived or unbounded task in its own goroutine outside
+	// the fixed-size worker pool, while binding its context and shutdown lifecycle
+	// to the scheduler.
+	Spawn(task func(ctx context.Context))
 	// QueueMicrotask schedules a task to run as a microtask on the main thread.
 	QueueMicrotask(task func())
 	// QueueMacrotask schedules a task to run as a macrotask on the main thread.
