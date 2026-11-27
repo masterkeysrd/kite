@@ -8,7 +8,3 @@ spec:
   projects: ["."]
   defaultProvider: ollama
 ---
-
-# TaskSmith Workspace
-
-Use `genai` as the default model provider unless an agent overrides `spec.model`.
