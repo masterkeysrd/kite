@@ -108,14 +108,9 @@ func TestOverlay_ClickToSetCursor(t *testing.T) {
 		Width(style.Cells(20)).
 		Height(style.Cells(1)))
 
-	overlay := element.Overlay(
-		overlayInp,
-		element.OverlayConfig{
-			Anchor:    bgInp,
-			Placement: geom.PlacementBottom,
-			ZIndex:    100,
-		},
-	)
+	overlay := element.Overlay(bgInp, overlayInp).
+		WithPlacement(geom.PlacementBottom).
+		WithZIndex(100)
 
 	eng.Document().AppendChild(overlay)
 

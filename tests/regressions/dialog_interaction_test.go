@@ -30,7 +30,7 @@ func TestDialogInteraction(t *testing.T) {
 		}
 
 		if ke.MatchString("d") && activeDialog == nil {
-			activeDialog = element.Dialog(element.Box("Modal Content"), 100)
+			activeDialog = element.Dialog(element.Box("Modal Content")).ZIndex(100)
 			env.Engine.Document().AppendChild(activeDialog)
 		}
 	})

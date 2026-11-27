@@ -14,7 +14,7 @@ func TestDialog_Lifecycle(t *testing.T) {
 	be := mock.New(80, 24)
 	eng := engine.New(be, engine.Options{})
 
-	dialog := element.Dialog(element.Box(), 100)
+	dialog := element.Dialog(element.Box()).ZIndex(100)
 
 	// Mount triggers OnConnected
 	eng.Document().AppendChild(dialog)
@@ -68,12 +68,23 @@ func TestDialog_Lifecycle(t *testing.T) {
 }
 
 func TestDialog_ScrollTrapping(t *testing.T) {
-	dialog := element.Dialog(element.Box(), 100)
+	dialog := element.Dialog(element.Box()).ZIndex(100)
 
 	ev := event.NewWheelEvent(geom.Point{X: 10, Y: 10}, 0, 1, 0)
 	dialog.OnWheel(ev)
 
 	if !ev.PropagationStopped() {
 		t.Error("expected wheel event to be stopped (trapped) by the dialog element")
+	}
+}
+
+func TestDialog_VariadicChildren(t *testing.T) {
+	dialog := element.Dialog("Hello", element.Box("World"))
+	count := 0
+	for range dialog.ChildNodes() {
+		count++
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 children, got %d", count)
 	}
 }

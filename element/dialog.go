@@ -24,31 +24,33 @@ var defaultDialogStyle = style.S().
 	AlignItems(style.AlignCenter).
 	AlignContent(style.AlignCenter)
 
-func NewDialog(doc dom.Document, content dom.Node, zIndex int) *DialogElement {
-	d := &DialogElement{zIndex: zIndex}
+func NewDialog(doc dom.Document, children ...any) *DialogElement {
+	d := &DialogElement{zIndex: 1000}
 
 	// Requirement: Applies styles: Width: 100%, Height: 100%, Display: Flex,
 	// JustifyContent: Center, AlignItems: Center.
 	d.initBase(doc.CreateElement("dialog", d), d, defaultDialogStyle)
-
-	if content != nil {
-		d.AppendChild(content)
-	}
+	processChildren(d, children)
 
 	return d
 }
 
-func Dialog(content dom.Node, zIndex int) *DialogElement {
-	return NewDialog(orphanDocument, content, zIndex)
+func Dialog(children ...any) *DialogElement {
+	return NewDialog(orphanDocument, children...)
 }
 
-// SetZIndex updates the dialog's overlay z-index.
-func (d *DialogElement) SetZIndex(zIndex int) *DialogElement {
+// ZIndex updates the dialog's overlay z-index.
+func (d *DialogElement) ZIndex(zIndex int) *DialogElement {
 	d.zIndex = zIndex
 	if doc := d.OwnerDocument(); doc != nil && d.IsConnected() {
 		doc.ShowOverlay(d, zIndex)
 	}
 	return d
+}
+
+// SetZIndex updates the dialog's overlay z-index.
+func (d *DialogElement) SetZIndex(zIndex int) *DialogElement {
+	return d.ZIndex(zIndex)
 }
 
 func (d *DialogElement) OnConnected() {

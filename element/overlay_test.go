@@ -25,17 +25,13 @@ func TestOverlay_Positioning(t *testing.T) {
 
 	// Create an overlay
 	ovl := element.Overlay(
+		anchor,
 		element.Box().
 			Style(style.S().
 				Width(style.Cells(5)).
 				Height(style.Cells(2)),
 			),
-		element.OverlayConfig{
-			Anchor:    anchor,
-			Placement: geom.PlacementBottom,
-			ZIndex:    100,
-		},
-	)
+	).WithPlacement(geom.PlacementBottom).WithZIndex(100)
 	// Overlay attaches itself to the document in OnConnected
 	eng.Document().AppendChild(ovl)
 
@@ -81,16 +77,12 @@ func TestOverlay_Flipping(t *testing.T) {
 
 	// Create an overlay with Bottom placement and Flip enabled
 	ovl := element.Overlay(
+		anchor,
 		element.Box().Style(style.S().
 			Width(style.Cells(5)).
 			Height(style.Cells(5)),
 		),
-		element.OverlayConfig{
-			Anchor:    anchor,
-			Placement: geom.PlacementBottom,
-			Flip:      true,
-		},
-	)
+	).WithPlacement(geom.PlacementBottom).WithFlip(true)
 	eng.Document().AppendChild(ovl)
 
 	// Run layout
@@ -128,16 +120,12 @@ func TestOverlay_BestFit(t *testing.T) {
 
 	// Overlay height 20.
 	ovl := element.Overlay(
+		anchor,
 		element.Box().Style(style.S().
 			Width(style.Cells(5)).
 			Height(style.Cells(20)),
 		),
-		element.OverlayConfig{
-			Anchor:    anchor,
-			Placement: geom.PlacementTop, // Start at Top (space 5)
-			Flip:      true,
-		},
-	)
+	).WithPlacement(geom.PlacementTop).WithFlip(true)
 
 	eng.Document().AppendChild(ovl)
 	eng.Frame()
@@ -164,13 +152,9 @@ func TestOverlay_HorizontalBestFit(t *testing.T) {
 	eng.Mount(anchor)
 
 	ovl := element.Overlay(
+		anchor,
 		element.Box().Style(style.S().Width(style.Cells(50)).Height(style.Cells(5))),
-		element.OverlayConfig{
-			Anchor:    anchor,
-			Placement: geom.PlacementLeft,
-			Flip:      true,
-		},
-	)
+	).WithPlacement(geom.PlacementLeft).WithFlip(true)
 	eng.Document().AppendChild(ovl)
 	eng.Frame()
 
@@ -189,20 +173,8 @@ func TestOverlay_SetConfig_UpdatesZIndex(t *testing.T) {
 	anchor := element.Box()
 	eng.Mount(anchor)
 
-	ovl1 := element.Overlay(
-		element.Box(),
-		element.OverlayConfig{
-			Anchor: anchor,
-			ZIndex: 100,
-		},
-	)
-	ovl2 := element.Overlay(
-		element.Box(),
-		element.OverlayConfig{
-			Anchor: anchor,
-			ZIndex: 150,
-		},
-	)
+	ovl1 := element.Overlay(anchor, element.Box()).WithZIndex(100)
+	ovl2 := element.Overlay(anchor, element.Box()).WithZIndex(150)
 
 	eng.Document().AppendChild(ovl1)
 	eng.Document().AppendChild(ovl2)
@@ -230,5 +202,49 @@ func TestOverlay_SetConfig_UpdatesZIndex(t *testing.T) {
 	}
 	if len(updated) != 2 || updated[0] != ovl2 || updated[1] != ovl1 {
 		t.Errorf("unexpected updated overlay order: %v", updated)
+	}
+}
+
+func TestOverlay_VariadicAndFluentConfig(t *testing.T) {
+	be := mock.New(80, 24)
+	eng := engine.New(be, engine.Options{})
+
+	anchor1 := element.Box()
+	anchor2 := element.Box()
+	eng.Mount(element.Box(anchor1, anchor2))
+
+	ovl := element.Overlay(anchor1, "item 1", element.Box("item 2")).
+		WithAnchor(anchor2).
+		WithPlacement(geom.PlacementTop).
+		WithFlip(true).
+		WithZIndex(250)
+
+	count := 0
+	for range ovl.ChildNodes() {
+		count++
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 children, got %d", count)
+	}
+	if ovl.Anchor() != anchor2 {
+		t.Errorf("expected anchor2, got %v", ovl.Anchor())
+	}
+	if ovl.Placement() != geom.PlacementTop {
+		t.Errorf("expected PlacementTop, got %v", ovl.Placement())
+	}
+	if !ovl.Flip() {
+		t.Errorf("expected Flip true")
+	}
+
+	eng.Document().AppendChild(ovl)
+	eng.Frame()
+
+	ovl.WithZIndex(500)
+	var overlays []dom.Element
+	for el := range eng.Document().Overlays() {
+		overlays = append(overlays, el)
+	}
+	if len(overlays) != 1 || overlays[0] != ovl {
+		t.Errorf("expected ovl in overlays, got %v", overlays)
 	}
 }

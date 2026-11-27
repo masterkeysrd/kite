@@ -357,12 +357,10 @@ func (s *SelectElement) openDropdown(trigger event.Event) {
 		content.AddChild(btn)
 	}
 
-	s.overlay = NewOverlay(doc, content, OverlayConfig{
-		Anchor:    s,
-		Placement: geom.PlacementBottom,
-		Flip:      true,
-		ZIndex:    1000,
-	})
+	s.overlay = NewOverlay(doc, s, content).
+		WithPlacement(geom.PlacementBottom).
+		WithFlip(true).
+		WithZIndex(1000)
 
 	s.isOpen = true
 	doc.AppendChild(s.overlay)

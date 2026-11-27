@@ -472,14 +472,9 @@ func TestOverlaySelectionPaint(t *testing.T) {
 	overlayBox.Style(style.S().
 		Background(color.RGBA{R: 0, G: 0, B: 0, A: 255}))
 
-	overlay := element.Overlay(
-		overlayBox,
-		element.OverlayConfig{
-			Anchor:    bgBox,
-			Placement: geom.PlacementBottom,
-			ZIndex:    100,
-		},
-	)
+	overlay := element.Overlay(bgBox, overlayBox).
+		WithPlacement(geom.PlacementBottom).
+		WithZIndex(100)
 	doc.AppendChild(overlay)
 
 	env.Flush()
