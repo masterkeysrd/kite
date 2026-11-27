@@ -96,3 +96,35 @@ func TestRepeat(t *testing.T) {
 		})
 	}
 }
+
+func TestGridPlacementConstructors(t *testing.T) {
+	tests := []struct {
+		name string
+		got  GridPlacement
+		want GridPlacement
+	}{
+		{
+			name: "Span",
+			got:  Span(3),
+			want: GridPlacement{Span: 3},
+		},
+		{
+			name: "GridLine",
+			got:  GridLine(2),
+			want: GridPlacement{Start: 2},
+		},
+		{
+			name: "GridArea",
+			got:  GridArea(1, 4),
+			want: GridPlacement{Start: 1, End: 4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("%s = %+v, want %+v", tt.name, tt.got, tt.want)
+			}
+		})
+	}
+}

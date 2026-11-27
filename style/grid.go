@@ -25,3 +25,18 @@ type GridPlacement struct {
 	Start int
 	End   int
 }
+
+// Span creates a GridPlacement that spans n tracks.
+func Span(n int) GridPlacement {
+	return GridPlacement{Span: n}
+}
+
+// GridLine creates a GridPlacement anchored at the 1-based track line start.
+func GridLine(start int) GridPlacement {
+	return GridPlacement{Start: start}
+}
+
+// GridArea creates a GridPlacement spanning from 1-based line start to end.
+func GridArea(start, end int) GridPlacement {
+	return GridPlacement{Start: start, End: end}
+}
