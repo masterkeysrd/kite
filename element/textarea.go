@@ -183,9 +183,21 @@ func (txa *TextAreaElement) Name() string {
 	return txa.name
 }
 
+// Text returns the current text value of the textarea.
+func (txa *TextAreaElement) Text() string {
+	return txa.buf.Value()
+}
+
 // TextContent returns the current text value of the textarea, satisfying the dom.Node interface.
 func (txa *TextAreaElement) TextContent() string {
 	return txa.buf.Value()
+}
+
+// OnChange registers a callback invoked with the new text on user-initiated
+// buffer edits, never on programmatic SetValue calls.
+func (txa *TextAreaElement) OnChange(fn func(string)) *TextAreaElement {
+	txa.TextControlBase.onChange = fn
+	return txa
 }
 
 // SetValue replaces the buffer content.
@@ -437,10 +449,18 @@ func (txa *TextAreaElement) OnWheel(e *event.WheelEvent) {
 	}
 }
 
-func (txa *TextAreaElement) IsDisabled() bool   { return txa.disabled }
-func (txa *TextAreaElement) SetDisabled(v bool) { txa.disabled = v }
-func (txa *TextAreaElement) Disabled(v bool) *TextAreaElement {
+func (txa *TextAreaElement) IsDisabled() bool { return txa.disabled }
+func (txa *TextAreaElement) SetDisabled(v bool) {
+	if txa.disabled == v {
+		return
+	}
 	txa.disabled = v
+	if d := internaldom.AsDirtyElement(txa.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (txa *TextAreaElement) Disabled(v bool) *TextAreaElement {
+	txa.SetDisabled(v)
 	return txa
 }
 

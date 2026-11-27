@@ -17,8 +17,14 @@ type Element interface {
 	// RawStyle returns the author-set style for this element.
 	RawStyle() style.Style
 
+	// SetStyle replaces the author-set style for this element and marks style dirty.
+	SetStyle(s style.Style)
+
 	// IsHidden reports whether the element is in the hidden state.
 	IsHidden() bool
+
+	// SetHidden sets or clears the element's hidden state and marks style dirty.
+	SetHidden(v bool)
 
 	// Listeners returns the set of event listeners registered on this element.
 	Listeners() []PendingListener
@@ -126,6 +132,11 @@ func (b *elementBase[Self]) Style(s style.Style) *Self {
 	return b.self
 }
 
+// SetStyle replaces the element's style wholesale and marks style dirty.
+func (b *elementBase[Self]) SetStyle(s style.Style) {
+	b.Style(s)
+}
+
 // WithClass sets the string classification tag and returns *Self.
 func (b *elementBase[Self]) WithClass(class string) *Self {
 	b.SetClass(class)
@@ -151,6 +162,11 @@ func (b *elementBase[Self]) Hidden(v bool) *Self {
 		d.MarkStyleDirty()
 	}
 	return b.self
+}
+
+// SetHidden sets or clears the hidden state and marks style dirty.
+func (b *elementBase[Self]) SetHidden(v bool) {
+	b.Hidden(v)
 }
 
 // ScrollbarX enables or disables the horizontal scrollbar and returns *Self.
@@ -220,11 +236,189 @@ func (b *elementBase[Self]) DispatchEvent(e event.Event) {
 
 // OnEvent registers fn as a listener for event of type typ and returns *Self.
 // Listeners are stored on the element and retrieved by the engine's
-// event-target resolver during dispatch setup.
+// event-target resolver during dispatch setup. Nil handlers are ignored.
 func (b *elementBase[Self]) OnEvent(typ event.EventType, fn event.Listener) *Self {
+	if fn == nil {
+		return b.self
+	}
 	b.listeners = append(b.listeners, PendingListener{Typ: typ, Fn: fn})
 	b.AddEventListener(typ, fn)
 	return b.self
+}
+
+// OnClick registers a typed click listener and returns *Self.
+func (b *elementBase[Self]) OnClick(fn func(*event.MouseEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventClick, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			fn(me)
+		}
+	})
+}
+
+// OnPress registers a zero-argument activation listener on click (including
+// keyboard Enter/Space activation on buttons) and returns *Self.
+func (b *elementBase[Self]) OnPress(fn func()) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventClick, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			if me.Button == event.ButtonLeft || me.Button == event.ButtonNone {
+				fn()
+			}
+			return
+		}
+		fn()
+	})
+}
+
+// OnMouseDown registers a typed mousedown listener and returns *Self.
+func (b *elementBase[Self]) OnMouseDown(fn func(*event.MouseEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventMouseDown, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			fn(me)
+		}
+	})
+}
+
+// OnMouseUp registers a typed mouseup listener and returns *Self.
+func (b *elementBase[Self]) OnMouseUp(fn func(*event.MouseEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventMouseUp, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			fn(me)
+		}
+	})
+}
+
+// OnMouseMove registers a typed mousemove listener and returns *Self.
+func (b *elementBase[Self]) OnMouseMove(fn func(*event.MouseEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventMouseMove, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			fn(me)
+		}
+	})
+}
+
+// OnMouseEnter registers a typed mouseenter listener and returns *Self.
+func (b *elementBase[Self]) OnMouseEnter(fn func(*event.MouseEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventMouseEnter, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			fn(me)
+		}
+	})
+}
+
+// OnMouseLeave registers a typed mouseleave listener and returns *Self.
+func (b *elementBase[Self]) OnMouseLeave(fn func(*event.MouseEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventMouseLeave, func(e event.Event) {
+		if me, ok := e.(*event.MouseEvent); ok {
+			fn(me)
+		}
+	})
+}
+
+// OnKeyDown registers a typed keydown listener and returns *Self.
+func (b *elementBase[Self]) OnKeyDown(fn func(*event.KeyEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventKeyDown, func(e event.Event) {
+		if ke, ok := e.(*event.KeyEvent); ok {
+			fn(ke)
+		}
+	})
+}
+
+// OnKeyUp registers a typed keyup listener and returns *Self.
+func (b *elementBase[Self]) OnKeyUp(fn func(*event.KeyEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventKeyUp, func(e event.Event) {
+		if ke, ok := e.(*event.KeyEvent); ok {
+			fn(ke)
+		}
+	})
+}
+
+// OnKeyPress registers a typed keypress listener and returns *Self.
+func (b *elementBase[Self]) OnKeyPress(fn func(*event.KeyEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventKeyPress, func(e event.Event) {
+		if ke, ok := e.(*event.KeyEvent); ok {
+			fn(ke)
+		}
+	})
+}
+
+// OnKey registers a keydown listener filtered by combo via [event.KeyEvent.MatchString]
+// and returns *Self.
+func (b *elementBase[Self]) OnKey(combo string, fn func(*event.KeyEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventKeyDown, func(e event.Event) {
+		if ke, ok := e.(*event.KeyEvent); ok && ke.MatchString(combo) {
+			fn(ke)
+		}
+	})
+}
+
+// OnFocus registers a typed focus listener and returns *Self.
+func (b *elementBase[Self]) OnFocus(fn func(*event.FocusEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventFocus, func(e event.Event) {
+		if fe, ok := e.(*event.FocusEvent); ok {
+			fn(fe)
+		}
+	})
+}
+
+// OnBlur registers a typed blur listener and returns *Self.
+func (b *elementBase[Self]) OnBlur(fn func(*event.FocusEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventBlur, func(e event.Event) {
+		if fe, ok := e.(*event.FocusEvent); ok {
+			fn(fe)
+		}
+	})
+}
+
+// OnWheelEvent registers a typed wheel listener and returns *Self.
+// Named OnWheelEvent to avoid colliding with [event.Scrollable]'s OnWheel method.
+func (b *elementBase[Self]) OnWheelEvent(fn func(*event.WheelEvent)) *Self {
+	if fn == nil {
+		return b.self
+	}
+	return b.OnEvent(event.EventWheel, func(e event.Event) {
+		if we, ok := e.(*event.WheelEvent); ok {
+			fn(we)
+		}
+	})
 }
 
 // EventListeners returns the event listener registrations for this element.

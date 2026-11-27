@@ -12,9 +12,13 @@ type RadioGroupElement struct {
 	elementBase[RadioGroupElement]
 	value    string
 	onChange func(string)
+	disabled bool
 }
 
-var _ Element = (*RadioGroupElement)(nil)
+var (
+	_ Element         = (*RadioGroupElement)(nil)
+	_ dom.Disableable = (*RadioGroupElement)(nil)
+)
 
 // NewRadioGroup creates a new RadioGroupElement owned by doc.
 func NewRadioGroup(doc dom.Document, children ...any) *RadioGroupElement {
@@ -99,6 +103,21 @@ func (rg *RadioGroupElement) AppendChild(child dom.Node) dom.Node {
 	res := rg.Element.AppendChild(child)
 	rg.syncRadios()
 	return res
+}
+
+func (rg *RadioGroupElement) IsDisabled() bool { return rg.disabled }
+func (rg *RadioGroupElement) SetDisabled(v bool) {
+	if rg.disabled == v {
+		return
+	}
+	rg.disabled = v
+	if d := internaldom.AsDirtyElement(rg.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (rg *RadioGroupElement) Disabled(v bool) *RadioGroupElement {
+	rg.SetDisabled(v)
+	return rg
 }
 
 // RadioElement represents a single radio button within a RadioGroup.
@@ -217,11 +236,17 @@ func (r *RadioElement) handleClick(e event.Event) {
 	if r.IsDisabled() {
 		return
 	}
+	if rg := r.findGroup(); rg != nil && rg.IsDisabled() {
+		return
+	}
 	r.selectSelf()
 }
 
 func (r *RadioElement) handleKeyDown(e event.Event) {
 	if r.IsDisabled() {
+		return
+	}
+	if rg := r.findGroup(); rg != nil && rg.IsDisabled() {
 		return
 	}
 	ke, ok := e.(*event.KeyEvent)
@@ -278,9 +303,17 @@ func (r *RadioElement) selectSelf() {
 	}
 }
 
-func (r *RadioElement) IsDisabled() bool   { return r.disabled }
-func (r *RadioElement) SetDisabled(v bool) { r.disabled = v }
-func (r *RadioElement) Disabled(v bool) *RadioElement {
+func (r *RadioElement) IsDisabled() bool { return r.disabled }
+func (r *RadioElement) SetDisabled(v bool) {
+	if r.disabled == v {
+		return
+	}
 	r.disabled = v
+	if d := internaldom.AsDirtyElement(r.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (r *RadioElement) Disabled(v bool) *RadioElement {
+	r.SetDisabled(v)
 	return r
 }

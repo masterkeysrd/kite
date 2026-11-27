@@ -152,9 +152,17 @@ func (b *ButtonElement) SetActive(active bool) {
 	}
 }
 
-func (b *ButtonElement) IsDisabled() bool   { return b.disabled }
-func (b *ButtonElement) SetDisabled(v bool) { b.disabled = v }
-func (b *ButtonElement) Disabled(v bool) *ButtonElement {
+func (b *ButtonElement) IsDisabled() bool { return b.disabled }
+func (b *ButtonElement) SetDisabled(v bool) {
+	if b.disabled == v {
+		return
+	}
 	b.disabled = v
+	if d := internaldom.AsDirtyElement(b.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (b *ButtonElement) Disabled(v bool) *ButtonElement {
+	b.SetDisabled(v)
 	return b
 }

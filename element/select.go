@@ -55,10 +55,18 @@ func (o *OptionElement) SetValue(value string) *OptionElement {
 	return o
 }
 
-func (o *OptionElement) IsDisabled() bool   { return o.disabled }
-func (o *OptionElement) SetDisabled(v bool) { o.disabled = v }
-func (o *OptionElement) Disabled(v bool) *OptionElement {
+func (o *OptionElement) IsDisabled() bool { return o.disabled }
+func (o *OptionElement) SetDisabled(v bool) {
+	if o.disabled == v {
+		return
+	}
 	o.disabled = v
+	if d := internaldom.AsDirtyElement(o.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (o *OptionElement) Disabled(v bool) *OptionElement {
+	o.SetDisabled(v)
 	return o
 }
 
@@ -490,9 +498,17 @@ func (s *SelectElement) SetData(data string) {
 	s.uaText.SetData(data)
 }
 
-func (s *SelectElement) IsDisabled() bool   { return s.disabled }
-func (s *SelectElement) SetDisabled(v bool) { s.disabled = v }
-func (s *SelectElement) Disabled(v bool) *SelectElement {
+func (s *SelectElement) IsDisabled() bool { return s.disabled }
+func (s *SelectElement) SetDisabled(v bool) {
+	if s.disabled == v {
+		return
+	}
 	s.disabled = v
+	if d := internaldom.AsDirtyElement(s.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (s *SelectElement) Disabled(v bool) *SelectElement {
+	s.SetDisabled(v)
 	return s
 }

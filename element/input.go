@@ -204,9 +204,21 @@ func (inp *InputElement) Name() string {
 	return inp.name
 }
 
+// Text returns the current text value of the input.
+func (inp *InputElement) Text() string {
+	return inp.buf.Value()
+}
+
 // TextContent returns the current text value of the input, satisfying the dom.Node interface.
 func (inp *InputElement) TextContent() string {
 	return inp.buf.Value()
+}
+
+// OnChange registers a callback invoked with the new text on user-initiated
+// buffer edits, never on programmatic SetValue calls.
+func (inp *InputElement) OnChange(fn func(string)) *InputElement {
+	inp.TextControlBase.onChange = fn
+	return inp
 }
 
 // SetValue replaces the buffer content with v, repositioning the cursor to
@@ -301,10 +313,18 @@ func (inp *InputElement) syncText() {
 // OnWheel implements event.Scrollable. Input disables wheel scrolling.
 func (inp *InputElement) OnWheel(e *event.WheelEvent) {}
 
-func (inp *InputElement) IsDisabled() bool   { return inp.disabled }
-func (inp *InputElement) SetDisabled(v bool) { inp.disabled = v }
-func (inp *InputElement) Disabled(v bool) *InputElement {
+func (inp *InputElement) IsDisabled() bool { return inp.disabled }
+func (inp *InputElement) SetDisabled(v bool) {
+	if inp.disabled == v {
+		return
+	}
 	inp.disabled = v
+	if d := internaldom.AsDirtyElement(inp.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (inp *InputElement) Disabled(v bool) *InputElement {
+	inp.SetDisabled(v)
 	return inp
 }
 

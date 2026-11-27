@@ -17,6 +17,7 @@ type CheckboxElement struct {
 
 	name     string
 	disabled bool
+	onChange func(bool)
 }
 
 var (
@@ -125,9 +126,19 @@ func (c *CheckboxElement) handleKeyDown(e event.Event) {
 	}
 }
 
+// OnChange registers a callback invoked with the new checked state on user
+// toggle (click or Space), never on programmatic SetChecked calls.
+func (c *CheckboxElement) OnChange(fn func(bool)) *CheckboxElement {
+	c.onChange = fn
+	return c
+}
+
 func (c *CheckboxElement) toggle() {
 	c.checked = !c.checked
 	c.uaText.SetData(c.currentGlyph())
+	if c.onChange != nil {
+		c.onChange(c.checked)
+	}
 	c.emitChange()
 }
 
@@ -142,9 +153,17 @@ func (c *CheckboxElement) emitChange() {
 	}
 }
 
-func (c *CheckboxElement) IsDisabled() bool   { return c.disabled }
-func (c *CheckboxElement) SetDisabled(v bool) { c.disabled = v }
-func (c *CheckboxElement) Disabled(v bool) *CheckboxElement {
+func (c *CheckboxElement) IsDisabled() bool { return c.disabled }
+func (c *CheckboxElement) SetDisabled(v bool) {
+	if c.disabled == v {
+		return
+	}
 	c.disabled = v
+	if d := internaldom.AsDirtyElement(c.Element); d != nil {
+		d.MarkStyleDirty()
+	}
+}
+func (c *CheckboxElement) Disabled(v bool) *CheckboxElement {
+	c.SetDisabled(v)
 	return c
 }
