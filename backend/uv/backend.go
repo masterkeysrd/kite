@@ -978,7 +978,7 @@ func (b *Backend) flushScreen() error {
 		// ED at the top-left can archive the live screen in tmux. Erase
 		// lines without scrolling, restoring the cursor even when CUD clamps.
 		erase := ansi.SaveCursor + ansi.EraseLineRight +
-			strings.Repeat(ansi.CursorDown1+"\r"+ansi.EraseLineRight, max(0, b.renderDimensions().Height-1)) +
+			strings.Repeat(ansi.CUD1+"\r"+ansi.EraseLineRight, max(0, b.renderDimensions().Height-1)) +
 			ansi.RestoreCursor
 		output = bytes.ReplaceAll(output, []byte(ansi.EraseScreenBelow), []byte(erase))
 	}
