@@ -58,7 +58,7 @@ var HomeView = kitex.SimpleFC("HomeView", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{},
 		kitex.Text("Welcome Home"),
 		kitex.Button(kitex.ButtonProps{
-			OnClick: func(e event.Event) {
+			OnPress: func() {
 				// Push a new details route onto the stack
 				nav.Push(DetailsRoute{ItemID: "42"})
 			},
@@ -72,7 +72,7 @@ var DetailsView = kitex.FC("DetailsView", func(props string) kitex.Node {
 	return kitex.Box(kitex.BoxProps{},
 		kitex.Text("Item Details: " + props),
 		kitex.Button(kitex.ButtonProps{
-			OnClick: func(e event.Event) {
+			OnPress: func() {
 				// Pop the screen to return to the home screen
 				nav.Pop()
 			},

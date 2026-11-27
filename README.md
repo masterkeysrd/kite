@@ -31,7 +31,7 @@ Kite is a modern, DOM-like terminal UI framework for Go. It brings web-inspired 
 Kite is built with a clean separation of concerns, divided into specialized packages that form the rendering pipeline:
 
 - **`dom`**: The logical node tree representing the user interface. It implements strict lifecycle hooks, identity registration, semantic state, and a top-layer overlay API for out-of-flow elements.
-- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade (inherited values, element-type defaults, author styles, and UA intrinsic styles) and a high-performance **Media Queries** matching system for responsive design.
+- **`style`**: CSS-like styling engine using an `Optional[T]` pattern. It supports a four-layer cascade (inherited values, element-type defaults, author styles, and UA intrinsic styles), CSS-equivalent color constructors (`RGB`, `RGBA`, `Hex`, `HexInt`), conditional merging (`When`), interactive pseudo-states (`:hover`, `:focus`, `:active`, `:disabled`), and a high-performance **Media Queries** matching system for responsive design.
 - **`layout`**: The high-performance engine responsible for computing geometry, returning immutable fragment trees.
 - **`paint` & `backend`**: The drawing layer and terminal decoupling, allowing for varied output backends.
 - **`render`**: The visual bridge mirroring the DOM to the layout engine, carrying lifecycle dirty-flags.
@@ -61,7 +61,6 @@ package main
 import (
 	"github.com/masterkeysrd/kite/element"
 	"github.com/masterkeysrd/kite/style"
-	"github.com/masterkeysrd/kite/event"
 )
 
 func main() {
@@ -69,22 +68,25 @@ func main() {
 	ui := element.Box(
 		element.Box(
 			"Welcome to Kite!",
-		).Style(style.Style{
-			Padding: style.Some(style.Edges(1, 0)),
-			Bold:    style.Some(true),
-		}),
+		).Style(style.S().
+			Padding(1, 0).
+			Bold(true).
+			Foreground(style.Hex("#38bdf8")),
+		),
 
 		element.UL(
 			element.LI("High Performance"),
 			element.LI("Flexbox & Grid Layouts"),
 		),
 
-		element.Button("Click Me").OnEvent(event.EventClick, func(e event.Event) {
-			// Handle click
-		}),
+		element.Button("Click Me").
+			Style(style.S().Hover(style.S().Background(style.Hex("#1e293b")))).
+			OnPress(func() {
+				// Handle click or Enter/Space activation
+			}),
 	)
 
-	// In a real application, you would mount this to the engine:
+	// In a real application, mount this to the engine:
 	// eng.Mount(ui)
 	_ = ui
 }
@@ -183,7 +185,6 @@ Use `c.Log(msg)` to append entries to the **Action Log** panel at the bottom rig
 package main
 
 import (
-    "github.com/masterkeysrd/kite/event"
     "github.com/masterkeysrd/kite/extras/kitex"
     "github.com/masterkeysrd/kite/extras/stage"
 )
@@ -200,7 +201,7 @@ func main() {
 
                 return kitex.Button(kitex.ButtonProps{
                     Disabled: disabled,
-                    OnClick: func(e event.Event) {
+                    OnPress: func() {
                         c.Log("Button clicked!")
                     },
                 }, kitex.Text(label))

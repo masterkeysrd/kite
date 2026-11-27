@@ -23,6 +23,7 @@ Kitex is a lightweight, reactive Virtual DOM (VDOM) framework for Kite. It provi
 package main
 
 import (
+    "github.com/masterkeysrd/kite/event"
     "github.com/masterkeysrd/kite/extras/kitex"
     "github.com/masterkeysrd/kite/style"
 )
@@ -33,11 +34,12 @@ var Counter = kitex.FC("Counter", func(props struct{}) kitex.Node {
     count, setCount := kitex.UseState(0)
 
     return kitex.Box(kitex.BoxProps{
-        Style: style.Style{ Padding: style.Some(style.Edges(1, 1)) },
+        Style: style.S().Padding(1, 1),
     },
-        kitex.Text(fmt.Sprintf("Count: %d", count())),
+        kitex.Textf("Count: %d", count()),
         kitex.Button(kitex.ButtonProps{
-            OnClick: func(e event.Event) { setCount(count() + 1) },
+            OnClick: func(e *event.MouseEvent) { setCount(count() + 1) },
+            Style:   style.S().Hover(style.S().Background(style.Hex("#334155"))),
         }, kitex.Text("Increment")),
     )
 })
@@ -46,8 +48,8 @@ var Counter = kitex.FC("Counter", func(props struct{}) kitex.Node {
 var SimpleCounter = kitex.SimpleFC("SimpleCounter", func() kitex.Node {
     count, setCount := kitex.UseState(0)
     return kitex.Button(kitex.ButtonProps{
-        OnClick: func(e event.Event) { setCount(count() + 1) },
-    }, kitex.Text(fmt.Sprintf("Count: %d", count())))
+        OnPress: func() { setCount.Update(func(n int) int { return n + 1 }) },
+    }, kitex.Textf("Count: %d", count()))
 })
 
 // Define a component that accepts children using FCC
@@ -58,10 +60,10 @@ type ContainerProps struct {
 
 var TitledContainer = kitex.FCC("TitledContainer", func(props ContainerProps) kitex.Node {
     return kitex.Box(kitex.BoxProps{
-        Style: style.Style{ Border: style.SingleBorder().Some() },
+        Style: style.S().Border(style.SingleBorder()),
     },
         kitex.Box(kitex.BoxProps{
-            Style: style.Style{ Bold: style.Some(true) },
+            Style: style.S().Bold(true),
         }, kitex.Text(props.Title)),
         kitex.Box(kitex.BoxProps{}, props.Children...),
     )
@@ -70,7 +72,7 @@ var TitledContainer = kitex.FCC("TitledContainer", func(props ContainerProps) ki
 // Simpler version for children-only components
 var Centered = kitex.SimpleFCC("Centered", func(children []kitex.Node) kitex.Node {
     return kitex.Box(kitex.BoxProps{
-        Style: style.Style{ AlignItems: style.Some(style.AlignCenter) },
+        Style: style.S().AlignItems(style.AlignCenter),
     }, children...)
 })
 
@@ -81,7 +83,7 @@ func main() {
     // Render the component into a container element
     container := eng.Document().Body() // or any other element
     // ...
-    kitex.Render(ui, container)
+    kitex.Render(SimpleCounter(), container)
 }
 ```
 
@@ -89,7 +91,7 @@ func main() {
 
 Kitex provides several standard hooks to manage component logic:
 
-- **`UseState[T](initial T) (func() T, func(T))`**: Returns a getter and a setter for a state variable. Updating state triggers a re-render of the component.
+- **`UseState[T](initial T) (func() T, StateSetter[T])`**: Returns a getter and a `StateSetter[T]` handle (`type StateSetter[T any] func(T)`). Call `set(val)` directly to replace the state, or `set.Update(func(prev T) T)` for an atomic, goroutine-safe read-modify-write under the hook mutex. `StateSetter[T]` is directly assignable to `func(T)` callback props (e.g. `OnValueChange: setQuery`). Updating state triggers a re-render of the component.
 - **`UseRef[T](initial T) Ref[T]`**: Returns a persistent, mutable reference that doesn't trigger re-renders when modified.
 - **`UseMemo[T](factory func() T, deps []any) T`**: Memoizes an expensive calculation and re-runs it only when dependencies change.
 - **`UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A))`**: Manages complex state logic using a reducer pattern. Returns a getter and a dispatch function.
@@ -192,7 +194,7 @@ var ItemList = kitex.FC("ItemList", func(props struct{ Items []string }) kitex.N
         
         kitex.Box(kitex.BoxProps{}, 
             kitex.Map(props.Items, func(item string, idx int) kitex.Node {
-                return kitex.Text(fmt.Sprintf("%d: %s", idx, item))
+                return kitex.Textf("%d: %s", idx, item)
             }),
         ),
     )

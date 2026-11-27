@@ -111,9 +111,9 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Element scroll state (Scroll/ScrollTo/ScrollBy)** | `internal/dom/scroll_controller.go` (ADR-012) |
 | **`outer` back-pointer / identity (ADR-0036)** | `internal/dom/outer.go` |
 | **Style Optional[T] wrapper** | `style/optional.go` |
-| **Style property declarations** | `style/style.go` |
+| **Style property declarations & pseudo-states** | `style/style.go`, `style/color.go` |
 | **Computed style (post-resolver values)** | `style/computed.go` |
-| **Style cascade & resolver** | `style/resolver.go`, `style/cascade.go` (ADR-010) |
+| **Style cascade & resolver** | `internal/styler/resolver.go`, `internal/styler/cascade.go` (ADR-010, ADR-035) |
 | **Border fluent API & metadata** | `style/border.go` |
 | **Grid style properties and aliases** | `style/grid.go` |
 | **Render object interfaces & dirty flags** | `render/object.go`, `render/dirty.go` |
@@ -166,10 +166,10 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Regression test suite** | `tests/regressions/` |
 | **ADR documents** | `docs/adrs/` |
 | **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
-| **VDOM primitive wrappers & API** | `extras/kitex/kitex.go` |
-| **Kitex hooks (UseState, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback, UseProgramResume)** | `extras/kitex/hooks.go` |
+| **VDOM primitive wrappers & API** | `extras/kitex/node.go`, `extras/kitex/elements.go`, `extras/kitex/component.go`, `extras/kitex/listeners.go` |
+| **Kitex hooks (UseState, StateSetter, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback, UseProgramResume)** | `extras/kitex/hooks.go` |
 | **Kitex Context System (CreateContext, UseContext, Provider)** | `extras/kitex/context.go`, `extras/kitex/provider.go` |
-| **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/kitex.go` (memoization helpers section) |
+| **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/memo.go` |
 | **Global state store & subscriber API** | `extras/kites/store.go` |
 | **Kites global state integration hook** | `extras/kites/hooks.go` |
 | **Stack Navigation component & interfaces** | `extras/flight/flight.go`, `extras/flight/stack.go` |
