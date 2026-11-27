@@ -331,3 +331,51 @@ func TestKey_MatchString_Variadic(t *testing.T) {
 		t.Errorf("expected 'x' not to match %v", patterns)
 	}
 }
+
+func TestKey_MatchString_BaseCode(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     key.Key
+		pattern string
+		want    bool
+	}{
+		{
+			name:    "cyrillic layout matches ctrl+c via BaseCode",
+			key:     key.Key{Code: 'с', BaseCode: 'c', Mod: key.ModCtrl},
+			pattern: "ctrl+c",
+			want:    true,
+		},
+		{
+			name:    "cyrillic layout still matches ctrl+с via Code",
+			key:     key.Key{Code: 'с', BaseCode: 'c', Mod: key.ModCtrl},
+			pattern: "ctrl+с",
+			want:    true,
+		},
+		{
+			name:    "dvorak/colemak remapped ASCII matches label ctrl+c",
+			key:     key.Key{Code: 'c', BaseCode: 'j', Mod: key.ModCtrl},
+			pattern: "ctrl+c",
+			want:    true,
+		},
+		{
+			name:    "dvorak/colemak remapped ASCII does not match physical BaseCode ctrl+j",
+			key:     key.Key{Code: 'c', BaseCode: 'j', Mod: key.ModCtrl},
+			pattern: "ctrl+j",
+			want:    false,
+		},
+		{
+			name:    "non-printable Code falls back to BaseCode",
+			key:     key.Key{Code: 0, BaseCode: 'c', Mod: key.ModCtrl},
+			pattern: "ctrl+c",
+			want:    true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.key.MatchString(tc.pattern); got != tc.want {
+				t.Errorf("Key(%+v).MatchString(%q) = %v; want %v", tc.key, tc.pattern, got, tc.want)
+			}
+		})
+	}
+}
