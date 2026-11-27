@@ -251,13 +251,14 @@ import (
 	"time"
 
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/trail"
 )
 
-func App() trail.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	app := trail.UseApp()
-	count, setCount := trail.UseState(0)
-	completed, setCompleted := trail.UseState([]string(nil))
+	count, setCount := kitex.UseState(0)
+	completed, setCompleted := kitex.UseState([]string(nil))
 
 	trail.UseInput(func(input string, k event.KeyEvent) {
 		if input == "q" || k.MatchString("q", "esc") {
@@ -265,27 +266,29 @@ func App() trail.Node {
 		}
 	})
 
-	trail.UseInterval(func() {
+	kitex.UseInterval(func() {
 		c := count()
 		if c < 5 {
-			setCompleted(append(completed(), fmt.Sprintf("Task %d completed", c+1)))
-			setCount(c + 1)
+			setCompleted.Update(func(items []string) []string {
+				return append(items, fmt.Sprintf("Task %d completed", c+1))
+			})
+			setCount.Update(func(n int) int { return n + 1 })
 		} else {
 			app.Exit(nil)
 		}
-	}, 500*time.Millisecond, nil)
+	}, 500*time.Millisecond)
 
-	return trail.Fragment(
+	return kitex.Fragment(
 		// Static renders completed items permanently above into terminal scrollback:
-		trail.Static(completed(), func(item string, index int) trail.Node {
-			return trail.Box(trail.BoxProps{}, trail.Text("✔ "+item))
+		trail.Static(completed(), func(item string, index int) kitex.Node {
+			return kitex.Box(kitex.BoxProps{}, kitex.Text("✔ "+item))
 		}),
 		// Active inline area:
-		trail.Box(trail.BoxProps{},
-			trail.Text(fmt.Sprintf("Running task %d/5... (press 'q' to quit)", count()+1)),
+		kitex.Box(kitex.BoxProps{},
+			kitex.Textf("Running task %d/5... (press 'q' to quit)", count()+1),
 		),
 	)
-}
+})
 
 func main() {
 	inst, err := trail.Render(context.Background(), App())

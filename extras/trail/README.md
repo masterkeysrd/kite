@@ -12,9 +12,9 @@
 - **Dynamic Content Height**: Automatically resizes the active terminal viewport to exactly match the rendered content height.
 - **Contiguous Inline Output**: Starts at the current terminal cursor and keeps the active frame immediately after Static output. Growth scrolls when needed; shrinking clears the freed rows below the frame instead of introducing gaps above it. The frame is not pinned to the terminal bottom. `Clear()` repaints from row 0.
 - **`<Static>` Output**: Permanently write completed logs, tasks, and items above the active inline frame into the terminal's native scrollback buffer while continuing to update live interactive components below.
-- **Ink-Compatible Mental Model**: Declarative component tree with lifecycle controls (`Render`, `WaitUntilExit`, `Rerender`, `Unmount`, `Clear`), hooks (`UseApp`, `UseInput`, `UseFocus`, `UseFocusManager`, `UseStdout`, `UseStderr`), and primitives (`Box`, `Text`, `Span`, `Static`, `Newline`, `Spacer`, `Transform`).
+- **Ink-Compatible Mental Model**: Declarative component tree with lifecycle controls (`Render`, `WaitUntilExit`, `Rerender`, `Unmount`, `Clear`), inline hooks (`UseApp`, `UseInput`, `UseFocus`, `UseFocusManager`, `UseStdout`, `UseStderr`), and inline primitives (`Static`, `Newline`, `Spacer`, `Transform`).
 - **Console & Log Interception**: Automatically redirect standard `log.Default()` or `slog` output (`WithInterceptLog`, `inst.LogWriter()`) cleanly into scrollback above the active frame.
-- **Full kitex Interoperability**: Direct access to `kitex` state hooks (`UseState`, `UseReducer`), effect hooks (`UseEffect`, `UseEffectCleanup`, `UseLayoutEffect`, `UseInterval`, `UseTimeout`), and refs (`UseRef`, `CreateRef`).
+- **Full `kitex` Interoperability**: Pair seamlessly with `kitex` components (`FC`, `FCC`, `Box`, `Span`, `Text`, `Textf`, `Fragment`), state (`UseState` + `StateSetter.Update`, `UseReducer`), effects (`UseEffect`, `UseLayoutEffect`, `UseInterval`, `UseTimeout`), and refs (`UseRef`, `CreateRef`).
 
 ## Quick Start
 
@@ -23,16 +23,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/masterkeysrd/kite/event"
+	"github.com/masterkeysrd/kite/extras/kitex"
 	"github.com/masterkeysrd/kite/extras/trail"
 	"github.com/masterkeysrd/kite/style"
 )
 
-var App = trail.FC("App", func(_ trail.NoProps) trail.Node {
-	count, setCount := trail.UseState(0)
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
+	count, setCount := kitex.UseState(0)
 	app := trail.UseApp()
 
 	trail.UseInput(func(input string, k event.KeyEvent) {
@@ -41,13 +41,16 @@ var App = trail.FC("App", func(_ trail.NoProps) trail.Node {
 		}
 	})
 
-	trail.UseInterval(func() {
-		setCount(count() + 1)
+	kitex.UseInterval(func() {
+		setCount.Update(func(n int) int { return n + 1 })
 	}, time.Second)
 
-	return trail.Box.Style(
+	return kitex.Box.Style(
 		style.S().Padding(0, 1),
-		trail.Span.Style(style.S().Bold(true), trail.Text(fmt.Sprintf("Counter: %d (press 'q' to exit)", count()))),
+		kitex.Span.Style(
+			style.S().Bold(true),
+			kitex.Textf("Counter: %d (press 'q' to exit)", count()),
+		),
 	)
 })
 
@@ -68,15 +71,15 @@ func main() {
 Use `trail.Static` to permanently insert completed items above the active live UI:
 
 ```go
-func TaskList(tasks []string) trail.Node {
-	return trail.Fragment(
-		trail.Static(tasks, func(task string, index int) trail.Node {
-			return trail.Box(trail.BoxProps{},
-				trail.Text("✔ " + task),
+func TaskList(tasks []string) kitex.Node {
+	return kitex.Fragment(
+		trail.Static(tasks, func(task string, index int) kitex.Node {
+			return kitex.Box(kitex.BoxProps{},
+				kitex.Text("✔ " + task),
 			)
 		}),
-		trail.Box(trail.BoxProps{},
-			trail.Text("Working on next task..."),
+		kitex.Box(kitex.BoxProps{},
+			kitex.Text("Working on next task..."),
 		),
 	)
 }
@@ -87,7 +90,7 @@ func TaskList(tasks []string) trail.Node {
 `trail.Render` returns an `*Instance` that gives you full programmatic control over the inline execution lifecycle:
 
 - **`inst.WaitUntilExit() error`**: Blocks until the app exits and returns the recorded exit error.
-- **`inst.Rerender(newApp Node)`**: Dynamically updates the root component tree with a new node.
+- **`inst.Rerender(newApp kitex.Node)`**: Dynamically updates the root component tree with a new node.
 - **`inst.Clear()` / `app.Clear()`**: Clears the terminal and scrollback, resets the inline origin, and repaints the mounted app from row 0 without resetting component state.
 - **`inst.Unmount()`**: Executes all `UseEffectCleanup` hooks across the component tree and cleanly halts the engine.
 - **`inst.LogWriter() io.Writer`**: Returns an `io.Writer` that formats log messages and inserts them cleanly into scrollback above the live frame.
@@ -129,7 +132,7 @@ trail.UseInput(func(input string, k event.KeyEvent) {
 ### Focus Management (`UseFocus`, `UseFocusManager`)
 
 ```go
-btnRef := trail.CreateRef[dom.Element]()
+btnRef := kitex.CreateRef[dom.Element]()
 isFocused := trail.UseFocus(btnRef, trail.FocusOptions{AutoFocus: true})
 
 fm := trail.UseFocusManager()
