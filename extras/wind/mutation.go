@@ -43,7 +43,7 @@ func UseMutation[V any, R any](
 		ctx, cancel := context.WithCancel(context.Background())
 		lifetime.Current = ctx
 		return cancel
-	}, []any{})
+	})
 
 	getMutState, setMutState := kitex.UseState(mutationState{
 		isPending: false,

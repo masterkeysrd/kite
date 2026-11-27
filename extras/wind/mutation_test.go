@@ -55,7 +55,7 @@ func TestMutation_CancelsWrappedRequestsOnUnmount(t *testing.T) {
 		}
 	})
 	var mutation MutationResult[int]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		mutation = UseMutation(func(ctx context.Context, variables int) *promise.Promise[int] {
 			p := mutate(ctx, variables)
 			requests = append(requests, p)
@@ -125,7 +125,7 @@ func TestMutation_SuppressesSettledCallbacksAfterUnmount(t *testing.T) {
 			defer kitex.Render(nil, container)
 			callbacks := 0
 			var mutation MutationResult[int]
-			app := kitex.SimpleFC("App", func() kitex.Node {
+			app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 				mutation = UseMutation(func(context.Context, int) *promise.Promise[int] {
 					if rejected {
 						return promise.RejectedPromise[int](errors.New("request failed"))
@@ -170,7 +170,7 @@ func TestQuery_WrappedFetcherCancellationOnUnmount(t *testing.T) {
 			return "", errors.New("query was not canceled")
 		}
 	})
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		Use("key", fetch)
 		return kitex.Box(kitex.BoxProps{})
 	})

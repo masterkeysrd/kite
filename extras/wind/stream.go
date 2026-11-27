@@ -173,7 +173,7 @@ func UseStreamReduce[K comparable, E, S any](
 			}
 			entry.mu.Unlock()
 		}
-	}, []any{key})
+	}, key)
 
 	// Active enabled consumer lifecycle: connect on 0->1, deduplicate on 1->2, cancel on 1->0.
 	kitex.UseLayoutEffectCleanup(func() func() {
@@ -222,7 +222,7 @@ func UseStreamReduce[K comparable, E, S any](
 				entry.notifySubscribers()
 			}
 		}
-	}, []any{key, enabled})
+	}, key, enabled)
 
 	// Prepare Result state
 	entry.mu.Lock()

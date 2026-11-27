@@ -147,7 +147,7 @@ func TestOptions_StaleTimeDoesNotDisable(t *testing.T) {
 	}
 
 	var res capture[Result[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		r := Use("stale_opts_key", fetcher, Options{StaleTime: time.Minute})
 		res.set(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
@@ -180,7 +180,7 @@ func TestStreamOptions_ThrottleZeroKeepsEnabled(t *testing.T) {
 	}
 
 	var res capture[StreamResult[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		r := UseStream("throttle_zero_key", fetcher, StreamOptions{
 			Throttle: Some(time.Duration(0)),
 		})
@@ -230,7 +230,7 @@ func TestStream_RemountWithinGcTime(t *testing.T) {
 	}
 
 	var observed recorder[StreamResult[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		r := UseStream("remount_key", fetcher)
 		observed.add(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
@@ -250,7 +250,7 @@ func TestStream_RemountWithinGcTime(t *testing.T) {
 
 	// Remount before GcTime expires
 	var remountObserved recorder[StreamResult[string]]
-	app2 := kitex.SimpleFC("App2", func() kitex.Node {
+	app2 := kitex.FC("App2", func(_ kitex.NoProps) kitex.Node {
 		r := UseStream("remount_key", fetcher)
 		remountObserved.add(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
@@ -318,13 +318,13 @@ func TestStream_EnabledToggleCancellation(t *testing.T) {
 	})
 
 	// 1. Mount with Enabled=true
-	kitex.Render(Provider(ProviderProps{Client: client}, comp(props{Enabled: true})), container)
+	kitex.Render(Provider(ProviderProps{Client: client}, comp.Props(props{Enabled: true})), container)
 	if !waitFor(t, func() bool { return res.get().Data == "first" && res.get().IsFetching && res.get().Status == "open" }) {
 		t.Fatalf("expected initial stream open with 'first', got %+v", res.get())
 	}
 
 	// 2. Toggle Enabled=false: cancels active stream and notifies passive subscriber
-	kitex.Render(Provider(ProviderProps{Client: client}, comp(props{Enabled: false})), container)
+	kitex.Render(Provider(ProviderProps{Client: client}, comp.Props(props{Enabled: false})), container)
 
 	select {
 	case <-cancelled1:
@@ -337,7 +337,7 @@ func TestStream_EnabledToggleCancellation(t *testing.T) {
 	}
 
 	// 3. Toggle Enabled=true: reconnects and receives new data
-	kitex.Render(Provider(ProviderProps{Client: client}, comp(props{Enabled: true})), container)
+	kitex.Render(Provider(ProviderProps{Client: client}, comp.Props(props{Enabled: true})), container)
 	if !waitFor(t, func() bool { return connects.get() == 2 && res.get().Data == "second" }) {
 		t.Fatalf("expected reconnect on false -> true, connects=%d res=%+v", connects.get(), res.get())
 	}
@@ -373,18 +373,18 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 
 		app := kitex.FC("App", func(p struct{ E1, E2 bool }) kitex.Node {
 			return kitex.Box(kitex.BoxProps{},
-				sub(struct{ Enabled bool }{Enabled: p.E1}),
-				sub(struct{ Enabled bool }{Enabled: p.E2}),
+				sub.Props(struct{ Enabled bool }{Enabled: p.E1}),
+				sub.Props(struct{ Enabled bool }{Enabled: p.E2}),
 			)
 		})
 
-		kitex.Render(Provider(ProviderProps{Client: client}, app(struct{ E1, E2 bool }{true, true})), container)
+		kitex.Render(Provider(ProviderProps{Client: client}, app.Props(struct{ E1, E2 bool }{true, true})), container)
 		if !waitFor(t, func() bool { return connects.get() == 1 }) {
 			t.Fatal("expected stream to start once")
 		}
 
 		// Disable first consumer while second stays enabled
-		kitex.Render(Provider(ProviderProps{Client: client}, app(struct{ E1, E2 bool }{false, true})), container)
+		kitex.Render(Provider(ProviderProps{Client: client}, app.Props(struct{ E1, E2 bool }{false, true})), container)
 		time.Sleep(25 * time.Millisecond)
 		if cancelled.Load() {
 			t.Fatal("stream must NOT cancel while another enabled subscriber remains")
@@ -394,7 +394,7 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 		}
 
 		// Disable second consumer too -> now stream cancels
-		kitex.Render(Provider(ProviderProps{Client: client}, app(struct{ E1, E2 bool }{false, false})), container)
+		kitex.Render(Provider(ProviderProps{Client: client}, app.Props(struct{ E1, E2 bool }{false, false})), container)
 		if !waitFor(t, cancelled.Load) {
 			t.Fatal("expected stream to cancel when last enabled subscriber disables")
 		}
@@ -417,12 +417,12 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 		}
 
 		var res1, res2 capture[StreamResult[string]]
-		sub1 := kitex.SimpleFC("Sub1", func() kitex.Node {
+		sub1 := kitex.FC("Sub1", func(_ kitex.NoProps) kitex.Node {
 			r := UseStream("finite_dedupe", fetcher)
 			res1.set(r)
 			return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
 		})
-		sub2 := kitex.SimpleFC("Sub2", func() kitex.Node {
+		sub2 := kitex.FC("Sub2", func(_ kitex.NoProps) kitex.Node {
 			r := UseStream("finite_dedupe", fetcher)
 			res2.set(r)
 			return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
@@ -435,13 +435,13 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 			return kitex.Box(kitex.BoxProps{}, sub1())
 		})
 
-		kitex.Render(Provider(ProviderProps{Client: client}, app(struct{ ShowSecond bool }{false})), container)
+		kitex.Render(Provider(ProviderProps{Client: client}, app.Props(struct{ ShowSecond bool }{false})), container)
 		if !waitFor(t, func() bool { return res1.get().Status == "closed" && res1.get().Data == "done" }) {
 			t.Fatalf("expected finite stream to complete and close, got %+v", res1.get())
 		}
 
 		// Mount second subscriber while first is still mounted & enabled
-		kitex.Render(Provider(ProviderProps{Client: client}, app(struct{ ShowSecond bool }{true})), container)
+		kitex.Render(Provider(ProviderProps{Client: client}, app.Props(struct{ ShowSecond bool }{true})), container)
 		time.Sleep(25 * time.Millisecond)
 
 		if connects.get() != 1 {
@@ -474,7 +474,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		}
 
 		var res capture[StreamResult[int]]
-		app := kitex.SimpleFC("BurstReduce", func() kitex.Node {
+		app := kitex.FC("BurstReduce", func(_ kitex.NoProps) kitex.Node {
 			r := UseStreamReduce("burst_reduce", 0, fetcher, func(prev, ev int) int {
 				return prev + ev
 			})
@@ -518,7 +518,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		}
 
 		var res capture[StreamResult[int]]
-		app := kitex.SimpleFC("ReplaceReduce", func() kitex.Node {
+		app := kitex.FC("ReplaceReduce", func(_ kitex.NoProps) kitex.Node {
 			r := UseStreamReduce("replace_reduce", 0, fetcher, func(prev, ev int) int {
 				return prev + ev
 			}, StreamOptions{RefetchMode: RefetchReplace})
@@ -572,7 +572,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		}
 
 		var res capture[StreamResult[int]]
-		app := kitex.SimpleFC("ResetReduce", func() kitex.Node {
+		app := kitex.FC("ResetReduce", func(_ kitex.NoProps) kitex.Node {
 			r := UseStreamReduce("reset_reduce", 100, fetcher, func(prev, ev int) int {
 				return prev + ev
 			}, StreamOptions{RefetchMode: RefetchReset})
@@ -622,7 +622,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		}
 
 		var res capture[StreamResult[int]]
-		app := kitex.SimpleFC("AppendReduce", func() kitex.Node {
+		app := kitex.FC("AppendReduce", func(_ kitex.NoProps) kitex.Node {
 			r := UseStreamReduce("append_reduce", 0, fetcher, func(prev, ev int) int {
 				return prev + ev
 			}, StreamOptions{RefetchMode: RefetchAppend})
@@ -656,7 +656,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		}
 
 		var res capture[StreamResult[int]]
-		app := kitex.SimpleFC("ZeroEvent", func() kitex.Node {
+		app := kitex.FC("ZeroEvent", func(_ kitex.NoProps) kitex.Node {
 			r := UseStream("zero_event", fetcher)
 			res.set(r)
 			return kitex.Box(kitex.BoxProps{})
@@ -700,7 +700,7 @@ func TestStream_BoundedWorkerPoolNonStarvation(t *testing.T) {
 	}
 
 	var queryRes capture[Result[string]]
-	app := kitex.SimpleFC("NonStarvationApp", func() kitex.Node {
+	app := kitex.FC("NonStarvationApp", func(_ kitex.NoProps) kitex.Node {
 		s1 := UseStream("s1", streamFetcher)
 		s2 := UseStream("s2", streamFetcher)
 		s3 := UseStream("s3", streamFetcher)
@@ -760,7 +760,7 @@ func TestClient_Close(t *testing.T) {
 		})
 	}
 
-	unmountQuery := kitex.SimpleFC("UnmountQuery", func() kitex.Node {
+	unmountQuery := kitex.FC("UnmountQuery", func(_ kitex.NoProps) kitex.Node {
 		Use("gc_pending_key", func(ctx context.Context, key string) *promise.Promise[string] {
 			return promise.Resolved("cached")
 		})
@@ -772,7 +772,7 @@ func TestClient_Close(t *testing.T) {
 	// Unmount so gcTimer is armed
 	kitex.Render(nil, container)
 
-	app := kitex.SimpleFC("ActiveApp", func() kitex.Node {
+	app := kitex.FC("ActiveApp", func(_ kitex.NoProps) kitex.Node {
 		UseStream("active_stream", streamFetcher)
 		Use("active_fetch", queryFetcher)
 		return kitex.Box(kitex.BoxProps{})
@@ -849,7 +849,7 @@ func TestClient_Close(t *testing.T) {
 			})
 		}
 
-		app := kitex.SimpleFC("UnflushedCloseApp", func() kitex.Node {
+		app := kitex.FC("UnflushedCloseApp", func(_ kitex.NoProps) kitex.Node {
 			Use("unflushed_key", fetcher)
 			return kitex.Box(kitex.BoxProps{})
 		})
@@ -902,7 +902,7 @@ func TestTearingWindow_ClosedOnSubscribe(t *testing.T) {
 	entry.mu.Unlock()
 
 	var observed recorder[string]
-	app := kitex.SimpleFC("TearingApp", func() kitex.Node {
+	app := kitex.FC("TearingApp", func(_ kitex.NoProps) kitex.Node {
 		r := Use("tearing_key", func(ctx context.Context, k string) *promise.Promise[string] {
 			return promise.Resolved("v1")
 		}, Options{StaleTime: time.Hour})
@@ -960,7 +960,7 @@ func TestStream_SchedulerStopCancelsBeforeUnmount(t *testing.T) {
 	}
 
 	var res capture[StreamResult[string]]
-	app := kitex.SimpleFC("SchedStopStream", func() kitex.Node {
+	app := kitex.FC("SchedStopStream", func(_ kitex.NoProps) kitex.Node {
 		r := UseStream("sched_stop_stream", fetcher)
 		res.set(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))

@@ -108,7 +108,7 @@ func TestContextCancellationOnUnmount(t *testing.T) {
 		})
 	}
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := Use("test_cancel", fetcher)
 		return kitex.Box(kitex.BoxProps{ID: "box"}, kitex.Text(res.Data))
 	})
@@ -162,10 +162,10 @@ func TestRequestDeduping(t *testing.T) {
 		})
 	}
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{},
-			ChildQueryComp(ChildProps{Key: "same_key", Fetcher: fetcher}),
-			ChildQueryComp(ChildProps{Key: "same_key", Fetcher: fetcher}),
+			ChildQueryComp.Props(ChildProps{Key: "same_key", Fetcher: fetcher}),
+			ChildQueryComp.Props(ChildProps{Key: "same_key", Fetcher: fetcher}),
 		)
 	})
 
@@ -205,7 +205,7 @@ func TestQueryInvalidation(t *testing.T) {
 	}
 
 	var result capture[Result[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := Use("test_key", fetcher)
 		result.set(res)
 		return kitex.Box(kitex.BoxProps{ID: "box"}, kitex.Text(res.Data))
@@ -255,7 +255,7 @@ func TestMutation(t *testing.T) {
 	}
 
 	var mutation capture[MutationResult[int]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := UseMutation(func(ctx context.Context, vars int) *promise.Promise[string] {
 			return promise.New(func(ctx context.Context) (string, error) {
 				return "mut_res", nil
@@ -335,7 +335,7 @@ func BenchmarkUseQuery(b *testing.B) {
 		})
 	}
 
-	comp := kitex.SimpleFC("Comp", func() kitex.Node {
+	comp := kitex.FC("Comp", func(_ kitex.NoProps) kitex.Node {
 		res := Use("key", fetcher)
 		return kitex.Box(kitex.BoxProps{ID: res.Data})
 	})
@@ -357,7 +357,7 @@ func BenchmarkUseMutation(b *testing.B) {
 		})
 	}
 
-	comp := kitex.SimpleFC("Comp", func() kitex.Node {
+	comp := kitex.FC("Comp", func(_ kitex.NoProps) kitex.Node {
 		res := UseMutation(mutationFn)
 		var char rune
 		if res.IsPending {
@@ -389,7 +389,7 @@ func TestQueryInitialLoadingState(t *testing.T) {
 	}
 
 	var observed recorder[Result[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := Use("test_loading_key", fetcher)
 		observed.add(res)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
@@ -448,7 +448,7 @@ func TestStream_UnmountCancellation(t *testing.T) {
 		}
 	}
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := UseStream("stream_cancel", fetcher)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
@@ -488,10 +488,10 @@ func TestStream_Deduplication(t *testing.T) {
 		}
 	}
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{},
-			ChildStreamComp(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
-			ChildStreamComp(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
+			ChildStreamComp.Props(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
+			ChildStreamComp.Props(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
 		)
 	})
 
@@ -544,7 +544,7 @@ func TestStream_Coalescing(t *testing.T) {
 	var mu sync.Mutex
 	var lastData string
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := UseStream("coalesce_key", fetcher)
 		mu.Lock()
 		renderCount++
@@ -602,7 +602,7 @@ func TestStream_InvalidationCoalescing(t *testing.T) {
 		}
 	}
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := UseStream("invalidate_key", fetcher)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
@@ -661,7 +661,7 @@ func TestStream_ManualReconnection(t *testing.T) {
 	}
 
 	var capturedResult capture[StreamResult[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := UseStream("reconnect_key", fetcher)
 		capturedResult.set(res)
 		return kitex.Box(kitex.BoxProps{})
@@ -736,7 +736,7 @@ func TestCacheEviction(t *testing.T) {
 		})
 	}
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := Use("evict_key", fetcher)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
@@ -885,7 +885,7 @@ func TestInvalidateQueries_SequencesActiveFetch(t *testing.T) {
 	}
 
 	var result capture[Result[string]]
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		res := Use("test_cancel_key", fetcher)
 		result.set(res)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
@@ -910,5 +910,96 @@ func TestInvalidateQueries_SequencesActiveFetch(t *testing.T) {
 
 	if count := fetchCount.get(); count != 2 {
 		t.Fatalf("expected fetch to be triggered exactly 2 times, got %d", count)
+	}
+}
+
+type singleSlotScheduler struct {
+	sem        chan struct{}
+	mu         sync.Mutex
+	calls      int
+	microtasks []func()
+}
+
+func newSingleSlotScheduler() *singleSlotScheduler {
+	return &singleSlotScheduler{sem: make(chan struct{}, 1)}
+}
+
+func (s *singleSlotScheduler) RunBackground(task func(ctx context.Context)) {
+	s.mu.Lock()
+	s.calls++
+	s.mu.Unlock()
+	go func() {
+		s.sem <- struct{}{}
+		defer func() { <-s.sem }()
+		task(context.Background())
+	}()
+}
+
+func (s *singleSlotScheduler) Spawn(task func(ctx context.Context)) {
+	go task(context.Background())
+}
+
+func (s *singleSlotScheduler) QueueMicrotask(task func()) {
+	s.mu.Lock()
+	s.microtasks = append(s.microtasks, task)
+	s.mu.Unlock()
+}
+
+func (s *singleSlotScheduler) QueueMacrotask(task func()) {
+	s.QueueMicrotask(task)
+}
+
+func (s *singleSlotScheduler) Flush() {
+	for {
+		s.mu.Lock()
+		if len(s.microtasks) == 0 {
+			s.mu.Unlock()
+			return
+		}
+		tasks := s.microtasks
+		s.microtasks = nil
+		s.mu.Unlock()
+		for _, task := range tasks {
+			task()
+		}
+	}
+}
+
+func TestUse_SingleWorkerSlot_NoDeadlock(t *testing.T) {
+	doc := dom.NewDocument()
+	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer kitex.Render(nil, container)
+
+	sched := newSingleSlotScheduler()
+	promise.SetScheduler(sched)
+	defer promise.ClearSchedulerIf(sched)
+
+	client := NewClient()
+	defer client.Close()
+
+	var result capture[Result[string]]
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
+		res := Use("single_slot_key", promise.WrapWithProps(func(ctx context.Context, key string) (string, error) {
+			return "ok:" + key, nil
+		}))
+		result.set(res)
+		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
+	})
+
+	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+	if !waitFor(t, func() bool {
+		sched.Flush()
+		return result.get().Data == "ok:single_slot_key"
+	}) {
+		t.Fatalf("expected query to resolve with single worker slot, got %+v", result.get())
+	}
+
+	sched.mu.Lock()
+	bgCalls := sched.calls
+	sched.mu.Unlock()
+	if bgCalls != 1 {
+		t.Fatalf("expected exactly 1 worker-pool RunBackground call, got %d", bgCalls)
 	}
 }

@@ -51,7 +51,7 @@ func BenchmarkUse_CacheHit(b *testing.B) {
 		return promise.Resolved("cached_value")
 	}
 
-	comp := kitex.SimpleFC("WarmQueryComp", func() kitex.Node {
+	comp := kitex.FC("WarmQueryComp", func(_ kitex.NoProps) kitex.Node {
 		res := Use("warm_key", fetcher, Options{StaleTime: time.Hour})
 		return kitex.Box(kitex.BoxProps{ID: res.Data})
 	})
@@ -99,7 +99,7 @@ func BenchmarkUseStreamReduce_BurstFold(b *testing.B) {
 	}
 
 	var latest capture[StreamResult[benchBurstState]]
-	comp := kitex.SimpleFC("BurstFoldComp", func() kitex.Node {
+	comp := kitex.FC("BurstFoldComp", func(_ kitex.NoProps) kitex.Node {
 		res := UseStreamReduce(
 			"bench_burst_reduce",
 			benchBurstState{},

@@ -421,14 +421,17 @@ func (c *Client) executeStream(entry *queryEntry, cfg streamConfig) {
 var clientContext = kitex.CreateContext[*Client](nil)
 
 type ProviderProps struct {
-	Client   *Client
-	Children []kitex.Node
+	Client *Client
 }
 
-// Provider makes the Client available to the component tree.
-var Provider = kitex.FCC("WindProvider", func(props ProviderProps) kitex.Node {
-	return clientContext.Provider(props.Client, props.Children...)
+var providerFCC = kitex.FCC("WindProvider", func(props ProviderProps, children ...kitex.Node) kitex.Node {
+	return clientContext.Provider(props.Client, children...)
 })
+
+// Provider makes the Client available to the component tree.
+func Provider(props ProviderProps, children ...kitex.Node) kitex.Node {
+	return providerFCC.Props(props, children...)
+}
 
 // UseClient extracts the client from the context.
 func UseClient() *Client {

@@ -49,14 +49,22 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 		entry.gcTimer = nil
 	}
 	if !closed && !entry.closed {
-		typeEraser := func(ctx context.Context) *promise.Promise[any] {
+		runner := func(ctx context.Context, onResolve func(any), onReject func(error), onFinally func()) bool {
 			p := fetcher(ctx, key)
-			return promise.New(func(ctx context.Context) (any, error) {
-				return p.Await(ctx)
-			})
+			if p == nil {
+				return false
+			}
+			go func() {
+				_, _ = p.Await(context.Background())
+				client.wg.Done()
+			}()
+			p.Then(func(data T) {
+				onResolve(data)
+			}, onReject).Finally(onFinally)
+			return true
 		}
 		entry.refetch = func() {
-			client.executeFetch(entry, typeEraser)
+			client.executeFetch(entry, runner)
 		}
 	}
 	entry.mu.Unlock()
@@ -124,7 +132,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 			}
 			entry.mu.Unlock()
 		}
-	}, []any{key})
+	}, key)
 
 	// Trigger fetch if enabled and stale/first load
 	kitex.UseLayoutEffect(func() {
@@ -143,7 +151,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 		if needsFetch && refetch != nil {
 			refetch()
 		}
-	}, []any{key, enabled, staleTime})
+	}, key, enabled, staleTime)
 
 	// Prepare result
 	entry.mu.Lock()
@@ -167,7 +175,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 	}
 }
 
-func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *promise.Promise[any]) {
+func (c *Client) executeFetch(entry *queryEntry, run func(ctx context.Context, onResolve func(any), onReject func(error), onFinally func()) bool) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -196,26 +204,7 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *
 	// Notify observers that fetching has started
 	entry.notifySubscribers()
 
-	p := fetcher(ctx)
-	if p == nil {
-		entry.mu.Lock()
-		if entry.state.isFetching {
-			entry.state.isFetching = false
-			entry.cancel = nil
-			entry.version++
-		}
-		entry.mu.Unlock()
-		cancel()
-		c.wg.Done()
-		return
-	}
-
-	go func() {
-		_, _ = p.Await(context.Background())
-		c.wg.Done()
-	}()
-
-	p.Then(func(data any) {
+	started := run(ctx, func(data any) {
 		entry.mu.Lock()
 		if ctx.Err() != nil || entry.closed {
 			entry.mu.Unlock()
@@ -264,6 +253,18 @@ func (c *Client) executeFetch(entry *queryEntry, fetcher func(context.Context) *
 		if shouldRefetch && refetch != nil {
 			refetch()
 		}
-	}).
-		Finally(cancel)
+	}, cancel)
+
+	if !started {
+		entry.mu.Lock()
+		if entry.state.isFetching {
+			entry.state.isFetching = false
+			entry.cancel = nil
+			entry.version++
+		}
+		entry.mu.Unlock()
+		cancel()
+		c.wg.Done()
+		return
+	}
 }
