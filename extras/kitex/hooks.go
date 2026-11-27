@@ -3,9 +3,12 @@ package kitex
 import (
 	"context"
 	"reflect"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
+	"weak"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
@@ -14,15 +17,59 @@ import (
 	"github.com/masterkeysrd/kite/terminal"
 )
 
+// StateSetter updates a state slot created by [UseState]. Call it directly as
+// setState(next) to replace the value, or call setState.Update(fn) to perform
+// an atomic read-modify-write under the hook's mutex.
+type StateSetter[T any] func(T)
+
+// setterRegistry maps the 1-word closure pointer of each active StateSetter[T]
+// to a weak pointer to its hookState[T], allowing StateSetter[T].Update to
+// perform atomic read-modify-write updates without allocating an extra closure.
+var setterRegistry sync.Map
+
+type hookCleaner interface {
+	cleanHook()
+}
+
+type setterCleanupArg[T any] struct {
+	key uintptr
+	wp  weak.Pointer[hookState[T]]
+}
+
+// Update atomically transforms the current state value via fn under the hook's
+// mutex and marks the component dirty. Safe to call from any goroutine.
+func (s StateSetter[T]) Update(fn func(T) T) {
+	if s == nil || fn == nil {
+		return
+	}
+	key := *(*uintptr)(unsafe.Pointer(&s))
+	val, ok := setterRegistry.Load(key)
+	if !ok {
+		return
+	}
+	wp, ok := val.(weak.Pointer[hookState[T]])
+	if !ok {
+		return
+	}
+	hs := wp.Value()
+	if hs == nil {
+		return
+	}
+	hs.update(fn)
+}
+
 // hookState holds one UseState slot. The mutex is required because state is
 // written from subscriber callbacks (promise resolution, stream events) that
 // run on arbitrary goroutines, so two notifications can land concurrently on
 // the same component.
 type hookState[T any] struct {
-	mu    sync.Mutex
-	value T
-	get   func() T
-	set   func(T)
+	mu        sync.Mutex
+	value     T
+	ref       *componentRef
+	get       func() T
+	set       StateSetter[T]
+	setterKey uintptr
+	cleanup   runtime.Cleanup
 }
 
 func (h *hookState[T]) load() T {
@@ -37,6 +84,26 @@ func (h *hookState[T]) store(v T) {
 	h.value = v
 }
 
+func (h *hookState[T]) update(fn func(T) T) {
+	h.ref.mu.Lock()
+	activeNode := h.ref.node
+	h.ref.mu.Unlock()
+
+	if activeNode == nil {
+		return
+	}
+
+	h.mu.Lock()
+	h.value = fn(h.value)
+	h.mu.Unlock()
+	activeNode.MarkDirty()
+}
+
+func (h *hookState[T]) cleanHook() {
+	h.cleanup.Stop()
+	setterRegistry.Delete(h.setterKey)
+}
+
 type hookValuer interface {
 	getValue() any
 }
@@ -46,9 +113,10 @@ func (h *hookState[T]) getValue() any {
 }
 
 // UseState initializes a state variable on first render, persists it across render cycles,
-// and returns a getter and a setter. Setting the state flags the component dirty.
+// and returns a getter and a [StateSetter]. Calling set(val) replaces the state, while
+// set.Update(fn) performs an atomic read-modify-write under the hook's mutex.
 // If called outside of a component render cycle, it panics.
-func UseState[T any](initial T) (func() T, func(T)) {
+func UseState[T any](initial T) (func() T, StateSetter[T]) {
 	compVal := getCurrentComponent()
 	if compVal == nil {
 		panic("UseState must be called inside a functional component render phase")
@@ -65,13 +133,14 @@ func UseState[T any](initial T) (func() T, func(T)) {
 
 		hs := &hookState[T]{
 			value: initial,
+			ref:   ref,
 		}
 
 		get := func() T {
 			return hs.load()
 		}
 
-		set := func(newVal T) {
+		set := StateSetter[T](func(newVal T) {
 			ref.mu.Lock()
 			activeNode := ref.node
 			ref.mu.Unlock()
@@ -82,10 +151,19 @@ func UseState[T any](initial T) (func() T, func(T)) {
 
 			hs.store(newVal)
 			activeNode.MarkDirty()
-		}
+		})
+
+		setterKey := *(*uintptr)(unsafe.Pointer(&set))
+		wp := weak.Make(hs)
+		setterRegistry.Store(setterKey, wp)
 
 		hs.get = get
 		hs.set = set
+		hs.setterKey = setterKey
+		hs.cleanup = runtime.AddCleanup(hs, func(arg setterCleanupArg[T]) {
+			setterRegistry.CompareAndDelete(arg.key, arg.wp)
+		}, setterCleanupArg[T]{key: setterKey, wp: wp})
+
 		comp.setHookState(idx, hs)
 		return get, set
 	}

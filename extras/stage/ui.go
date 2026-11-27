@@ -165,12 +165,8 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 					Width(style.Cells(15)).
 					Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
 					Padding(0, 1),
-				OnChange: func(e event.Event) {
-					if ie, ok := e.(*event.InputEvent); ok {
-						props.SetGlobalVal(capturedName, ie.Value)
-					} else if ce, ok := e.(*event.ChangeEvent); ok {
-						props.SetGlobalVal(capturedName, ce.Value)
-					}
+				OnInput: func(ie *event.InputEvent) {
+					props.SetGlobalVal(capturedName, ie.Value)
 				},
 			})
 		case ControlTypeBool:
@@ -191,7 +187,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 						Border(false).
 						Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 						Padding(0, 1),
-					OnClick: func(e event.Event) {
+					OnClick: func(e *event.MouseEvent) {
 						props.SetGlobalVal(capturedName, !currentBool)
 					},
 				},
@@ -216,7 +212,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 						Border(false).
 						Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 						Padding(0, 1),
-					OnClick: func(e event.Event) {
+					OnClick: func(e *event.MouseEvent) {
 						nextIdx := 0
 						for optIdx, opt := range capturedOptions {
 							if opt == currentStr {
@@ -265,7 +261,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				kitex.Button(
 					kitex.ButtonProps{
 						Style: stepperBtnStyle,
-						OnClick: func(e event.Event) {
+						OnClick: func(e *event.MouseEvent) {
 							props.SetGlobalVal(capturedName, currentInt-1)
 						},
 					},
@@ -284,7 +280,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				kitex.Button(
 					kitex.ButtonProps{
 						Style: stepperBtnStyle,
-						OnClick: func(e event.Event) {
+						OnClick: func(e *event.MouseEvent) {
 							props.SetGlobalVal(capturedName, currentInt+1)
 						},
 					},
@@ -337,12 +333,8 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 					Width(style.Percent(100)).
 					Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
 					Padding(0, 1),
-				OnChange: func(e event.Event) {
-					if ie, ok := e.(*event.InputEvent); ok {
-						setKnobValue(capturedName, ie.Value)
-					} else if ce, ok := e.(*event.ChangeEvent); ok {
-						setKnobValue(capturedName, ce.Value)
-					}
+				OnInput: func(ie *event.InputEvent) {
+					setKnobValue(capturedName, ie.Value)
 				},
 			})
 		case ControlTypeBool:
@@ -363,7 +355,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 						Border(false).
 						Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 						Padding(0, 0),
-					OnClick: func(e event.Event) {
+					OnClick: func(e *event.MouseEvent) {
 						setKnobValue(capturedName, !currentBool)
 					},
 				},
@@ -388,7 +380,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 						Border(false).
 						Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 						Padding(0, 1),
-					OnClick: func(e event.Event) {
+					OnClick: func(e *event.MouseEvent) {
 						nextIdx := 0
 						for optIdx, opt := range capturedOptions {
 							if opt == currentStr {
@@ -437,7 +429,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				kitex.Button(
 					kitex.ButtonProps{
 						Style: stepperBtnStyle,
-						OnClick: func(e event.Event) {
+						OnClick: func(e *event.MouseEvent) {
 							setKnobValue(capturedName, currentInt-1)
 						},
 					},
@@ -456,7 +448,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				kitex.Button(
 					kitex.ButtonProps{
 						Style: stepperBtnStyle,
-						OnClick: func(e event.Event) {
+						OnClick: func(e *event.MouseEvent) {
 							setKnobValue(capturedName, currentInt+1)
 						},
 					},
@@ -598,7 +590,7 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 								Border(false).
 								Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}). // Indigo 600
 								Padding(0, 1),
-							OnClick: func(e event.Event) {
+							OnClick: func(e *event.MouseEvent) {
 								setLogs([]ActionLog{})
 								if sceneContext != nil {
 									sceneContext.ClearLogs()
@@ -889,7 +881,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		capturedNode := node
 		sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
 			Style: headerStyle,
-			OnClick: func(e event.Event) {
+			OnClick: func(e *event.MouseEvent) {
 				toggleComp(capturedPath, capturedNode)
 			},
 		}, kitex.Text(icon+node.Name)))
@@ -930,7 +922,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 				capturedIdx := globalIdx
 				sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
 					Style: itemStyle,
-					OnClick: func(e event.Event) {
+					OnClick: func(e *event.MouseEvent) {
 						setActiveSceneIdx(capturedIdx)
 					},
 				}, kitex.Text("▪ "+fsc.sc.Name)))
@@ -1073,20 +1065,15 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 					Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}).
 					Foreground(color.RGBA{R: 243, G: 244, B: 246, A: 255}).
 					Padding(0, 1),
-				OnChange: func(e event.Event) {
-					if ie, ok := e.(*event.InputEvent); ok {
-						setFilterText(ie.Value)
-					} else if ce, ok := e.(*event.ChangeEvent); ok {
-						setFilterText(ce.Value)
-					}
+				OnValueChange: func(val string) {
+					setFilterText(val)
 				},
-				OnKeyDown: func(e event.Event) {
-					ke := e.(*event.KeyEvent)
+				OnKeyDown: func(ke *event.KeyEvent) {
 					if ke.MatchString("escape") || ke.MatchString("enter") {
 						if filterInputRef.Current != nil {
 							filterInputRef.Current.Blur()
 						}
-						e.PreventDefault()
+						ke.PreventDefault()
 					}
 				},
 			}),

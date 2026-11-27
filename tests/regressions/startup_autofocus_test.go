@@ -117,7 +117,7 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 		return kitex.Box(kitex.BoxProps{},
 			kitex.Button(kitex.ButtonProps{
 				ID: "btn1",
-				OnClick: func(e event.Event) {
+				OnClick: func(e *event.MouseEvent) {
 					nav.Push(Route2{})
 				},
 			}),
@@ -137,7 +137,7 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 		return kitex.Box(kitex.BoxProps{},
 			kitex.Button(kitex.ButtonProps{
 				ID: "btn2",
-				OnClick: func(e event.Event) {
+				OnClick: func(e *event.MouseEvent) {
 					nav.Pop()
 				},
 			}),

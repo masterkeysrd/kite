@@ -808,8 +808,8 @@ func TestReconciler_ClearAllSubscriptionsRecursive(t *testing.T) {
 	childRef := CreateRef[dom.Node]()
 
 	root := Box(BoxProps{},
-		Box(BoxProps{ID: "inner-box", OnClick: func(e event.Event) {}, Ref: innerRef},
-			Span(SpanProps{ID: "child-span", OnClick: func(e event.Event) {}, Ref: childRef}),
+		Box(BoxProps{ID: "inner-box", OnClick: func(e *event.MouseEvent) {}, Ref: innerRef},
+			Span(SpanProps{ID: "child-span", OnClick: func(e *event.MouseEvent) {}, Ref: childRef}),
 		),
 	)
 
@@ -1165,7 +1165,7 @@ func TestReconciler_ComponentEventListenerUpdate(t *testing.T) {
 		getVal, setVal := UseState(10)
 		setValFn = setVal
 		return Button(ButtonProps{
-			OnClick: func(e event.Event) {
+			OnClick: func(e *event.MouseEvent) {
 				calledWithVal = getVal()
 			},
 		})
@@ -1198,7 +1198,7 @@ func TestReconciler_ComponentNestedEventListenerUpdate(t *testing.T) {
 	var setValFn func(int)
 	var calledWithVal int
 
-	InnerComp := FC("InnerComp", func(props struct{ OnClick func(event.Event) }) Node {
+	InnerComp := FC("InnerComp", func(props struct{ OnClick func(*event.MouseEvent) }) Node {
 		return Button(ButtonProps{
 			OnClick: props.OnClick,
 		})
@@ -1208,8 +1208,8 @@ func TestReconciler_ComponentNestedEventListenerUpdate(t *testing.T) {
 		getVal, setVal := UseState(10)
 		setValFn = setVal
 		return Fragment(
-			InnerComp(struct{ OnClick func(event.Event) }{
-				OnClick: func(e event.Event) {
+			InnerComp(struct{ OnClick func(*event.MouseEvent) }{
+				OnClick: func(e *event.MouseEvent) {
 					calledWithVal = getVal()
 				},
 			}),
@@ -1248,7 +1248,7 @@ func TestReconciler_ComponentStaleClosureValue(t *testing.T) {
 		setValFn = setVal
 		val := getVal() // calls getter during render
 		return Button(ButtonProps{
-			OnClick: func(e event.Event) {
+			OnClick: func(e *event.MouseEvent) {
 				calledWithVal = val // captures the value, not the getter!
 			},
 		})
@@ -2011,10 +2011,38 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 				if oldBox.Parent() != nil || oldBox.IsConnected() {
 					t.Errorf("expected replaced mode-box DOM node to remain detached, got parent=%v connected=%v", oldBox.Parent(), oldBox.IsConnected())
 				}
-				if doc.GetElementByID("mode-box") != nil {
-					t.Errorf("expected mode-box ID to be unregistered from document")
-				}
-			})
+		if doc.GetElementByID("mode-box") != nil {
+			t.Errorf("expected mode-box ID to be unregistered from document")
 		}
+	})
+	}
+	}
+}
+
+func TestReconciler_CustomElementSetStyleAndSetHidden(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer Unmount(container)
+
+	Render(Box(BoxProps{
+		ID:     "b",
+		Style:  style.S().Padding(2),
+		Hidden: true,
+	}), container)
+
+	el := doc.GetElementByID("b").(element.Element)
+	if !el.IsHidden() || el.RawStyle().PaddingOpt().Value() != style.Edges(2) {
+		t.Fatalf("unexpected initial style/hidden: hidden=%v padding=%v", el.IsHidden(), el.RawStyle().PaddingOpt())
+	}
+
+	Render(Box(BoxProps{
+		ID:     "b",
+		Style:  style.S().Padding(4),
+		Hidden: false,
+	}), container)
+
+	if el.IsHidden() || el.RawStyle().PaddingOpt().Value() != style.Edges(4) {
+		t.Fatalf("unexpected updated style/hidden: hidden=%v padding=%v", el.IsHidden(), el.RawStyle().PaddingOpt())
 	}
 }

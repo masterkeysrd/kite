@@ -40,7 +40,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 			{Key: "3", ID: "C"},
 		})
 
-		handleReverse := func(e event.Event) {
+		handleReverse := func(e *event.MouseEvent) {
 			curr := items()
 			reversed := make([]ItemData, len(curr))
 			for i, item := range curr {
@@ -120,7 +120,7 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 			{Key: "2", ID: "B"},
 		})
 
-		handleAction := func(e event.Event) {
+		handleAction := func(e *event.MouseEvent) {
 			set([]ItemData{
 				{Key: "3", ID: "C"},
 				{Key: "2", ID: "B"},

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/event"
@@ -1681,4 +1682,249 @@ func TestUseProgramResume(t *testing.T) {
 	if mockTerm.resume != nil {
 		t.Fatalf("expected mockTerm.resume to be cleared, got %+v", mockTerm.resume)
 	}
+}
+
+func TestStateSetter_DirectAndFunctionalUpdate(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	var (
+		getCount func() int
+		setCount StateSetter[int]
+	)
+
+	comp := SimpleFC("DirectUpdateComp", func() Node {
+		g, s := UseState(10)
+		getCount = g
+		setCount = s
+		return Textf("count:%d", g())
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	if got := getCount(); got != 10 {
+		t.Fatalf("initial count = %d, want 10", got)
+	}
+
+	// Direct call set(val)
+	setCount(25)
+	if got := getCount(); got != 25 {
+		t.Fatalf("after setCount(25), count = %d, want 25", got)
+	}
+
+	// Functional update set.Update(fn)
+	setCount.Update(func(prev int) int { return prev * 2 })
+	if got := getCount(); got != 50 {
+		t.Fatalf("after Update(*2), count = %d, want 50", got)
+	}
+}
+
+func TestStateSetter_ConcurrentAtomicUpdates(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	var (
+		captureOnce sync.Once
+		getCount    func() int
+		setCount    StateSetter[int]
+	)
+
+	comp := SimpleFC("CounterComp", func() Node {
+		g, s := UseState(0)
+		captureOnce.Do(func() {
+			getCount = g
+			setCount = s
+		})
+		return Textf("%d", g())
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	const workers = 100
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			setCount.Update(func(n int) int { return n + 1 })
+		}()
+	}
+	wg.Wait()
+	testScheduler.flushMacrotasks()
+
+	if got := getCount(); got != workers {
+		t.Fatalf("StateSetter.Update concurrent count = %d, want %d", got, workers)
+	}
+}
+
+func TestStateSetter_NilSafety(t *testing.T) {
+	var nilSetter StateSetter[int]
+	// Calling Update on nil StateSetter must be a safe no-op.
+	nilSetter.Update(func(n int) int { return n + 1 })
+
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	var (
+		getVal func() int
+		setVal StateSetter[int]
+	)
+	comp := SimpleFC("NilUpdateComp", func() Node {
+		g, s := UseState(7)
+		getVal = g
+		setVal = s
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	// Calling set.Update(nil) must be a safe no-op.
+	setVal.Update(nil)
+	if got := getVal(); got != 7 {
+		t.Fatalf("after Update(nil), value = %d, want 7", got)
+	}
+}
+
+func TestStateSetter_AssignabilityAndStableIdentity(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	var (
+		setters []StateSetter[string]
+		handlers []func(string)
+	)
+
+	comp := FC("AssignComp", func(props struct{ Step int }) Node {
+		query, setQuery := UseState("")
+		setters = append(setters, setQuery)
+
+		// Verify direct assignability to func(string) without casts.
+		inputNode := Input(InputProps{
+			Value:         query(),
+			OnValueChange: setQuery,
+		})
+		_ = inputNode
+		var fn func(string) = setQuery
+		handlers = append(handlers, fn)
+
+		return Text(query())
+	})
+
+	Render(comp(struct{ Step int }{Step: 1}), container)
+	testScheduler.flushMacrotasks()
+	Render(comp(struct{ Step int }{Step: 2}), container)
+	testScheduler.flushMacrotasks()
+
+	if len(setters) != 2 || len(handlers) != 2 {
+		t.Fatalf("expected 2 renders, got setters=%d handlers=%d", len(setters), len(handlers))
+	}
+	if !funcEquals(setters[0], setters[1]) {
+		t.Errorf("expected StateSetter closure identity to remain stable across re-renders")
+	}
+	if !funcEquals(handlers[0], handlers[1]) {
+		t.Errorf("expected assigned func(T) handler identity to remain stable across re-renders")
+	}
+}
+
+func TestStateSetter_UnmountCleanup(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var (
+		getVal func() int
+		setVal StateSetter[int]
+	)
+
+	comp := SimpleFC("CleanupComp", func() Node {
+		g, s := UseState(5)
+		getVal = g
+		setVal = s
+		return Textf("%d", g())
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	key := *(*uintptr)(unsafe.Pointer(&setVal))
+	if _, ok := setterRegistry.Load(key); !ok {
+		t.Fatalf("expected setterRegistry to contain mounted setter key %#x", key)
+	}
+
+	// Unmount triggers ComponentNode.Destroy(), which must clean up setterRegistry.
+	Render(nil, container)
+	testScheduler.flushMacrotasks()
+
+	if _, ok := setterRegistry.Load(key); ok {
+		t.Fatalf("expected setterRegistry to remove key %#x after ComponentNode.Destroy()", key)
+	}
+
+	// Subsequent calls after unmount must be safe no-ops.
+	setVal(99)
+	setVal.Update(func(n int) int { return n + 1 })
+	if got := getVal(); got != 5 {
+		t.Fatalf("expected unmounted state to remain 5, got %d", got)
+	}
+}
+
+func BenchmarkUseState_Set(b *testing.B) {
+	doc := dom.NewDocument()
+	doc.SetTerminal(&mockTerminal{})
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer func() {
+		Render(nil, container)
+		testScheduler.flushMacrotasks()
+	}()
+
+	var setVal StateSetter[int]
+	comp := SimpleFC("BenchSetComp", func() Node {
+		_, s := UseState(0)
+		setVal = s
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		setVal(i)
+	}
+	b.StopTimer()
+}
+
+func BenchmarkUseState_Update(b *testing.B) {
+	doc := dom.NewDocument()
+	doc.SetTerminal(&mockTerminal{})
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer func() {
+		Render(nil, container)
+		testScheduler.flushMacrotasks()
+	}()
+
+	var setVal StateSetter[int]
+	comp := SimpleFC("BenchUpdateComp", func() Node {
+		_, s := UseState(0)
+		setVal = s
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	inc := func(n int) int { return n + 1 }
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		setVal.Update(inc)
+	}
+	b.StopTimer()
 }

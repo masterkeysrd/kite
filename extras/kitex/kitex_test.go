@@ -10,6 +10,7 @@ import (
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/geom"
 	"github.com/masterkeysrd/kite/internal/focus"
+	"github.com/masterkeysrd/kite/key"
 	"github.com/masterkeysrd/kite/style"
 )
 
@@ -452,8 +453,8 @@ func TestEventListenersUpdate(t *testing.T) {
 	doc := dom.NewDocument()
 
 	var clickCount1, clickCount2 int
-	fn1 := func(e event.Event) { clickCount1++ }
-	fn2 := func(e event.Event) { clickCount2++ }
+	fn1 := func(e *event.MouseEvent) { clickCount1++ }
+	fn2 := func(e *event.MouseEvent) { clickCount2++ }
 
 	btnNode1 := Button(ButtonProps{
 		OnClick: fn1,
@@ -503,7 +504,7 @@ func TestEventListenersClosureUpdate(t *testing.T) {
 	var calledWithVal int
 	makeBtn := func(val int) Node {
 		return Button(ButtonProps{
-			OnClick: func(e event.Event) {
+			OnClick: func(e *event.MouseEvent) {
 				calledWithVal = val
 			},
 		})
@@ -1520,5 +1521,130 @@ func TestInputAndTextAreaCursorPreservation(t *testing.T) {
 	start, end = realTxa.SelectionRange()
 	if start != 2 || end != 2 {
 		t.Errorf("expected textarea selection range (2, 2) to be preserved, but got (%d, %d)", start, end)
+	}
+}
+
+func TestAttributesForwardingOnAllProps(t *testing.T) {
+	doc := dom.NewDocument()
+	attrs := map[string]string{"data-test": "ok", "aria-label": "lbl"}
+
+	nodes := []Node{
+		Button(ButtonProps{Attributes: attrs}),
+		Checkbox(CheckboxProps{Attributes: attrs}),
+		RadioGroup(RadioGroupProps{Attributes: attrs}),
+		Radio(RadioProps{Attributes: attrs}),
+		Select(SelectProps{Attributes: attrs}),
+		Option(OptionProps{Attributes: attrs}),
+		Input(InputProps{Attributes: attrs}),
+		TextArea(TextAreaProps{Attributes: attrs}),
+		TD(TDProps{Attributes: attrs}),
+		Overlay(OverlayProps{Attributes: attrs}, nil),
+		Dialog(DialogProps{Attributes: attrs}, nil),
+		Form(FormProps{Attributes: attrs}),
+	}
+
+	for _, n := range nodes {
+		el := instOne(n, doc).(dom.Element)
+		if got, ok := el.Attribute("data-test"); !ok || got != "ok" {
+			t.Errorf("%s dropped data-test attribute: got (%q, %v)", n.TagName(), got, ok)
+		}
+		if got, ok := el.Attribute("aria-label"); !ok || got != "lbl" {
+			t.Errorf("%s dropped aria-label attribute: got (%q, %v)", n.TagName(), got, ok)
+		}
+	}
+}
+
+func TestControlledPropParity_AndTypedEvents(t *testing.T) {
+	doc := dom.NewDocument()
+
+	t.Run("Button OnPress and OnClick coexist", func(t *testing.T) {
+		clicks := 0
+		presses := 0
+		btnNode := Button(ButtonProps{
+			OnClick: func(e *event.MouseEvent) { clicks++ },
+			OnPress: func() { presses++ },
+		})
+		btn := instOne(btnNode, doc).(*element.ButtonElement)
+		btn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+		btn.DispatchEvent(event.NewKeyEvent(event.EventKeyDown, key.Key{Code: key.KeyEnter}))
+		if clicks != 2 || presses != 2 {
+			t.Fatalf("expected clicks=2 presses=2, got clicks=%d presses=%d", clicks, presses)
+		}
+
+		// Updating OnClick must not drop OnPress.
+		btnNode2 := Button(ButtonProps{
+			OnClick: nil,
+			OnPress: btnNode.Props().(ButtonProps).OnPress,
+		})
+		upd(btnNode2, btn, btnNode)
+		btn.DispatchEvent(event.NewMouseEvent(event.EventClick, geom.Point{}, event.ButtonLeft, 0))
+		if clicks != 2 || presses != 3 {
+			t.Fatalf("expected clicks=2 presses=3 after removing OnClick, got clicks=%d presses=%d", clicks, presses)
+		}
+	})
+
+	t.Run("Input OnValueChange and OnInput", func(t *testing.T) {
+		var vals []string
+		var inputs []string
+		inpNode := Input(InputProps{
+			Value:         "a",
+			OnValueChange: func(v string) { vals = append(vals, v) },
+			OnInput:       func(e *event.InputEvent) { inputs = append(inputs, e.Value) },
+		})
+		inp := instOne(inpNode, doc).(*element.InputElement)
+		inp.DispatchEvent(event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'b', Text: "b"}))
+		if len(vals) != 1 || vals[0] != "ab" {
+			t.Fatalf("expected OnValueChange [\"ab\"], got %v", vals)
+		}
+		if len(inputs) != 1 || inputs[0] != "ab" {
+			t.Fatalf("expected OnInput [\"ab\"], got %v", inputs)
+		}
+	})
+
+	t.Run("TextArea OnValueChange and OnInput", func(t *testing.T) {
+		var vals []string
+		var inputs []string
+		txaNode := TextArea(TextAreaProps{
+			Value:         "x",
+			OnValueChange: func(v string) { vals = append(vals, v) },
+			OnInput:       func(e *event.InputEvent) { inputs = append(inputs, e.Value) },
+		})
+		txa := instOne(txaNode, doc).(*element.TextAreaElement)
+		txa.DispatchEvent(event.NewKeyEvent(event.EventKeyDown, key.Key{Code: 'y', Text: "y"}))
+		if len(vals) != 1 || vals[0] != "xy" {
+			t.Fatalf("expected OnValueChange [\"xy\"], got %v", vals)
+		}
+		if len(inputs) != 1 || inputs[0] != "xy" {
+			t.Fatalf("expected OnInput [\"xy\"], got %v", inputs)
+		}
+	})
+
+	t.Run("Checkbox OnCheckedChange", func(t *testing.T) {
+		var states []bool
+		cbNode := Checkbox(CheckboxProps{
+			Checked:         false,
+			OnCheckedChange: func(checked bool) { states = append(states, checked) },
+		})
+		cb := instOne(cbNode, doc).(*element.CheckboxElement)
+		cb.DispatchEvent(event.NewKeyEvent(event.EventKeyDown, key.Key{Code: ' '}))
+		if len(states) != 1 || states[0] != true {
+			t.Fatalf("expected OnCheckedChange [true], got %v", states)
+		}
+	})
+}
+
+func TestTextf(t *testing.T) {
+	EnableDevMode = true
+	defer func() { EnableDevMode = false }()
+
+	n := Textf("count=%d name=%s", 42, "kite")
+	if n.Props() != "count=42 name=kite" {
+		t.Fatalf("Textf Props() = %q, want %q", n.Props(), "count=42 name=kite")
+	}
+	if st, ok := n.(sourceTracker); ok {
+		declFile, declLine, _, _ := st.getSource()
+		if declFile == "" || declLine == 0 {
+			t.Errorf("expected Textf DevMode source tracking to populate declFile/declLine")
+		}
 	}
 }
