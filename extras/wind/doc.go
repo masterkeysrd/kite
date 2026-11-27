@@ -9,7 +9,16 @@
 // Cache state is managed by the Client. The Client maintains a thread-safe map of query keys.
 // When a component initiates a query using Use, it retrieves the client instance from the
 // context Provider. If the query does not exist in the cache, or is considered stale, a background
-// goroutine is spawned to execute the fetcher.
+// goroutine is spawned to execute the fetcher. Call Client.Close on shutdown to cancel active
+// queries and streams, stop pending timers, and wait for background goroutines to finish.
+//
+// # Streaming & Accumulation
+//
+// UseStream and UseStreamReduce subscribe to iter.Seq2 streams on dedicated goroutines outside
+// the bounded promise worker pool so long-lived streams never starve short-lived queries.
+// UseStreamReduce folds every yielded event into state S before UI notification throttling,
+// ensuring rapid event bursts are never dropped. StreamOptions supports Optional[bool] Enabled,
+// Optional[time.Duration] Throttle, and RefetchMode (RefetchReplace, RefetchReset, RefetchAppend).
 //
 // # Request Deduping
 //

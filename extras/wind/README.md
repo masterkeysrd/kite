@@ -127,6 +127,11 @@ var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node 
 
 - **`NewClient() *Client`**: Instantiates a thread-safe cache store.
 - **`Client.InvalidateQueries(key any)`**: Invalidates matching queries. Subscribed components immediately begin background refetches.
+- **`Client.Close()`**: Idempotently cancels all active queries and streams, stops pending GC/throttle timers, clears the cache, and waits for background work to drain.
+
+### Options & Helpers
+
+- **`Optional[T]` (`Some`, `None`)**: Zero-allocation wrapper used for optional configuration fields (`Options.Enabled`, `StreamOptions.Enabled`, `StreamOptions.Throttle`) so leaving a field unset preserves its default (`Enabled` defaults to `true`, `Throttle` defaults to `16ms`).
 
 ### Hooks
 
@@ -136,8 +141,15 @@ honoring scheduler shutdown. Using `promise.New` and only its executor context
 does not preserve Wind's cancellation.
 
 - **`Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.Promise[T], opts ...Options) Result[T]`**:
-  - `Options.Enabled`: Set to `false` to disable automatic fetching on mount.
+  - `Options.Enabled` (`Optional[bool]`): Defaults to `true`; set to `wind.Some(false)` to disable automatic fetching on mount.
   - `Options.StaleTime`: Max age before the cache entry is considered stale and re-fetched on mount/dependency change.
+- **`UseStream[K comparable, T any](key K, fetcher func(context.Context, K) iter.Seq2[T, error], opts ...StreamOptions) StreamResult[T]`**:
+  - Subscribes to a streaming iterator via `promise.Spawn` (scheduler-managed lifecycle outside the bounded worker pool) and exposes `Status` (`"connecting"`, `"open"`, `"closed"`, `"error"`). Stopping the engine scheduler or calling `Client.Close()` cancels active streams.
+- **`UseStreamReduce[K comparable, E, S any](key K, initial S, fetcher func(context.Context, K) iter.Seq2[E, error], reduce func(prev S, event E) S, opts ...StreamOptions) StreamResult[S]`**:
+  - Folds every yielded event `E` into accumulated state `S` synchronously so throttled UI updates never drop events.
+  - `StreamOptions.Enabled` (`Optional[bool]`): Defaults to `true`; toggling `Some(true)` -> `Some(false)` cancels when no other enabled consumer remains, and `Some(false)` -> `Some(true)` reconnects.
+  - `StreamOptions.Throttle` (`Optional[time.Duration]`): Defaults to `16ms`; values `<= 0` disable timer throttling and coalesce via microtasks.
+  - `StreamOptions.RefetchMode`: `RefetchReplace` (default, keeps cached data visible until first event), `RefetchReset` (resets to `initial` immediately), or `RefetchAppend` (folds onto existing cached data).
 - **`UseMutation[V, R any](mutationFn func(context.Context, V) *promise.Promise[R], opts ...MutationOptions[V, R]) MutationResult[V]`**:
   - State fields: `IsPending`, `IsError`, `Error`.
   - `Mutate(vars V)`: Triggers mutation function.
