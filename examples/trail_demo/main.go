@@ -61,16 +61,16 @@ func renderProgressBar(completed, total, barWidth int) string {
 }
 
 // App is the root functional component for the trail demo.
-var App = trail.FC("TrailDemoApp", func(_ trail.NoProps) kitex.Node {
+var App = kitex.FC("TrailDemoApp", func(_ kitex.NoProps) kitex.Node {
 	app := trail.UseApp()
 
-	completed, setCompleted := trail.UseState([]BuildStep(nil))
-	stepIdx, setStepIdx := trail.UseState(0)
-	spinnerIdx, setSpinnerIdx := trail.UseState(0)
-	stepTicks, setStepTicks := trail.UseState(0)
-	paused, setPaused := trail.UseState(false)
-	done, setDone := trail.UseState(false)
-	exitDelay, setExitDelay := trail.UseState(0)
+	completed, setCompleted := kitex.UseState([]BuildStep(nil))
+	stepIdx, setStepIdx := kitex.UseState(0)
+	spinnerIdx, setSpinnerIdx := kitex.UseState(0)
+	stepTicks, setStepTicks := kitex.UseState(0)
+	paused, setPaused := kitex.UseState(false)
+	done, setDone := kitex.UseState(false)
+	exitDelay, setExitDelay := kitex.UseState(0)
 
 	// Keyboard controls:
 	// 'q' or 'Esc' -> exit immediately
@@ -87,8 +87,8 @@ var App = trail.FC("TrailDemoApp", func(_ trail.NoProps) kitex.Node {
 		}
 	})
 
-	// Timer effect: trail.UseInterval to tick spinner and advance steps.
-	trail.UseInterval(func() {
+	// Timer effect: kitex.UseInterval to tick spinner and advance steps.
+	kitex.UseInterval(func() {
 		if done() {
 			currDelay := exitDelay() + 1
 			setExitDelay(currDelay)
@@ -132,78 +132,78 @@ var App = trail.FC("TrailDemoApp", func(_ trail.NoProps) kitex.Node {
 
 	// Static logs: Permanently flush completed tasks above into terminal scrollback
 	staticLogs := trail.Static(completed(), func(item BuildStep, index int) kitex.Node {
-		return trail.Box.Style(
+		return kitex.Box.Style(
 			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().
 					Foreground(colorGreen).
 					Bold(true),
-				trail.Text("✔ "),
+				kitex.Text("✔ "),
 			),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().
 					Foreground(colorWhite).
 					Bold(true),
-				trail.Text(item.Name),
+				kitex.Text(item.Name),
 			),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().Foreground(colorGray),
-				trail.Text(fmt.Sprintf(" (%s)", item.Duration)),
+				kitex.Text(fmt.Sprintf(" (%s)", item.Duration)),
 			),
 		)
 	})
 
 	// Final summary box rendered upon completion
 	if done() {
-		summaryBox := trail.Box.Style(
+		summaryBox := kitex.Box.Style(
 			style.S().
 				Margin(1, 0, 0, 0).
 				Padding(1, 2).
 				Border(style.RoundedBorder().Color(colorSummaryBrd)).
 				Background(colorBg),
-			trail.Box.Style(
+			kitex.Box.Style(
 				style.S().
 					FlexDirection(style.FlexRow).
 					AlignItems(style.AlignCenter),
-				trail.Span.Style(
+				kitex.Span.Style(
 					style.S().
 						Foreground(colorGreen).
 						Bold(true),
-					trail.Text("🎉 Deployment Pipeline Complete! "),
+					kitex.Text("🎉 Deployment Pipeline Complete! "),
 				),
-				trail.Span.Style(
+				kitex.Span.Style(
 					style.S().Foreground(colorGray),
-					trail.Text("(10/10 tasks finished in 3.2s)"),
+					kitex.Text("(10/10 tasks finished in 3.2s)"),
 				),
 			),
 			trail.Newline(1),
-			trail.Box.Style(
+			kitex.Box.Style(
 				style.S().FlexDirection(style.FlexRow),
-				trail.Span.Style(
+				kitex.Span.Style(
 					style.S().Foreground(colorDimWhite),
-					trail.Text("   Target:  production-cluster (us-east-1)  •  Release: v1.2.0"),
+					kitex.Text("   Target:  production-cluster (us-east-1)  •  Release: v1.2.0"),
 				),
 			),
-			trail.Box.Style(
+			kitex.Box.Style(
 				style.S().FlexDirection(style.FlexRow),
-				trail.Span.Style(
+				kitex.Span.Style(
 					style.S().Foreground(colorDimWhite),
-					trail.Text("   Status:  All health probes passed  •  100% traffic routed"),
+					kitex.Text("   Status:  All health probes passed  •  100% traffic routed"),
 				),
 			),
 			trail.Newline(1),
-			trail.Box.Style(
+			kitex.Box.Style(
 				style.S().FlexDirection(style.FlexRow),
-				trail.Span.Style(
+				kitex.Span.Style(
 					style.S().Foreground(colorDim),
-					trail.Text("   (Execution log flushed above into terminal scrollback)"),
+					kitex.Text("   (Execution log flushed above into terminal scrollback)"),
 				),
 			),
 		)
 
-		return trail.Fragment(staticLogs, summaryBox)
+		return kitex.Fragment(staticLogs, summaryBox)
 	}
 
 	// Active inline status frame rendered during execution
@@ -217,102 +217,102 @@ var App = trail.FC("TrailDemoApp", func(_ trail.NoProps) kitex.Node {
 
 	var pauseBadge kitex.Node
 	if paused() {
-		pauseBadge = trail.Span.Style(
+		pauseBadge = kitex.Span.Style(
 			style.S().
 				Margin(0, 0, 0, 1).
 				Foreground(colorAmber).
 				Bold(true),
-			trail.Text("[PAUSED]"),
+			kitex.Text("[PAUSED]"),
 		)
 	}
 
-	activeBox := trail.Box.Style(
+	activeBox := kitex.Box.Style(
 		style.S().
 			Margin(1, 0, 0, 0).
 			Padding(0, 1).
 			Border(style.RoundedBorder().Color(colorBorder)).
 			Background(colorBg),
 		// Title & Pause indicator line
-		trail.Box.Style(
+		kitex.Box.Style(
 			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().
 					Foreground(colorCyan).
 					Bold(true),
-				trail.Text("⚡ Kite Deploy v1.2.0"),
+				kitex.Text("⚡ Kite Deploy v1.2.0"),
 			),
 			pauseBadge,
 			trail.Spacer(),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().Foreground(colorDim),
-				trail.Text(fmt.Sprintf("%d/%d steps", completedCount, totalCount)),
+				kitex.Text(fmt.Sprintf("%d/%d steps", completedCount, totalCount)),
 			),
 		),
 		trail.Newline(1),
 		// Current active step with animated spinner
-		trail.Box.Style(
+		kitex.Box.Style(
 			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().
 					Foreground(colorCyan).
 					Bold(true),
-				trail.Text(spFrame+" "),
+				kitex.Text(spFrame+" "),
 			),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().
 					Foreground(colorWhite).
 					Bold(true),
-				trail.Text(fmt.Sprintf("Step %d/%d: %s...", stepIndex+1, totalCount, currStep.Name)),
+				kitex.Text(fmt.Sprintf("Step %d/%d: %s...", stepIndex+1, totalCount, currStep.Name)),
 			),
 		),
 		// Step detail subtitle
-		trail.Box.Style(
+		kitex.Box.Style(
 			style.S().Margin(0, 0, 0, 2),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().Foreground(colorGray),
-				trail.Text("└─ "+currStep.Details),
+				kitex.Text("└─ "+currStep.Details),
 			),
 		),
 		trail.Newline(1),
 		// Progress bar & percentage
-		trail.Box.Style(
+		kitex.Box.Style(
 			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().Foreground(colorDimWhite),
-				trail.Text("Progress: "),
+				kitex.Text("Progress: "),
 			),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().Foreground(colorCyan),
-				trail.Text("["+bar+"]"),
+				kitex.Text("["+bar+"]"),
 			),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().
 					Margin(0, 0, 0, 1).
 					Foreground(colorWhite).
 					Bold(true),
-				trail.Text(fmt.Sprintf("%3d%%", pct)),
+				kitex.Text(fmt.Sprintf("%3d%%", pct)),
 			),
 		),
 		trail.Newline(1),
 		// Keyboard navigation hints
-		trail.Box.Style(
+		kitex.Box.Style(
 			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-			trail.Span.Style(
+			kitex.Span.Style(
 				style.S().Foreground(colorDim),
-				trail.Text("Controls: press 'p' to pause/resume • 'q' or Esc to quit"),
+				kitex.Text("Controls: press 'p' to pause/resume • 'q' or Esc to quit"),
 			),
 		),
 	)
 
-	return trail.Fragment(staticLogs, activeBox)
+	return kitex.Fragment(staticLogs, activeBox)
 })
 
 func main() {

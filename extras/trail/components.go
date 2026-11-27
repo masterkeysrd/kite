@@ -11,36 +11,6 @@ import (
 	"github.com/masterkeysrd/kite/style"
 )
 
-// Re-exported types for convenience.
-type (
-	Node                                   = kitex.Node
-	BoxProps                               = kitex.BoxProps
-	SpanProps                              = kitex.SpanProps
-	NoProps                                = kitex.NoProps
-	Component[P any]                       = kitex.Component[P]
-	Container[P any]                       = kitex.Container[P]
-	ContainerTag[P kitex.StylableProps[P]] = kitex.ContainerTag[P]
-	LeafTag[P kitex.StylableProps[P]]      = kitex.LeafTag[P]
-)
-
-// Re-exported primitives and component constructors from kitex.
-var (
-	Box      = kitex.Box
-	Text     = kitex.Text
-	Span     = kitex.Span
-	Fragment = kitex.Fragment
-)
-
-// FC creates a functional component wrapper that does not take children.
-func FC[P any](name string, render func(P) Node) Component[P] {
-	return kitex.FC(name, render)
-}
-
-// FCC creates a functional component wrapper that can accept children.
-func FCC[P any](name string, render func(P, ...Node) Node) Container[P] {
-	return kitex.FCC(name, render)
-}
-
 // Newline renders n (default 1) line breaks as a box of height n.
 func Newline(count ...int) kitex.Node {
 	n := 1
@@ -143,5 +113,5 @@ func Transform(transform func(line string, index int) string, text string) kitex
 			lines[i] = transform(line, i)
 		}
 	}
-	return Text(strings.Join(lines, "\n"))
+	return kitex.Text(strings.Join(lines, "\n"))
 }

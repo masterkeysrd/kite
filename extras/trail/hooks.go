@@ -2,7 +2,6 @@ package trail
 
 import (
 	"strings"
-	"time"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/engine"
@@ -192,85 +191,4 @@ func (h StderrHandle) Write(s string) {
 func UseStderr() StderrHandle {
 	app := UseApp()
 	return StderrHandle{app: app}
-}
-
-// Common kitex hooks re-exported for convenience in trail components.
-
-// UseState declares a reactive component state variable with getter and setter.
-func UseState[T any](initial T) (func() T, func(T)) {
-	return kitex.UseState(initial)
-}
-
-// UseReducer declares a state machine managed by a reducer function.
-func UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A)) {
-	return kitex.UseReducer(reducer, initial)
-}
-
-// UseRef persists a mutable reference value across component renders.
-func UseRef[T any](initial T) kitex.Ref[T] {
-	return kitex.UseRef(initial)
-}
-
-// CreateRef creates a new standalone Ref.
-func CreateRef[T any]() kitex.Ref[T] {
-	return kitex.CreateRef[T]()
-}
-
-// UseMemo memoizes an expensive calculation factory across renders.
-func UseMemo[T any](factory func() T, deps ...any) T {
-	return kitex.UseMemo(factory, deps...)
-}
-
-// UseCallback memoizes a callback function identity across renders.
-func UseCallback[T any](callback T, deps ...any) T {
-	return kitex.UseCallback(callback, deps...)
-}
-
-// UseEffect runs an effect callback after DOM changes are committed.
-var UseEffect = kitex.UseEffect
-
-// UseEffectCleanup runs an effect callback with cleanup after DOM commit.
-var UseEffectCleanup = kitex.UseEffectCleanup
-
-// UseEffectEveryRender runs an effect callback after every render.
-var UseEffectEveryRender = kitex.UseEffectEveryRender
-
-// UseEffectEveryRenderCleanup runs an effect callback with cleanup after every render.
-var UseEffectEveryRenderCleanup = kitex.UseEffectEveryRenderCleanup
-
-// UseLayoutEffect runs an effect callback synchronously after component reconciliation.
-var UseLayoutEffect = kitex.UseLayoutEffect
-
-// UseLayoutEffectCleanup runs an effect with cleanup synchronously after component reconciliation.
-var UseLayoutEffectCleanup = kitex.UseLayoutEffectCleanup
-
-// UseLayoutEffectEveryRender runs a layout effect callback synchronously after every render.
-var UseLayoutEffectEveryRender = kitex.UseLayoutEffectEveryRender
-
-// UseLayoutEffectEveryRenderCleanup runs a layout effect with cleanup synchronously after every render.
-var UseLayoutEffectEveryRenderCleanup = kitex.UseLayoutEffectEveryRenderCleanup
-
-// UseInterval schedules a periodic callback on the engine task scheduler.
-func UseInterval(handler func(), interval time.Duration, deps ...any) {
-	kitex.UseInterval(handler, interval, deps...)
-}
-
-// UseTimeout schedules a delayed callback on the engine task scheduler.
-func UseTimeout(handler func(), delay time.Duration, deps ...any) {
-	kitex.UseTimeout(handler, delay, deps...)
-}
-
-// UseWindowSize returns the current viewport size in terminal cells.
-func UseWindowSize() geom.Size {
-	return kitex.UseViewportSize()
-}
-
-// CreateContext creates a new kitex context.
-func CreateContext[T comparable](defaultValue T) *kitex.Context[T] {
-	return kitex.CreateContext(defaultValue)
-}
-
-// UseContext reads a value from a kitex context provider.
-func UseContext[T comparable](ctx *kitex.Context[T]) T {
-	return kitex.UseContext(ctx)
 }

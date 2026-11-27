@@ -19,7 +19,7 @@ import (
 
 func TestIssue17_SequentialTeardownDoesNotDeadlockPromises(t *testing.T) {
 	b := mock.New(80, 10)
-	inst, err := trail.New(trail.Text("hello"), trail.WithBackend(b))
+	inst, err := trail.New(kitex.Text("hello"), trail.WithBackend(b))
 	if err != nil {
 		t.Fatalf("trail.New failed: %v", err)
 	}
@@ -44,14 +44,14 @@ func TestIssue17_SequentialTeardownDoesNotDeadlockPromises(t *testing.T) {
 
 func TestIssue17_OverlappingEngineTeardownDoesNotClobberNewerEngine(t *testing.T) {
 	b1 := mock.New(80, 10)
-	inst1, err := trail.New(trail.Text("first"), trail.WithBackend(b1))
+	inst1, err := trail.New(kitex.Text("first"), trail.WithBackend(b1))
 	if err != nil {
 		t.Fatalf("trail.New(1) failed: %v", err)
 	}
 	inst1.Frame()
 
 	b2 := mock.New(80, 10)
-	inst2, err := trail.New(trail.Text("second"), trail.WithBackend(b2))
+	inst2, err := trail.New(kitex.Text("second"), trail.WithBackend(b2))
 	if err != nil {
 		t.Fatalf("trail.New(2) failed: %v", err)
 	}
