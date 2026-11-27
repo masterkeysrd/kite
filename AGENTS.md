@@ -149,7 +149,7 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Engine cursor wiring** | `engine/cursor.go` |
 | **Scheduler (Background, Spawn & Tasks)** | `engine/scheduler.go` |
 | **Promise async primitive (`Promise`, `Spawn`)** | `promise/promise.go` |
-| **Backend interface** | `backend/backend.go` |
+| **Backend interface & capabilities (`ProgramResume`)** | `backend/backend.go` |
 | **Mock backend (for tests)** | `backend/mock/mock.go` |
 | **Element base & fluent API** | `element/element.go` |
 | **Shared text-control mechanics** | `element/text_control.go` (ADR-013) |
@@ -162,12 +162,12 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Table elements (table/tr/td/…)** | `element/table.go` |
 | **Text element** | `element/text.go` |
 | **Text shaping (grapheme clusters)** | `text/shape.go`, `text/cluster.go` |
-| **Key codes & modifiers** | `key/key.go`, `key/mod.go` |
+| **Key codes, `BaseCode`, & modifiers** | `key/key.go`, `key/mod.go` |
 | **Regression test suite** | `tests/regressions/` |
 | **ADR documents** | `docs/adrs/` |
 | **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
 | **VDOM primitive wrappers & API** | `extras/kitex/kitex.go` |
-| **Kitex hooks (UseState, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback)** | `extras/kitex/hooks.go` |
+| **Kitex hooks (UseState, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback, UseProgramResume)** | `extras/kitex/hooks.go` |
 | **Kitex Context System (CreateContext, UseContext, Provider)** | `extras/kitex/context.go`, `extras/kitex/provider.go` |
 | **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/kitex.go` (memoization helpers section) |
 | **Global state store & subscriber API** | `extras/kites/store.go` |
