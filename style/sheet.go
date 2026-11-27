@@ -16,9 +16,9 @@ import "fmt"
 //
 // Example:
 //
-//	sheet := style.NewSheet(map[string]style.Style{
-//	    "button":    {display: style.Some(style.DisplayFlex)},
-//	    "buttonHot": {foreground: style.Some(hotColor)},
+//	sheet, err := style.NewSheet(map[string]style.Style{
+//	    "button":    style.S().Display(style.DisplayFlex),
+//	    "buttonHot": style.S().Foreground(hotColor),
 //	})
 //	box.Style(sheet.Get("button"))
 type Sheet struct {
@@ -102,6 +102,12 @@ func validateStyle(s Style) error {
 	if s.margin.IsSet() {
 		if err := validateEdgeInt("Margin", s.margin.Value()); err != nil {
 			return err
+		}
+	}
+
+	for _, r := range s.pseudoRules {
+		if err := validateStyle(r.Style); err != nil {
+			return fmt.Errorf("pseudo rule (%d): %w", r.State, err)
 		}
 	}
 

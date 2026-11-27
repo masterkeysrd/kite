@@ -33,6 +33,11 @@ type DirtyElement interface {
 	IsDirtyStyle() bool
 	ClearDirtyStyle()
 
+	IsHovered() bool
+	SetHovered(bool)
+	IsActive() bool
+	SetActive(bool)
+
 	RawStyle() style.Style
 	DefaultStyle() style.Style
 	IntrinsicStyle() style.Style

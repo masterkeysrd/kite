@@ -20,6 +20,8 @@ type Element struct {
 	scroll     *ScrollState
 
 	dirtyStyle bool
+	hovered    bool
+	active     bool
 
 	tabIndex    int
 	hasTabIndex bool
@@ -285,6 +287,37 @@ func (e *Element) ClearDirtyStyle() {
 func (e *Element) ClearStyleFlags() {
 	e.dirtyStyle = false
 	e.childNeedsStyle = false
+}
+
+func (e *Element) hasConditionalRules() bool {
+	if raw := e.RawStyle(); raw.HasPseudoRules() || raw.HasMediaRules() {
+		return true
+	}
+	return e.DefaultStyle().HasPseudoRules()
+}
+
+func (e *Element) IsHovered() bool { return e.hovered }
+
+func (e *Element) SetHovered(v bool) {
+	if e.hovered == v {
+		return
+	}
+	e.hovered = v
+	if e.hasConditionalRules() {
+		e.MarkStyleDirty()
+	}
+}
+
+func (e *Element) IsActive() bool { return e.active }
+
+func (e *Element) SetActive(v bool) {
+	if e.active == v {
+		return
+	}
+	e.active = v
+	if e.hasConditionalRules() {
+		e.MarkStyleDirty()
+	}
 }
 
 // AttachUARoot attaches root as the closed UA shadow subtree for this host.

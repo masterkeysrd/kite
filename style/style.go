@@ -2,6 +2,7 @@ package style
 
 import (
 	"image/color"
+	"slices"
 
 	"github.com/masterkeysrd/kite/geom"
 )
@@ -10,18 +11,19 @@ import (
 // Every field is [Optional] so that callers can compose styles without
 // overwriting fields they did not intend to change.
 //
-// Construct via struct literals using [Some]:
+// Construct via [S] and fluent builders:
 //
-//	s := Style{
-//	    display:       Some(DisplayFlex),
-//	    flexDirection: Some(FlexColumn),
-//	    gap:           Some(Gap(1)),
-//	}
+//	s := style.S().
+//	    Display(style.DisplayFlex).
+//	    FlexDirection(style.FlexColumn).
+//	    Gap(1)
 //
-// Combine two styles with [Style.Merge].
+// Combine two styles with [Style.Merge] or [Style.When].
 type Style struct {
-	mediaRules    []MediaRule
-	hasMediaRules bool
+	mediaRules     []MediaRule
+	hasMediaRules  bool
+	pseudoRules    []PseudoRule
+	hasPseudoRules bool
 	// --- Flex / display -------------------------------------------------------
 
 	// Display controls how the element participates in its parent's layout.
@@ -291,8 +293,21 @@ func (s Style) Apply(base Computed) Computed {
 //
 //	final := theme.Merge(widgetDefault).Merge(userProvided)
 func (s Style) Merge(override Style) Style {
+	var mediaRules []MediaRule
+	if len(s.mediaRules) > 0 || len(override.mediaRules) > 0 {
+		mediaRules = make([]MediaRule, 0, len(s.mediaRules)+len(override.mediaRules))
+		mediaRules = append(mediaRules, s.mediaRules...)
+		mediaRules = append(mediaRules, override.mediaRules...)
+	}
+	var pseudoRules []PseudoRule
+	if len(s.pseudoRules) > 0 || len(override.pseudoRules) > 0 {
+		pseudoRules = make([]PseudoRule, 0, len(s.pseudoRules)+len(override.pseudoRules))
+		pseudoRules = append(pseudoRules, s.pseudoRules...)
+		pseudoRules = append(pseudoRules, override.pseudoRules...)
+	}
 	return Style{
 		display:        s.display.Merge(override.display),
+		listStyleType:  s.listStyleType.Merge(override.listStyleType),
 		flexDirection:  s.flexDirection.Merge(override.flexDirection),
 		flexWrap:       s.flexWrap.Merge(override.flexWrap),
 		justifyContent: s.justifyContent.Merge(override.justifyContent),
@@ -342,9 +357,19 @@ func (s Style) Merge(override Style) Style {
 		scrollbar: mergeOptionalScrollbar(s.scrollbar, override.scrollbar),
 		cursor:    mergeOptionalCursor(s.cursor, override.cursor),
 
-		mediaRules:    append(append([]MediaRule(nil), s.mediaRules...), override.mediaRules...),
-		hasMediaRules: s.hasMediaRules || override.hasMediaRules,
+		mediaRules:     mediaRules,
+		hasMediaRules:  s.hasMediaRules || override.hasMediaRules,
+		pseudoRules:    pseudoRules,
+		hasPseudoRules: s.hasPseudoRules || override.hasPseudoRules,
 	}
+}
+
+// When returns s.Merge(other) when cond is true, or s unchanged when false.
+func (s Style) When(cond bool, other Style) Style {
+	if !cond {
+		return s
+	}
+	return s.Merge(other)
 }
 
 func mergeOptionalCursor(base, override Optional[Cursor]) Optional[Cursor] {
@@ -1184,7 +1209,7 @@ func (q MediaQuery) Matches(viewport geom.Size) bool {
 // Media registers a conditional media rule on the style. If the viewport matches
 // the query, the ruleStyle will be merged on top of this style.
 func (s Style) Media(q MediaQuery, ruleStyle Style) Style {
-	s.mediaRules = append(s.mediaRules, MediaRule{Query: q, Style: ruleStyle})
+	s.mediaRules = append(slices.Clip(s.mediaRules), MediaRule{Query: q, Style: ruleStyle})
 	s.hasMediaRules = true
 	return s
 }
@@ -1209,6 +1234,90 @@ func (s Style) EvaluateMedia(viewport geom.Size) Style {
 			res = res.Merge(rule.Style)
 		}
 	}
+	res.mediaRules = nil
+	res.hasMediaRules = false
+	return res
+}
+
+// --- Pseudo-States -----------------------------------------------------------
+
+// PseudoState is a bitmask representing interactive/semantic element states
+// used to evaluate conditional pseudo-rules in the style cascade.
+type PseudoState uint8
+
+const (
+	// PseudoNone represents an element with no active pseudo-states.
+	PseudoNone PseudoState = 0
+)
+
+const (
+	// PseudoHover matches when the pointer is hovering over the element.
+	PseudoHover PseudoState = 1 << iota
+	// PseudoFocus matches when the element holds keyboard focus.
+	PseudoFocus
+	// PseudoActive matches while the element is being activated (e.g. primary mouse down).
+	PseudoActive
+	// PseudoDisabled matches when a disableable element is disabled.
+	PseudoDisabled
+)
+
+// PseudoRule associates a [PseudoState] bitmask with an overriding [Style].
+type PseudoRule struct {
+	State PseudoState
+	Style Style
+}
+
+// Pseudo registers a conditional pseudo-state rule on the style. If all flags
+// in state are active on the element, ruleStyle is merged on top of this style.
+func (s Style) Pseudo(state PseudoState, ruleStyle Style) Style {
+	s.pseudoRules = append(slices.Clip(s.pseudoRules), PseudoRule{State: state, Style: ruleStyle})
+	s.hasPseudoRules = true
+	return s
+}
+
+// Hover registers a style override applied when [PseudoHover] is active.
+func (s Style) Hover(ruleStyle Style) Style {
+	return s.Pseudo(PseudoHover, ruleStyle)
+}
+
+// Focus registers a style override applied when [PseudoFocus] is active.
+func (s Style) Focus(ruleStyle Style) Style {
+	return s.Pseudo(PseudoFocus, ruleStyle)
+}
+
+// Active registers a style override applied when [PseudoActive] is active.
+func (s Style) Active(ruleStyle Style) Style {
+	return s.Pseudo(PseudoActive, ruleStyle)
+}
+
+// Disabled registers a style override applied when [PseudoDisabled] is active.
+func (s Style) Disabled(ruleStyle Style) Style {
+	return s.Pseudo(PseudoDisabled, ruleStyle)
+}
+
+// HasPseudoRules returns true if the style contains conditional pseudo-state rules.
+func (s Style) HasPseudoRules() bool {
+	return s.hasPseudoRules
+}
+
+// EvaluatePseudo matches all registered pseudo-rules against active, merges
+// matching rule styles in declaration order, and returns the resolved style
+// with pseudo-rules cleared.
+func (s Style) EvaluatePseudo(active PseudoState) Style {
+	if !s.hasPseudoRules {
+		return s
+	}
+	res := s
+	res.pseudoRules = nil
+	res.hasPseudoRules = false
+
+	for _, rule := range s.pseudoRules {
+		if active&rule.State == rule.State {
+			res = res.Merge(rule.Style)
+		}
+	}
+	res.pseudoRules = nil
+	res.hasPseudoRules = false
 	return res
 }
 
@@ -1218,6 +1327,12 @@ func (s Style) Equal(other Style) bool {
 		return false
 	}
 	if !equalMediaRules(s.mediaRules, other.mediaRules) {
+		return false
+	}
+	if s.hasPseudoRules != other.hasPseudoRules {
+		return false
+	}
+	if !equalPseudoRules(s.pseudoRules, other.pseudoRules) {
 		return false
 	}
 	if s.display != other.display {
@@ -1481,6 +1596,21 @@ func equalMediaRules(a, b []MediaRule) bool {
 	}
 	for i := range a {
 		if a[i].Query != b[i].Query {
+			return false
+		}
+		if !a[i].Style.Equal(b[i].Style) {
+			return false
+		}
+	}
+	return true
+}
+
+func equalPseudoRules(a, b []PseudoRule) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].State != b[i].State {
 			return false
 		}
 		if !a[i].Style.Equal(b[i].Style) {

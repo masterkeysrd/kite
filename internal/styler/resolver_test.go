@@ -23,7 +23,15 @@ type fakeNode struct {
 	intrinsicStyle      style.Style // optional UA-forced intrinsic style
 	kind                dom.Kind
 	doc                 dom.Document
+	hovered             bool
+	active              bool
+	disabled            bool
 }
+
+func (n *fakeNode) IsHovered() bool  { return n.hovered }
+func (n *fakeNode) IsActive() bool   { return n.active }
+func (n *fakeNode) IsDisabled() bool { return n.disabled }
+func (n *fakeNode) SetDisabled(v bool) { n.disabled = v }
 
 func (n *fakeNode) Kind() dom.Kind                           { return n.kind }
 func (n *fakeNode) NodeName() string                         { return "fake" }
@@ -58,6 +66,11 @@ func (n *fakeNode) ID() string                               { return "" }
 func (n *fakeNode) SetID(string)                             {}
 func (n *fakeNode) Class() string                            { return "" }
 func (n *fakeNode) SetClass(string)                          {}
+func (n *fakeNode) Attribute(string) (string, bool)          { return "", false }
+func (n *fakeNode) SetAttribute(string, string)              {}
+func (n *fakeNode) RemoveAttribute(string)                   {}
+func (n *fakeNode) HasAttribute(string) bool                 { return false }
+func (n *fakeNode) EachAttribute(func(string, string) bool)  {}
 func (n *fakeNode) QuerySelector(string) dom.Element         { return nil }
 func (n *fakeNode) ReplaceWith(...dom.Node) dom.Element      { return nil }
 func (n *fakeNode) AttachUARoot(dom.Node)                    {}
@@ -235,10 +248,12 @@ func TestResolver_ChildStyleUpdate(t *testing.T) {
 
 type fakeDocument struct {
 	dom.Document
-	view dom.View
+	view    dom.View
+	focused dom.Element
 }
 
-func (d *fakeDocument) DefaultView() dom.View { return d.view }
+func (d *fakeDocument) DefaultView() dom.View     { return d.view }
+func (d *fakeDocument) CurrentFocus() dom.Element { return d.focused }
 
 type fakeView struct {
 	dom.View
@@ -282,5 +297,77 @@ func TestResolver_MediaQueries(t *testing.T) {
 	r.ResolveTree(ro, nil, false)
 	if ro.ComputedStyle().Foreground != blue {
 		t.Errorf("expected blue foreground after matching media query, got %v", ro.ComputedStyle().Foreground)
+	}
+}
+
+func TestResolver_PseudoStates(t *testing.T) {
+	r := styler.NewResolver()
+	view := &fakeView{size: geom.Size{Width: 80, Height: 24}}
+	doc := &fakeDocument{view: view}
+
+	cBase := style.Hex("#111111")
+	cHover := style.Hex("#222222")
+	cFocus := style.Hex("#333333")
+	cActive := style.Hex("#444444")
+	cDisabled := style.Hex("#555555")
+
+	node := &fakeNode{
+		kind: dom.KindElement,
+		doc:  doc,
+		rawStyle: style.S().
+			Background(cBase).
+			Hover(style.S().Background(cHover)).
+			Focus(style.S().Background(cFocus)).
+			Active(style.S().Background(cActive)).
+			Disabled(style.S().Background(cDisabled)),
+	}
+	ro := render.NewBlock(node, nil)
+
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Background != cBase {
+		t.Fatalf("initial Background = %v, want %v", ro.ComputedStyle().Background, cBase)
+	}
+
+	// Hover
+	node.hovered = true
+	ro.MarkDirty(render.DirtyStyle)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Background != cHover {
+		t.Fatalf("hover Background = %v, want %v", ro.ComputedStyle().Background, cHover)
+	}
+
+	// Focus (overrides hover due to declaration order)
+	doc.focused = node
+	ro.MarkDirty(render.DirtyStyle)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Background != cFocus {
+		t.Fatalf("focus Background = %v, want %v", ro.ComputedStyle().Background, cFocus)
+	}
+
+	// Active
+	node.active = true
+	ro.MarkDirty(render.DirtyStyle)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Background != cActive {
+		t.Fatalf("active Background = %v, want %v", ro.ComputedStyle().Background, cActive)
+	}
+
+	// Disabled
+	node.disabled = true
+	ro.MarkDirty(render.DirtyStyle)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Background != cDisabled {
+		t.Fatalf("disabled Background = %v, want %v", ro.ComputedStyle().Background, cDisabled)
+	}
+
+	// Clear all states -> returns to base
+	node.hovered = false
+	node.active = false
+	node.disabled = false
+	doc.focused = nil
+	ro.MarkDirty(render.DirtyStyle)
+	r.ResolveTree(ro, nil, false)
+	if ro.ComputedStyle().Background != cBase {
+		t.Fatalf("reset Background = %v, want %v", ro.ComputedStyle().Background, cBase)
 	}
 }

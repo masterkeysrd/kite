@@ -98,7 +98,12 @@ func plantFocusable(eng *Engine, tag string, yOffset int) (*focusableWiringEleme
 }
 
 func clearSyncFlags(n dom.Node) {
-	internaldom.AsDirty(n).ClearSyncFlags()
+	if de := internaldom.AsDirtyElement(n); de != nil {
+		de.ClearDirtyStyle()
+	}
+	dn := internaldom.AsDirty(n)
+	dn.ClearSyncFlags()
+	dn.ClearStyleFlags()
 	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 		clearSyncFlags(c)
 	}

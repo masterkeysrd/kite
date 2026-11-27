@@ -190,6 +190,9 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 		authorStyle = sp.RawStyle()
 	}
 	authorStyle = authorStyle.EvaluateMedia(viewportSize)
+	if authorStyle.HasPseudoRules() {
+		authorStyle = authorStyle.EvaluatePseudo(computePseudoState(n, el, de))
+	}
 	c = authorStyle.Apply(c)
 
 	// Layer 5: UA-mandated intrinsic style — highest precedence; authors cannot
@@ -230,3 +233,49 @@ func (r *Resolver) Resolve(ro render.Object, parent *style.Computed) *style.Comp
 // Invalidate removes the cached entry for node, forcing a full re-resolve on
 // the next Resolve call regardless of the DirtyStyle flag.
 func (r *Resolver) Invalidate(n dom.Node) { delete(r.cache, n) }
+
+func computePseudoState(n dom.Node, el *internaldom.Element, de internaldom.DirtyElement) style.PseudoState {
+	var ps style.PseudoState
+
+	if el != nil {
+		if el.IsHovered() {
+			ps |= style.PseudoHover
+		}
+		if el.IsActive() {
+			ps |= style.PseudoActive
+		}
+	} else if de != nil {
+		if de.IsHovered() {
+			ps |= style.PseudoHover
+		}
+		if de.IsActive() {
+			ps |= style.PseudoActive
+		}
+	} else {
+		if hp, ok := n.(interface{ IsHovered() bool }); ok && hp.IsHovered() {
+			ps |= style.PseudoHover
+		}
+		if ap, ok := n.(interface{ IsActive() bool }); ok && ap.IsActive() {
+			ps |= style.PseudoActive
+		}
+	}
+
+	if doc := n.OwnerDocument(); doc != nil {
+		if cf := doc.CurrentFocus(); cf != nil && !internaldom.IsUANode(n) {
+			et := n.EventTarget()
+			if cf == n || (et != nil && (cf == et || cf.EventTarget() == et)) || cf == internaldom.Outer(n) {
+				ps |= style.PseudoFocus
+			}
+		}
+	}
+
+	if dis, ok := n.(dom.Disableable); ok && dis.IsDisabled() {
+		ps |= style.PseudoDisabled
+	} else if outer := internaldom.Outer(n); outer != nil && outer != n {
+		if dis, ok := outer.(dom.Disableable); ok && dis.IsDisabled() {
+			ps |= style.PseudoDisabled
+		}
+	}
+
+	return ps
+}

@@ -116,4 +116,13 @@ func TestStyleSheet_Create_ValidatesEntries(t *testing.T) {
 			t.Error("NewSheet with negative padding must return an error")
 		}
 	})
+
+	t.Run("InvalidPseudoRuleRejected", func(t *testing.T) {
+		_, err := style.NewSheet(map[string]style.Style{
+			"badHover": style.S().Hover(style.S().Padding(-2)),
+		})
+		if err == nil {
+			t.Error("NewSheet with invalid pseudo rule style must return an error")
+		}
+	})
 }

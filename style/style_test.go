@@ -466,8 +466,157 @@ func TestStyle_IndividualBordersMarginsPaddings(t *testing.T) {
 		if b4.Styles.Top != BorderCustom {
 			t.Error("Expected BorderCustom when providing custom glyphs")
 		}
-		if b4.Glyphs.H != "#" {
-			t.Error("Expected custom glyphs to be applied")
+			if b4.Glyphs.H != "#" {
+				t.Error("Expected custom glyphs to be applied")
+			}
+		})
+	}
+
+func TestStyle_When(t *testing.T) {
+	t.Parallel()
+
+	base := S().Foreground(RGB(10, 20, 30)).Padding(1)
+	extra := S().Foreground(RGB(200, 100, 50)).Bold(true)
+
+	unchanged := base.When(false, extra)
+	if !unchanged.Equal(base) {
+		t.Fatalf("When(false) mutated style: got %+v, want %+v", unchanged, base)
+	}
+
+	merged := base.When(true, extra)
+	if merged.ForegroundOpt().Value() != RGB(200, 100, 50) {
+		t.Fatalf("When(true) Foreground = %v, want override", merged.ForegroundOpt().Value())
+	}
+	if !merged.BoldOpt().Value() {
+		t.Fatal("When(true) Bold should be true")
+	}
+	if merged.PaddingOpt().Value() != Edges(1) {
+		t.Fatal("When(true) should preserve base Padding")
+	}
+}
+
+func TestStyle_PseudoStates(t *testing.T) {
+	t.Parallel()
+
+	cBase := Hex("#111111")
+	cHover := Hex("#222222")
+	cFocus := Hex("#333333")
+	cActive := Hex("#444444")
+	cDisabled := Hex("#555555")
+	cCombo := Hex("#666666")
+
+	s := S().
+		Background(cBase).
+		Hover(S().Background(cHover)).
+		Focus(S().Background(cFocus).Bold(true)).
+		Active(S().Background(cActive)).
+		Disabled(S().Background(cDisabled)).
+		Pseudo(PseudoHover|PseudoFocus, S().Foreground(cCombo))
+
+	if !s.HasPseudoRules() {
+		t.Fatal("HasPseudoRules() should be true")
+	}
+	if S().HasPseudoRules() {
+		t.Fatal("empty style HasPseudoRules() should be false")
+	}
+
+	t.Run("PseudoNone", func(t *testing.T) {
+		res := s.EvaluatePseudo(PseudoNone)
+		if res.HasPseudoRules() {
+			t.Fatal("EvaluatePseudo must clear HasPseudoRules")
+		}
+		if res.BackgroundOpt().Value() != cBase {
+			t.Fatalf("Background = %v, want %v", res.BackgroundOpt().Value(), cBase)
+		}
+		if res.BoldOpt().IsSet() {
+			t.Fatal("Bold should not be set for PseudoNone")
 		}
 	})
+
+	t.Run("Single states", func(t *testing.T) {
+		if bg := s.EvaluatePseudo(PseudoHover).BackgroundOpt().Value(); bg != cHover {
+			t.Fatalf("Hover Background = %v, want %v", bg, cHover)
+		}
+		resFocus := s.EvaluatePseudo(PseudoFocus)
+		if bg := resFocus.BackgroundOpt().Value(); bg != cFocus || !resFocus.BoldOpt().Value() {
+			t.Fatalf("Focus mismatch: bg=%v bold=%v", bg, resFocus.BoldOpt())
+		}
+		if bg := s.EvaluatePseudo(PseudoActive).BackgroundOpt().Value(); bg != cActive {
+			t.Fatalf("Active Background = %v, want %v", bg, cActive)
+		}
+		if bg := s.EvaluatePseudo(PseudoDisabled).BackgroundOpt().Value(); bg != cDisabled {
+			t.Fatalf("Disabled Background = %v, want %v", bg, cDisabled)
+		}
+	})
+
+	t.Run("Combined bitmask and declaration order", func(t *testing.T) {
+		res := s.EvaluatePseudo(PseudoHover | PseudoFocus)
+		if bg := res.BackgroundOpt().Value(); bg != cFocus {
+			t.Fatalf("Hover|Focus Background = %v, want %v", bg, cFocus)
+		}
+		if fg := res.ForegroundOpt().Value(); fg != cCombo {
+			t.Fatalf("Hover|Focus Foreground = %v, want %v", fg, cCombo)
+		}
+	})
+
+	t.Run("Merge propagates and Equal compares pseudo rules", func(t *testing.T) {
+		a := S().Hover(S().Bold(true))
+		b := S().Focus(S().Italic(true))
+		merged := a.Merge(b)
+		if !merged.HasPseudoRules() {
+			t.Fatal("merged style should retain pseudo rules")
+		}
+		res := merged.EvaluatePseudo(PseudoHover | PseudoFocus)
+		if !res.BoldOpt().Value() || !res.ItalicOpt().Value() {
+			t.Fatalf("merged pseudo rules failed: bold=%v italic=%v", res.BoldOpt(), res.ItalicOpt())
+		}
+
+		if !a.Equal(S().Hover(S().Bold(true))) {
+			t.Fatal("identical pseudo rules should compare Equal")
+		}
+		if a.Equal(b) {
+			t.Fatal("different pseudo rules must not compare Equal")
+		}
+		if a.Equal(S()) {
+			t.Fatal("style with pseudo rules must not equal empty style")
+		}
+	})
+
+	t.Run("Chaining does not alias backing slice", func(t *testing.T) {
+		base := S().Hover(S().Bold(true))
+		branch1 := base.Focus(S().Foreground(cFocus))
+		branch2 := base.Active(S().Foreground(cActive))
+
+		if got := branch1.EvaluatePseudo(PseudoFocus).ForegroundOpt().Value(); got != cFocus {
+			t.Fatalf("branch1 foreground = %v, want %v", got, cFocus)
+		}
+		if branch1.EvaluatePseudo(PseudoActive).ForegroundOpt().IsSet() {
+			t.Fatal("branch1 should not be affected by branch2")
+		}
+		if got := branch2.EvaluatePseudo(PseudoActive).ForegroundOpt().Value(); got != cActive {
+			t.Fatalf("branch2 foreground = %v, want %v", got, cActive)
+		}
+	})
+}
+
+func BenchmarkStyle_When(b *testing.B) {
+	base := S().Display(DisplayFlex).Padding(1)
+	extra := S().Bold(true).Foreground(Hex("#ff0000"))
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = base.When(true, extra)
+	}
+}
+
+func BenchmarkStyle_EvaluatePseudo(b *testing.B) {
+	s := S().
+		Background(Hex("#111")).
+		Hover(S().Background(Hex("#222"))).
+		Focus(S().Bold(true)).
+		Active(S().Reverse(true))
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = s.EvaluatePseudo(PseudoHover | PseudoFocus)
+	}
 }

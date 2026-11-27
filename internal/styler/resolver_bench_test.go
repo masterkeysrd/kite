@@ -141,3 +141,39 @@ func BenchmarkResolver_MapVsSwitch(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkResolver_PseudoRules(b *testing.B) {
+	b.Run("WithoutPseudoRules", func(b *testing.B) {
+		r := styler.NewResolver()
+		node := &fakeNode{
+			kind:     dom.KindElement,
+			rawStyle: style.S().Background(style.Hex("#111111")).Padding(1),
+		}
+		ro := render.NewBox(node, nil)
+		b.ReportAllocs()
+		for b.Loop() {
+			ro.MarkDirty(render.DirtyStyle)
+			_ = r.Resolve(ro, nil)
+		}
+	})
+
+	b.Run("WithPseudoRules", func(b *testing.B) {
+		r := styler.NewResolver()
+		node := &fakeNode{
+			kind: dom.KindElement,
+			rawStyle: style.S().
+				Background(style.Hex("#111111")).
+				Padding(1).
+				Hover(style.S().Background(style.Hex("#222222"))).
+				Focus(style.S().Bold(true)).
+				Active(style.S().Reverse(true)),
+			hovered: true,
+		}
+		ro := render.NewBox(node, nil)
+		b.ReportAllocs()
+		for b.Loop() {
+			ro.MarkDirty(render.DirtyStyle)
+			_ = r.Resolve(ro, nil)
+		}
+	})
+}

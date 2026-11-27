@@ -182,6 +182,7 @@ type Engine struct {
 
 	activeAnimations []animation.Animator
 	lastFrameTime    time.Time
+	activeElements   []internaldom.DirtyElement
 
 	renderMap      map[dom.Node]render.Object
 	isLayoutActive bool // Prevents infinite recursion during synchronous reflow
@@ -1795,13 +1796,49 @@ func isScrollContainer(cs *style.Computed) bool {
 	return isScrollable(cs.OverflowX) || isScrollable(cs.OverflowY)
 }
 
+func (e *Engine) clearActiveElements() {
+	for i, de := range e.activeElements {
+		de.SetActive(false)
+		e.activeElements[i] = nil
+	}
+	e.activeElements = e.activeElements[:0]
+}
+
 func (e *Engine) dispatchMouseEvent(ev *event.MouseEvent) {
+	if ev.Type() == event.EventMouseUp && ev.Button == event.ButtonLeft {
+		e.clearActiveElements()
+	}
+
 	target := ev.OriginalTarget()
 	if target == nil {
 		return
 	}
 	if node, ok := target.(dom.Node); ok {
 		e.setLocalMouseCoords(ev, node)
+
+		switch ev.Type() {
+		case event.EventMouseEnter:
+			if de := internaldom.AsDirtyElement(node); de != nil {
+				de.SetHovered(true)
+			}
+		case event.EventMouseLeave:
+			if de := internaldom.AsDirtyElement(node); de != nil {
+				de.SetHovered(false)
+			}
+		case event.EventMouseDown:
+			if ev.Button == event.ButtonLeft {
+				e.clearActiveElements()
+				for cur := node; cur != nil; cur = cur.Parent() {
+					if dis, ok := internaldom.Outer(cur).(dom.Disableable); ok && dis.IsDisabled() {
+						continue
+					}
+					if de := internaldom.AsDirtyElement(cur); de != nil {
+						de.SetActive(true)
+						e.activeElements = append(e.activeElements, de)
+					}
+				}
+			}
+		}
 
 		var path []event.EventTarget
 		if ev.Type() == event.EventMouseEnter || ev.Type() == event.EventMouseLeave {

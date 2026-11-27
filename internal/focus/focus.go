@@ -167,6 +167,9 @@ func (m *Manager) setFocus(next dom.Element, reason Reason) {
 		if d := internaldom.AsDirty(old); d != nil {
 			d.MarkNeedsSync()
 		}
+		if de := internaldom.AsDirtyElement(old); de != nil {
+			de.MarkStyleDirty()
+		}
 		path := ancestorPath(old)
 		etNext := event.EventTarget(nil)
 		if next != nil {
@@ -180,6 +183,9 @@ func (m *Manager) setFocus(next dom.Element, reason Reason) {
 	if next != nil {
 		if d := internaldom.AsDirty(next); d != nil {
 			d.MarkNeedsSync()
+		}
+		if de := internaldom.AsDirtyElement(next); de != nil {
+			de.MarkStyleDirty()
 		}
 		path := ancestorPath(next)
 		etOld := event.EventTarget(nil)

@@ -824,6 +824,10 @@ func (d *Document) walkDetach(n dom.Node, parentConnected bool) {
 		// Step 2: unregister then flip connected flag.
 		d.unregisterNode(n)
 		b.connected = false
+		if el, ok := AsDirtyElement(n).(*Element); ok && el != nil {
+			el.hovered = false
+			el.active = false
+		}
 	}
 }
 
