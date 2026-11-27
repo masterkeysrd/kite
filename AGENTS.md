@@ -147,8 +147,8 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Engine frame loop** | `engine/engine.go` |
 | **Animation system & Tweens** | `animation/animation.go` |
 | **Engine cursor wiring** | `engine/cursor.go` |
-| **Scheduler (Background & Tasks)** | `engine/scheduler.go` |
-| **Promise async primitive** | `promise/promise.go` |
+| **Scheduler (Background, Spawn & Tasks)** | `engine/scheduler.go` |
+| **Promise async primitive (`Promise`, `Spawn`)** | `promise/promise.go` |
 | **Backend interface** | `backend/backend.go` |
 | **Mock backend (for tests)** | `backend/mock/mock.go` |
 | **Element base & fluent API** | `element/element.go` |
@@ -167,15 +167,17 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **ADR documents** | `docs/adrs/` |
 | **DevTools Server, endpoints & profiling** | `devtools/server.go`, `devtools/server_test.go` |
 | **VDOM primitive wrappers & API** | `extras/kitex/kitex.go` |
-| **Kitex hooks (UseState, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback)** | `extras/kitex/hooks.go` |
+| **Kitex hooks (UseState, UseRef, UseMemo, UseEffect, UseEffectCleanup, UseAsyncEffect, UseLayoutEffect, UseLayoutEffectCleanup, UseReducer, UseCallback)** | `extras/kitex/hooks.go` |
 | **Kitex Context System (CreateContext, UseContext, Provider)** | `extras/kitex/context.go`, `extras/kitex/provider.go` |
 | **Kitex automatic memoization (complexity, deepEqualProps)** | `extras/kitex/kitex.go` (memoization helpers section) |
 | **Global state store & subscriber API** | `extras/kites/store.go` |
 | **Kites global state integration hook** | `extras/kites/hooks.go` |
 | **Stack Navigation component & interfaces** | `extras/flight/flight.go`, `extras/flight/stack.go` |
 | **Navigation context & hooks** | `extras/flight/hooks.go` |
-| **Wind query cache client & context** | `extras/wind/client.go` |
+| **Wind query cache client, lifecycle (`Close`), & context** | `extras/wind/client.go` |
+| **Wind optional value wrapper (`Optional[T]`)** | `extras/wind/optional.go` |
 | **Wind query hook (`Use`)** | `extras/wind/query.go` |
+| **Wind stream hooks (`UseStream`, `UseStreamReduce`, `RefetchMode`)** | `extras/wind/stream.go` |
 | **Wind mutation hook (`UseMutation`)** | `extras/wind/mutation.go` |
 | **Inline mode & scrollback insertion (`InsertAbove`, `SetInline`)** | `engine/engine.go`, `engine/pipeline.go`, `internal/render/view.go`, `backend/backend.go`, `backend/uv/backend.go` |
 | **Trail inline CLI runtime & `<Static>` component** | `extras/trail/trail.go`, `extras/trail/components.go`, `extras/trail/hooks.go` |
