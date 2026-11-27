@@ -14,12 +14,12 @@ func TestCreateContext_DefaultValue(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var themeVal string
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		return Text(themeVal)
 	})
 
-	Render(Consumer(struct{}{}), container)
+	Render(Consumer(), container)
 	if themeVal != "light" {
 		t.Errorf("expected default value 'light', got %s", themeVal)
 	}
@@ -32,12 +32,12 @@ func TestProvider_ProvidesValue(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var themeVal string
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		return Text(themeVal)
 	})
 
-	app := themeCtx.Provider("dark", Consumer(struct{}{}))
+	app := themeCtx.Provider("dark", Consumer())
 	Render(app, container)
 
 	if themeVal != "dark" {
@@ -52,19 +52,19 @@ func TestProvider_NestedProviders(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var innerTheme, outerTheme string
-	InnerConsumer := FC("InnerConsumer", func(props struct{}) Node {
+	InnerConsumer := FC("InnerConsumer", func(_ NoProps) Node {
 		innerTheme = UseContext(themeCtx)
 		return Text(innerTheme)
 	})
-	OuterConsumer := FC("OuterConsumer", func(props struct{}) Node {
+	OuterConsumer := FC("OuterConsumer", func(_ NoProps) Node {
 		outerTheme = UseContext(themeCtx)
 		return Box(BoxProps{},
 			Text(outerTheme),
-			themeCtx.Provider("blue", InnerConsumer(struct{}{})),
+			themeCtx.Provider("blue", InnerConsumer()),
 		)
 	})
 
-	app := themeCtx.Provider("dark", OuterConsumer(struct{}{}))
+	app := themeCtx.Provider("dark", OuterConsumer())
 	Render(app, container)
 
 	if outerTheme != "dark" {
@@ -82,19 +82,19 @@ func TestProvider_ValueChange_TriggersConsumerReRender(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var themeVal string
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		return Text(themeVal)
 	})
 
 	var setProviderValue func(string)
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		val, setVal := UseState("dark")
 		setProviderValue = setVal
-		return themeCtx.Provider(val(), Consumer(struct{}{}))
+		return themeCtx.Provider(val(), Consumer())
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 	if themeVal != "dark" {
 		t.Errorf("expected initial theme 'dark', got %s", themeVal)
 	}
@@ -112,19 +112,19 @@ func TestProvider_ValueChange_BypassesMemoization(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var themeVal string
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		return Text(themeVal)
 	})
 
-	Wrapper := FC("Wrapper", func(props struct{}) Node {
+	Wrapper := FC("Wrapper", func(_ NoProps) Node {
 		// Render >= 5 nodes to trigger c.shouldMemo = true
 		return Box(BoxProps{},
 			Box(BoxProps{},
 				Box(BoxProps{},
 					Box(BoxProps{},
 						Box(BoxProps{},
-							Consumer(struct{}{}),
+							Consumer(),
 						),
 					),
 				),
@@ -133,13 +133,13 @@ func TestProvider_ValueChange_BypassesMemoization(t *testing.T) {
 	})
 
 	var setProviderValue func(string)
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		val, setVal := UseState("dark")
 		setProviderValue = setVal
-		return themeCtx.Provider(val(), Wrapper(struct{}{}))
+		return themeCtx.Provider(val(), Wrapper())
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 	if themeVal != "dark" {
 		t.Errorf("expected initial theme 'dark', got %s", themeVal)
 	}
@@ -157,20 +157,20 @@ func TestProvider_Deduplication(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	renderCount := 0
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		renderCount++
 		_ = UseContext(themeCtx)
 		return Text("Consumer")
 	})
 
 	var setProviderValue func(string)
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		val, setVal := UseState("dark")
 		setProviderValue = setVal
-		return themeCtx.Provider(val(), Consumer(struct{}{}))
+		return themeCtx.Provider(val(), Consumer())
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 	renderCountBefore := renderCount
 
 	setProviderValue("blue")
@@ -187,26 +187,26 @@ func TestProvider_MultipleConsumers(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var val1, val2 string
-	Consumer1 := FC("Consumer1", func(props struct{}) Node {
+	Consumer1 := FC("Consumer1", func(_ NoProps) Node {
 		val1 = UseContext(themeCtx)
 		return Text(val1)
 	})
-	Consumer2 := FC("Consumer2", func(props struct{}) Node {
+	Consumer2 := FC("Consumer2", func(_ NoProps) Node {
 		val2 = UseContext(themeCtx)
 		return Text(val2)
 	})
 
 	var setProviderValue func(string)
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		val, setVal := UseState("dark")
 		setProviderValue = setVal
 		return themeCtx.Provider(val(), Box(BoxProps{},
-			Consumer1(struct{}{}),
-			Consumer2(struct{}{}),
+			Consumer1(),
+			Consumer2(),
 		))
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 	if val1 != "dark" || val2 != "dark" {
 		t.Errorf("expected both to be 'dark', got %s and %s", val1, val2)
 	}
@@ -224,26 +224,26 @@ func TestProvider_Unmount_Unsubscribes(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var themeVal string
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		return Text(themeVal)
 	})
 
 	var setShowConsumer func(bool)
 	var setProviderValue func(string)
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		val, setVal := UseState("dark")
 		setProviderValue = setVal
 		show, setShow := UseState(true)
 		setShowConsumer = setShow
 
 		if show() {
-			return themeCtx.Provider(val(), Consumer(struct{}{}))
+			return themeCtx.Provider(val(), Consumer())
 		}
 		return themeCtx.Provider(val(), Box(BoxProps{}, Text("Empty")))
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 	if themeVal != "dark" {
 		t.Errorf("expected initial value 'dark', got %s", themeVal)
 	}
@@ -265,20 +265,20 @@ func TestUseContext_StableAcrossReRenders(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	renderCount := 0
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		renderCount++
 		val := UseContext(themeCtx)
 		return Text(val)
 	})
 
 	var triggerUpdate func()
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		_, setDummy := UseState(0)
 		triggerUpdate = func() { setDummy(1) }
-		return themeCtx.Provider("dark", Consumer(struct{}{}))
+		return themeCtx.Provider("dark", Consumer())
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 	// Trigger re-render of Consumer directly via parent re-render (without provider value change).
 	// On subsequent renders, UseContext should read from stored reference.
 	triggerUpdate()
@@ -297,7 +297,7 @@ func TestProvider_DifferentContextTypes(t *testing.T) {
 
 	var themeVal string
 	var countVal int
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		countVal = UseContext(countCtx)
 		return Text(fmt.Sprintf("%s-%d", themeVal, countVal))
@@ -305,7 +305,7 @@ func TestProvider_DifferentContextTypes(t *testing.T) {
 
 	app := themeCtx.Provider("dark",
 		countCtx.Provider(200,
-			Consumer(struct{}{}),
+			Consumer(),
 		),
 	)
 	Render(app, container)
@@ -326,19 +326,19 @@ func BenchmarkContextRead(b *testing.B) {
 
 	ctx := CreateContext("value")
 
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		_ = UseContext(ctx)
 		return Text("Consumer")
 	})
 
 	var triggerUpdate func()
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		_, setDummy := UseState(0)
 		triggerUpdate = func() { setDummy(1) }
-		return ctx.Provider("value", Consumer(struct{}{}))
+		return ctx.Provider("value", Consumer())
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 
 	b.ResetTimer()
 	for b.Loop() {
@@ -355,20 +355,20 @@ func BenchmarkContextPropagation(b *testing.B) {
 
 	ctx := CreateContext("value")
 
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		_ = UseContext(ctx)
 		return Text("Consumer")
 	})
 
 	var setProviderValue func(string)
 	var state int
-	ProviderWrapper := FC("ProviderWrapper", func(props struct{}) Node {
+	ProviderWrapper := FC("ProviderWrapper", func(_ NoProps) Node {
 		val, setVal := UseState("value1")
 		setProviderValue = setVal
-		return ctx.Provider(val(), Consumer(struct{}{}))
+		return ctx.Provider(val(), Consumer())
 	})
 
-	Render(ProviderWrapper(struct{}{}), container)
+	Render(ProviderWrapper(), container)
 
 	for i := 0; b.Loop(); i++ {
 		state = i % 2
@@ -387,24 +387,24 @@ func TestContextPropagation_DirtyComponentRerender(t *testing.T) {
 	themeCtx := CreateContext("light")
 
 	var themeVal string
-	Consumer := FC("Consumer", func(props struct{}) Node {
+	Consumer := FC("Consumer", func(_ NoProps) Node {
 		themeVal = UseContext(themeCtx)
 		return Text(themeVal)
 	})
 
 	var toggleShow func()
-	MiddleComponent := FC("MiddleComponent", func(props struct{}) Node {
+	MiddleComponent := FC("MiddleComponent", func(_ NoProps) Node {
 		show, setShow := UseState(false)
 		toggleShow = func() {
 			setShow(!show())
 		}
 		if show() {
-			return Consumer(struct{}{})
+			return Consumer()
 		}
 		return Text("hidden")
 	})
 
-	app := themeCtx.Provider("dark", MiddleComponent(struct{}{}))
+	app := themeCtx.Provider("dark", MiddleComponent())
 	Render(app, container)
 
 	if themeVal != "" {

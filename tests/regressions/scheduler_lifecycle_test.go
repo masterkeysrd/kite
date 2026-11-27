@@ -87,16 +87,16 @@ func TestIssue17_FlushDrainsPassiveUseKeyboardDespiteTinyMacroTaskDuration(t *te
 	var keyCount atomic.Int32
 	var openChild func(bool)
 
-	Child := kitex.SimpleFC("KeyChild", func() kitex.Node {
+	Child := kitex.FC("KeyChild", func(_ kitex.NoProps) kitex.Node {
 		kitex.UseKeyboard(func(ke event.KeyEvent) {
 			if ke.Text == "x" {
 				keyCount.Add(1)
 			}
-		}, []any{})
+		})
 		return kitex.Text("child active")
 	})
 
-	App := kitex.SimpleFC("App", func() kitex.Node {
+	App := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		show, setShow := kitex.UseState(false)
 		openChild = setShow
 		if show() {

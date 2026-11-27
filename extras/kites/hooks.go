@@ -87,7 +87,7 @@ func UseWith[T any, U any](s *Store[T], selector func(T) U, isEqual func(a, b U)
 		checkForUpdates()
 
 		return unsubscribe
-	}, []any{s})
+	}, s)
 
 	return currentSlice
 }

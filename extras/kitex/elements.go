@@ -1,11 +1,10 @@
 package kitex
 
+//go:generate go run ./internal/genprops
+
 import (
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
-	"github.com/masterkeysrd/kite/event"
-	"github.com/masterkeysrd/kite/geom"
-	"github.com/masterkeysrd/kite/style"
 )
 
 // --- VDOM Factories -----------------------------------------------------------
@@ -31,7 +30,7 @@ func boxUpdate(el dom.Node, old, new *BoxProps) {
 }
 
 // Box creates a VDOM representation of a BoxElement container.
-func Box(props BoxProps, children ...Node) Node {
+var Box ContainerTag[BoxProps] = func(props BoxProps, children ...Node) Node {
 	n := elementNodePool.Get().(*elementNode[ElementProps])
 	score, hasP, hasDirectP := buildElementInfo(children)
 	*n = elementNode[ElementProps]{
@@ -49,7 +48,7 @@ func Box(props BoxProps, children ...Node) Node {
 }
 
 // Div creates a VDOM representation of a BoxElement container (web div alias).
-func Div(props BoxProps, children ...Node) Node {
+var Div ContainerTag[BoxProps] = func(props BoxProps, children ...Node) Node {
 	n := elementNodePool.Get().(*elementNode[ElementProps])
 	score, hasP, hasDirectP := buildElementInfo(children)
 	*n = elementNode[ElementProps]{
@@ -75,7 +74,7 @@ func spanUpdate(el dom.Node, old, new *SpanProps) {
 }
 
 // Span creates a VDOM representation of a SpanElement container.
-func Span(props SpanProps, children ...Node) Node {
+var Span ContainerTag[SpanProps] = func(props SpanProps, children ...Node) Node {
 	n := elementNodePool.Get().(*elementNode[ElementProps])
 	score, hasP, hasDirectP := buildElementInfo(children)
 	*n = elementNode[ElementProps]{
@@ -90,55 +89,6 @@ func Span(props SpanProps, children ...Node) Node {
 		hasDirectP:  hasDirectP,
 	}
 	return trackSource(n, 1)
-}
-
-// ButtonProps specifies attributes for Button elements.
-type ButtonProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnPress         func()
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Disabled        bool
-	CursorNavigable bool
-	Active          bool
-	Type            string
-}
-
-func (p ButtonProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
 }
 
 func buttonInstantiate(doc dom.Document) dom.Node {
@@ -174,7 +124,7 @@ func buttonUpdate(el dom.Node, old, new *ButtonProps) {
 }
 
 // Button creates a VDOM representation of a ButtonElement.
-func Button(props ButtonProps, children ...Node) Node {
+var Button ContainerTag[ButtonProps] = func(props ButtonProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[ButtonProps]{
 		tagName:     "button",
@@ -187,57 +137,6 @@ func Button(props ButtonProps, children ...Node) Node {
 		hasProvider: hasP,
 		hasDirectP:  hasDirectP,
 	}, 1)
-}
-
-// CheckboxProps specifies attributes for Checkbox elements.
-type CheckboxProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	Disabled        bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Checked         bool
-	OnCheckedChange func(bool)
-	UncheckedGlyph  string
-	CheckedGlyph    string
-	Name            string
-	CursorNavigable bool
-}
-
-func (p CheckboxProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
 }
 
 func checkboxInstantiate(doc dom.Document) dom.Node {
@@ -279,7 +178,7 @@ func checkboxUpdate(el dom.Node, old, new *CheckboxProps) {
 }
 
 // Checkbox creates a VDOM representation of a CheckboxElement.
-func Checkbox(props CheckboxProps) Node {
+var Checkbox LeafTag[CheckboxProps] = func(props CheckboxProps) Node {
 	score, hasP, hasDirectP := buildElementInfo(nil)
 	return trackSource(&elementNode[CheckboxProps]{
 		tagName:     "checkbox",
@@ -292,54 +191,6 @@ func Checkbox(props CheckboxProps) Node {
 		hasProvider: hasP,
 		hasDirectP:  hasDirectP,
 	}, 1)
-}
-
-// RadioGroupProps specifies attributes for RadioGroup elements.
-type RadioGroupProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	Disabled        bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Value           string
-	OnValueChange   func(string)
-	CursorNavigable bool
-}
-
-func (p RadioGroupProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
 }
 
 func radioGroupInstantiate(doc dom.Document) dom.Node {
@@ -365,7 +216,7 @@ func radioGroupUpdate(el dom.Node, old, new *RadioGroupProps) {
 }
 
 // RadioGroup creates a VDOM representation of a RadioGroupElement.
-func RadioGroup(props RadioGroupProps, children ...Node) Node {
+var RadioGroup ContainerTag[RadioGroupProps] = func(props RadioGroupProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[RadioGroupProps]{
 		tagName:     "radiogroup",
@@ -378,56 +229,6 @@ func RadioGroup(props RadioGroupProps, children ...Node) Node {
 		hasProvider: hasP,
 		hasDirectP:  hasDirectP,
 	}, 1)
-}
-
-// RadioProps specifies attributes for Radio elements.
-type RadioProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Value           string
-	UncheckedGlyph  string
-	CheckedGlyph    string
-	Name            string
-	Disabled        bool
-	CursorNavigable bool
-}
-
-func (p RadioProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
 }
 
 func radioInstantiate(doc dom.Document) dom.Node {
@@ -464,7 +265,7 @@ func radioUpdate(el dom.Node, old, new *RadioProps) {
 }
 
 // Radio creates a VDOM representation of a RadioElement.
-func Radio(props RadioProps) Node {
+var Radio LeafTag[RadioProps] = func(props RadioProps) Node {
 	score, hasP, hasDirectP := buildElementInfo(nil)
 	return trackSource(&elementNode[RadioProps]{
 		tagName:     "radio",
@@ -479,57 +280,8 @@ func Radio(props RadioProps) Node {
 	}, 1)
 }
 
-// SelectProps specifies attributes for Select elements.
-type SelectProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	Disabled        bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Value           string
-	OnValueChange   func(string)
-	Name            string
-	CursorNavigable bool
-}
-
-func (p SelectProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // Select creates a VDOM representation of a SelectElement.
-func Select(props SelectProps, children ...Node) Node {
+var Select ContainerTag[SelectProps] = func(props SelectProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[SelectProps]{
 		tagName:  "select",
@@ -575,56 +327,8 @@ func Select(props SelectProps, children ...Node) Node {
 	}, 1)
 }
 
-// OptionProps specifies attributes for Option elements.
-type OptionProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Text            string
-	Value           string
-	Disabled        bool
-	CursorNavigable bool
-}
-
-func (p OptionProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // Option creates a VDOM representation of an OptionElement metadata node.
-func Option(props OptionProps) Node {
+var Option LeafTag[OptionProps] = func(props OptionProps) Node {
 	return trackSource(&elementNode[OptionProps]{
 		tagName:  "option",
 		props:    props,
@@ -658,59 +362,8 @@ func Option(props OptionProps) Node {
 	}, 1)
 }
 
-// InputProps specifies attributes for Input elements.
-type InputProps struct {
-	Attributes       map[string]string
-	Key              string
-	ID               string
-	Class            string
-	Style            style.Style
-	Hidden           bool
-	Disabled         bool
-	OnKeyDown        func(*event.KeyEvent)
-	OnKeyUp          func(*event.KeyEvent)
-	OnKeyPress       func(*event.KeyEvent)
-	OnMouseDown      func(*event.MouseEvent)
-	OnMouseUp        func(*event.MouseEvent)
-	OnMouseMove      func(*event.MouseEvent)
-	OnClick          func(*event.MouseEvent)
-	OnDrag           func(*event.MouseEvent)
-	OnWheel          func(*event.WheelEvent)
-	OnFocus          func(*event.FocusEvent)
-	OnBlur           func(*event.FocusEvent)
-	OnChange         func(*event.ChangeEvent)
-	OnInput          func(*event.InputEvent)
-	OnValueChange    func(string)
-	OnScroll         func(*event.ScrollEvent)
-	OnMouseEnter     func(*event.MouseEvent)
-	OnMouseLeave     func(*event.MouseEvent)
-	OnMouseOver      func(*event.MouseEvent)
-	OnMouseOut       func(*event.MouseEvent)
-	Ref              refSetter
-	Value            string
-	Name             string
-	Placeholder      string
-	PlaceholderStyle style.Style
-	CursorNavigable  bool
-}
-
-func (p InputProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // Input creates a VDOM representation of an InputElement.
-func Input(props InputProps) Node {
+var Input LeafTag[InputProps] = func(props InputProps) Node {
 	return trackSource(&elementNode[InputProps]{
 		tagName:  "input",
 		props:    props,
@@ -755,59 +408,8 @@ func Input(props InputProps) Node {
 	}, 1)
 }
 
-// TextAreaProps specifies attributes for TextArea elements.
-type TextAreaProps struct {
-	Attributes       map[string]string
-	Key              string
-	ID               string
-	Class            string
-	Style            style.Style
-	Hidden           bool
-	Disabled         bool
-	OnKeyDown        func(*event.KeyEvent)
-	OnKeyUp          func(*event.KeyEvent)
-	OnKeyPress       func(*event.KeyEvent)
-	OnMouseDown      func(*event.MouseEvent)
-	OnMouseUp        func(*event.MouseEvent)
-	OnMouseMove      func(*event.MouseEvent)
-	OnClick          func(*event.MouseEvent)
-	OnDrag           func(*event.MouseEvent)
-	OnWheel          func(*event.WheelEvent)
-	OnFocus          func(*event.FocusEvent)
-	OnBlur           func(*event.FocusEvent)
-	OnChange         func(*event.ChangeEvent)
-	OnInput          func(*event.InputEvent)
-	OnValueChange    func(string)
-	OnScroll         func(*event.ScrollEvent)
-	OnMouseEnter     func(*event.MouseEvent)
-	OnMouseLeave     func(*event.MouseEvent)
-	OnMouseOver      func(*event.MouseEvent)
-	OnMouseOut       func(*event.MouseEvent)
-	Ref              refSetter
-	Value            string
-	Name             string
-	Placeholder      string
-	PlaceholderStyle style.Style
-	CursorNavigable  bool
-}
-
-func (p TextAreaProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // TextArea creates a VDOM representation of a TextAreaElement.
-func TextArea(props TextAreaProps) Node {
+var TextArea LeafTag[TextAreaProps] = func(props TextAreaProps) Node {
 	return trackSource(&elementNode[TextAreaProps]{
 		tagName:  "textarea",
 		props:    props,
@@ -853,7 +455,7 @@ func TextArea(props TextAreaProps) Node {
 }
 
 // Table creates a VDOM representation of a TableElement.
-func Table(props TableProps, children ...Node) Node {
+var Table ContainerTag[TableProps] = func(props TableProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TableProps]{
 		tagName:  "table",
@@ -873,7 +475,7 @@ func Table(props TableProps, children ...Node) Node {
 }
 
 // UL creates a VDOM representation of an UnorderedListElement (ul).
-func UL(props ULProps, children ...Node) Node {
+var UL ContainerTag[ULProps] = func(props ULProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[ULProps]{
 		tagName:  "ul",
@@ -893,7 +495,7 @@ func UL(props ULProps, children ...Node) Node {
 }
 
 // OL creates a VDOM representation of an OrderedListElement (ol).
-func OL(props OLProps, children ...Node) Node {
+var OL ContainerTag[OLProps] = func(props OLProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[OLProps]{
 		tagName:  "ol",
@@ -913,7 +515,7 @@ func OL(props OLProps, children ...Node) Node {
 }
 
 // LI creates a VDOM representation of a ListItemElement (li).
-func LI(props LIProps, children ...Node) Node {
+var LI ContainerTag[LIProps] = func(props LIProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[LIProps]{
 		tagName:  "li",
@@ -933,7 +535,7 @@ func LI(props LIProps, children ...Node) Node {
 }
 
 // THead creates a VDOM representation of a TableHeaderElement (thead).
-func THead(props THeadProps, children ...Node) Node {
+var THead ContainerTag[THeadProps] = func(props THeadProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[THeadProps]{
 		tagName:  "thead",
@@ -953,7 +555,7 @@ func THead(props THeadProps, children ...Node) Node {
 }
 
 // TBody creates a VDOM representation of a TableBodyElement (tbody).
-func TBody(props TBodyProps, children ...Node) Node {
+var TBody ContainerTag[TBodyProps] = func(props TBodyProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TBodyProps]{
 		tagName:  "tbody",
@@ -973,7 +575,7 @@ func TBody(props TBodyProps, children ...Node) Node {
 }
 
 // TFoot creates a VDOM representation of a TableFooterElement (tfoot).
-func TFoot(props TFootProps, children ...Node) Node {
+var TFoot ContainerTag[TFootProps] = func(props TFootProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TFootProps]{
 		tagName:  "tfoot",
@@ -993,7 +595,7 @@ func TFoot(props TFootProps, children ...Node) Node {
 }
 
 // TR creates a VDOM representation of a TableRowElement (tr).
-func TR(props TRProps, children ...Node) Node {
+var TR ContainerTag[TRProps] = func(props TRProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TRProps]{
 		tagName:  "tr",
@@ -1012,56 +614,8 @@ func TR(props TRProps, children ...Node) Node {
 	}, 1)
 }
 
-// TDProps specifies attributes for TD elements.
-type TDProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	ColSpan         int
-	RowSpan         int
-	Disabled        bool
-	CursorNavigable bool
-}
-
-func (p TDProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // TD creates a VDOM representation of a TableCellElement (td).
-func TD(props TDProps, children ...Node) Node {
+var TD ContainerTag[TDProps] = func(props TDProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[TDProps]{
 		tagName:  "td",
@@ -1093,7 +647,7 @@ func TD(props TDProps, children ...Node) Node {
 }
 
 // Br creates a VDOM representation of a BrElement.
-func Br(props BrProps) Node {
+var Br LeafTag[BrProps] = func(props BrProps) Node {
 	return trackSource(&elementNode[BrProps]{
 		tagName:  "br",
 		props:    props,
@@ -1111,75 +665,18 @@ func Br(props BrProps) Node {
 	}, 1)
 }
 
-// OverlayProps specifies attributes for Overlay elements.
-type OverlayProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	Anchor          dom.Element
-	ZIndex          int
-	Placement       geom.Placement
-	Flip            bool
-	Disabled        bool
-	CursorNavigable bool
-}
-
-func (p OverlayProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // Overlay creates a VDOM representation of an OverlayElement.
-func Overlay(props OverlayProps, content Node) Node {
-	var children []Node
-	if content != nil {
-		children = []Node{content}
-	}
+var Overlay ContainerTag[OverlayProps] = func(props OverlayProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[OverlayProps]{
 		tagName:  "overlay",
 		props:    props,
 		children: children,
 		instantiate: func(doc dom.Document) dom.Node {
-			config := element.OverlayConfig{
-				Anchor:    props.Anchor,
-				ZIndex:    props.ZIndex,
-				Placement: props.Placement,
-				Flip:      props.Flip,
-			}
-			return element.NewOverlay(doc, nil, config)
+			return element.NewOverlay(doc, props.Anchor).
+				WithZIndex(props.ZIndex).
+				WithPlacement(props.Placement).
+				WithFlip(props.Flip)
 		},
 		update: func(el dom.Node, old, new *OverlayProps) {
 			o := el.(*element.OverlayElement)
@@ -1206,66 +703,15 @@ func Overlay(props OverlayProps, content Node) Node {
 	}, 1)
 }
 
-// DialogProps specifies attributes for Dialog elements.
-type DialogProps struct {
-	Attributes      map[string]string
-	Key             string
-	ID              string
-	Class           string
-	Style           style.Style
-	Hidden          bool
-	OnKeyDown       func(*event.KeyEvent)
-	OnKeyUp         func(*event.KeyEvent)
-	OnKeyPress      func(*event.KeyEvent)
-	OnMouseDown     func(*event.MouseEvent)
-	OnMouseUp       func(*event.MouseEvent)
-	OnMouseMove     func(*event.MouseEvent)
-	OnClick         func(*event.MouseEvent)
-	OnDrag          func(*event.MouseEvent)
-	OnWheel         func(*event.WheelEvent)
-	OnFocus         func(*event.FocusEvent)
-	OnBlur          func(*event.FocusEvent)
-	OnChange        func(*event.ChangeEvent)
-	OnInput         func(*event.InputEvent)
-	OnScroll        func(*event.ScrollEvent)
-	OnMouseEnter    func(*event.MouseEvent)
-	OnMouseLeave    func(*event.MouseEvent)
-	OnMouseOver     func(*event.MouseEvent)
-	OnMouseOut      func(*event.MouseEvent)
-	Ref             refSetter
-	ZIndex          int
-	Disabled        bool
-	CursorNavigable bool
-}
-
-func (p DialogProps) elementProps() ElementProps {
-	return ElementProps{
-		Attributes: p.Attributes,
-		Key:        p.Key, ID: p.ID, Class: p.Class, Style: p.Style, Hidden: p.Hidden,
-		Disabled:        p.Disabled,
-		CursorNavigable: p.CursorNavigable,
-		OnKeyDown:       p.OnKeyDown, OnKeyUp: p.OnKeyUp, OnKeyPress: p.OnKeyPress,
-		OnMouseDown: p.OnMouseDown, OnMouseUp: p.OnMouseUp, OnMouseMove: p.OnMouseMove,
-		OnClick: p.OnClick, OnDrag: p.OnDrag, OnWheel: p.OnWheel,
-		OnFocus: p.OnFocus, OnBlur: p.OnBlur, OnChange: p.OnChange, OnInput: p.OnInput, OnScroll: p.OnScroll,
-		OnMouseEnter: p.OnMouseEnter, OnMouseLeave: p.OnMouseLeave, OnMouseOver: p.OnMouseOver, OnMouseOut: p.OnMouseOut,
-		Ref: p.Ref,
-	}
-}
-
 // Dialog creates a VDOM representation of a DialogElement.
-func Dialog(props DialogProps, content Node) Node {
-	var children []Node
-	if content != nil {
-		children = []Node{content}
-	}
+var Dialog ContainerTag[DialogProps] = func(props DialogProps, children ...Node) Node {
 	score, hasP, hasDirectP := buildElementInfo(children)
 	return trackSource(&elementNode[DialogProps]{
 		tagName:  "dialog",
 		props:    props,
 		children: children,
 		instantiate: func(doc dom.Document) dom.Node {
-			return element.NewDialog(doc, nil, props.ZIndex)
+			return element.NewDialog(doc).ZIndex(props.ZIndex)
 		},
 		update: func(el dom.Node, old, new *DialogProps) {
 			d := el.(*element.DialogElement)

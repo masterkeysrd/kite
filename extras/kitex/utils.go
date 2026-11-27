@@ -126,6 +126,25 @@ func IfElse(cond bool, thenNode, elseNode Node) Node {
 	return elseNode
 }
 
+// IfElseFn lazily evaluates thenFn when cond is true or elseFn when cond is false.
+// Only the chosen closure is invoked. If the chosen closure is nil or returns nil,
+// Empty() is returned to preserve positional VDOM alignment.
+func IfElseFn(cond bool, thenFn, elseFn func() Node) Node {
+	var fn func() Node
+	if cond {
+		fn = thenFn
+	} else {
+		fn = elseFn
+	}
+	if fn == nil {
+		return Empty()
+	}
+	if n := fn(); n != nil {
+		return n
+	}
+	return Empty()
+}
+
 // Fragment returns its children grouped together without introducing any
 // wrapper element into the DOM.
 //
@@ -135,10 +154,10 @@ func IfElse(cond bool, thenNode, elseNode Node) Node {
 //
 // Example:
 //
-//	var MyComp = kitex.SimpleFC("MyComp", func() kitex.Node {
+//	var MyComp = kitex.FC("MyComp", func(_ kitex.NoProps) kitex.Node {
 //	    return kitex.Fragment(
-//	        kitex.Box(kitex.BoxProps{Style: boldStyle}, kitex.Text("Title")),
-//	        kitex.Box(kitex.BoxProps{Style: mutedStyle}, kitex.Text("Subtitle")),
+//	        kitex.Box.Style(boldStyle, kitex.Text("Title")),
+//	        kitex.Box.Style(mutedStyle, kitex.Text("Subtitle")),
 //	    )
 //	})
 func Fragment(children ...Node) Node {

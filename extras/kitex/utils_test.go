@@ -157,6 +157,50 @@ func TestIfElse_False(t *testing.T) {
 	}
 }
 
+// --- IfElseFn ---
+
+func TestIfElseFn_LazyEvaluation(t *testing.T) {
+	t.Run("true branch only invokes thenFn", func(t *testing.T) {
+		thenCalls, elseCalls := 0, 0
+		n := IfElseFn(true,
+			func() Node { thenCalls++; return Text("then") },
+			func() Node { elseCalls++; return Text("else") },
+		)
+		if thenCalls != 1 || elseCalls != 0 {
+			t.Fatalf("expected thenCalls=1, elseCalls=0; got %d, %d", thenCalls, elseCalls)
+		}
+		if n == nil || n.Props().(string) != "then" {
+			t.Fatalf("expected 'then' node, got %v", n)
+		}
+	})
+
+	t.Run("false branch only invokes elseFn", func(t *testing.T) {
+		thenCalls, elseCalls := 0, 0
+		n := IfElseFn(false,
+			func() Node { thenCalls++; return Text("then") },
+			func() Node { elseCalls++; return Text("else") },
+		)
+		if thenCalls != 0 || elseCalls != 1 {
+			t.Fatalf("expected thenCalls=0, elseCalls=1; got %d, %d", thenCalls, elseCalls)
+		}
+		if n == nil || n.Props().(string) != "else" {
+			t.Fatalf("expected 'else' node, got %v", n)
+		}
+	})
+
+	t.Run("nil closure or nil return yields Empty", func(t *testing.T) {
+		if n := IfElseFn(true, nil, func() Node { return Text("x") }); n == nil || n.TagName() != "#empty" {
+			t.Errorf("expected #empty for nil thenFn, got %v", n)
+		}
+		if n := IfElseFn(false, func() Node { return Text("x") }, nil); n == nil || n.TagName() != "#empty" {
+			t.Errorf("expected #empty for nil elseFn, got %v", n)
+		}
+		if n := IfElseFn(true, func() Node { return nil }, nil); n == nil || n.TagName() != "#empty" {
+			t.Errorf("expected #empty when closure returns nil, got %v", n)
+		}
+	})
+}
+
 // --- Fragment ---
 
 func TestFragment_Basic(t *testing.T) {

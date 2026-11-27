@@ -22,8 +22,7 @@ type TestProps struct {
 }
 
 type TestChildrenProps struct {
-	Title    string
-	Children []Node
+	Title string
 }
 
 func TestFCAndFCCConstruction(t *testing.T) {
@@ -34,7 +33,7 @@ func TestFCAndFCCConstruction(t *testing.T) {
 		})
 	})
 
-	node := myComp(TestProps{Label: "hello"})
+	node := myComp.Props(TestProps{Label: "hello"})
 	compNode, ok := node.(*ComponentNode[TestProps])
 	if !ok {
 		t.Fatalf("expected *ComponentNode[TestProps], got %T", node)
@@ -48,15 +47,15 @@ func TestFCAndFCCConstruction(t *testing.T) {
 	}
 
 	// Test FCC
-	myCompWithChildren := FCC("myChildrenComponent", func(props TestChildrenProps) Node {
+	myCompWithChildren := FCC("myChildrenComponent", func(props TestChildrenProps, children ...Node) Node {
 		return Box(BoxProps{
 			ID: props.Title,
-		}, props.Children...)
+		}, children...)
 	})
 
 	child1 := Text("child1")
 	child2 := Text("child2")
-	nodeWithChildren := myCompWithChildren(TestChildrenProps{Title: "layout"}, child1, child2)
+	nodeWithChildren := myCompWithChildren.Props(TestChildrenProps{Title: "layout"}, child1, child2)
 
 	compNodeWithChildren, ok := nodeWithChildren.(*ComponentNode[TestChildrenProps])
 	if !ok {
@@ -66,12 +65,12 @@ func TestFCAndFCCConstruction(t *testing.T) {
 	if compNodeWithChildren.PropsVal.Title != "layout" {
 		t.Errorf("expected Title layout, got %s", compNodeWithChildren.PropsVal.Title)
 	}
-	children := compNodeWithChildren.PropsVal.Children
+	children := compNodeWithChildren.PassedChildren
 	if len(children) != 2 {
-		t.Errorf("expected 2 injected children, got %d", len(children))
+		t.Errorf("expected 2 passed children, got %d", len(children))
 	}
 	if children[0] != child1 || children[1] != child2 {
-		t.Errorf("injected children do not match original children")
+		t.Errorf("passed children do not match original children")
 	}
 }
 
@@ -85,7 +84,7 @@ func TestUseStatePersistence(t *testing.T) {
 
 	renderCount := 0
 
-	myComp := FC("testComp", func(props struct{}) Node {
+	myComp := FC("testComp", func(props NoProps) Node {
 		renderCount++
 
 		// Multiple hooks to test order-based tracking
@@ -101,7 +100,7 @@ func TestUseStatePersistence(t *testing.T) {
 	})
 
 	// 1. Initial instantiate
-	node := myComp(struct{}{})
+	node := myComp()
 	realNodes := node.Instantiate(doc)
 
 	if renderCount != 1 {
@@ -115,7 +114,7 @@ func TestUseStatePersistence(t *testing.T) {
 	}
 
 	// 2. Simulate update/re-render without state changes
-	node2 := myComp(struct{}{})
+	node2 := myComp()
 	node2.Update(realNodes, node)
 
 	if renderCount != 2 {
@@ -148,7 +147,7 @@ func TestUseStatePersistence(t *testing.T) {
 	}
 
 	// In a real reconciler, it would re-render. Let's simulate that re-render:
-	node3 := myComp(struct{}{})
+	node3 := myComp()
 	node3.Update(realNodes, node2)
 
 	if renderCount != 3 {
@@ -167,13 +166,13 @@ func TestUseStateMarkDirty(t *testing.T) {
 
 	var setState func(int)
 
-	myComp := FC("testSync", func(props struct{}) Node {
+	myComp := FC("testSync", func(props NoProps) Node {
 		_, set := UseState(0)
 		setState = set
 		return Box(BoxProps{})
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	_ = node.Instantiate(doc)
 
 	compNode, ok := node.(*ComponentNode[struct{}])
@@ -211,14 +210,14 @@ func TestUseRef(t *testing.T) {
 	var myRef Ref[int]
 	renderCount := 0
 
-	myComp := FC("testRefComp", func(props struct{}) Node {
+	myComp := FC("testRefComp", func(props NoProps) Node {
 		renderCount++
 		myRef = UseRef(100)
 		return Box(BoxProps{})
 	})
 
 	// 1. Initial instantiate
-	node1 := myComp(struct{}{})
+	node1 := myComp()
 	realNodes := node1.Instantiate(doc)
 
 	if renderCount != 1 {
@@ -252,7 +251,7 @@ func TestUseRef(t *testing.T) {
 	}
 
 	// 3. Simulate update/re-render and verify persistence
-	node2 := myComp(struct{}{})
+	node2 := myComp()
 	node2.Update(realNodes, node1)
 
 	if renderCount != 2 {
@@ -290,14 +289,14 @@ func TestUseReducer_InitialState(t *testing.T) {
 	doc := dom.NewDocument()
 	var getState func() int
 
-	myComp := FC("testReducerComp", func(props struct{}) Node {
+	myComp := FC("testReducerComp", func(props NoProps) Node {
 		getState, _ = UseReducer(func(s int, a string) int {
 			return s
 		}, 42)
 		return Box(BoxProps{})
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	_ = node.Instantiate(doc)
 
 	if getState() != 42 {
@@ -321,18 +320,18 @@ func TestUseReducer_Dispatch(t *testing.T) {
 		}
 	}
 
-	myComp := FC("testReducerComp", func(props struct{}) Node {
+	myComp := FC("testReducerComp", func(props NoProps) Node {
 		getState, dispatch = UseReducer(reducer, 10)
 		return Box(BoxProps{})
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	realNodes := node.Instantiate(doc)
 
 	dispatch("inc")
 
 	// Simulate re-render
-	node2 := myComp(struct{}{})
+	node2 := myComp()
 	node2.Update(realNodes, node)
 
 	if getState() != 11 {
@@ -356,12 +355,12 @@ func TestUseReducer_MultipleDispatches(t *testing.T) {
 		}
 	}
 
-	myComp := FC("testReducerComp", func(props struct{}) Node {
+	myComp := FC("testReducerComp", func(props NoProps) Node {
 		getState, dispatch = UseReducer(reducer, 10)
 		return Box(BoxProps{})
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	realNodes := node.Instantiate(doc)
 
 	dispatch("inc")
@@ -370,7 +369,7 @@ func TestUseReducer_MultipleDispatches(t *testing.T) {
 	dispatch("inc")
 
 	// Simulate re-render
-	node2 := myComp(struct{}{})
+	node2 := myComp()
 	node2.Update(realNodes, node)
 
 	if getState() != 12 {
@@ -382,14 +381,14 @@ func TestUseReducer_DispatchTriggersReRender(t *testing.T) {
 	doc := dom.NewDocument()
 	var dispatch func(string)
 
-	myComp := FC("testReducerComp", func(props struct{}) Node {
+	myComp := FC("testReducerComp", func(props NoProps) Node {
 		_, dispatch = UseReducer(func(state int, action string) int {
 			return state + 1
 		}, 0)
 		return Box(BoxProps{})
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	_ = node.Instantiate(doc)
 
 	var dirtyNode Node
@@ -416,7 +415,7 @@ func TestUseReducer_StableGetterAcrossRenders(t *testing.T) {
 	doc := dom.NewDocument()
 	var getStates []func() int
 
-	myComp := FC("testReducerComp", func(props struct{}) Node {
+	myComp := FC("testReducerComp", func(props NoProps) Node {
 		getState, _ := UseReducer(func(state int, action string) int {
 			return state
 		}, 0)
@@ -424,10 +423,10 @@ func TestUseReducer_StableGetterAcrossRenders(t *testing.T) {
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(struct{}{})
+	node1 := myComp()
 	realNodes := node1.Instantiate(doc)
 
-	node2 := myComp(struct{}{})
+	node2 := myComp()
 	node2.Update(realNodes, node1)
 
 	if len(getStates) != 2 {
@@ -458,18 +457,18 @@ func TestUseCallback_ReturnsSameRef(t *testing.T) {
 		} else {
 			cb = func1
 		}
-		cbCached := UseCallback(cb, []any{props.x})
+		cbCached := UseCallback(cb, props.x)
 		callbacks = append(callbacks, cbCached)
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(struct {
+	node1 := myComp.Props(struct {
 		useSecond bool
 		x         int
 	}{useSecond: false, x: 1})
 	realNodes := node1.Instantiate(doc)
 
-	node2 := myComp(struct {
+	node2 := myComp.Props(struct {
 		useSecond bool
 		x         int
 	}{useSecond: true, x: 1})
@@ -503,18 +502,18 @@ func TestUseCallback_UpdatesOnDepsChange(t *testing.T) {
 		} else {
 			cb = func1
 		}
-		cbCached := UseCallback(cb, []any{props.x})
+		cbCached := UseCallback(cb, props.x)
 		callbacks = append(callbacks, cbCached)
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(struct {
+	node1 := myComp.Props(struct {
 		useSecond bool
 		x         int
 	}{useSecond: false, x: 1})
 	realNodes := node1.Instantiate(doc)
 
-	node2 := myComp(struct {
+	node2 := myComp.Props(struct {
 		useSecond bool
 		x         int
 	}{useSecond: true, x: 2})
@@ -531,7 +530,7 @@ func TestUseCallback_UpdatesOnDepsChange(t *testing.T) {
 	}
 }
 
-func TestUseCallback_NilDeps(t *testing.T) {
+func TestUseCallback_NoDeps_MemoizesAcrossLifetime(t *testing.T) {
 	doc := dom.NewDocument()
 	var callbacks []func()
 
@@ -545,15 +544,15 @@ func TestUseCallback_NilDeps(t *testing.T) {
 		} else {
 			cb = func1
 		}
-		cbCached := UseCallback(cb, nil)
+		cbCached := UseCallback(cb)
 		callbacks = append(callbacks, cbCached)
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(struct{ useSecond bool }{useSecond: false})
+	node1 := myComp.Props(struct{ useSecond bool }{useSecond: false})
 	realNodes := node1.Instantiate(doc)
 
-	node2 := myComp(struct{ useSecond bool }{useSecond: true})
+	node2 := myComp.Props(struct{ useSecond bool }{useSecond: true})
 	node2.Update(realNodes, node1)
 
 	if len(callbacks) != 2 {
@@ -562,8 +561,8 @@ func TestUseCallback_NilDeps(t *testing.T) {
 
 	ptr1 := reflect.ValueOf(callbacks[0]).Pointer()
 	ptr2 := reflect.ValueOf(callbacks[1]).Pointer()
-	if ptr1 == ptr2 {
-		t.Errorf("expected different callback references with nil deps every render, got same pointer")
+	if ptr1 != ptr2 {
+		t.Errorf("expected same callback reference with no deps (memoized across lifetime), got different pointers")
 	}
 }
 
@@ -609,10 +608,10 @@ func TestUseEffect_RunsAfterFlush(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	effectCalled := false
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		UseEffect(func() {
 			effectCalled = true
-		}, []any{})
+		})
 		return Box(BoxProps{})
 	})
 
@@ -629,18 +628,18 @@ func TestUseEffect_RunsAfterFlush(t *testing.T) {
 	}
 }
 
-func TestUseEffect_DepsNil_RunsEveryRender(t *testing.T) {
+func TestUseEffectEveryRender_RunsEveryRender(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setTrigger func(int)
 	runCount := 0
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		_, set := UseState(0)
 		setTrigger = set
-		UseEffect(func() {
+		UseEffectEveryRender(func() {
 			runCount++
-		}, nil)
+		})
 		return Box(BoxProps{})
 	})
 
@@ -663,18 +662,49 @@ func TestUseEffect_DepsNil_RunsEveryRender(t *testing.T) {
 	}
 }
 
-func TestUseEffect_DepsEmpty_RunsOnce(t *testing.T) {
+func TestUseEffectEveryRenderCleanup_RunsAndCleansEveryRender(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setTrigger func(int)
+	var events []string
+	comp := FC("TestComp", func(_ NoProps) Node {
+		val, set := UseState(0)
+		setTrigger = set
+		cur := val()
+		UseEffectEveryRenderCleanup(func() func() {
+			events = append(events, fmt.Sprintf("run-%d", cur))
+			return func() {
+				events = append(events, fmt.Sprintf("clean-%d", cur))
+			}
+		})
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+	setTrigger(1)
+	testScheduler.flushMacrotasks()
+	Render(nil, container)
+
+	want := []string{"run-0", "clean-0", "run-1", "clean-1"}
+	if !reflect.DeepEqual(events, want) {
+		t.Errorf("got %v, want %v", events, want)
+	}
+}
+
+func TestUseEffect_NoDeps_RunsOnce(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var setTrigger func(int)
 	runCount := 0
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		_, set := UseState(0)
 		setTrigger = set
 		UseEffect(func() {
 			runCount++
-		}, []any{})
+		})
 		return Box(BoxProps{})
 	})
 
@@ -697,12 +727,12 @@ func TestUseEffect_DepsChanged_Reruns(t *testing.T) {
 
 	var setVal func(int)
 	runCount := 0
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		val, set := UseState(0)
 		setVal = set
 		UseEffect(func() {
 			runCount++
-		}, []any{val()})
+		}, val())
 		return Box(BoxProps{})
 	})
 
@@ -731,7 +761,7 @@ func TestUseEffectCleanup_CleansUpBeforeRerun(t *testing.T) {
 
 	var setVal func(int)
 	var order []string
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		val, set := UseState(0)
 		setVal = set
 		valVal := val()
@@ -740,7 +770,7 @@ func TestUseEffectCleanup_CleansUpBeforeRerun(t *testing.T) {
 			return func() {
 				order = append(order, fmt.Sprintf("cleanup-%d", valVal))
 			}
-		}, []any{valVal})
+		}, valVal)
 		return Box(BoxProps{})
 	})
 
@@ -761,12 +791,12 @@ func TestUseEffectCleanup_CleansUpOnUnmount(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	cleanupCalled := false
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		UseEffectCleanup(func() func() {
 			return func() {
 				cleanupCalled = true
 			}
-		}, []any{})
+		})
 		return Box(BoxProps{})
 	})
 
@@ -789,12 +819,12 @@ func TestUseLayoutEffect_RunsSynchronouslyAfterReconcile(t *testing.T) {
 
 	var setTrigger func(int)
 	layoutEffectCalled := false
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		_, set := UseState(0)
 		setTrigger = set
-		UseLayoutEffect(func() {
+		UseLayoutEffectEveryRender(func() {
 			layoutEffectCalled = true
-		}, nil)
+		})
 		return Box(BoxProps{})
 	})
 
@@ -810,12 +840,48 @@ func TestUseLayoutEffect_RunsSynchronouslyAfterReconcile(t *testing.T) {
 	}
 }
 
+func TestUseLayoutEffect_NoDeps_RunsOnceAndEveryRenderCleanup(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+
+	var setTrigger func(int)
+	mountRuns := 0
+	var everyEvents []string
+	comp := FC("TestComp", func(_ NoProps) Node {
+		val, set := UseState(0)
+		setTrigger = set
+		cur := val()
+		UseLayoutEffect(func() {
+			mountRuns++
+		})
+		UseLayoutEffectEveryRenderCleanup(func() func() {
+			everyEvents = append(everyEvents, fmt.Sprintf("run-%d", cur))
+			return func() {
+				everyEvents = append(everyEvents, fmt.Sprintf("clean-%d", cur))
+			}
+		})
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	setTrigger(1)
+	Render(nil, container)
+
+	if mountRuns != 1 {
+		t.Errorf("expected mount-only UseLayoutEffect to run once, got %d", mountRuns)
+	}
+	want := []string{"run-0", "clean-0", "run-1", "clean-1"}
+	if !reflect.DeepEqual(everyEvents, want) {
+		t.Errorf("got %v, want %v", everyEvents, want)
+	}
+}
+
 func TestUseLayoutEffect_CanTriggerReRender(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	renderCount := 0
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		renderCount++
 		val, setVal := UseState(0)
 
@@ -823,7 +889,7 @@ func TestUseLayoutEffect_CanTriggerReRender(t *testing.T) {
 			if val() == 0 {
 				setVal(1)
 			}
-		}, []any{val()})
+		}, val())
 
 		return Box(BoxProps{})
 	})
@@ -839,13 +905,13 @@ func TestUseLayoutEffect_ReentrancyCap(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	renderCount := 0
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		renderCount++
 		_, setVal := UseState(0)
 
-		UseLayoutEffect(func() {
+		UseLayoutEffectEveryRender(func() {
 			setVal(renderCount) // Infinite loop trigger
-		}, nil)
+		})
 
 		return Box(BoxProps{})
 	})
@@ -868,14 +934,14 @@ func TestDestroy_RunsAllCleanups(t *testing.T) {
 	cleanup1Called := false
 	cleanup2Called := false
 
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		UseEffectCleanup(func() func() {
 			return func() { cleanup1Called = true }
-		}, []any{})
+		})
 
 		UseLayoutEffectCleanup(func() func() {
 			return func() { cleanup2Called = true }
-		}, []any{})
+		})
 
 		return Box(BoxProps{})
 	})
@@ -898,14 +964,14 @@ func TestDestroy_RecursiveChildren(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	childCleanupCalled := false
-	childComp := SimpleFC("ChildComp", func() Node {
+	childComp := FC("ChildComp", func(_ NoProps) Node {
 		UseEffectCleanup(func() func() {
 			return func() { childCleanupCalled = true }
-		}, []any{})
+		})
 		return Box(BoxProps{})
 	})
 
-	parentComp := SimpleFC("ParentComp", func() Node {
+	parentComp := FC("ParentComp", func(_ NoProps) Node {
 		return Box(BoxProps{}, childComp())
 	})
 
@@ -927,13 +993,13 @@ func TestFlushBeforeRender_Guarantee(t *testing.T) {
 	effectRan := false
 	renderedVal := -1
 
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		val, set := UseState(0)
 		setTrigger = set
 
 		UseEffect(func() {
 			effectRan = true
-		}, []any{})
+		})
 
 		renderedVal = val()
 		if val() > 0 {
@@ -962,10 +1028,10 @@ func BenchmarkUseEffect(b *testing.B) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
-	comp := SimpleFC("BenchComp", func() Node {
+	comp := FC("BenchComp", func(_ NoProps) Node {
 		// Queue up 100 effects
 		for range 100 {
-			UseEffect(func() {}, nil)
+			UseEffectEveryRender(func() {})
 		}
 		return Box(BoxProps{})
 	})
@@ -984,10 +1050,10 @@ func BenchmarkDestroy(b *testing.B) {
 		if depth <= 0 {
 			return Box(BoxProps{})
 		}
-		c := SimpleFC("Child", func() Node {
+		c := FC("Child", func(_ NoProps) Node {
 			UseEffectCleanup(func() func() {
 				return func() {}
-			}, []any{})
+			})
 			return Box(BoxProps{}, buildTree(depth-1))
 		})
 		return c()
@@ -1005,13 +1071,13 @@ func BenchmarkLayoutEffectReRender(b *testing.B) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
-	comp := SimpleFC("BenchComp", func() Node {
+	comp := FC("BenchComp", func(_ NoProps) Node {
 		val, setVal := UseState(0)
 		UseLayoutEffect(func() {
 			if val() == 0 {
 				setVal(1)
 			}
-		}, []any{val()})
+		}, val())
 		return Box(BoxProps{})
 	})
 
@@ -1064,7 +1130,7 @@ func TestUseFocus(t *testing.T) {
 
 	state := &State{}
 
-	FocusApp := SimpleFC("FocusApp", func() Node {
+	FocusApp := FC("FocusApp", func(_ NoProps) Node {
 		ref := UseRef[dom.Element](nil)
 
 		isFocused := UseFocus(ref)
@@ -1113,7 +1179,7 @@ func TestUseFocus(t *testing.T) {
 
 	// TestUseFocus_NilRef
 	// Let's create another component with a nil ref
-	NilRefApp := SimpleFC("NilRefApp", func() Node {
+	NilRefApp := FC("NilRefApp", func(_ NoProps) Node {
 		ref := CreateRef[dom.Element]() // Empty ref
 		UseFocus(ref)                   // Should not panic
 		return Box(BoxProps{}, Text("Nil ref"))
@@ -1136,10 +1202,10 @@ func TestUseKeyboard(t *testing.T) {
 
 	state := &State{}
 
-	KeyboardApp := SimpleFC("KeyboardApp", func() Node {
+	KeyboardApp := FC("KeyboardApp", func(_ NoProps) Node {
 		UseKeyboard(func(e event.KeyEvent) {
 			state.lastPressed = e.Text
-		}, nil)
+		})
 
 		return Box(BoxProps{}, Text("Keyboard hook app"))
 	})
@@ -1179,7 +1245,7 @@ func TestUseState_UnmountedComponentNoop(t *testing.T) {
 
 	var setState func(int)
 	var getState func() int
-	comp := SimpleFC("TestComp", func() Node {
+	comp := FC("TestComp", func(_ NoProps) Node {
 		get, set := UseState(10)
 		setState = set
 		getState = get
@@ -1214,10 +1280,10 @@ func TestUseTimeout(t *testing.T) {
 	container := doc.CreateElement("container", nil)
 
 	var called atomic.Bool
-	TimeoutApp := SimpleFC("TimeoutApp", func() Node {
+	TimeoutApp := FC("TimeoutApp", func(_ NoProps) Node {
 		UseTimeout(func() {
 			called.Store(true)
-		}, 10*time.Millisecond, nil)
+		}, 10*time.Millisecond)
 
 		return Box(BoxProps{}, Text("Timeout app"))
 	})
@@ -1235,10 +1301,10 @@ func TestUseTimeout(t *testing.T) {
 
 	// Now test unmount cleanup
 	var called2 atomic.Bool
-	TimeoutApp2 := SimpleFC("TimeoutApp2", func() Node {
+	TimeoutApp2 := FC("TimeoutApp2", func(_ NoProps) Node {
 		UseTimeout(func() {
 			called2.Store(true)
-		}, 20*time.Millisecond, nil)
+		}, 20*time.Millisecond)
 
 		return Box(BoxProps{}, Text("Timeout app 2"))
 	})
@@ -1263,10 +1329,10 @@ func TestUseInterval(t *testing.T) {
 	container := doc.CreateElement("container", nil)
 
 	var ticks atomic.Int32
-	IntervalApp := SimpleFC("IntervalApp", func() Node {
+	IntervalApp := FC("IntervalApp", func(_ NoProps) Node {
 		UseInterval(func() {
 			ticks.Add(1)
-		}, 10*time.Millisecond, nil)
+		}, 10*time.Millisecond)
 
 		return Box(BoxProps{}, Text("Interval app"))
 	})
@@ -1312,7 +1378,7 @@ func TestUseViewportSize(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var size geom.Size
-	comp := SimpleFC("ViewportComp", func() Node {
+	comp := FC("ViewportComp", func(_ NoProps) Node {
 		size = UseViewportSize()
 		return Box(BoxProps{})
 	})
@@ -1361,7 +1427,7 @@ func TestUseTerminal(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var term terminal.Terminal
-	comp := SimpleFC("TerminalComp", func() Node {
+	comp := FC("TerminalComp", func(_ NoProps) Node {
 		getTerm := UseTerminal()
 		term = getTerm()
 		return Box(BoxProps{})
@@ -1417,7 +1483,7 @@ func TestUseTitleAndUseBell(t *testing.T) {
 	var setProgress func(terminal.ProgressBarState, int)
 	var setProgress2 func(terminal.ProgressBarState, int)
 
-	comp := SimpleFC("TitleBellComp", func() Node {
+	comp := FC("TitleBellComp", func(_ NoProps) Node {
 		_, setTitleSetter := UseTitle("Initial Title")
 		setTitle = setTitleSetter
 
@@ -1484,7 +1550,7 @@ func TestUseWindowFocus(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
 	var isFocused bool
-	comp := SimpleFC("WindowFocusComp", func() Node {
+	comp := FC("WindowFocusComp", func(_ NoProps) Node {
 		isFocused = UseWindowFocus()
 		return Box(BoxProps{})
 	})
@@ -1550,12 +1616,12 @@ func TestUseAsyncEffect(t *testing.T) {
 
 			<-ctx.Done()
 			close(rec.cancelled)
-		}, []any{dep})
+		}, dep)
 		return Box(BoxProps{})
 	})
 
 	// Mount with Dep=1
-	Render(comp(struct{ Dep int }{Dep: 1}), container)
+	Render(comp.Props(struct{ Dep int }{Dep: 1}), container)
 	testScheduler.flushMacrotasks()
 
 	var run1 *runRecord
@@ -1583,7 +1649,7 @@ func TestUseAsyncEffect(t *testing.T) {
 	}
 
 	// Re-render with same Dep=1: must not cancel or re-run
-	Render(comp(struct{ Dep int }{Dep: 1}), container)
+	Render(comp.Props(struct{ Dep int }{Dep: 1}), container)
 	testScheduler.flushMacrotasks()
 
 	mu.Lock()
@@ -1594,7 +1660,7 @@ func TestUseAsyncEffect(t *testing.T) {
 	}
 
 	// Re-render with Dep=2: cancels run1 and starts run2
-	Render(comp(struct{ Dep int }{Dep: 2}), container)
+	Render(comp.Props(struct{ Dep int }{Dep: 2}), container)
 	testScheduler.flushMacrotasks()
 
 	select {
@@ -1637,8 +1703,8 @@ func TestUseAsyncEffect_NilEffect(t *testing.T) {
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	defer Render(nil, container)
 
-	comp := SimpleFC("NilAsyncComp", func() Node {
-		UseAsyncEffect(nil, nil)
+	comp := FC("NilAsyncComp", func(_ NoProps) Node {
+		UseAsyncEffect(nil)
 		return Box(BoxProps{})
 	})
 
@@ -1659,7 +1725,7 @@ func TestUseProgramResume(t *testing.T) {
 	var setResume1 func(*terminal.ProgramResume)
 	var setResume2 func(*terminal.ProgramResume)
 
-	comp := SimpleFC("ResumeComp", func() Node {
+	comp := FC("ResumeComp", func(_ NoProps) Node {
 		setResume1 = UseProgramResume()
 		setResume2 = UseProgramResume()
 		return Box(BoxProps{})
@@ -1694,7 +1760,7 @@ func TestStateSetter_DirectAndFunctionalUpdate(t *testing.T) {
 		setCount StateSetter[int]
 	)
 
-	comp := SimpleFC("DirectUpdateComp", func() Node {
+	comp := FC("DirectUpdateComp", func(_ NoProps) Node {
 		g, s := UseState(10)
 		getCount = g
 		setCount = s
@@ -1732,7 +1798,7 @@ func TestStateSetter_ConcurrentAtomicUpdates(t *testing.T) {
 		setCount    StateSetter[int]
 	)
 
-	comp := SimpleFC("CounterComp", func() Node {
+	comp := FC("CounterComp", func(_ NoProps) Node {
 		g, s := UseState(0)
 		captureOnce.Do(func() {
 			getCount = g
@@ -1774,7 +1840,7 @@ func TestStateSetter_NilSafety(t *testing.T) {
 		getVal func() int
 		setVal StateSetter[int]
 	)
-	comp := SimpleFC("NilUpdateComp", func() Node {
+	comp := FC("NilUpdateComp", func(_ NoProps) Node {
 		g, s := UseState(7)
 		getVal = g
 		setVal = s
@@ -1797,7 +1863,7 @@ func TestStateSetter_AssignabilityAndStableIdentity(t *testing.T) {
 	defer Render(nil, container)
 
 	var (
-		setters []StateSetter[string]
+		setters  []StateSetter[string]
 		handlers []func(string)
 	)
 
@@ -1817,9 +1883,9 @@ func TestStateSetter_AssignabilityAndStableIdentity(t *testing.T) {
 		return Text(query())
 	})
 
-	Render(comp(struct{ Step int }{Step: 1}), container)
+	Render(comp.Props(struct{ Step int }{Step: 1}), container)
 	testScheduler.flushMacrotasks()
-	Render(comp(struct{ Step int }{Step: 2}), container)
+	Render(comp.Props(struct{ Step int }{Step: 2}), container)
 	testScheduler.flushMacrotasks()
 
 	if len(setters) != 2 || len(handlers) != 2 {
@@ -1842,7 +1908,7 @@ func TestStateSetter_UnmountCleanup(t *testing.T) {
 		setVal StateSetter[int]
 	)
 
-	comp := SimpleFC("CleanupComp", func() Node {
+	comp := FC("CleanupComp", func(_ NoProps) Node {
 		g, s := UseState(5)
 		getVal = g
 		setVal = s
@@ -1883,7 +1949,7 @@ func BenchmarkUseState_Set(b *testing.B) {
 	}()
 
 	var setVal StateSetter[int]
-	comp := SimpleFC("BenchSetComp", func() Node {
+	comp := FC("BenchSetComp", func(_ NoProps) Node {
 		_, s := UseState(0)
 		setVal = s
 		return Box(BoxProps{})
@@ -1910,7 +1976,7 @@ func BenchmarkUseState_Update(b *testing.B) {
 	}()
 
 	var setVal StateSetter[int]
-	comp := SimpleFC("BenchUpdateComp", func() Node {
+	comp := FC("BenchUpdateComp", func(_ NoProps) Node {
 		_, s := UseState(0)
 		setVal = s
 		return Box(BoxProps{})

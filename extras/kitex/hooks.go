@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 	"weak"
@@ -228,13 +227,13 @@ type memoHookState[T any] struct {
 func (m *memoHookState[T]) getValue() any { return m.value }
 
 // UseMemo memoizes the result of factory and re-evaluates it only when the
-// deps slice changes between renders. Dependency comparison uses
-// reflect.DeepEqual on each element in the slice.
+// deps change between renders. Dependency comparison uses reflect.DeepEqual on
+// each argument. When called with no deps, factory runs once on mount.
 //
 // Example:
 //
-//	expensive := kitex.UseMemo(func() []Row { return buildRows(data) }, []any{data})
-func UseMemo[T any](factory func() T, deps []any) T {
+//	expensive := kitex.UseMemo(func() []Row { return buildRows(data) }, data)
+func UseMemo[T any](factory func() T, deps ...any) T {
 	compVal := getCurrentComponent()
 	if compVal == nil {
 		panic("UseMemo must be called inside a functional component render phase")
@@ -284,20 +283,16 @@ func UseReducer[S, A any](reducer func(S, A) S, initial S) (func() S, func(A)) {
 	return getState, dispatch
 }
 
-var useCallbackSeq atomic.Uint64
-
 // UseCallback memoizes a function callback reference across renders, re-evaluating
-// it only when the dependency slice changes.
-func UseCallback[T any](callback T, deps []any) T {
-	if deps == nil {
-		seq := useCallbackSeq.Add(1)
-		return UseMemo(func() T { return callback }, []any{seq})
-	}
-	return UseMemo(func() T { return callback }, deps)
+// it only when deps change. When called with no deps, the callback is memoized
+// across the component lifetime.
+func UseCallback[T any](callback T, deps ...any) T {
+	return UseMemo(func() T { return callback }, deps...)
 }
 
 type effectHookState struct {
 	deps      []any
+	alwaysRun bool
 	cleanup   func()
 	isLayout  bool
 	pending   bool
@@ -437,88 +432,97 @@ func UseTerminal() func() terminal.Terminal {
 	}
 }
 
-func UseEffect(effect func(), deps []any) {
-	compVal := getCurrentComponent()
-	if compVal == nil {
-		panic("UseEffect must be called inside a functional component render phase")
-	}
-	comp := compVal.(componentInstance)
-	idx := comp.incrementHookIndex()
-
-	stateVal, exists := comp.getHookState(idx)
-	if !exists {
-		hs := &effectHookState{
-			deps:     deps,
-			pending:  true,
-			isLayout: false,
-			simpleFn: effect,
-		}
-		comp.setHookState(idx, hs)
-		effectsMutex.Lock()
-		pendingEffects = append(pendingEffects, hs)
-		effectsMutex.Unlock()
-		scheduleEffectFlush()
-		return
-	}
-
-	hs := stateVal.(*effectHookState)
-	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
-
-	hs.simpleFn = effect // Update closure anyway
-	if changed {
-		hs.deps = deps
-		hs.pending = true
-		effectsMutex.Lock()
-		pendingEffects = append(pendingEffects, hs)
-		effectsMutex.Unlock()
-		scheduleEffectFlush()
-	}
-}
-
-// UseEffectCleanup schedules a post-commit side effect with a cleanup function.
-func UseEffectCleanup(effect func() func(), deps []any) {
-	compVal := getCurrentComponent()
-	if compVal == nil {
-		panic("UseEffectCleanup must be called inside a functional component render phase")
-	}
-	comp := compVal.(componentInstance)
+func runEffectHook(comp componentInstance, isLayout bool, alwaysRun bool, simpleFn func(), cleanupFn func() func(), deps []any) {
 	idx := comp.incrementHookIndex()
 
 	stateVal, exists := comp.getHookState(idx)
 	if !exists {
 		hs := &effectHookState{
 			deps:      deps,
+			alwaysRun: alwaysRun,
 			pending:   true,
-			isLayout:  false,
-			cleanupFn: effect,
+			isLayout:  isLayout,
+			simpleFn:  simpleFn,
+			cleanupFn: cleanupFn,
 		}
 		comp.setHookState(idx, hs)
 		effectsMutex.Lock()
-		pendingEffects = append(pendingEffects, hs)
+		if isLayout {
+			pendingLayoutEffects = append(pendingLayoutEffects, hs)
+		} else {
+			pendingEffects = append(pendingEffects, hs)
+		}
 		effectsMutex.Unlock()
-		scheduleEffectFlush()
+		if !isLayout {
+			scheduleEffectFlush()
+		}
 		return
 	}
 
 	hs := stateVal.(*effectHookState)
-	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
+	changed := hs.alwaysRun || alwaysRun || !depsEqual(hs.deps, deps)
 
-	hs.cleanupFn = effect // Update closure anyway
+	hs.simpleFn = simpleFn
+	hs.cleanupFn = cleanupFn
 	if changed {
 		hs.deps = deps
 		hs.pending = true
 		effectsMutex.Lock()
-		pendingEffects = append(pendingEffects, hs)
+		if isLayout {
+			pendingLayoutEffects = append(pendingLayoutEffects, hs)
+		} else {
+			pendingEffects = append(pendingEffects, hs)
+		}
 		effectsMutex.Unlock()
-		scheduleEffectFlush()
+		if !isLayout {
+			scheduleEffectFlush()
+		}
 	}
+}
+
+// UseEffect schedules a post-commit side effect. When called with no deps,
+// it runs once on mount.
+func UseEffect(effect func(), deps ...any) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseEffect must be called inside a functional component render phase")
+	}
+	runEffectHook(compVal.(componentInstance), false, false, effect, nil, deps)
+}
+
+// UseEffectCleanup schedules a post-commit side effect with a cleanup function.
+// When called with no deps, it runs once on mount and cleans up on unmount.
+func UseEffectCleanup(effect func() func(), deps ...any) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseEffectCleanup must be called inside a functional component render phase")
+	}
+	runEffectHook(compVal.(componentInstance), false, false, nil, effect, deps)
+}
+
+// UseEffectEveryRender schedules a post-commit side effect to run after every render.
+func UseEffectEveryRender(effect func()) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseEffectEveryRender must be called inside a functional component render phase")
+	}
+	runEffectHook(compVal.(componentInstance), false, true, effect, nil, nil)
+}
+
+// UseEffectEveryRenderCleanup schedules a post-commit side effect with cleanup to run after every render.
+func UseEffectEveryRenderCleanup(effect func() func()) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseEffectEveryRenderCleanup must be called inside a functional component render phase")
+	}
+	runEffectHook(compVal.(componentInstance), false, true, nil, effect, nil)
 }
 
 // UseAsyncEffect schedules a post-commit asynchronous side effect using the
 // active scheduler's Spawn method (or promise.Spawn when no host scheduler is
 // attached). The context passed to effect is cancelled before re-running when
 // deps change, when the component unmounts, and when the scheduler stops.
-func UseAsyncEffect(effect func(ctx context.Context), deps []any) {
+func UseAsyncEffect(effect func(ctx context.Context), deps ...any) {
 	UseEffectCleanup(func() func() {
 		if effect == nil {
 			return nil
@@ -537,7 +541,9 @@ func UseAsyncEffect(effect func(ctx context.Context), deps []any) {
 		}
 
 		if sched := getInternalScheduler(); sched != nil {
-			if ts, ok := sched.(interface{ TrySpawn(func(context.Context)) bool }); ok {
+			if ts, ok := sched.(interface {
+				TrySpawn(func(context.Context)) bool
+			}); ok {
 				if !ts.TrySpawn(task) {
 					cancel()
 					return nil
@@ -551,81 +557,45 @@ func UseAsyncEffect(effect func(ctx context.Context), deps []any) {
 		}
 
 		return cancel
-	}, deps)
+	}, deps...)
 }
 
 // UseLayoutEffect schedules a layout side effect that runs synchronously after reconciliation.
-func UseLayoutEffect(effect func(), deps []any) {
+// When called with no deps, it runs once on mount.
+func UseLayoutEffect(effect func(), deps ...any) {
 	compVal := getCurrentComponent()
 	if compVal == nil {
 		panic("UseLayoutEffect must be called inside a functional component render phase")
 	}
-	comp := compVal.(componentInstance)
-	idx := comp.incrementHookIndex()
-
-	stateVal, exists := comp.getHookState(idx)
-	if !exists {
-		hs := &effectHookState{
-			deps:     deps,
-			pending:  true,
-			isLayout: true,
-			simpleFn: effect,
-		}
-		comp.setHookState(idx, hs)
-		effectsMutex.Lock()
-		pendingLayoutEffects = append(pendingLayoutEffects, hs)
-		effectsMutex.Unlock()
-		return
-	}
-
-	hs := stateVal.(*effectHookState)
-	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
-
-	hs.simpleFn = effect // Update closure anyway
-	if changed {
-		hs.deps = deps
-		hs.pending = true
-		effectsMutex.Lock()
-		pendingLayoutEffects = append(pendingLayoutEffects, hs)
-		effectsMutex.Unlock()
-	}
+	runEffectHook(compVal.(componentInstance), true, false, effect, nil, deps)
 }
 
 // UseLayoutEffectCleanup schedules a layout side effect with a cleanup function.
-func UseLayoutEffectCleanup(effect func() func(), deps []any) {
+// When called with no deps, it runs once on mount and cleans up on unmount.
+func UseLayoutEffectCleanup(effect func() func(), deps ...any) {
 	compVal := getCurrentComponent()
 	if compVal == nil {
 		panic("UseLayoutEffectCleanup must be called inside a functional component render phase")
 	}
-	comp := compVal.(componentInstance)
-	idx := comp.incrementHookIndex()
+	runEffectHook(compVal.(componentInstance), true, false, nil, effect, deps)
+}
 
-	stateVal, exists := comp.getHookState(idx)
-	if !exists {
-		hs := &effectHookState{
-			deps:      deps,
-			pending:   true,
-			isLayout:  true,
-			cleanupFn: effect,
-		}
-		comp.setHookState(idx, hs)
-		effectsMutex.Lock()
-		pendingLayoutEffects = append(pendingLayoutEffects, hs)
-		effectsMutex.Unlock()
-		return
+// UseLayoutEffectEveryRender schedules a layout side effect to run synchronously after every render.
+func UseLayoutEffectEveryRender(effect func()) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseLayoutEffectEveryRender must be called inside a functional component render phase")
 	}
+	runEffectHook(compVal.(componentInstance), true, true, effect, nil, nil)
+}
 
-	hs := stateVal.(*effectHookState)
-	changed := hs.deps == nil || deps == nil || !depsEqual(hs.deps, deps)
-
-	hs.cleanupFn = effect // Update closure anyway
-	if changed {
-		hs.deps = deps
-		hs.pending = true
-		effectsMutex.Lock()
-		pendingLayoutEffects = append(pendingLayoutEffects, hs)
-		effectsMutex.Unlock()
+// UseLayoutEffectEveryRenderCleanup schedules a layout side effect with cleanup to run synchronously after every render.
+func UseLayoutEffectEveryRenderCleanup(effect func() func()) {
+	compVal := getCurrentComponent()
+	if compVal == nil {
+		panic("UseLayoutEffectEveryRenderCleanup must be called inside a functional component render phase")
 	}
+	runEffectHook(compVal.(componentInstance), true, true, nil, effect, nil)
 }
 
 // flushPendingEffects runs all pending post-commit effect functions and registers their cleanups.
@@ -718,14 +688,14 @@ func UseFocus(ref Ref[dom.Element]) bool {
 			s1.Cancel()
 			s2.Cancel()
 		}
-	}, []any{ref.Current})
+	}, ref.Current)
 
 	return focused()
 }
 
 // UseKeyboard registers a scoped keyboard handler that listens for event.EventKeyPress
 // on the document. The handler is invoked with the typed event.KeyEvent.
-func UseKeyboard(handler func(event.KeyEvent), deps []any) {
+func UseKeyboard(handler func(event.KeyEvent), deps ...any) {
 	getDoc := UseDocument()
 
 	UseEffectCleanup(func() func() {
@@ -745,13 +715,13 @@ func UseKeyboard(handler func(event.KeyEvent), deps []any) {
 		return func() {
 			s.Cancel()
 		}
-	}, deps)
+	}, deps...)
 }
 
 // UseTimeout schedules a callback to run after the specified delay.
 // The timer is automatically cancelled if the component is unmounted
 // or if the delay/dependencies change before the timeout elapses.
-func UseTimeout(handler func(), delay time.Duration, deps []any) {
+func UseTimeout(handler func(), delay time.Duration, deps ...any) {
 	getDoc := UseDocument()
 
 	UseEffectCleanup(func() func() {
@@ -776,13 +746,13 @@ func UseTimeout(handler func(), delay time.Duration, deps []any) {
 		return func() {
 			t.Stop()
 		}
-	}, append([]any{delay}, deps...))
+	}, append([]any{delay}, deps...)...)
 }
 
 // UseInterval schedules a callback to run repeatedly at the specified interval.
 // The interval timer is automatically cancelled when the component is unmounted
 // or if the interval/dependencies change.
-func UseInterval(handler func(), interval time.Duration, deps []any) {
+func UseInterval(handler func(), interval time.Duration, deps ...any) {
 	getDoc := UseDocument()
 
 	UseEffectCleanup(func() func() {
@@ -818,7 +788,7 @@ func UseInterval(handler func(), interval time.Duration, deps []any) {
 			ticker.Stop()
 			close(done)
 		}
-	}, append([]any{interval}, deps...))
+	}, append([]any{interval}, deps...)...)
 }
 
 // UseViewportSize returns the current viewport size (terminal dimensions)
@@ -875,7 +845,7 @@ func UseViewportSize() geom.Size {
 		return func() {
 			sub.Cancel()
 		}
-	}, nil)
+	})
 
 	return size()
 }
@@ -890,7 +860,7 @@ func UseTitle(initialTitle string) (func() string, func(string)) {
 		if term := getTerm(); term != nil {
 			term.SetTitle(title())
 		}
-	}, []any{title()})
+	}, title())
 	return title, setTitle
 }
 
@@ -901,7 +871,7 @@ func UseBell() func() {
 		if term := getTerm(); term != nil {
 			term.Bell()
 		}
-	}, nil)
+	})
 }
 
 // UseWindowFocus returns a reactive boolean indicating whether the terminal window currently has focus.
@@ -940,7 +910,7 @@ func UseWindowFocus() bool {
 			subFocus.Cancel()
 			subBlur.Cancel()
 		}
-	}, nil)
+	})
 
 	return isFocused()
 }
@@ -952,7 +922,7 @@ func UseProgressBar() func(state terminal.ProgressBarState, percentage int) {
 		if term := getTerm(); term != nil {
 			term.SetProgressBar(state, percentage)
 		}
-	}, nil)
+	})
 }
 
 // UseProgramResume returns a memoized callback function to register or clear
@@ -963,5 +933,5 @@ func UseProgramResume() func(resume *terminal.ProgramResume) {
 		if term := getTerm(); term != nil {
 			term.SetProgramResume(resume)
 		}
-	}, nil)
+	})
 }

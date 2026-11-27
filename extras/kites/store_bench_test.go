@@ -61,7 +61,7 @@ func BenchmarkUseHook(b *testing.B) {
 
 	store := Create(BenchState{ValueA: 1, ValueB: "hello"})
 
-	comp := kitex.SimpleFC("Comp", func() kitex.Node {
+	comp := kitex.FC("Comp", func(_ kitex.NoProps) kitex.Node {
 		val := Use(store, func(s BenchState) int {
 			return s.ValueA
 		})

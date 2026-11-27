@@ -207,4 +207,3 @@ func TestStoreCopyOnWriteIsolation(t *testing.T) {
 		t.Fatalf("expected SetState to replace state, got %+v", store.Get())
 	}
 }
-

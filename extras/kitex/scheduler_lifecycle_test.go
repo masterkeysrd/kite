@@ -81,14 +81,14 @@ func TestUseAsyncEffect_SchedulerStopCancelsAndDrains(t *testing.T) {
 	cancelled := make(chan struct{})
 	var exited atomic.Bool
 
-	comp := SimpleFC("AsyncStopComp", func() Node {
+	comp := FC("AsyncStopComp", func(_ NoProps) Node {
 		UseAsyncEffect(func(ctx context.Context) {
 			close(started)
 			<-ctx.Done()
 			time.Sleep(5 * time.Millisecond)
 			exited.Store(true)
 			close(cancelled)
-		}, []any{})
+		})
 		return Box(BoxProps{})
 	})
 

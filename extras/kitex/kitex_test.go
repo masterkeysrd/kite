@@ -3,7 +3,10 @@ package kitex
 import (
 	"image/color"
 	"reflect"
+	"runtime"
 	"testing"
+	"time"
+	"unsafe"
 
 	"github.com/masterkeysrd/kite/dom"
 	"github.com/masterkeysrd/kite/element"
@@ -585,8 +588,8 @@ func TestElementRefWiring(t *testing.T) {
 func TestSimpleComponents(t *testing.T) {
 	doc := dom.NewDocument()
 
-	t.Run("SimpleFC", func(t *testing.T) {
-		simple := SimpleFC("Simple", func() Node {
+	t.Run("FC with NoProps", func(t *testing.T) {
+		simple := FC("Simple", func(_ NoProps) Node {
 			return Box(BoxProps{ID: "simple-box"})
 		})
 		node := simple()
@@ -596,8 +599,8 @@ func TestSimpleComponents(t *testing.T) {
 		}
 	})
 
-	t.Run("SimpleFCC", func(t *testing.T) {
-		simpleWithChildren := SimpleFCC("SimpleChildren", func(children []Node) Node {
+	t.Run("FCC with NoProps", func(t *testing.T) {
+		simpleWithChildren := FCC("SimpleChildren", func(_ NoProps, children ...Node) Node {
 			return Box(BoxProps{ID: "container"}, children...)
 		})
 		child := Text("hello")
@@ -632,7 +635,7 @@ func TestBuildDevToolsSnapshot(t *testing.T) {
 		return Box(BoxProps{ID: "child-box"}, Text(state()))
 	})
 
-	Render(MyComp(MyProps{Val: "test-vdom"}), container)
+	Render(MyComp.Props(MyProps{Val: "test-vdom"}), container)
 	defer Render(nil, container)
 
 	snapshot := BuildDevToolsSnapshot(nil)
@@ -747,14 +750,14 @@ func TestComponentNodeComplexityAfterInstantiate(t *testing.T) {
 	doc := dom.NewDocument()
 
 	// Render 6 text nodes → complexity = Box(1) + 6*Text(1) = 7
-	myComp := FC("richComp", func(props struct{}) Node {
+	myComp := FC("richComp", func(props NoProps) Node {
 		return Box(BoxProps{},
 			Text("1"), Text("2"), Text("3"),
 			Text("4"), Text("5"), Text("6"),
 		)
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	_ = node.Instantiate(doc)
 
 	comp := node.(*ComponentNode[struct{}])
@@ -771,11 +774,11 @@ func TestComponentNodeComplexityAfterInstantiate(t *testing.T) {
 func TestComponentNodeComplexityBelowThreshold(t *testing.T) {
 	doc := dom.NewDocument()
 
-	myComp := FC("smallComp", func(props struct{}) Node {
+	myComp := FC("smallComp", func(props NoProps) Node {
 		return Box(BoxProps{}, Text("hi")) // score=2
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	_ = node.Instantiate(doc)
 
 	comp := node.(*ComponentNode[struct{}])
@@ -959,7 +962,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 	})
 
 	// Initial render (renderCount = 1)
-	node1 := myComp(RichProps{Title: "hello"})
+	node1 := myComp.Props(RichProps{Title: "hello"})
 	realNode := instOne(node1, doc)
 	if renderCount != 1 {
 		t.Fatalf("expected renderCount=1 after Instantiate, got %d", renderCount)
@@ -973,7 +976,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 	oldRendered := comp1.rendered
 
 	// Update with identical props → memoization should kick in, no RenderFn call.
-	node2 := myComp(RichProps{Title: "hello"})
+	node2 := myComp.Props(RichProps{Title: "hello"})
 	upd(node2, realNode, node1)
 	if renderCount != 1 {
 		t.Errorf("expected renderCount=1 after memo hit, got %d (RenderFn was called unexpectedly)", renderCount)
@@ -985,7 +988,7 @@ func TestMemoSkipsRenderOnEqualProps(t *testing.T) {
 	}
 
 	// Update with changed props → RenderFn must be called.
-	node3 := myComp(RichProps{Title: "world"})
+	node3 := myComp.Props(RichProps{Title: "world"})
 	upd(node3, realNode, node2)
 	if renderCount != 2 {
 		t.Errorf("expected renderCount=2 after prop change, got %d", renderCount)
@@ -1004,7 +1007,7 @@ func TestMemoDoesNotActivateForSmallTree(t *testing.T) {
 		return Text(props.V) // score=1, below threshold
 	})
 
-	node1 := myComp(P{V: "a"})
+	node1 := myComp.Props(P{V: "a"})
 	realNode := instOne(node1, doc)
 
 	comp := node1.(*ComponentNode[P])
@@ -1012,7 +1015,7 @@ func TestMemoDoesNotActivateForSmallTree(t *testing.T) {
 		t.Fatalf("shouldMemo should be false for small trees (score=%d)", comp.complexityScore)
 	}
 
-	node2 := myComp(P{V: "a"}) // identical props but small tree
+	node2 := myComp.Props(P{V: "a"}) // identical props but small tree
 	upd(node2, realNode, node1)
 	if renderCount != 2 {
 		t.Errorf("small tree should always re-render, expected renderCount=2, got %d", renderCount)
@@ -1026,16 +1029,16 @@ func TestUseMemoCallsFactoryOnFirstRender(t *testing.T) {
 	doc := dom.NewDocument()
 	callCount := 0
 
-	myComp := FC("MemoComp", func(props struct{}) Node {
+	myComp := FC("MemoComp", func(props NoProps) Node {
 		val := UseMemo(func() int {
 			callCount++
 			return 42
-		}, []any{})
+		})
 		_ = val
 		return Box(BoxProps{})
 	})
 
-	node := myComp(struct{}{})
+	node := myComp()
 	_ = node.Instantiate(doc)
 
 	if callCount != 1 {
@@ -1056,20 +1059,20 @@ func TestUseMemoReturnsCachedValueWhenDepsUnchanged(t *testing.T) {
 		val := UseMemo(func() int {
 			callCount++
 			return props.Dep * 10
-		}, []any{props.Dep})
+		}, props.Dep)
 		lastVal = val
 		return Box(BoxProps{})
 	})
 
 	// Initial render: dep=5
-	node1 := myComp(P{Dep: 5})
+	node1 := myComp.Props(P{Dep: 5})
 	realNode := instOne(node1, doc)
 	if callCount != 1 || lastVal != 50 {
 		t.Fatalf("initial render: callCount=%d lastVal=%d, want 1 / 50", callCount, lastVal)
 	}
 
 	// Re-render with same dep → factory should NOT be called.
-	node2 := myComp(P{Dep: 5})
+	node2 := myComp.Props(P{Dep: 5})
 	upd(node2, realNode, node1)
 	if callCount != 1 {
 		t.Errorf("same deps: factory should not be called again, got callCount=%d", callCount)
@@ -1079,7 +1082,7 @@ func TestUseMemoReturnsCachedValueWhenDepsUnchanged(t *testing.T) {
 	}
 
 	// Re-render with changed dep → factory MUST be called.
-	node3 := myComp(P{Dep: 7})
+	node3 := myComp.Props(P{Dep: 7})
 	upd(node3, realNode, node2)
 	if callCount != 2 {
 		t.Errorf("changed deps: factory should be called, got callCount=%d", callCount)
@@ -1103,25 +1106,25 @@ func TestUseMemoMultipleDeps(t *testing.T) {
 		_ = UseMemo(func() string {
 			callCount++
 			return "computed"
-		}, []any{props.A, props.B})
+		}, props.A, props.B)
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(P{A: 1, B: "x"})
+	node1 := myComp.Props(P{A: 1, B: "x"})
 	realNode := instOne(node1, doc)
 	if callCount != 1 {
 		t.Fatalf("initial: callCount=%d, want 1", callCount)
 	}
 
 	// Same deps → no re-eval.
-	node2 := myComp(P{A: 1, B: "x"})
+	node2 := myComp.Props(P{A: 1, B: "x"})
 	upd(node2, realNode, node1)
 	if callCount != 1 {
 		t.Errorf("same deps: callCount=%d, want 1", callCount)
 	}
 
 	// Changing B only → re-eval.
-	node3 := myComp(P{A: 1, B: "y"})
+	node3 := myComp.Props(P{A: 1, B: "y"})
 	upd(node3, realNode, node2)
 	if callCount != 2 {
 		t.Errorf("changed B: callCount=%d, want 2", callCount)
@@ -1134,23 +1137,23 @@ func TestUseMemoEmptyDeps(t *testing.T) {
 	doc := dom.NewDocument()
 	callCount := 0
 
-	myComp := FC("EmptyDeps", func(props struct{}) Node {
+	myComp := FC("EmptyDeps", func(props NoProps) Node {
 		_ = UseMemo(func() int {
 			callCount++
 			return 99
-		}, []any{})
+		})
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(struct{}{})
+	node1 := myComp()
 	realNode := instOne(node1, doc)
 	if callCount != 1 {
 		t.Fatalf("initial: callCount=%d, want 1", callCount)
 	}
 
-	node2 := myComp(struct{}{})
+	node2 := myComp()
 	upd(node2, realNode, node1)
-	node3 := myComp(struct{}{})
+	node3 := myComp()
 	upd(node3, realNode, node2)
 	if callCount != 1 {
 		t.Errorf("empty deps: factory should run only once, got callCount=%d", callCount)
@@ -1172,7 +1175,7 @@ func TestUseMemoOutsideRenderPanics(t *testing.T) {
 			t.Errorf("expected UseMemo to panic when called outside a component render phase")
 		}
 	}()
-	UseMemo(func() int { return 0 }, nil)
+	UseMemo(func() int { return 0 })
 }
 
 // BenchmarkVDOMConstruction measures the performance of constructing a standard VDOM tree.
@@ -1211,7 +1214,7 @@ func BenchmarkComponentInstantiation(b *testing.B) {
 	})
 
 	for b.Loop() {
-		compNode := myButton(MyButtonProps{Label: "click me"})
+		compNode := myButton.Props(MyButtonProps{Label: "click me"})
 		_ = compNode.Instantiate(doc)
 	}
 }
@@ -1220,7 +1223,7 @@ func BenchmarkComponentInstantiation(b *testing.B) {
 func BenchmarkComponentHooks(b *testing.B) {
 	doc := dom.NewDocument()
 
-	myCounter := FC("Counter", func(props struct{}) Node {
+	myCounter := FC("Counter", func(props NoProps) Node {
 		getVal1, setVal1 := UseState(0)
 		getVal2, setVal2 := UseState("hello")
 
@@ -1235,7 +1238,7 @@ func BenchmarkComponentHooks(b *testing.B) {
 	})
 
 	for b.Loop() {
-		compNode := myCounter(struct{}{})
+		compNode := myCounter()
 		_ = compNode.Instantiate(doc)
 	}
 }
@@ -1244,7 +1247,7 @@ func BenchmarkComponentHooks(b *testing.B) {
 func BenchmarkComponentUpdate(b *testing.B) {
 	doc := dom.NewDocument()
 
-	myCounter := FC("Counter", func(props struct{}) Node {
+	myCounter := FC("Counter", func(props NoProps) Node {
 		getVal, setVal := UseState(0)
 		if getVal() < 100 {
 			setVal(getVal() + 1)
@@ -1253,11 +1256,11 @@ func BenchmarkComponentUpdate(b *testing.B) {
 	})
 
 	// Initial render
-	node1 := myCounter(struct{}{})
+	node1 := myCounter()
 	realNode := instOne(node1, doc)
 
 	for b.Loop() {
-		node2 := myCounter(struct{}{})
+		node2 := myCounter()
 		upd(node2, realNode, node1)
 		node1 = node2
 	}
@@ -1295,7 +1298,7 @@ func BenchmarkMemoizedUpdateIdenticalProps(b *testing.B) {
 		return buildRichTree(props.Label)
 	})
 
-	node1 := myComp(RichProps{Label: "hello"})
+	node1 := myComp.Props(RichProps{Label: "hello"})
 	realNode := instOne(node1, doc)
 
 	// Confirm memoization is active.
@@ -1305,7 +1308,7 @@ func BenchmarkMemoizedUpdateIdenticalProps(b *testing.B) {
 	}
 
 	for b.Loop() {
-		node2 := myComp(RichProps{Label: "hello"}) // identical props
+		node2 := myComp.Props(RichProps{Label: "hello"}) // identical props
 		upd(node2, realNode, node1)
 		node1 = node2
 	}
@@ -1322,7 +1325,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 		return buildRichTree(props.Label)
 	})
 
-	node1 := myComp(RichProps{Label: "hello"})
+	node1 := myComp.Props(RichProps{Label: "hello"})
 	realNode := instOne(node1, doc)
 
 	for i := 0; b.Loop(); i++ {
@@ -1331,7 +1334,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 		if i%2 == 0 {
 			label = "world"
 		}
-		node2 := myComp(RichProps{Label: label})
+		node2 := myComp.Props(RichProps{Label: label})
 		upd(node2, realNode, node1)
 		ReleaseTree(node1)
 		node1 = node2
@@ -1343,7 +1346,7 @@ func BenchmarkMemoizedUpdateChangedProps(b *testing.B) {
 func BenchmarkUseMemoHitRate(b *testing.B) {
 	doc := dom.NewDocument()
 
-	myComp := FC("UseMemoComp", func(props struct{}) Node {
+	myComp := FC("UseMemoComp", func(props NoProps) Node {
 		_ = UseMemo(func() []int {
 			// Simulated "expensive" computation.
 			out := make([]int, 100)
@@ -1351,15 +1354,15 @@ func BenchmarkUseMemoHitRate(b *testing.B) {
 				out[i] = i * i
 			}
 			return out
-		}, []any{"stable-key"})
+		}, "stable-key")
 		return Box(BoxProps{})
 	})
 
-	node1 := myComp(struct{}{})
+	node1 := myComp()
 	realNode := instOne(node1, doc)
 
 	for b.Loop() {
-		node2 := myComp(struct{}{})
+		node2 := myComp()
 		upd(node2, realNode, node1)
 		node1 = node2
 	}
@@ -1375,7 +1378,7 @@ func TestInput_ProgrammaticClearFocusReconciliation(t *testing.T) {
 	}
 	state := &State{value: "hello"}
 
-	App := SimpleFC("App", func() Node {
+	App := FC("App", func(_ NoProps) Node {
 		return Input(InputProps{
 			ID:    "inp1",
 			Value: state.value,
@@ -1646,5 +1649,383 @@ func TestTextf(t *testing.T) {
 		if declFile == "" || declLine == 0 {
 			t.Errorf("expected Textf DevMode source tracking to populate declFile/declLine")
 		}
+	}
+}
+
+func TestComponentAndContainerAPI(t *testing.T) {
+	doc := dom.NewDocument()
+
+	t.Run("Component zero-props and explicit props", func(t *testing.T) {
+		type LabelProps struct {
+			Text string
+		}
+		Label := FC("Label", func(p LabelProps) Node {
+			if p.Text == "" {
+				return Text("default")
+			}
+			return Text(p.Text)
+		})
+
+		elZero := instOne(Label(), doc).(*element.TextElement)
+		if elZero.Data() != "default" {
+			t.Fatalf("Label() = %q, want %q", elZero.Data(), "default")
+		}
+
+		elExplicit := instOne(Label.Props(LabelProps{Text: "custom"}), doc).(*element.TextElement)
+		if elExplicit.Data() != "custom" {
+			t.Fatalf("Label.Props(...) = %q, want %q", elExplicit.Data(), "custom")
+		}
+	})
+
+	t.Run("Container zero-props and explicit props", func(t *testing.T) {
+		type PanelProps struct {
+			ID string
+		}
+		Panel := FCC("Panel", func(p PanelProps, children ...Node) Node {
+			id := p.ID
+			if id == "" {
+				id = "default-panel"
+			}
+			return Box(BoxProps{ID: id}, children...)
+		})
+
+		countChildren := func(el dom.Element) int {
+			n := 0
+			for range el.ChildNodes() {
+				n++
+			}
+			return n
+		}
+
+		elZero := instOne(Panel(Text("a"), Text("b")), doc).(*element.BoxElement)
+		if elZero.ID() != "default-panel" || countChildren(elZero) != 2 {
+			t.Fatalf("Panel(...) got id=%q children=%d", elZero.ID(), countChildren(elZero))
+		}
+
+		elExplicit := instOne(Panel.Props(PanelProps{ID: "custom-panel"}, Text("x")), doc).(*element.BoxElement)
+		if elExplicit.ID() != "custom-panel" || countChildren(elExplicit) != 1 {
+			t.Fatalf("Panel.Props(...) got id=%q children=%d", elExplicit.ID(), countChildren(elExplicit))
+		}
+	})
+
+	t.Run("Nil receiver guards", func(t *testing.T) {
+		var nilComp Component[int]
+		if n := nilComp.Props(42); n == nil || n.TagName() != "#empty" {
+			t.Fatalf("nilComp.Props() = %v, want Empty()", n)
+		}
+
+		var nilCont Container[int]
+		if n := nilCont.Props(42, Text("x")); n == nil || n.TagName() != "#empty" {
+			t.Fatalf("nilCont.Props() = %v, want Empty()", n)
+		}
+	})
+}
+
+func TestDevToolsSourceLines_FC_And_FCC(t *testing.T) {
+	EnableDevMode = true
+	defer func() { EnableDevMode = false }()
+
+	type P struct{ V string }
+	_, _, expectedFCDeclLine, _ := runtime.Caller(0)
+	Comp := FC("LineComp", func(p P) Node {
+		return Text(p.V)
+	})
+	_, _, expectedFCCDeclLine, _ := runtime.Caller(0)
+	Cont := FCC("LineCont", func(p P, children ...Node) Node {
+		return Box(BoxProps{ID: p.V}, children...)
+	})
+
+	_, _, expectedCompCallLine, _ := runtime.Caller(0)
+	n1 := Comp()
+	_, _, expectedCompPropsLine, _ := runtime.Caller(0)
+	n2 := Comp.Props(P{V: "hi"})
+	_, _, expectedContCallLine, _ := runtime.Caller(0)
+	n3 := Cont(Text("c1"))
+	_, _, expectedContPropsLine, _ := runtime.Caller(0)
+	n4 := Cont.Props(P{V: "id"}, Text("c2"))
+	_, _, expectedBoxStyleLine, _ := runtime.Caller(0)
+	n5 := Box.Style(style.S().Bold(true), Text("styled"))
+	_, _, expectedInputStyleLine, _ := runtime.Caller(0)
+	n6 := Input.Style(style.S().Padding(0, 1))
+
+	cases := []struct {
+		name          string
+		node          Node
+		checkDeclLine bool
+		declLine      int
+		instLine      int
+	}{
+		{"Comp()", n1, true, expectedFCDeclLine + 1, expectedCompCallLine + 1},
+		{"Comp.Props()", n2, true, expectedFCDeclLine + 1, expectedCompPropsLine + 1},
+		{"Cont()", n3, true, expectedFCCDeclLine + 1, expectedContCallLine + 1},
+		{"Cont.Props()", n4, true, expectedFCCDeclLine + 1, expectedContPropsLine + 1},
+		{"Box.Style()", n5, false, 0, expectedBoxStyleLine + 1},
+		{"Input.Style()", n6, false, 0, expectedInputStyleLine + 1},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			st := tc.node.(sourceTracker)
+			declFile, declLine, instFile, instLine := st.getSource()
+			if declFile == "" || instFile == "" {
+				t.Fatalf("expected non-empty files, got decl=%q inst=%q", declFile, instFile)
+			}
+			if tc.checkDeclLine && declLine != tc.declLine {
+				t.Errorf("declLine = %d, want %d", declLine, tc.declLine)
+			}
+			if instLine != tc.instLine {
+				t.Errorf("instLine = %d, want %d", instLine, tc.instLine)
+			}
+		})
+	}
+}
+
+func TestZeroReflectionKeyExtraction(t *testing.T) {
+	t.Run("Direct Key field", func(t *testing.T) {
+		type P struct {
+			Pad int
+			Key string
+		}
+		comp := FC("DirectKey", func(p P) Node { return Text(p.Key) })
+		if got := comp.Props(P{Pad: 1, Key: "k-direct"}).Key(); got != "k-direct" {
+			t.Fatalf("Key() = %q, want %q", got, "k-direct")
+		}
+	})
+
+	t.Run("Embedded ElementProps Key", func(t *testing.T) {
+		type P struct {
+			Pad int
+			ElementProps
+		}
+		comp := FC("EmbeddedKey", func(p P) Node { return Text(p.Key) })
+		if got := comp.Props(P{Pad: 1, ElementProps: ElementProps{Key: "k-embed"}}).Key(); got != "k-embed" {
+			t.Fatalf("Key() = %q, want %q", got, "k-embed")
+		}
+	})
+
+	t.Run("Nested ElementProps field", func(t *testing.T) {
+		type P struct {
+			Pad          int
+			ElementProps ElementProps
+		}
+		comp := FC("NestedKey", func(p P) Node { return Text(p.ElementProps.Key) })
+		if got := comp.Props(P{Pad: 1, ElementProps: ElementProps{Key: "k-nested"}}).Key(); got != "k-nested" {
+			t.Fatalf("Key() = %q, want %q", got, "k-nested")
+		}
+	})
+
+	t.Run("Pointer struct props", func(t *testing.T) {
+		type P struct {
+			Key string
+		}
+		comp := FC("PtrKey", func(p *P) Node { return Box(BoxProps{}) })
+		if got := comp.Props(nil).Key(); got != "" {
+			t.Fatalf("nil ptr Key() = %q, want empty", got)
+		}
+		if got := comp.Props(&P{Key: "k-ptr"}).Key(); got != "k-ptr" {
+			t.Fatalf("ptr Key() = %q, want %q", got, "k-ptr")
+		}
+	})
+
+	t.Run("No Key field", func(t *testing.T) {
+		comp := FC("NoKey", func(_ NoProps) Node { return Box(BoxProps{}) })
+		if got := comp().Key(); got != "" {
+			t.Fatalf("NoProps Key() = %q, want empty", got)
+		}
+	})
+}
+
+func TestIsSafelyComparable_AndMemoSafety(t *testing.T) {
+	type SafeNested struct {
+		A int
+		B [2]string
+	}
+	type SafeProps struct {
+		N SafeNested
+		S string
+	}
+	type InterfaceFieldProps struct {
+		Data any
+	}
+	type NestedInterfaceProps struct {
+		Inner struct {
+			Items [1]any
+		}
+	}
+	type StyleFieldProps struct {
+		Style style.Style
+	}
+	type NonComparableProps struct {
+		Items []int
+	}
+
+	if !isSafelyComparable(reflect.TypeFor[NoProps]()) {
+		t.Error("expected NoProps to be safely comparable")
+	}
+	if !isSafelyComparable(reflect.TypeFor[SafeProps]()) {
+		t.Error("expected SafeProps to be safely comparable")
+	}
+	if isSafelyComparable(reflect.TypeFor[InterfaceFieldProps]()) {
+		t.Error("expected struct with interface field NOT to be safely comparable")
+	}
+	if isSafelyComparable(reflect.TypeFor[NestedInterfaceProps]()) {
+		t.Error("expected struct with nested array of interface NOT to be safely comparable")
+	}
+	if isSafelyComparable(reflect.TypeFor[StyleFieldProps]()) {
+		t.Error("expected struct with style.Style field NOT to be safely comparable")
+	}
+	if isSafelyComparable(reflect.TypeFor[NonComparableProps]()) {
+		t.Error("expected struct with slice field NOT to be safely comparable")
+	}
+	if isSafelyComparable(reflect.TypeFor[customEquatableProps]()) {
+		t.Error("expected EquatableProps implementor NOT to bypass Equal()")
+	}
+
+	// Verify an interface holding an uncomparable slice never panics during memoized Update.
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	comp := FC("IfaceMemo", func(p InterfaceFieldProps) Node {
+		return Box(BoxProps{},
+			Text("1"), Text("2"), Text("3"),
+			Text("4"), Text("5"), Text("6"),
+		)
+	})
+
+	Render(comp.Props(InterfaceFieldProps{Data: []int{1, 2}}), container)
+	Render(comp.Props(InterfaceFieldProps{Data: []int{1, 2}}), container)
+}
+
+func TestFCC_PassedChildrenBypassMemoWhenPropsUnchanged(t *testing.T) {
+	doc := dom.NewDocument()
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	doc.AppendChild(container)
+	defer Render(nil, container)
+
+	type CardProps struct {
+		Title string
+	}
+
+	renderCount := 0
+	Card := FCC("Card", func(p CardProps, children ...Node) Node {
+		renderCount++
+		// Make subtree score > memoComplexityThreshold so shouldMemo activates.
+		return Box(BoxProps{ID: "card"},
+			Text(p.Title),
+			Text("1"), Text("2"), Text("3"), Text("4"), Text("5"),
+			Box(BoxProps{ID: "body"}, children...),
+		)
+	})
+
+	Render(Card.Props(CardProps{Title: "Header"}, Text("first")), container)
+	if renderCount != 1 {
+		t.Fatalf("expected 1 initial render, got %d", renderCount)
+	}
+	body := doc.GetElementByID("body")
+	if body == nil || body.FirstChild().TextContent() != "first" {
+		t.Fatalf("expected initial child text 'first'")
+	}
+
+	// Props are identical, but PassedChildren changed -> must NOT skip render!
+	Render(Card.Props(CardProps{Title: "Header"}, Text("second")), container)
+	if renderCount != 2 {
+		t.Fatalf("expected renderCount=2 when PassedChildren exist and props unchanged, got %d", renderCount)
+	}
+	body = doc.GetElementByID("body")
+	if body == nil || body.FirstChild().TextContent() != "second" {
+		t.Fatalf("expected updated child text 'second', got %q", body.FirstChild().TextContent())
+	}
+}
+
+func TestComponentRegistry_GCCleanup(t *testing.T) {
+	var regKey uintptr
+	func() {
+		local := FC("Ephemeral", func(_ NoProps) Node {
+			return Text("tmp")
+		})
+		regKey = *(*uintptr)(unsafe.Pointer(&local))
+		if _, ok := componentRegistry.Load(regKey); !ok {
+			t.Fatalf("expected componentRegistry to contain key %#x while local is live", regKey)
+		}
+		runtime.KeepAlive(local)
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		runtime.GC()
+		if _, ok := componentRegistry.Load(regKey); !ok {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("expected componentRegistry entry %#x to be cleaned up after GC", regKey)
+}
+
+func BenchmarkFC_NoProps(b *testing.B) {
+	EnableDevMode = false
+	comp := FC("NoPropsComp", func(_ NoProps) Node {
+		return Box(BoxProps{ID: "box"}, Text("ok"))
+	})
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = comp()
+	}
+}
+
+func BenchmarkFC_WithProps(b *testing.B) {
+	EnableDevMode = false
+	type BenchProps struct {
+		Key   string
+		Label string
+	}
+	comp := FC("PropsComp", func(p BenchProps) Node {
+		return Box(BoxProps{ID: p.Label}, Text(p.Label))
+	})
+
+	p := BenchProps{Key: "k1", Label: "hello"}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = comp.Props(p)
+	}
+}
+
+func BenchmarkFCC_WithPropsAndChildren(b *testing.B) {
+	EnableDevMode = false
+	type BenchProps struct {
+		Key   string
+		Title string
+	}
+	comp := FCC("ContainerComp", func(p BenchProps, children ...Node) Node {
+		return Box(BoxProps{ID: p.Title}, children...)
+	})
+
+	p := BenchProps{Key: "k1", Title: "title"}
+	c1 := Text("one")
+	c2 := Text("two")
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = comp.Props(p, c1, c2)
+	}
+}
+
+func BenchmarkBox_Props(b *testing.B) {
+	EnableDevMode = false
+	s := style.S().Padding(1, 2).Bold(true)
+	c1 := Text("one")
+	c2 := Text("two")
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = Box(BoxProps{Style: s}, c1, c2)
+	}
+}
+
+func BenchmarkBox_Style(b *testing.B) {
+	EnableDevMode = false
+	s := style.S().Padding(1, 2).Bold(true)
+	c1 := Text("one")
+	c2 := Text("two")
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = Box.Style(s, c1, c2)
 	}
 }

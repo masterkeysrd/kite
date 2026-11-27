@@ -104,7 +104,7 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 
 	var nav flight.Navigator
 
-	View1 := kitex.SimpleFC("View1", func() kitex.Node {
+	View1 := kitex.FC("View1", func(_ kitex.NoProps) kitex.Node {
 		nav = flight.UseNavigation()
 		kitex.UseKeyboard(func(e event.KeyEvent) {
 			t.Logf("View1 received key: %s (code: %d)", e.Text, e.Code)
@@ -112,7 +112,7 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 				t.Log("View1 enter matched, pushing Route2")
 				nav.Push(Route2{})
 			}
-		}, []any{nav})
+		}, nav)
 
 		return kitex.Box(kitex.BoxProps{},
 			kitex.Button(kitex.ButtonProps{
@@ -124,7 +124,7 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 		)
 	})
 
-	View2 := kitex.SimpleFC("View2", func() kitex.Node {
+	View2 := kitex.FC("View2", func(_ kitex.NoProps) kitex.Node {
 		nav = flight.UseNavigation()
 		kitex.UseKeyboard(func(e event.KeyEvent) {
 			t.Logf("View2 received key: %s (code: %d)", e.Text, e.Code)
@@ -132,7 +132,7 @@ func TestRegression_StackNavigation_UseKeyboard(t *testing.T) {
 				t.Log("View2 esc matched, popping")
 				nav.Pop()
 			}
-		}, []any{nav})
+		}, nav)
 
 		return kitex.Box(kitex.BoxProps{},
 			kitex.Button(kitex.ButtonProps{

@@ -16,7 +16,7 @@ func TestFragmentLayout_NegativeShrink(t *testing.T) {
 	var child4Ref kitex.Ref[dom.Element]
 	var child5Ref kitex.Ref[dom.Element]
 
-	App := kitex.FC("App", func(props struct{}) kitex.Node {
+	App := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		child4Ref = kitex.UseRef[dom.Element](nil)
 		child5Ref = kitex.UseRef[dom.Element](nil)
 
@@ -48,7 +48,7 @@ func TestFragmentLayout_NegativeShrink(t *testing.T) {
 	container := e.Document().CreateElement("div", nil)
 	e.Document().AppendChild(container)
 
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 	e.RenderFrame()
 
 	ro4 := e.RenderObject(child4Ref.Current)

@@ -33,7 +33,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 	env := testenv.New(t, 80, 20)
 	defer env.Close()
 
-	App := kitex.FC("App", func(props struct{}) kitex.Node {
+	App := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		items, set := kitex.UseState([]ItemData{
 			{Key: "1", ID: "A"},
 			{Key: "2", ID: "B"},
@@ -50,7 +50,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 		}
 
 		renderItem := func(item ItemData, _ int) kitex.Node {
-			return ListItem(ItemProps(item))
+			return ListItem.Props(ItemProps(item))
 		}
 
 		return kitex.Box(kitex.BoxProps{
@@ -68,7 +68,7 @@ func TestKitexReverseWithButtonClick(t *testing.T) {
 
 	container := element.NewBox(env.Document())
 	env.Mount(container)
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 	env.Flush()
 
 	// Initial check
@@ -114,7 +114,7 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 	env := testenv.New(t, 80, 20)
 	defer env.Close()
 
-	App := kitex.FC("App", func(props struct{}) kitex.Node {
+	App := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		items, set := kitex.UseState([]ItemData{
 			{Key: "1", ID: "A"},
 			{Key: "2", ID: "B"},
@@ -129,7 +129,7 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 		}
 
 		renderItem := func(item ItemData, _ int) kitex.Node {
-			return ListItem(ItemProps(item))
+			return ListItem.Props(ItemProps(item))
 		}
 
 		return kitex.Box(kitex.BoxProps{
@@ -147,7 +147,7 @@ func TestKitexInsertAtStartWithReverse(t *testing.T) {
 
 	container := element.NewBox(env.Document())
 	env.Mount(container)
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 	env.Flush()
 
 	// Action via button click

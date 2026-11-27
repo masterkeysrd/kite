@@ -26,7 +26,7 @@ func TestUseHookIntegration(t *testing.T) {
 	var renderCountA int32
 	var renderCountB int32
 
-	compA := kitex.SimpleFC("CompA", func() kitex.Node {
+	compA := kitex.FC("CompA", func(_ kitex.NoProps) kitex.Node {
 		atomic.AddInt32(&renderCountA, 1)
 		val := Use(store, func(s TestState) int {
 			return s.CountA
@@ -35,7 +35,7 @@ func TestUseHookIntegration(t *testing.T) {
 		return kitex.Box(kitex.BoxProps{ID: string(rune(val))})
 	})
 
-	compB := kitex.SimpleFC("CompB", func() kitex.Node {
+	compB := kitex.FC("CompB", func(_ kitex.NoProps) kitex.Node {
 		atomic.AddInt32(&renderCountB, 1)
 		val := Use(store, func(s TestState) int {
 			return s.CountB
@@ -43,7 +43,7 @@ func TestUseHookIntegration(t *testing.T) {
 		return kitex.Box(kitex.BoxProps{ID: string(rune(val))})
 	})
 
-	parent := kitex.SimpleFC("Parent", func() kitex.Node {
+	parent := kitex.FC("Parent", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{}, compA(), compB())
 	})
 
@@ -119,7 +119,7 @@ func TestUseHook_SliceSelectionAndCustomEquality(t *testing.T) {
 	var countOnlyRenders int32
 	var lastRenderedText string
 
-	transcript := kitex.SimpleFC("Transcript", func() kitex.Node {
+	transcript := kitex.FC("Transcript", func(_ kitex.NoProps) kitex.Node {
 		atomic.AddInt32(&transcriptRenders, 1)
 		msgs := Use(store, func(s ChatState) []Message {
 			return s.Messages
@@ -128,7 +128,7 @@ func TestUseHook_SliceSelectionAndCustomEquality(t *testing.T) {
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(lastRenderedText))
 	})
 
-	countBadge := kitex.SimpleFC("CountBadge", func() kitex.Node {
+	countBadge := kitex.FC("CountBadge", func(_ kitex.NoProps) kitex.Node {
 		atomic.AddInt32(&countOnlyRenders, 1)
 		msgs := UseWith(store, func(s ChatState) []Message {
 			return s.Messages
@@ -138,7 +138,7 @@ func TestUseHook_SliceSelectionAndCustomEquality(t *testing.T) {
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("%d", len(msgs))))
 	})
 
-	app := kitex.SimpleFC("App", func() kitex.Node {
+	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{}, transcript(), countBadge())
 	})
 
@@ -195,7 +195,7 @@ func TestUseHook_ConcurrentStreamingAndRendering(t *testing.T) {
 	var latestTokens int
 	var latestMsgCount int
 
-	app := kitex.SimpleFC("ConcurrentApp", func() kitex.Node {
+	app := kitex.FC("ConcurrentApp", func(_ kitex.NoProps) kitex.Node {
 		state := UseStore(store)
 		msgs := Use(store, func(s AppState) []Message {
 			return s.Messages
@@ -273,4 +273,3 @@ finished:
 		t.Fatalf("expected rendered msg count %d, got %d", len(expected.Messages), latestMsgCount)
 	}
 }
-

@@ -5,9 +5,12 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"unsafe"
+	"weak"
 
 	"github.com/masterkeysrd/kite/dom"
 	kitelog "github.com/masterkeysrd/kite/log"
+	"github.com/masterkeysrd/kite/style"
 )
 
 // --- Functional Components & Hooks --------------------------------------------
@@ -52,27 +55,30 @@ type componentInstance interface {
 // ComponentNode represents a declarative functional component in the VDOM tree.
 // It implements the Node interface.
 type ComponentNode[P any] struct {
-	Name     string
-	PropsVal P
-	RenderFn func(P) Node
+	Name              string
+	PropsVal          P
+	RenderFn          func(P) Node
+	RenderContainerFn func(P, ...Node) Node
+	PassedChildren    []Node
 
 	// Internal state
-	rendered     Node
-	refs         []dom.Node
-	hooks        []any
-	hookIndex    int
-	isFirst      bool
-	dirty        atomic.Bool
-	componentRef *componentRef
-	key          string
-	contextSnap  contextSnapshot
-	domParent    dom.Element
-	domAnchor    dom.Node
-	vdomParent   Node
+	rendered         Node
+	refs             []dom.Node
+	hooks            []any
+	hookIndex        int
+	isFirst          bool
+	dirty            atomic.Bool
+	componentRef     *componentRef
+	key              string
+	contextSnap      contextSnapshot
+	domParent        dom.Element
+	domAnchor        dom.Node
+	vdomParent       Node
+	safelyComparable bool
 
 	// Memoization: complexityScore holds the node count of the last rendered
 	// subtree. shouldMemo is true when complexityScore > memoComplexityThreshold,
-	// indicating that a deep props comparison is cheaper than a full re-render.
+	// indicating that a props comparison is cheaper than a full re-render.
 	complexityScore int
 	shouldMemo      bool
 
@@ -80,8 +86,6 @@ type ComponentNode[P any] struct {
 	declLine int
 	instFile string
 	instLine int
-
-	pool *sync.Pool
 }
 
 func (c *ComponentNode[P]) setDOMParent(parent dom.Element) {
@@ -154,6 +158,23 @@ func (c *ComponentNode[P]) Children() []Node {
 	return []Node{c.rendered}
 }
 
+func (c *ComponentNode[P]) invokeRender() Node {
+	if c.RenderContainerFn != nil {
+		return c.RenderContainerFn(c.PropsVal, c.PassedChildren...)
+	}
+	if c.RenderFn != nil {
+		return c.RenderFn(c.PropsVal)
+	}
+	return nil
+}
+
+func (c *ComponentNode[P]) propsEqual(oldProps, newProps P) bool {
+	if c.safelyComparable {
+		return any(oldProps) == any(newProps)
+	}
+	return deepEqualProps(oldProps, newProps, 3)
+}
+
 func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	cr := &componentRef{}
 	cr.node = c
@@ -164,7 +185,7 @@ func (c *ComponentNode[P]) Instantiate(doc dom.Document) []dom.Node {
 	pushCurrentComponent(c)
 	c.isFirst = true
 	c.hookIndex = 0
-	c.rendered = c.RenderFn(c.PropsVal)
+	c.rendered = c.invokeRender()
 	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	c.isFirst = false
 	popCurrentComponent()
@@ -210,11 +231,13 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 	}
 
 	// Automatic memoization: when the rendered subtree is large enough and the
-	// new props are deeply equal to the old props, skip the RenderFn entirely
-	// and reuse the previously rendered subtree. The depth limit (3) caps the
-	// worst-case reflection time so the frame budget is never blown by a single
-	// pathological component.
-	if c.shouldMemo && !oldComp.IsDirty() && deepEqualProps(oldComp.PropsVal, c.PropsVal, 3) {
+	// new props equal the old props, skip the render function entirely and reuse
+	// the previously rendered subtree. Never skip when passed children exist,
+	// because parent-supplied VDOM children must flow through RenderContainerFn
+	// so child updates reconcile properly.
+	if c.shouldMemo && !oldComp.IsDirty() &&
+		len(c.PassedChildren) == 0 && len(oldComp.PassedChildren) == 0 &&
+		c.propsEqual(oldComp.PropsVal, c.PropsVal) {
 		c.rendered = oldComp.rendered
 		bindChild(c.rendered, c.domParent, c)
 		return
@@ -222,7 +245,7 @@ func (c *ComponentNode[P]) Update(els []dom.Node, old Node) {
 
 	pushCurrentComponent(c)
 	c.hookIndex = 0
-	newRendered := c.RenderFn(c.PropsVal)
+	newRendered := c.invokeRender()
 	checkKeylessList(c.Name, newRendered, c.declFile, c.declLine)
 	popCurrentComponent()
 
@@ -276,7 +299,7 @@ func (c *ComponentNode[P]) Rendered() Node {
 func (c *ComponentNode[P]) ReRender() Node {
 	pushCurrentComponent(c)
 	c.hookIndex = 0
-	c.rendered = c.RenderFn(c.PropsVal)
+	c.rendered = c.invokeRender()
 	checkKeylessList(c.Name, c.rendered, c.declFile, c.declLine)
 	popCurrentComponent()
 	bindChild(c.rendered, c.domParent, c)
@@ -299,6 +322,7 @@ func (c *ComponentNode[P]) IsDirty() bool {
 func (c *ComponentNode[P]) Release() {
 	c.rendered = nil
 	c.hooks = nil
+	c.PassedChildren = nil
 	c.componentRef = nil
 	c.contextSnap = contextSnapshot{}
 	c.vdomParent = nil
@@ -416,137 +440,238 @@ func getCurrentComponent() any {
 
 // --- FC & FCC wrappers ---------------------------------------------------------
 
-type structTypeInfo struct {
-	keyFieldIdx          []int
-	hasKey               bool
-	elementPropsFieldIdx []int
-	hasElementProps      bool
-	elementPropsKeyIdx   []int
-	hasElementPropsKey   bool
-	childrenFieldIdx     []int
-	hasChildren          bool
-}
+// NoProps is the empty props type for components that accept no properties.
+type NoProps = struct{}
 
-var typeInfoCache sync.Map
+// Component is a leaf functional component that does not accept children.
+// Call comp() to render with zero-value P, or comp.Props(p) to pass explicit props.
+type Component[P any] func() Node
 
-func getTypeInfo(t reflect.Type) *structTypeInfo {
-	if val, ok := typeInfoCache.Load(t); ok {
-		return val.(*structTypeInfo)
+// Props instantiates the component VDOM node with explicit properties.
+func (c Component[P]) Props(props P) Node {
+	if c == nil {
+		return Empty()
+	}
+	regKey := *(*uintptr)(unsafe.Pointer(&c))
+	val, ok := componentRegistry.Load(regKey)
+	if !ok {
+		return Empty()
+	}
+	wp, ok := val.(weak.Pointer[componentDescriptor[P]])
+	if !ok {
+		return Empty()
+	}
+	desc := wp.Value()
+	runtime.KeepAlive(c)
+	if desc == nil {
+		return Empty()
 	}
 
-	info := &structTypeInfo{}
-	if t.Kind() == reflect.Struct {
-		// Look for Key field
-		if f, found := t.FieldByName("Key"); found {
-			if f.Type.Kind() == reflect.String {
-				info.keyFieldIdx = f.Index
-				info.hasKey = true
+	var instFile string
+	var instLine int
+	if EnableDevMode {
+		if _, file, line, ok := runtime.Caller(1); ok {
+			instFile = file
+			instLine = line
+		}
+	}
+	return newComponentNode(desc, props, nil, instFile, instLine)
+}
+
+// Container is a functional component that accepts variadic VDOM children.
+// Call comp(children...) to render with zero-value P, or comp.Props(p, children...) to pass explicit props.
+type Container[P any] func(children ...Node) Node
+
+// Props instantiates the container component VDOM node with explicit properties and children.
+func (c Container[P]) Props(props P, children ...Node) Node {
+	if c == nil {
+		return Empty()
+	}
+	regKey := *(*uintptr)(unsafe.Pointer(&c))
+	val, ok := componentRegistry.Load(regKey)
+	if !ok {
+		return Empty()
+	}
+	wp, ok := val.(weak.Pointer[componentDescriptor[P]])
+	if !ok {
+		return Empty()
+	}
+	desc := wp.Value()
+	runtime.KeepAlive(c)
+	if desc == nil {
+		return Empty()
+	}
+
+	var instFile string
+	var instLine int
+	if EnableDevMode {
+		if _, file, line, ok := runtime.Caller(1); ok {
+			instFile = file
+			instLine = line
+		}
+	}
+	return newComponentNode(desc, props, children, instFile, instLine)
+}
+
+type componentDescriptor[P any] struct {
+	name             string
+	render           func(P) Node
+	renderContainer  func(P, ...Node) Node
+	declFile         string
+	declLine         int
+	keyFn            func(*P) string
+	safelyComparable bool
+	registryKey      uintptr
+	cleanup          runtime.Cleanup
+}
+
+var componentRegistry sync.Map
+
+type componentCleanupArg[P any] struct {
+	key uintptr
+	wp  weak.Pointer[componentDescriptor[P]]
+}
+
+func newComponentNode[P any](desc *componentDescriptor[P], props P, children []Node, instFile string, instLine int) *ComponentNode[P] {
+	c := &ComponentNode[P]{
+		Name:              desc.name,
+		PropsVal:          props,
+		RenderFn:          desc.render,
+		RenderContainerFn: desc.renderContainer,
+		PassedChildren:    children,
+		isFirst:           true,
+		safelyComparable:  desc.safelyComparable,
+		declFile:          desc.declFile,
+		declLine:          desc.declLine,
+		instFile:          instFile,
+		instLine:          instLine,
+	}
+	if desc.keyFn != nil {
+		c.key = desc.keyFn(&c.PropsVal)
+	}
+	return c
+}
+
+var (
+	styleType          = reflect.TypeFor[style.Style]()
+	equatablePropsType = reflect.TypeFor[EquatableProps]()
+)
+
+func isSafelyComparable(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
+	if t == styleType || t.Implements(equatablePropsType) {
+		return false
+	}
+	if !t.Comparable() {
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Interface:
+		return false
+	case reflect.Array:
+		return isSafelyComparable(t.Elem())
+	case reflect.Struct:
+		for i := range t.NumField() {
+			if !isSafelyComparable(t.Field(i).Type) {
+				return false
 			}
 		}
-		// Look for ElementProps field
-		if ep, found := t.FieldByName("ElementProps"); found {
-			if ep.Type.Kind() == reflect.Struct {
-				info.elementPropsFieldIdx = ep.Index
-				info.hasElementProps = true
-				if k, foundKey := ep.Type.FieldByName("Key"); foundKey {
-					if k.Type.Kind() == reflect.String {
-						info.elementPropsKeyIdx = k.Index
-						info.hasElementPropsKey = true
-					}
+		return true
+	default:
+		return true
+	}
+}
+
+func resolveStringFieldOffset(t reflect.Type, index []int) (uintptr, bool) {
+	var offset uintptr
+	cur := t
+	for _, idx := range index {
+		if cur.Kind() != reflect.Struct {
+			return 0, false
+		}
+		f := cur.Field(idx)
+		offset += f.Offset
+		cur = f.Type
+	}
+	if cur.Kind() != reflect.String {
+		return 0, false
+	}
+	return offset, true
+}
+
+func resolveStructFieldOffset(t reflect.Type, index []int) (uintptr, bool) {
+	var offset uintptr
+	cur := t
+	for _, idx := range index {
+		if cur.Kind() != reflect.Struct {
+			return 0, false
+		}
+		f := cur.Field(idx)
+		offset += f.Offset
+		cur = f.Type
+	}
+	if cur.Kind() != reflect.Struct {
+		return 0, false
+	}
+	return offset, true
+}
+
+func findKeyOffset(t reflect.Type) (uintptr, bool) {
+	if f, found := t.FieldByName("Key"); found {
+		if off, ok := resolveStringFieldOffset(t, f.Index); ok {
+			return off, true
+		}
+	}
+	if ep, found := t.FieldByName("ElementProps"); found && ep.Type.Kind() == reflect.Struct {
+		if epOff, ok := resolveStructFieldOffset(t, ep.Index); ok {
+			if k, foundKey := ep.Type.FieldByName("Key"); foundKey {
+				if kOff, ok := resolveStringFieldOffset(ep.Type, k.Index); ok {
+					return epOff + kOff, true
 				}
 			}
 		}
-		// Look for Children field
-		if ch, found := t.FieldByName("Children"); found {
-			if ch.Type == reflect.TypeFor[[]Node]() {
-				info.childrenFieldIdx = ch.Index
-				info.hasChildren = true
-			}
-		}
 	}
-
-	typeInfoCache.Store(t, info)
-	return info
+	return 0, false
 }
 
-func getKey(props any) string {
-	if props == nil {
-		return ""
-	}
-	t := reflect.TypeOf(props)
+func buildKeyFn[P any]() func(*P) string {
+	t := reflect.TypeFor[P]()
 	isPtr := false
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 		isPtr = true
 	}
 	if t.Kind() != reflect.Struct {
-		return ""
+		return nil
 	}
-
-	info := getTypeInfo(t)
-	v := reflect.ValueOf(props)
+	offset, ok := findKeyOffset(t)
+	if !ok {
+		return nil
+	}
 	if isPtr {
-		if v.IsNil() {
+		return func(p *P) string {
+			if p == nil {
+				return ""
+			}
+			ptr := *(*unsafe.Pointer)(unsafe.Pointer(p))
+			if ptr == nil {
+				return ""
+			}
+			return *(*string)(unsafe.Add(ptr, offset))
+		}
+	}
+	return func(p *P) string {
+		if p == nil {
 			return ""
 		}
-		v = v.Elem()
+		return *(*string)(unsafe.Add(unsafe.Pointer(p), offset))
 	}
-
-	if info.hasKey {
-		return v.FieldByIndex(info.keyFieldIdx).String()
-	}
-	if info.hasElementPropsKey {
-		return v.FieldByIndex(info.elementPropsFieldIdx).FieldByIndex(info.elementPropsKeyIdx).String()
-	}
-	return ""
 }
 
-func getRefSetter(props any) refSetter {
-	if props == nil {
-		return nil
-	}
-	v := reflect.ValueOf(props)
-	if v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return nil
-		}
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
-		return nil
-	}
-
-	f := v.FieldByName("Ref")
-	if f.IsValid() {
-		switch f.Kind() {
-		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-			if !f.IsNil() {
-				if setter, ok := reflect.TypeAssert[refSetter](f); ok {
-					return setter
-				}
-			}
-		}
-	}
-
-	ep := v.FieldByName("ElementProps")
-	if ep.IsValid() && ep.Kind() == reflect.Struct {
-		f = ep.FieldByName("Ref")
-		if f.IsValid() {
-			switch f.Kind() {
-			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-				if !f.IsNil() {
-					if setter, ok := reflect.TypeAssert[refSetter](f); ok {
-						return setter
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// FC creates a functional component wrapper that does not take children.
-func FC[P any](name string, render func(P) Node) func(P) Node {
+// FC creates a leaf functional component that does not accept children.
+func FC[P any](name string, render func(props P) Node) Component[P] {
 	var declFile string
 	var declLine int
 	if _, file, line, ok := runtime.Caller(1); ok {
@@ -554,7 +679,17 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 		declLine = line
 	}
 
-	return func(props P) Node {
+	desc := &componentDescriptor[P]{
+		name:             name,
+		render:           render,
+		declFile:         declFile,
+		declLine:         declLine,
+		keyFn:            buildKeyFn[P](),
+		safelyComparable: isSafelyComparable(reflect.TypeFor[P]()),
+	}
+
+	var fn Component[P]
+	fn = func() Node {
 		var instFile string
 		var instLine int
 		if EnableDevMode {
@@ -563,27 +698,23 @@ func FC[P any](name string, render func(P) Node) func(P) Node {
 				instLine = line
 			}
 		}
-
-		c := &ComponentNode[P]{}
-		*c = ComponentNode[P]{
-			Name:     name,
-			PropsVal: props,
-			RenderFn: render,
-			isFirst:  true,
-			key:      getKey(&props),
-			declFile: declFile,
-			declLine: declLine,
-			instFile: instFile,
-			instLine: instLine,
-		}
-		return c
+		var zero P
+		return newComponentNode(desc, zero, nil, instFile, instLine)
 	}
+
+	regKey := *(*uintptr)(unsafe.Pointer(&fn))
+	desc.registryKey = regKey
+	wp := weak.Make(desc)
+	componentRegistry.Store(regKey, wp)
+	desc.cleanup = runtime.AddCleanup(desc, func(arg componentCleanupArg[P]) {
+		componentRegistry.CompareAndDelete(arg.key, arg.wp)
+	}, componentCleanupArg[P]{key: regKey, wp: wp})
+
+	return fn
 }
 
-// FCC creates a functional component wrapper that can accept children.
-// If the Props type has a Children field of type []Node, the variadic children
-// will be injected using reflection.
-func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
+// FCC creates a container functional component that receives children directly as a parameter (zero reflection).
+func FCC[P any](name string, render func(props P, children ...Node) Node) Container[P] {
 	var declFile string
 	var declLine int
 	if _, file, line, ok := runtime.Caller(1); ok {
@@ -591,7 +722,17 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 		declLine = line
 	}
 
-	return func(props P, children ...Node) Node {
+	desc := &componentDescriptor[P]{
+		name:             name,
+		renderContainer:  render,
+		declFile:         declFile,
+		declLine:         declLine,
+		keyFn:            buildKeyFn[P](),
+		safelyComparable: isSafelyComparable(reflect.TypeFor[P]()),
+	}
+
+	var fn Container[P]
+	fn = func(children ...Node) Node {
 		var instFile string
 		var instLine int
 		if EnableDevMode {
@@ -600,131 +741,19 @@ func FCC[P any](name string, render func(P) Node) func(P, ...Node) Node {
 				instLine = line
 			}
 		}
-
-		propsWithChildren := injectChildren(props, children)
-		c := &ComponentNode[P]{}
-		*c = ComponentNode[P]{
-			Name:     name,
-			PropsVal: propsWithChildren,
-			RenderFn: render,
-			isFirst:  true,
-			key:      getKey(&propsWithChildren),
-			declFile: declFile,
-			declLine: declLine,
-			instFile: instFile,
-			instLine: instLine,
-		}
-		return c
-	}
-}
-
-func injectChildren[P any](props P, children []Node) P {
-	var val any = props
-	if val == nil {
-		return props
-	}
-	t := reflect.TypeOf(val)
-	isPtr := false
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
-		isPtr = true
-	}
-	if t.Kind() != reflect.Struct {
-		return props
+		var zero P
+		return newComponentNode(desc, zero, children, instFile, instLine)
 	}
 
-	info := getTypeInfo(t)
-	if !info.hasChildren {
-		return props
-	}
+	regKey := *(*uintptr)(unsafe.Pointer(&fn))
+	desc.registryKey = regKey
+	wp := weak.Make(desc)
+	componentRegistry.Store(regKey, wp)
+	desc.cleanup = runtime.AddCleanup(desc, func(arg componentCleanupArg[P]) {
+		componentRegistry.CompareAndDelete(arg.key, arg.wp)
+	}, componentCleanupArg[P]{key: regKey, wp: wp})
 
-	v := reflect.ValueOf(props)
-	if isPtr {
-		if v.IsNil() {
-			return props
-		}
-		f := v.Elem().FieldByIndex(info.childrenFieldIdx)
-		if f.CanSet() {
-			f.Set(reflect.ValueOf(children))
-		}
-		return props
-	}
-
-	ptr := reflect.New(t)
-	ptr.Elem().Set(v)
-	f := ptr.Elem().FieldByIndex(info.childrenFieldIdx)
-	if f.CanSet() {
-		f.Set(reflect.ValueOf(children))
-	}
-	return ptr.Elem().Interface().(P)
-}
-
-// SimpleFC creates a functional component wrapper for components with no props.
-func SimpleFC(name string, render func() Node) func() Node {
-	var declFile string
-	var declLine int
-	if _, file, line, ok := runtime.Caller(1); ok {
-		declFile = file
-		declLine = line
-	}
-
-	return func() Node {
-		var instFile string
-		var instLine int
-		if EnableDevMode {
-			if _, file, line, ok := runtime.Caller(1); ok {
-				instFile = file
-				instLine = line
-			}
-		}
-
-		c := &ComponentNode[struct{}]{}
-		*c = ComponentNode[struct{}]{
-			Name:     name,
-			PropsVal: struct{}{},
-			RenderFn: func(_ struct{}) Node { return render() },
-			isFirst:  true,
-			declFile: declFile,
-			declLine: declLine,
-			instFile: instFile,
-			instLine: instLine,
-		}
-		return c
-	}
-}
-
-// SimpleFCC creates a functional component wrapper for components that only take children.
-func SimpleFCC(name string, render func([]Node) Node) func(...Node) Node {
-	var declFile string
-	var declLine int
-	if _, file, line, ok := runtime.Caller(1); ok {
-		declFile = file
-		declLine = line
-	}
-
-	return func(children ...Node) Node {
-		var instFile string
-		var instLine int
-		if EnableDevMode {
-			if _, file, line, ok := runtime.Caller(1); ok {
-				instFile = file
-				instLine = line
-			}
-		}
-
-		c := &ComponentNode[[]Node]{}
-		*c = ComponentNode[[]Node]{
-			Name:     name,
-			PropsVal: children,
-			RenderFn: func(p []Node) Node { return render(p) },
-			isFirst:  true,
-			declFile: declFile,
-			declLine: declLine,
-			instFile: instFile,
-			instLine: instLine,
-		}
-		return c
-	}
+	return fn
 }
 
 func checkKeylessList(compName string, node Node, file string, line int) {

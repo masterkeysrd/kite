@@ -85,14 +85,63 @@ type ElementProps struct {
 	OnWheel         func(*event.WheelEvent)
 	OnFocus         func(*event.FocusEvent)
 	OnBlur          func(*event.FocusEvent)
+	OnFocusIn       func(*event.FocusEvent)
+	OnFocusOut      func(*event.FocusEvent)
 	OnChange        func(*event.ChangeEvent)
 	OnInput         func(*event.InputEvent)
 	OnScroll        func(*event.ScrollEvent)
+	OnPaste         func(*event.ClipboardEvent)
+	OnCopy          func(*event.ClipboardEvent)
+	OnCut           func(*event.ClipboardEvent)
 	OnMouseEnter    func(*event.MouseEvent)
 	OnMouseLeave    func(*event.MouseEvent)
 	OnMouseOver     func(*event.MouseEvent)
 	OnMouseOut      func(*event.MouseEvent)
 	Ref             refSetter
+}
+
+type refCarrier interface {
+	getRefSetter() refSetter
+}
+
+func (p ElementProps) getRefSetter() refSetter {
+	return p.Ref
+}
+
+// StylableProps is satisfied by ElementProps and all generated element *Props structs.
+type StylableProps[P any] interface {
+	withStyle(style.Style) P
+}
+
+func (p ElementProps) withStyle(s style.Style) ElementProps {
+	p.Style = s
+	return p
+}
+
+// ContainerTag is a built-in VDOM element constructor that accepts props and variadic children.
+// Call Tag(props, children...) for full props, or Tag.Style(s, children...) when only setting Style.
+type ContainerTag[P StylableProps[P]] func(props P, children ...Node) Node
+
+// Style constructs the element with only Style set on its zero-value props.
+func (t ContainerTag[P]) Style(s style.Style, children ...Node) Node {
+	if t == nil {
+		return Empty()
+	}
+	var zero P
+	return t(zero.withStyle(s), children...)
+}
+
+// LeafTag is a built-in leaf VDOM element constructor that accepts props and no children.
+// Call Tag(props) for full props, or Tag.Style(s) when only setting Style.
+type LeafTag[P StylableProps[P]] func(props P) Node
+
+// Style constructs the leaf element with only Style set on its zero-value props.
+func (t LeafTag[P]) Style(s style.Style) Node {
+	if t == nil {
+		return Empty()
+	}
+	var zero P
+	return t(zero.withStyle(s))
 }
 
 // elementNode is the base implementation of Node for element VDOM nodes.
@@ -184,8 +233,10 @@ func (n *elementNode[P]) Instantiate(doc dom.Document) []dom.Node {
 			}
 		}
 	}
-	if setter := getRefSetter(&n.props); setter != nil {
-		setter.set(n.ref)
+	if carrier, ok := any(&n.props).(refCarrier); ok {
+		if setter := carrier.getRefSetter(); setter != nil {
+			setter.set(n.ref)
+		}
 	}
 	n.refs = []dom.Node{n.ref}
 	return n.refs
@@ -206,8 +257,10 @@ func (n *elementNode[P]) Update(els []dom.Node, old Node) {
 		}
 	}
 	n.update(n.ref, oldProps, &n.props)
-	if setter := getRefSetter(&n.props); setter != nil {
-		setter.set(n.ref)
+	if carrier, ok := any(&n.props).(refCarrier); ok {
+		if setter := carrier.getRefSetter(); setter != nil {
+			setter.set(n.ref)
+		}
 	}
 }
 
@@ -330,7 +383,7 @@ func trackSource(node Node, skip int) Node {
 				if !ok {
 					break
 				}
-				if !strings.Contains(file, "extras/kitex") {
+				if !strings.Contains(file, "extras/kitex") || strings.HasSuffix(file, "_test.go") {
 					instFile = file
 					instLine = line
 					break

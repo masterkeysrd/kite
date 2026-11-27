@@ -94,7 +94,7 @@ var (
 )
 
 func renderUI(stg *Stage) kitex.Node {
-	return StageApp(StageAppProps{Stage: stg})
+	return StageApp.Props(StageAppProps{Stage: stg})
 }
 
 // StageAppProps is the properties for the master StageApp component.
@@ -250,14 +250,12 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 				Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}).
 				Padding(0, 1)
-			inputWidget = kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Display(style.DisplayFlex).
-						FlexDirection(style.FlexRow).
-						AlignItems(style.AlignCenter).
-						Width(style.Cells(12)),
-				},
+			inputWidget = kitex.Box.Style(
+				style.S().
+					Display(style.DisplayFlex).
+					FlexDirection(style.FlexRow).
+					AlignItems(style.AlignCenter).
+					Width(style.Cells(12)),
 				kitex.Button(
 					kitex.ButtonProps{
 						Style: stepperBtnStyle,
@@ -267,14 +265,12 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 					},
 					kitex.Text("−"),
 				),
-				kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
-							Flex(1).
-							Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
-							Foreground(color.RGBA{R: 229, G: 231, B: 235, A: 255}).
-							Padding(0, 1),
-					},
+				kitex.Box.Style(
+					style.S().
+						Flex(1).
+						Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
+						Foreground(color.RGBA{R: 229, G: 231, B: 235, A: 255}).
+						Padding(0, 1),
 					kitex.Text(strconv.Itoa(currentInt)),
 				),
 				kitex.Button(
@@ -289,20 +285,16 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 			)
 		}
 
-		toolbarWidgets = append(toolbarWidgets, kitex.Box(
-			kitex.BoxProps{
-				Style: style.S().
-					Display(style.DisplayFlex).
-					FlexDirection(style.FlexRow).
-					AlignItems(style.AlignCenter).
-					MarginRight(2),
-			},
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}).
-						MarginRight(1),
-				},
+		toolbarWidgets = append(toolbarWidgets, kitex.Box.Style(
+			style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter).
+				MarginRight(2),
+			kitex.Box.Style(
+				style.S().
+					Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}).
+					MarginRight(1),
 				kitex.Text(ctrl.Name+":"),
 			),
 			inputWidget,
@@ -418,14 +410,12 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 				Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}). // Gray 700
 				Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}).
 				Padding(0, 1)
-			inputWidget = kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Display(style.DisplayFlex).
-						FlexDirection(style.FlexRow).
-						AlignItems(style.AlignCenter).
-						Width(style.Percent(100)),
-				},
+			inputWidget = kitex.Box.Style(
+				style.S().
+					Display(style.DisplayFlex).
+					FlexDirection(style.FlexRow).
+					AlignItems(style.AlignCenter).
+					Width(style.Percent(100)),
 				kitex.Button(
 					kitex.ButtonProps{
 						Style: stepperBtnStyle,
@@ -435,14 +425,12 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 					},
 					kitex.Text("−"),
 				),
-				kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
-							Flex(1).
-							Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
-							Foreground(color.RGBA{R: 229, G: 231, B: 235, A: 255}).
-							Padding(0, 1),
-					},
+				kitex.Box.Style(
+					style.S().
+						Flex(1).
+						Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}). // Gray 800
+						Foreground(color.RGBA{R: 229, G: 231, B: 235, A: 255}).
+						Padding(0, 1),
 					kitex.Text(strconv.Itoa(currentInt)),
 				),
 				kitex.Button(
@@ -457,31 +445,25 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 			)
 		}
 
-		controlRows = append(controlRows, kitex.Box(
-			kitex.BoxProps{
-				Style: style.S().
-					Display(style.DisplayFlex).
-					FlexDirection(style.FlexRow).
-					Width(style.Percent(100)).
-					AlignItems(style.AlignCenter).
-					MarginBottom(1),
-			},
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Width(style.Percent(40)).
-						MinWidth(style.Cells(0)).
-						Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}),
-				},
+		controlRows = append(controlRows, kitex.Box.Style(
+			style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexRow).
+				Width(style.Percent(100)).
+				AlignItems(style.AlignCenter).
+				MarginBottom(1),
+			kitex.Box.Style(
+				style.S().
+					Width(style.Percent(40)).
+					MinWidth(style.Cells(0)).
+					Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}),
 				kitex.Text(ctrl.Name),
 			),
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Display(style.DisplayFlex).
-						Width(style.Percent(60)).
-						MinWidth(style.Cells(0)),
-				},
+			kitex.Box.Style(
+				style.S().
+					Display(style.DisplayFlex).
+					Width(style.Percent(60)).
+					MinWidth(style.Cells(0)),
 				inputWidget,
 			),
 		))
@@ -490,52 +472,38 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 	// 6. Render action logs rows
 	var logRows []kitex.Node
 	for _, l := range logs() {
-		logRows = append(logRows, kitex.Box(
-			kitex.BoxProps{
-				Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Width(style.Percent(100)),
-			},
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Width(style.Cells(10)).
-						Foreground(color.RGBA{R: 107, G: 114, B: 128, A: 255}),
-				},
+		logRows = append(logRows, kitex.Box.Style(
+			style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Width(style.Percent(100)),
+			kitex.Box.Style(
+				style.S().
+					Width(style.Cells(10)).
+					Foreground(color.RGBA{R: 107, G: 114, B: 128, A: 255}),
 				kitex.Text(l.Timestamp),
 			),
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}),
-				},
+			kitex.Box.Style(
+				style.S().Foreground(color.RGBA{R: 209, G: 213, B: 219, A: 255}),
 				kitex.Text(l.Message),
 			),
 		))
 	}
 
-	return kitex.Box(
-		kitex.BoxProps{
-			Style: playableAreaStyle,
-		},
+	return kitex.Box.Style(
+		playableAreaStyle,
 		// Globals Toolbar (if any globals exist)
 		func() kitex.Node {
 			if len(props.Globals) > 0 {
-				return kitex.Box(
-					kitex.BoxProps{
-						Style: toolbarStyle,
-					},
+				return kitex.Box.Style(
+					toolbarStyle,
 					toolbarWidgets...,
 				)
 			}
 			return nil
 		}(),
 		// Component Canvas area
-		kitex.Box(
-			kitex.BoxProps{
-				Style: canvasStyle,
-			},
-			kitex.Box(
-				kitex.BoxProps{
-					Style: canvasInnerStyle,
-				},
+		kitex.Box.Style(
+			canvasStyle,
+			kitex.Box.Style(
+				canvasInnerStyle,
 				func() kitex.Node {
 					if renderedScene != nil {
 						return renderedScene
@@ -545,44 +513,32 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 			),
 		),
 		// Bottom Details row (Height: 30%)
-		kitex.Box(
-			kitex.BoxProps{
-				Style: detailPanelStyle,
-			},
+		kitex.Box.Style(
+			detailPanelStyle,
 			// Controls Panel
-			kitex.Box(
-				kitex.BoxProps{
-					Style: controlsPanelStyle,
-				},
-				kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
-							MarginBottom(1).
-							BorderBottom(true, style.BorderSingle, color.RGBA{R: 75, G: 85, B: 99, A: 255}),
-					},
+			kitex.Box.Style(
+				controlsPanelStyle,
+				kitex.Box.Style(
+					style.S().
+						MarginBottom(1).
+						BorderBottom(true, style.BorderSingle, color.RGBA{R: 75, G: 85, B: 99, A: 255}),
 					kitex.Text("🛠️ CONTROLS"),
 				),
-				kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().Flex(1).Overflow(style.OverflowAuto),
-					},
+				kitex.Box.Style(
+					style.S().Flex(1).Overflow(style.OverflowAuto),
 					controlRows...,
 				),
 			),
 			// Action logs view
-			kitex.Box(
-				kitex.BoxProps{
-					Style: logsPanelStyle,
-				},
-				kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
-							Display(style.DisplayFlex).
-							FlexDirection(style.FlexRow).
-							JustifyContent(style.JustifyBetween).
-							MarginBottom(1).
-							BorderBottom(true, style.BorderSingle, color.RGBA{R: 75, G: 85, B: 99, A: 255}),
-					},
+			kitex.Box.Style(
+				logsPanelStyle,
+				kitex.Box.Style(
+					style.S().
+						Display(style.DisplayFlex).
+						FlexDirection(style.FlexRow).
+						JustifyContent(style.JustifyBetween).
+						MarginBottom(1).
+						BorderBottom(true, style.BorderSingle, color.RGBA{R: 75, G: 85, B: 99, A: 255}),
 					kitex.Text("📋 ACTION LOG"),
 					kitex.Button(
 						kitex.ButtonProps{
@@ -600,10 +556,8 @@ var PlayableArea = kitex.FC("PlayableArea", func(props PlayableAreaProps) kitex.
 						kitex.Text("Clear"),
 					),
 				),
-				kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().Flex(1).Overflow(style.OverflowAuto),
-					},
+				kitex.Box.Style(
+					style.S().Flex(1).Overflow(style.OverflowAuto),
 					logRows...,
 				),
 			),
@@ -822,9 +776,9 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 			for i, k := range childKeys {
 				if i > 0 {
 					// Add a visual separator or gap before this top-level category
-					sidebarItems = append(sidebarItems, kitex.Box(kitex.BoxProps{
-						Style: style.S().Height(style.Cells(1)),
-					}))
+					sidebarItems = append(sidebarItems, kitex.Box.Style(
+						style.S().Height(style.Cells(1)),
+					))
 				}
 				renderNode(node.Children[k], 0)
 			}
@@ -1030,7 +984,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		return func() {
 			sub.Cancel()
 		}
-	}, []any{len(allScenes), activeSceneIdx(), len(visibleIndices), filterText()})
+	}, len(allScenes), activeSceneIdx(), len(visibleIndices), filterText())
 
 	// Master Screen Layout
 	return kitex.Box(kitex.BoxProps{
@@ -1043,16 +997,12 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 			Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}), // Gray 800
 	},
 		// Sidebar component list (takes 25% width, full height)
-		kitex.Box(
-			kitex.BoxProps{
-				Style: sidebarStyle,
-			},
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						MarginBottom(1).
-						BorderBottom(true, style.BorderSingle, color.RGBA{R: 75, G: 85, B: 99, A: 255}),
-				},
+		kitex.Box.Style(
+			sidebarStyle,
+			kitex.Box.Style(
+				style.S().
+					MarginBottom(1).
+					BorderBottom(true, style.BorderSingle, color.RGBA{R: 75, G: 85, B: 99, A: 255}),
 				kitex.Text("📖 SCENES"),
 			),
 			kitex.Input(kitex.InputProps{
@@ -1077,10 +1027,8 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 					}
 				},
 			}),
-			kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().Flex(1).Overflow(style.OverflowAuto),
-				},
+			kitex.Box.Style(
+				style.S().Flex(1).Overflow(style.OverflowAuto),
 				sidebarItems...,
 			),
 		),
@@ -1088,7 +1036,7 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 		func() kitex.Node {
 			if activeScene != nil {
 				key := fmt.Sprintf("scene-%d", activeSceneIdx())
-				return PlayableArea(PlayableAreaProps{
+				return PlayableArea.Props(PlayableAreaProps{
 					Key:          key,
 					Scene:        activeScene,
 					Decorator:    props.Stage.decorator,
@@ -1097,10 +1045,8 @@ var StageApp = kitex.FC("StageApp", func(props StageAppProps) kitex.Node {
 					SetGlobalVal: setGlobalVal,
 				})
 			}
-			return kitex.Box(
-				kitex.BoxProps{
-					Style: playableAreaStyle.Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}),
-				},
+			return kitex.Box.Style(
+				playableAreaStyle.Background(color.RGBA{R: 31, G: 41, B: 55, A: 255}),
 				kitex.Text("Select a scene to start"),
 			)
 		}(),

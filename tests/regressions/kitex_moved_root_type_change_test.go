@@ -42,23 +42,23 @@ func TestKitexMovedSegmentRootTypeChangeDoesNotResurrectDOM(t *testing.T) {
 		return kitex.Span(kitex.SpanProps{ID: "usage-span"}, kitex.Text(p.Label))
 	})
 
-	HintSegment := kitex.SimpleFC("HintSegment", func() kitex.Node {
+	HintSegment := kitex.FC("HintSegment", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Span(kitex.SpanProps{ID: "hint"}, kitex.Text("hint "))
 	})
 
-	Spacer := kitex.SimpleFC("Spacer", func() kitex.Node {
+	Spacer := kitex.FC("Spacer", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{
 			ID:    "spacer",
 			Style: style.S().Flex(1),
 		})
 	})
 
-	ModelSegment := kitex.SimpleFC("ModelSegment", func() kitex.Node {
+	ModelSegment := kitex.FC("ModelSegment", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Span(kitex.SpanProps{ID: "model"}, kitex.Text(" | model"))
 	})
 
 	var setShowHint func(bool)
-	StatusBar := kitex.SimpleFC("StatusBar", func() kitex.Node {
+	StatusBar := kitex.FC("StatusBar", func(_ kitex.NoProps) kitex.Node {
 		showHint, setter := kitex.UseState(true)
 		setShowHint = setter
 
@@ -67,15 +67,15 @@ func TestKitexMovedSegmentRootTypeChangeDoesNotResurrectDOM(t *testing.T) {
 			children = append(children,
 				HintSegment(),
 				Spacer(),
-				ModeSegment(segProps{Label: "auto", WithSep: true}),
-				UsageSegment(segProps{Label: "usage", WithSep: true}),
+				ModeSegment.Props(segProps{Label: "auto", WithSep: true}),
+				UsageSegment.Props(segProps{Label: "usage", WithSep: true}),
 				ModelSegment(),
 			)
 		} else {
 			children = append(children,
-				ModeSegment(segProps{Label: "auto", WithSep: false}),
+				ModeSegment.Props(segProps{Label: "auto", WithSep: false}),
 				Spacer(),
-				UsageSegment(segProps{Label: "usage", WithSep: false}),
+				UsageSegment.Props(segProps{Label: "usage", WithSep: false}),
 				ModelSegment(),
 			)
 		}

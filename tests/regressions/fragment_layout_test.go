@@ -16,7 +16,7 @@ func TestFragmentLayout_OverflowAuto(t *testing.T) {
 	var setItems func([]string)
 	var staticRef kitex.Ref[dom.Element]
 
-	App := kitex.FC("App", func(props struct{}) kitex.Node {
+	App := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		items, setItemsFn := kitex.UseState([]string{})
 		setItems = setItemsFn
 		staticRef = kitex.UseRef[dom.Element](nil)
@@ -47,7 +47,7 @@ func TestFragmentLayout_OverflowAuto(t *testing.T) {
 	container := e.Document().CreateElement("div", nil)
 	e.Document().AppendChild(container)
 
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 	e.RenderFrame()
 
 	if staticRef == nil || staticRef.Current == nil {

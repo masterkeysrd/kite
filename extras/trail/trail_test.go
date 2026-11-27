@@ -25,7 +25,7 @@ import (
 func TestTrail_New_DynamicFrames(t *testing.T) {
 	var updateCount func(int)
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		count, setCount := kitex.UseState(2)
 		updateCount = setCount
 
@@ -78,7 +78,7 @@ func TestTrail_Static(t *testing.T) {
 	var addItems func(...string)
 	var updateProgress func(string)
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		items, setItems := kitex.UseState([]string{"task 1", "task 2"})
 		addItems = func(newItems ...string) {
 			prev := items()
@@ -168,7 +168,7 @@ func TestTrail_Static(t *testing.T) {
 func TestTrail_UseApp_Exit(t *testing.T) {
 	expectedErr := errors.New("custom exit error")
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		app := trail.UseApp()
 		trail.UseInput(func(input string, k event.KeyEvent) {
 			if input == "x" {
@@ -233,7 +233,7 @@ func TestTrail_Spacer_And_Newline(t *testing.T) {
 }
 
 func TestTrail_WithCtrlCExit(t *testing.T) {
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		return trail.Box(trail.BoxProps{}, trail.Text("app"))
 	})
 
@@ -271,7 +271,7 @@ func TestTrail_UseInput_And_Println(t *testing.T) {
 	var receivedInput string
 	var receivedKey event.KeyEvent
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		app := trail.UseApp()
 		trail.UseInput(func(input string, k event.KeyEvent) {
 			receivedInput = input
@@ -313,7 +313,7 @@ func TestTrail_UseInput_And_Println(t *testing.T) {
 }
 
 func TestTrail_Exit_FlushesFinalStateAndStatic(t *testing.T) {
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		app := trail.UseApp()
 		status, setStatus := kitex.UseState("in progress")
 		items, setItems := kitex.UseState([]string{"step 1"})
@@ -387,7 +387,7 @@ func TestTrail_Exit_FlushesFinalStateAndStatic(t *testing.T) {
 
 func TestTrail_Render_WaitUntilExit(t *testing.T) {
 	b := mock.New(80, 24)
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		app := trail.UseApp()
 		trail.UseInput(func(input string, k event.KeyEvent) {
 			if input == "x" {
@@ -452,14 +452,14 @@ func TestTrail_Clear(t *testing.T) {
 	var setCount func(int)
 	var setHeader func(bool)
 	mounts, cleanups := 0, 0
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		count, updateCount := trail.UseState(0)
 		header, updateHeader := trail.UseState(false)
 		setCount, setHeader = updateCount, updateHeader
 		trail.UseEffectCleanup(func() func() {
 			mounts++
 			return func() { cleanups++ }
-		}, []any{})
+		})
 		trail.UseInput(func(input string, _ event.KeyEvent) {
 			if input == "x" {
 				updateCount(count() + 1)
@@ -517,11 +517,11 @@ func TestTrail_Clear(t *testing.T) {
 func TestTrail_Clear_Running(t *testing.T) {
 	b := mock.New(80, 24)
 	cleanups := 0
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		app := trail.UseApp()
 		trail.UseEffectCleanup(func() func() {
 			return func() { cleanups++ }
-		}, []any{})
+		})
 		trail.UseInput(func(input string, _ event.KeyEvent) {
 			if input == "c" {
 				app.Clear()
@@ -562,12 +562,12 @@ func TestTrail_Unmount(t *testing.T) {
 	b := mock.New(80, 24)
 	var cleanupRan atomic.Bool
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		trail.UseEffectCleanup(func() func() {
 			return func() {
 				cleanupRan.Store(true)
 			}
-		}, nil)
+		})
 		return trail.Box(trail.BoxProps{}, trail.Text("Active"))
 	})
 
@@ -614,7 +614,7 @@ func TestTrail_UseInput_IsActive(t *testing.T) {
 		return trail.Box(trail.BoxProps{}, trail.Text("InputComp"))
 	})
 
-	inst, err := trail.New(Comp(AppProps{Active: false}), trail.WithBackend(b))
+	inst, err := trail.New(Comp.Props(AppProps{Active: false}), trail.WithBackend(b))
 	if err != nil {
 		t.Fatalf("failed to create trail instance: %v", err)
 	}
@@ -630,7 +630,7 @@ func TestTrail_UseInput_IsActive(t *testing.T) {
 	}
 
 	// Rerender with Active = true
-	inst.Rerender(Comp(AppProps{Active: true}))
+	inst.Rerender(Comp.Props(AppProps{Active: true}))
 	inst.Frame()
 
 	// Post key 'b' while active
@@ -650,7 +650,7 @@ func TestTrail_UseFocus_And_FocusManager(t *testing.T) {
 	btnRef := kitex.CreateRef[dom.Element]()
 	inpRef := kitex.CreateRef[dom.Element]()
 
-	App := trail.SimpleFC("FocusApp", func() kitex.Node {
+	App := trail.FC("FocusApp", func(_ trail.NoProps) kitex.Node {
 		fm = trail.UseFocusManager()
 		trail.UseFocus(btnRef, trail.FocusOptions{AutoFocus: true})
 		trail.UseFocus(inpRef)
@@ -702,7 +702,7 @@ func TestTrail_MeasureElement(t *testing.T) {
 	b := mock.New(80, 24)
 	boxRef := kitex.CreateRef[dom.Element]()
 
-	App := trail.SimpleFC("MeasureApp", func() kitex.Node {
+	App := trail.FC("MeasureApp", func(_ trail.NoProps) kitex.Node {
 		return trail.Box(trail.BoxProps{
 			Ref:   boxRef,
 			Style: style.S().Width(style.Cells(40)).Height(style.Cells(5)),
@@ -745,7 +745,7 @@ func TestTrail_WithInterceptLog_And_LogWriter(t *testing.T) {
 
 	// Test WithInterceptLog option in Run
 	b2 := mock.New(80, 24)
-	App2 := trail.SimpleFC("App2", func() kitex.Node {
+	App2 := trail.FC("App2", func(_ trail.NoProps) kitex.Node {
 		app := trail.UseApp()
 		trail.UseInput(func(input string, k event.KeyEvent) {
 			if input == "q" {
@@ -781,7 +781,7 @@ func TestTrail_UseStdout_And_UseStderr(t *testing.T) {
 	b := mock.New(80, 24)
 	var viewportSz geom.Size
 
-	App := trail.SimpleFC("StreamsApp", func() kitex.Node {
+	App := trail.FC("StreamsApp", func(_ trail.NoProps) kitex.Node {
 		stdout := trail.UseStdout()
 		stderr := trail.UseStderr()
 
@@ -835,7 +835,7 @@ func TestTrail_ResumeSession_ManyStaticItemsWithActiveBottomUI(t *testing.T) {
 		initialItems[i] = fmt.Sprintf("historical log %02d", i)
 	}
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		items, _ := kitex.UseState(initialItems)
 
 		return trail.Fragment(
@@ -896,7 +896,7 @@ func TestTrail_StreamingText_BottomUIStaysVisibleThroughoutAndAfterStatic(t *tes
 	var setLines func([]string)
 	var finishStream func()
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		streamLines, setStreamLines := kitex.UseState([]string{
 			"stream line 0",
 			"stream line 1",
@@ -1035,7 +1035,7 @@ func TestTrail_Static_InheritsParentContext(t *testing.T) {
 		}, trail.Text(fmt.Sprintf("%s: %s", props.id, theme)))
 	})
 
-	App := trail.SimpleFC("App", func() kitex.Node {
+	App := trail.FC("App", func(_ trail.NoProps) kitex.Node {
 		items, setItems := kitex.UseState([]staticItem{{id: "item 1"}})
 		addItems = func(newItems ...staticItem) {
 			prev := items()
@@ -1048,7 +1048,7 @@ func TestTrail_Static_InheritsParentContext(t *testing.T) {
 		return themeCtx.Provider("custom-theme",
 			trail.Fragment(
 				trail.Static(items(), func(item staticItem, index int) kitex.Node {
-					return StaticChild(item)
+					return StaticChild.Props(item)
 				}),
 				trail.Box(trail.BoxProps{
 					Style: style.S().Height(style.Cells(1)),
@@ -1100,7 +1100,7 @@ func TestTrail_Static_InheritsParentContext(t *testing.T) {
 
 func TestTrail_LateChildKeepsItsPosition(t *testing.T) {
 	var set func(bool)
-	late := kitex.SimpleFC("Late", func() kitex.Node {
+	late := kitex.FC("Late", func(_ kitex.NoProps) kitex.Node {
 		on, setOn := kitex.UseState(false)
 		set = setOn
 		if !on() {
@@ -1159,7 +1159,7 @@ func TestTrail_StoreUpdateAfterUnflushedPreviousInstance(t *testing.T) {
 	// and ran defer clearTranscript() after its last Frame() without Unmount().
 	func() {
 		defer clearTranscript()
-		PrevComp := trail.SimpleFC("PrevComp", func() trail.Node {
+		PrevComp := trail.FC("PrevComp", func(_ trail.NoProps) trail.Node {
 			_ = kites.Use(store, func(s transcriptState) int { return s.Epoch })
 			return trail.Text("prev")
 		})
@@ -1178,7 +1178,7 @@ func TestTrail_StoreUpdateAfterUnflushedPreviousInstance(t *testing.T) {
 	defer clearTranscript()
 
 	var renderedEpoch int
-	Comp := trail.SimpleFC("Comp", func() trail.Node {
+	Comp := trail.FC("Comp", func(_ trail.NoProps) trail.Node {
 		renderedEpoch = kites.Use(store, func(s transcriptState) int {
 			return s.Epoch
 		})

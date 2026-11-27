@@ -86,7 +86,7 @@ func TestReconcilerStateUpdateDirtyReRender(t *testing.T) {
 
 	var setCounter func(int)
 
-	CounterComponent := FC("CounterComponent", func(props struct{}) Node {
+	CounterComponent := FC("CounterComponent", func(props NoProps) Node {
 		getVal, setVal := UseState(0)
 		setCounter = setVal
 		return Span(SpanProps{ID: "count-span"},
@@ -95,7 +95,7 @@ func TestReconcilerStateUpdateDirtyReRender(t *testing.T) {
 	})
 
 	// Initial render
-	Render(CounterComponent(struct{}{}), container)
+	Render(CounterComponent(), container)
 
 	compNode := container.FirstChild() // The ComponentNode's real DOM node (which is the Span)
 	spanReal := compNode.(dom.Element)
@@ -247,9 +247,9 @@ func TestReconcilerComponentListReverse(t *testing.T) {
 
 	// Render [A, B, C]
 	Render(Box(BoxProps{},
-		ItemComp(ItemProps{Key: "A", ID: "a"}),
-		ItemComp(ItemProps{Key: "B", ID: "b"}),
-		ItemComp(ItemProps{Key: "C", ID: "c"}),
+		ItemComp.Props(ItemProps{Key: "A", ID: "a"}),
+		ItemComp.Props(ItemProps{Key: "B", ID: "b"}),
+		ItemComp.Props(ItemProps{Key: "C", ID: "c"}),
 	), container)
 
 	appReal := container.FirstChild().(dom.Element)
@@ -261,9 +261,9 @@ func TestReconcilerComponentListReverse(t *testing.T) {
 
 	// Reverse: [C, B, A]
 	Render(Box(BoxProps{},
-		ItemComp(ItemProps{Key: "C", ID: "c"}),
-		ItemComp(ItemProps{Key: "B", ID: "b"}),
-		ItemComp(ItemProps{Key: "A", ID: "a"}),
+		ItemComp.Props(ItemProps{Key: "C", ID: "c"}),
+		ItemComp.Props(ItemProps{Key: "B", ID: "b"}),
+		ItemComp.Props(ItemProps{Key: "A", ID: "a"}),
 	), container)
 
 	var after []dom.Node
@@ -360,7 +360,7 @@ func TestReconcilerStateUpdateListReverse(t *testing.T) {
 
 	var setItems func([]ItemData)
 
-	AppComp := FC("AppComp", func(props struct{}) Node {
+	AppComp := FC("AppComp", func(props NoProps) Node {
 		getItems, setIt := UseState([]ItemData{
 			{Key: "1", ID: "a"},
 			{Key: "2", ID: "b"},
@@ -368,12 +368,12 @@ func TestReconcilerStateUpdateListReverse(t *testing.T) {
 		})
 		setItems = setIt
 		renderItem := func(item ItemData, _ int) Node {
-			return ItemComp(ItemProps(item))
+			return ItemComp.Props(ItemProps(item))
 		}
 		return Box(BoxProps{}, Map(getItems(), renderItem))
 	})
 
-	Render(AppComp(struct{}{}), container)
+	Render(AppComp(), container)
 
 	appReal := container.FirstChild().(dom.Element)
 	var before []dom.Node
@@ -423,7 +423,7 @@ func TestReconcilerConditionalNilChildren(t *testing.T) {
 
 	var setCondition func(bool)
 
-	Comp := FC("ConditionalComp", func(props struct{}) Node {
+	Comp := FC("ConditionalComp", func(props NoProps) Node {
 		cond, setCond := UseState(true)
 		setCondition = setCond
 
@@ -435,7 +435,7 @@ func TestReconcilerConditionalNilChildren(t *testing.T) {
 	})
 
 	// 1. Initial Render (conditional is true)
-	Render(Comp(struct{}{}), container)
+	Render(Comp(), container)
 
 	parent := container.FirstChild().(dom.Element)
 	if parent.FirstChild() == nil {
@@ -603,7 +603,7 @@ func TestFragmentComponentReconciliation(t *testing.T) {
 	})
 
 	// 1. Mount: A, B
-	Render(MyFragmentComp(MyFragmentCompProps{Items: []string{"A", "B"}}), container)
+	Render(MyFragmentComp.Props(MyFragmentCompProps{Items: []string{"A", "B"}}), container)
 
 	var childIDs []string
 	for child := range container.ChildNodes() {
@@ -617,7 +617,7 @@ func TestFragmentComponentReconciliation(t *testing.T) {
 	}
 
 	// 2. Update: B, C, D (reordering, adding, removing)
-	Render(MyFragmentComp(MyFragmentCompProps{Items: []string{"B", "C", "D"}}), container)
+	Render(MyFragmentComp.Props(MyFragmentCompProps{Items: []string{"B", "C", "D"}}), container)
 
 	childIDs = nil
 	for child := range container.ChildNodes() {
@@ -674,7 +674,7 @@ func TestReconciler_ComponentNilRenderUnmount(t *testing.T) {
 	var setRenderNil func(bool)
 	var triggerStateUpdate func()
 
-	InnerComp := FC("InnerComp", func(props struct{}) Node {
+	InnerComp := FC("InnerComp", func(props NoProps) Node {
 		renderNil, setRN := UseState(false)
 		setRenderNil = setRN
 
@@ -692,17 +692,17 @@ func TestReconciler_ComponentNilRenderUnmount(t *testing.T) {
 
 	var setShowParentComp func(bool)
 
-	ParentComp := FC("ParentComp", func(props struct{}) Node {
+	ParentComp := FC("ParentComp", func(props NoProps) Node {
 		show, setShow := UseState(true)
 		setShowParentComp = setShow
 		if !show() {
 			return Box(BoxProps{ID: "empty-box"})
 		}
-		return Box(BoxProps{ID: "app"}, InnerComp(struct{}{}))
+		return Box(BoxProps{ID: "app"}, InnerComp())
 	})
 
 	// 1. Initial Render
-	Render(ParentComp(struct{}{}), container)
+	Render(ParentComp(), container)
 
 	appReal := container.FirstChild().(dom.Element)
 	if appReal.FirstChild() == nil {
@@ -745,7 +745,7 @@ func TestReconciler_Case2InsertBeforeRefOutdated(t *testing.T) {
 	var setCondition func(bool)
 
 	// Inner Component that returns either a Span or a Box based on a condition
-	DynamicComp := FC("DynamicComp", func(props struct{}) Node {
+	DynamicComp := FC("DynamicComp", func(props NoProps) Node {
 		cond, setCond := UseState(true)
 		setCondition = setCond
 		if cond() {
@@ -757,7 +757,7 @@ func TestReconciler_Case2InsertBeforeRefOutdated(t *testing.T) {
 	// Initial render:
 	// A list: [DynamicComp]
 	// DynamicComp renders to a Span.
-	Render(Box(BoxProps{ID: "parent"}, DynamicComp(struct{}{})), container)
+	Render(Box(BoxProps{ID: "parent"}, DynamicComp()), container)
 
 	parentReal := container.FirstChild().(dom.Element)
 	if parentReal.FirstChild() == nil || parentReal.FirstChild().(dom.Element).TagName() != "span" {
@@ -786,7 +786,7 @@ func TestReconciler_Case2InsertBeforeRefOutdated(t *testing.T) {
 	setCondition(false)
 	Render(Box(BoxProps{ID: "parent"},
 		Span(SpanProps{ID: "new-span"}),
-		DynamicComp(struct{}{}),
+		DynamicComp(),
 	), container)
 
 	// Verify the final DOM structure
@@ -856,13 +856,13 @@ func TestReconciler_Case4InsertBeforeRefFallback(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
-	EmptyComp := FC("EmptyComp", func(props struct{}) Node {
+	EmptyComp := FC("EmptyComp", func(props NoProps) Node {
 		return nil
 	})
 
 	// Initial render: [EmptyComp, EndNode, FixedEnd]
 	Render(Box(BoxProps{ID: "parent"},
-		EmptyComp(struct{}{}),
+		EmptyComp(),
 		Span(SpanProps{ID: "end"}),
 		Span(SpanProps{ID: "fixed-end"}),
 	), container)
@@ -903,13 +903,13 @@ func TestReconciler_Case5InsertBeforeRefFallback(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
 
-	EmptyComp := FC("EmptyComp", func(props struct{}) Node {
+	EmptyComp := FC("EmptyComp", func(props NoProps) Node {
 		return nil
 	})
 
 	// Initial render: [EmptyComp, MatchedNode, FixedEnd]
 	Render(Box(BoxProps{ID: "parent"},
-		EmptyComp(struct{}{}),
+		EmptyComp(),
 		Span(SpanProps{ID: "matched", Key: "m"}),
 		Span(SpanProps{ID: "fixed-end"}),
 	), container)
@@ -974,14 +974,14 @@ func TestReconcilerKeylessWarnings(t *testing.T) {
 	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
 
 	// Test 1: Fragment returned by component with keyless child elements
-	KeylessComp := FC("KeylessComp", func(props struct{}) Node {
+	KeylessComp := FC("KeylessComp", func(props NoProps) Node {
 		return Fragment(
 			Span(SpanProps{ID: "child1"}),
 			Span(SpanProps{ID: "child2"}),
 		)
 	})
 
-	Render(KeylessComp(struct{}{}), container)
+	Render(KeylessComp(), container)
 	if !strings.Contains(buf.String(), "Component returned a fragment containing child nodes without explicit keys") {
 		t.Errorf("expected warning for keyless fragment siblings, got log: %s", buf.String())
 	}
@@ -1035,28 +1035,28 @@ func TestReconcilerDirtyBufferSharing(t *testing.T) {
 	var setD func(int)
 	var setE func(int)
 
-	CompE := FC("CompE", func(props struct{}) Node {
+	CompE := FC("CompE", func(props NoProps) Node {
 		state, set := UseState(0)
 		setE = set
 		runCountE++
 		return Span(SpanProps{ID: fmt.Sprintf("e-%d", state())})
 	})
 
-	CompD := FC("CompD", func(props struct{}) Node {
+	CompD := FC("CompD", func(props NoProps) Node {
 		state, set := UseState(0)
 		setD = set
 		runCountD++
 		return Span(SpanProps{ID: fmt.Sprintf("d-%d", state())})
 	})
 
-	CompC := FC("CompC", func(props struct{}) Node {
+	CompC := FC("CompC", func(props NoProps) Node {
 		state, set := UseState(0)
 		setC = set
 		runCountC++
 		return Span(SpanProps{ID: fmt.Sprintf("c-%d", state())})
 	})
 
-	CompB := FC("CompB", func(props struct{}) Node {
+	CompB := FC("CompB", func(props NoProps) Node {
 		state, set := UseState(0)
 		setB = set
 		runCountB++
@@ -1068,7 +1068,7 @@ func TestReconcilerDirtyBufferSharing(t *testing.T) {
 		return Span(SpanProps{ID: fmt.Sprintf("b-%d", state())})
 	})
 
-	CompA := FC("CompA", func(props struct{}) Node {
+	CompA := FC("CompA", func(props NoProps) Node {
 		state, set := UseState(0)
 		setA = set
 		runCountA++
@@ -1078,7 +1078,7 @@ func TestReconcilerDirtyBufferSharing(t *testing.T) {
 	// Root triggers queueing
 	var setTrigger func(bool)
 
-	Root := FC("Root", func(props struct{}) Node {
+	Root := FC("Root", func(props NoProps) Node {
 		state, set := UseState(false)
 		setTrigger = set
 		UseLayoutEffect(func() {
@@ -1088,17 +1088,17 @@ func TestReconcilerDirtyBufferSharing(t *testing.T) {
 				setA(1)
 				setD(1)
 			}
-		}, []any{state()})
+		}, state())
 		return Box(BoxProps{},
-			CompB(struct{}{}),
-			CompA(struct{}{}),
-			CompD(struct{}{}),
-			CompC(struct{}{}),
-			CompE(struct{}{}),
+			CompB(),
+			CompA(),
+			CompD(),
+			CompC(),
+			CompE(),
 		)
 	})
 
-	Render(Root(struct{}{}), container)
+	Render(Root(), container)
 
 	// Reset counters
 	runCountA = 0
@@ -1130,13 +1130,13 @@ func TestReconciler_ComponentStyleUpdate(t *testing.T) {
 
 	var setStyleFn func(style.Style)
 
-	StyleComp := FC("StyleComp", func(props struct{}) Node {
+	StyleComp := FC("StyleComp", func(props NoProps) Node {
 		getStyle, setStyle := UseState(style.S())
 		setStyleFn = setStyle
 		return Span(SpanProps{ID: "target", Style: getStyle()})
 	})
 
-	Render(StyleComp(struct{}{}), container)
+	Render(StyleComp(), container)
 
 	spanReal := container.FirstChild().(dom.Element)
 	if spanReal.ID() != "target" {
@@ -1161,7 +1161,7 @@ func TestReconciler_ComponentEventListenerUpdate(t *testing.T) {
 	var setValFn func(int)
 	var calledWithVal int
 
-	ClickComp := FC("ClickComp", func(props struct{}) Node {
+	ClickComp := FC("ClickComp", func(props NoProps) Node {
 		getVal, setVal := UseState(10)
 		setValFn = setVal
 		return Button(ButtonProps{
@@ -1171,7 +1171,7 @@ func TestReconciler_ComponentEventListenerUpdate(t *testing.T) {
 		})
 	})
 
-	Render(ClickComp(struct{}{}), container)
+	Render(ClickComp(), container)
 
 	btnReal := container.FirstChild().(*element.ButtonElement)
 
@@ -1204,11 +1204,11 @@ func TestReconciler_ComponentNestedEventListenerUpdate(t *testing.T) {
 		})
 	})
 
-	ClickComp := FC("ClickComp", func(props struct{}) Node {
+	ClickComp := FC("ClickComp", func(props NoProps) Node {
 		getVal, setVal := UseState(10)
 		setValFn = setVal
 		return Fragment(
-			InnerComp(struct{ OnClick func(*event.MouseEvent) }{
+			InnerComp.Props(struct{ OnClick func(*event.MouseEvent) }{
 				OnClick: func(e *event.MouseEvent) {
 					calledWithVal = getVal()
 				},
@@ -1216,7 +1216,7 @@ func TestReconciler_ComponentNestedEventListenerUpdate(t *testing.T) {
 		)
 	})
 
-	Render(ClickComp(struct{}{}), container)
+	Render(ClickComp(), container)
 
 	btnReal := container.FirstChild().(*element.ButtonElement)
 
@@ -1243,7 +1243,7 @@ func TestReconciler_ComponentStaleClosureValue(t *testing.T) {
 	var setValFn func(int)
 	var calledWithVal int
 
-	ClickComp := FC("ClickComp", func(props struct{}) Node {
+	ClickComp := FC("ClickComp", func(props NoProps) Node {
 		getVal, setVal := UseState(10)
 		setValFn = setVal
 		val := getVal() // calls getter during render
@@ -1254,7 +1254,7 @@ func TestReconciler_ComponentStaleClosureValue(t *testing.T) {
 		})
 	})
 
-	Render(ClickComp(struct{}{}), container)
+	Render(ClickComp(), container)
 
 	btnReal := container.FirstChild().(*element.ButtonElement)
 
@@ -1383,7 +1383,7 @@ func TestReconcilerStaleParentRefsPropagation(t *testing.T) {
 	var setStep func(int)
 
 	// Child component that swaps root keys based on step
-	Child := FC("Child", func(props struct{}) Node {
+	Child := FC("Child", func(props NoProps) Node {
 		step, set := UseState(1)
 		setStep = set
 
@@ -1394,24 +1394,24 @@ func TestReconcilerStaleParentRefsPropagation(t *testing.T) {
 	})
 
 	// Parent component that wraps the child component directly
-	Parent := FC("Parent", func(props struct{}) Node {
-		return Child(struct{}{})
+	Parent := FC("Parent", func(props NoProps) Node {
+		return Child()
 	})
 
 	// Main test app
 	var setScreen func(string)
-	App := FC("App", func(props struct{}) Node {
+	App := FC("App", func(props NoProps) Node {
 		screen, set := UseState("parent")
 		setScreen = set
 
 		if screen() == "parent" {
-			return Parent(struct{}{})
+			return Parent()
 		}
 		return Box(BoxProps{ID: "other-screen"})
 	})
 
 	// 1. Initial Render: renders App -> Parent -> Child -> Box(Key "A", ID "child-a")
-	Render(App(struct{}{}), container)
+	Render(App(), container)
 	if container.FirstChild() == nil || container.FirstChild().(dom.Element).ID() != "child-a" {
 		t.Fatalf("expected child-a initially, got %v", container.FirstChild())
 	}
@@ -1458,7 +1458,7 @@ func TestLateChildKeepsItsPosition(t *testing.T) {
 	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
 
 	var set func(bool)
-	late := SimpleFC("Late", func() Node {
+	late := FC("Late", func(_ NoProps) Node {
 		on, setOn := UseState(false)
 		set = setOn
 		if !on() {
@@ -1503,7 +1503,7 @@ func TestLateChildInsideFragmentKeepsItsPosition(t *testing.T) {
 	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
 
 	var set func(bool)
-	late := SimpleFC("Late", func() Node {
+	late := FC("Late", func(_ NoProps) Node {
 		on, setOn := UseState(false)
 		set = setOn
 		if !on() {
@@ -1538,15 +1538,15 @@ func TestLateChildBetweenEmptySiblingComponentsKeepsItsPosition(t *testing.T) {
 	doc := dom.NewDocument()
 	container := Div(BoxProps{ID: "container"}).Instantiate(doc)[0].(dom.Element)
 
-	emptyBefore := SimpleFC("EmptyBefore", func() Node {
+	emptyBefore := FC("EmptyBefore", func(_ NoProps) Node {
 		return nil
 	})
-	emptyAfter := SimpleFC("EmptyAfter", func() Node {
+	emptyAfter := FC("EmptyAfter", func(_ NoProps) Node {
 		return nil
 	})
 
 	var set1, set2 func(bool)
-	late1 := SimpleFC("Late1", func() Node {
+	late1 := FC("Late1", func(_ NoProps) Node {
 		on, setOn := UseState(false)
 		set1 = setOn
 		if !on() {
@@ -1554,7 +1554,7 @@ func TestLateChildBetweenEmptySiblingComponentsKeepsItsPosition(t *testing.T) {
 		}
 		return Text("LATE1")
 	})
-	late2 := SimpleFC("Late2", func() Node {
+	late2 := FC("Late2", func(_ NoProps) Node {
 		on, setOn := UseState(false)
 		set2 = setOn
 		if !on() {
@@ -1596,7 +1596,7 @@ func TestLateChildInsideProviderAndWrapperUnmountsCleanly(t *testing.T) {
 
 	ctx := CreateContext("P:")
 	var setLate func(bool)
-	late := SimpleFC("Late", func() Node {
+	late := FC("Late", func(_ NoProps) Node {
 		on, setOn := UseState(false)
 		setLate = setOn
 		prefix := UseContext(ctx)
@@ -1606,12 +1606,12 @@ func TestLateChildInsideProviderAndWrapperUnmountsCleanly(t *testing.T) {
 		return Text(prefix + "LATE")
 	})
 
-	wrapper := SimpleFC("Wrapper", func() Node {
+	wrapper := FC("Wrapper", func(_ NoProps) Node {
 		return Fragment(late())
 	})
 
 	var setShowWrapper func(bool)
-	app := SimpleFC("App", func() Node {
+	app := FC("App", func(_ NoProps) Node {
 		show, setShow := UseState(true)
 		setShowWrapper = setShow
 		if !show() {
@@ -1659,7 +1659,7 @@ func TestDirtyDuringRenderIsNotLost(t *testing.T) {
 	renderCount := 0
 	var setVal func(int)
 
-	comp := SimpleFC("FlagDuringRender", func() Node {
+	comp := FC("FlagDuringRender", func(_ NoProps) Node {
 		val, setter := UseState(0)
 		setVal = setter
 		renderCount++
@@ -1703,12 +1703,12 @@ func TestReconciler_AutoUnmountOnEngineStop(t *testing.T) {
 	doc.AppendChild(container)
 
 	cleanedUp := false
-	comp := SimpleFC("LifecycleComp", func() Node {
+	comp := FC("LifecycleComp", func(_ NoProps) Node {
 		UseLayoutEffectCleanup(func() func() {
 			return func() {
 				cleanedUp = true
 			}
-		}, nil)
+		})
 		return Box(BoxProps{}, Text("running"))
 	})
 
@@ -1749,12 +1749,12 @@ func TestReconciler_AutoUnmount_AsyncEffectCleanup(t *testing.T) {
 	doc.AppendChild(container)
 
 	cleanedUp := false
-	comp := SimpleFC("AsyncComp", func() Node {
+	comp := FC("AsyncComp", func(_ NoProps) Node {
 		UseEffectCleanup(func() func() {
 			return func() {
 				cleanedUp = true
 			}
-		}, nil)
+		})
 		return Box(BoxProps{}, Text("async"))
 	})
 
@@ -1834,15 +1834,15 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 		return Span(SpanProps{ID: p.ID + "-span"}, Text(p.Label))
 	})
 
-	HintSegment := SimpleFC("HintSegment", func() Node {
+	HintSegment := FC("HintSegment", func(_ NoProps) Node {
 		return Span(SpanProps{ID: "hint"}, Text("hint"))
 	})
 
-	SpacerSegment := SimpleFC("SpacerSegment", func() Node {
+	SpacerSegment := FC("SpacerSegment", func(_ NoProps) Node {
 		return Box(BoxProps{ID: "spacer"}, Text(" "))
 	})
 
-	ModelSegment := SimpleFC("ModelSegment", func() Node {
+	ModelSegment := FC("ModelSegment", func(_ NoProps) Node {
 		return Span(SpanProps{ID: "model"}, Text("model"))
 	})
 
@@ -1857,12 +1857,12 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 		{
 			name: "Case3_OldStartToNewEnd_BoxToSpan",
 			before: []Node{
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
 			},
 			after: []Node{
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
 			},
 			wantDOM: []string{
 				"span:other:other",
@@ -1873,10 +1873,10 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 			name: "Case4_OldEndToNewStart_BoxToSpan",
 			before: []Node{
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
 			},
 			after: []Node{
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
 			},
 			wantDOM: []string{
@@ -1889,12 +1889,12 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 			before: []Node{
 				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
 				Span(SpanProps{Key: "b", ID: "b"}, Text("B")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
 				Span(SpanProps{Key: "c", ID: "c"}, Text("C")),
 			},
 			after: []Node{
 				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
 				Span(SpanProps{Key: "b", ID: "b"}, Text("B")),
 				Span(SpanProps{Key: "c", ID: "c"}, Text("C")),
 			},
@@ -1910,14 +1910,14 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 			before: []Node{
 				HintSegment(),
 				SpacerSegment(),
-				ModeSegment(modeProps{ID: "mode", Label: "auto", WithSep: true}),
-				UsageSegment(modeProps{ID: "usage", Label: "Usage", WithSep: true}),
+				ModeSegment.Props(modeProps{ID: "mode", Label: "auto", WithSep: true}),
+				UsageSegment.Props(modeProps{ID: "usage", Label: "Usage", WithSep: true}),
 				ModelSegment(),
 			},
 			after: []Node{
-				ModeSegment(modeProps{ID: "mode", Label: "auto", WithSep: false}),
+				ModeSegment.Props(modeProps{ID: "mode", Label: "auto", WithSep: false}),
 				SpacerSegment(),
-				UsageSegment(modeProps{ID: "usage", Label: "Usage", WithSep: false}),
+				UsageSegment.Props(modeProps{ID: "usage", Label: "Usage", WithSep: false}),
 				ModelSegment(),
 			},
 			wantDOM: []string{
@@ -1931,10 +1931,10 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 			name: "MovedComponent_BoxToNil",
 			before: []Node{
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
 			},
 			after: []Node{
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", Hide: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", Hide: true}),
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
 			},
 			wantDOM: []string{
@@ -1945,10 +1945,10 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 			name: "MovedComponent_BoxToFragment",
 			before: []Node{
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
 			},
 			after: []Node{
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", Multi: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", Multi: true}),
 				Span(SpanProps{Key: "other", ID: "other"}, Text("other")),
 			},
 			wantDOM: []string{
@@ -1962,12 +1962,12 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 			before: []Node{
 				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
 				Empty(),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: true}),
 			},
 			after: []Node{
 				Empty(),
 				Span(SpanProps{Key: "a", ID: "a"}, Text("A")),
-				ModeSegment(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
+				ModeSegment.Props(modeProps{Key: "mode", ID: "mode", Label: "auto", WithSep: false}),
 			},
 			wantDOM: []string{
 				"span:a:A",
@@ -2011,11 +2011,11 @@ func TestReconciler_MovedComponentRootTypeChange(t *testing.T) {
 				if oldBox.Parent() != nil || oldBox.IsConnected() {
 					t.Errorf("expected replaced mode-box DOM node to remain detached, got parent=%v connected=%v", oldBox.Parent(), oldBox.IsConnected())
 				}
-		if doc.GetElementByID("mode-box") != nil {
-			t.Errorf("expected mode-box ID to be unregistered from document")
+				if doc.GetElementByID("mode-box") != nil {
+					t.Errorf("expected mode-box ID to be unregistered from document")
+				}
+			})
 		}
-	})
-	}
 	}
 }
 

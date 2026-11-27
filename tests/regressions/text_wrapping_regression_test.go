@@ -18,7 +18,7 @@ func TestTextWrappingInFlexScrollContainer(t *testing.T) {
 
 	var textRef kitex.Ref[dom.Element]
 
-	App := kitex.FC("App", func(props struct{}) kitex.Node {
+	App := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		textRef = kitex.UseRef[dom.Element](nil)
 
 		// Nested layout:
@@ -62,7 +62,7 @@ func TestTextWrappingInFlexScrollContainer(t *testing.T) {
 	container := e.Document().CreateElement("div", nil)
 	e.Document().AppendChild(container)
 
-	kitex.Render(App(struct{}{}), container)
+	kitex.Render(App(), container)
 	e.RenderFrame()
 
 	ro := e.RenderObject(textRef.Current)
