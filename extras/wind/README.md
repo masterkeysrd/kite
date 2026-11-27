@@ -124,15 +124,20 @@ var DeletePodButton = kitex.FC("DeletePodButton", func(props PodKey) kitex.Node 
 
 ## 🛠 API Reference
 
-### Caching Client
+### Caching Client & Imperative Cache Helpers
 
 - **`NewClient() *Client`**: Instantiates a thread-safe cache store.
+- **`GetQueryData[K comparable, T any](client *Client, key K) (T, bool)`**: Reads cached data for `key` if present, populated, and assignable to `T` without creating a cache entry on a miss.
+- **`SetQueryData[K comparable, T any](client *Client, key K, data T)`**: Seeds or replaces cached data for `key`, arming the GC timer when unsubscribed and coalescing subscriber notifications on the main thread.
+- **`UpdateQueryData[K comparable, T any](client *Client, key K, updater func(prev T, exists bool) T)`**: Atomically reads and updates cached data under the entry lock (ideal for optimistic updates and concurrent mutations) and coalesces subscriber notifications.
 - **`Client.InvalidateQueries(key any)`**: Invalidates matching queries. Subscribed components immediately begin background refetches.
+- **`Client.CancelQueries(key any)`**: Cancels in-flight queries and streams matching `key` (exact, prefix, or predicate), stops pending throttle timers, clears `IsFetching`, and notifies subscribers.
 - **`Client.Close()`**: Idempotently cancels all active queries and streams, stops pending GC/throttle timers, clears the cache, and waits for background work to drain.
 
 ### Options & Helpers
 
-- **`Optional[T]` (`Some`, `None`)**: Zero-allocation wrapper used for optional configuration fields (`Options.Enabled`, `StreamOptions.Enabled`, `StreamOptions.Throttle`) so leaving a field unset preserves its default (`Enabled` defaults to `true`, `Throttle` defaults to `16ms`).
+- **`Optional[T]` (`Some`, `None`)**: Zero-allocation wrapper used for optional configuration fields (`Options.Enabled`, `Stream.Enabled`, `Stream.Throttle`) so leaving a field unset preserves its default (`Enabled` defaults to `true`, `Throttle` defaults to `16ms`).
+- **`Latest[T](_ T, next T) T`**: Convenience reducer for `Stream.Reduce` that replaces previous state with the latest event.
 
 ### Hooks
 
@@ -144,13 +149,15 @@ does not preserve Wind's cancellation.
 - **`Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.Promise[T], opts ...Options) Result[T]`**:
   - `Options.Enabled` (`Optional[bool]`): Defaults to `true`; set to `wind.Some(false)` to disable automatic fetching on mount.
   - `Options.StaleTime`: Max age before the cache entry is considered stale and re-fetched on mount/dependency change.
-- **`UseStream[K comparable, T any](key K, fetcher func(context.Context, K) iter.Seq2[T, error], opts ...StreamOptions) StreamResult[T]`**:
-  - Subscribes to a streaming iterator via `promise.Spawn` (scheduler-managed lifecycle outside the bounded worker pool) and exposes `Status` (`"connecting"`, `"open"`, `"closed"`, `"error"`). Stopping the engine scheduler or calling `Client.Close()` cancels active streams.
-- **`UseStreamReduce[K comparable, E, S any](key K, initial S, fetcher func(context.Context, K) iter.Seq2[E, error], reduce func(prev S, event E) S, opts ...StreamOptions) StreamResult[S]`**:
-  - Folds every yielded event `E` into accumulated state `S` synchronously so throttled UI updates never drop events.
-  - `StreamOptions.Enabled` (`Optional[bool]`): Defaults to `true`; toggling `Some(true)` -> `Some(false)` cancels when no other enabled consumer remains, and `Some(false)` -> `Some(true)` reconnects.
-  - `StreamOptions.Throttle` (`Optional[time.Duration]`): Defaults to `16ms`; values `<= 0` disable timer throttling and coalesce via microtasks.
-  - `StreamOptions.RefetchMode`: `RefetchReplace` (default, keeps cached data visible until first event), `RefetchReset` (resets to `initial` immediately), or `RefetchAppend` (folds onto existing cached data).
+- **`UseStream[K comparable, E, S any](key K, spec Stream[E, S]) StreamResult[S]`**:
+  - Subscribes to a declarative streaming query via `promise.Spawn` (scheduler-managed lifecycle outside the bounded worker pool) and exposes `Status` (`"connecting"`, `"open"`, `"closed"`, `"error"`). Stopping the engine scheduler or calling `Client.Close()` cancels active streams.
+  - `Stream[E, S].Initial`: Seeds state `S` before the first `Fetch` or `Source` emission.
+  - `Stream[E, S].Fetch`: Optional snapshot loader executed on connect/reconnect before `Source` opens. If `Fetch` fails, `Source` is not invoked.
+  - `Stream[E, S].Source`: State-aware `func(ctx context.Context, state S) iter.Seq2[E, error]` stream producer receiving the current state (seeded from `Initial`, cached `RefetchAppend` state, or `Fetch`) so cursors like `LastEventID` can be forwarded across reconnects.
+  - `Stream[E, S].Reduce`: Folds every yielded event `E` into accumulated state `S` synchronously so throttled UI updates never drop events (when `nil` and `E` is assignable to `S`, events replace state directly).
+  - `Stream[E, S].Enabled` (`Optional[bool]`): Defaults to `true`; toggling `Some(true)` -> `Some(false)` cancels when no other enabled consumer remains, and `Some(false)` -> `Some(true)` reconnects.
+  - `Stream[E, S].Throttle` (`Optional[time.Duration]`): Defaults to `16ms`; values `<= 0` disable timer throttling and coalesce via microtasks.
+  - `Stream[E, S].RefetchMode`: `RefetchReplace` (default, keeps cached data visible until first event), `RefetchReset` (resets to `Initial` immediately), or `RefetchAppend` (folds onto existing cached data).
 - **`UseMutation[V, R any](mutationFn func(context.Context, V) *promise.Promise[R], opts ...MutationOptions[V, R]) MutationResult[V]`**:
   - State fields: `IsPending`, `IsError`, `Error`.
   - `Mutate(vars V)`: Triggers mutation function.

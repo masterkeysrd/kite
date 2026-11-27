@@ -175,10 +175,10 @@ Use this table as the first lookup before grepping. It maps the most common engi
 | **Kites global state integration hook** | `extras/kites/hooks.go` |
 | **Stack Navigation component & interfaces** | `extras/flight/flight.go`, `extras/flight/stack.go` |
 | **Navigation context & hooks** | `extras/flight/hooks.go` |
-| **Wind query cache client, lifecycle (`Close`), & context** | `extras/wind/client.go` |
+| **Wind query cache client, lifecycle (`Close`, `CancelQueries`), imperative cache helpers (`GetQueryData`, `SetQueryData`, `UpdateQueryData`), & context** | `extras/wind/client.go` |
 | **Wind optional value wrapper (`Optional[T]`)** | `extras/wind/optional.go` |
 | **Wind query hook (`Use`)** | `extras/wind/query.go` |
-| **Wind stream hooks (`UseStream`, `UseStreamReduce`, `RefetchMode`)** | `extras/wind/stream.go` |
+| **Wind stream hook & config (`UseStream`, `Stream`, `Latest`, `RefetchMode`)** | `extras/wind/stream.go` |
 | **Wind mutation hook (`UseMutation`)** | `extras/wind/mutation.go` |
 | **Inline mode & scrollback insertion (`InsertAbove`, `SetInline`)** | `engine/engine.go`, `engine/pipeline.go`, `internal/render/view.go`, `backend/backend.go`, `backend/uv/backend.go` |
 | **Trail inline CLI runtime & `<Static>` component** | `extras/trail/trail.go`, `extras/trail/components.go`, `extras/trail/hooks.go` |
