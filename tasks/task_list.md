@@ -90,3 +90,7 @@ This document tracks the status of all generated developer tasks for Kite (v2).
 | TSK-075 | Implement Hybrid Terminal Cursor Management | Pending | `tasks/TSK-075-cursor-management.md` |
 | TSK-076 | Refactor Engine and Implement Scheduler | Done | `tasks/TSK-076-engine-scheduler.md` |
 | TSK-077 | Implement Idiomatic Promises | Done | `tasks/TSK-077-promise-implementation.md` |
+| TSK-078 | Core Style Ergonomics & Pseudo-State Cascade | In Progress | `tasks/TSK-078-style-ergonomics-and-pseudo-states.md` |
+| TSK-079 | Core `element` Interface Symmetry, Typed Events & Control Parity | In Progress | `tasks/TSK-079-element-interface-and-typed-events.md` |
+| TSK-080 | Kitex Typed Events, Controlled-Prop Parity, `Textf` & State Updaters | In Progress | `tasks/TSK-080-kitex-typed-events-and-ergonomics.md` |
+| TSK-081 | Examples Migration & Documentation Update | In Progress | `tasks/TSK-081-examples-migration-and-docs.md` |
