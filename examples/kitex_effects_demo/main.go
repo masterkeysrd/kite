@@ -108,7 +108,7 @@ func (ps *PubSub) Publish(msg string) {
 var globalBroker = &PubSub{}
 
 // TimerComponent demonstrates UseEffectCleanup managing a background time ticker.
-var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
+var TimerComponent = kitex.FC("TimerComponent", func(_ kitex.NoProps) kitex.Node {
 	getSeconds, setSeconds := kitex.UseState(0)
 	getIsActive, setIsActive := kitex.UseState(true)
 
@@ -136,7 +136,7 @@ var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
 			ticker.Stop()
 			close(done)
 		}
-	}, []any{getIsActive()})
+	}, getIsActive())
 
 	statusText := "RUNNING"
 	btnText := " Pause Timer "
@@ -147,16 +147,11 @@ var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
 		btnBg = style.RGB(80, 180, 100)
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: timerBoxStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: sectionHeaderStyle,
-		}, kitex.Text("⏳ 1. UseEffect Timer Demonstration")),
+	return kitex.Box.Style(
+		timerBoxStyle,
+		kitex.Box.Style(sectionHeaderStyle, kitex.Text("⏳ 1. UseEffect Timer Demonstration")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: contentRowStyle,
-		}, kitex.Text(fmt.Sprintf("Elapsed Time: %d seconds (%s)", getSeconds(), statusText))),
+		kitex.Box.Style(contentRowStyle, kitex.Text(fmt.Sprintf("Elapsed Time: %d seconds (%s)", getSeconds(), statusText))),
 
 		kitex.Button(kitex.ButtonProps{
 			OnClick: func(e *event.MouseEvent) {
@@ -170,7 +165,7 @@ var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
 })
 
 // SubscriptionComponent demonstrates UseEffectCleanup managing a subscription to an external event source.
-var SubscriptionComponent = kitex.SimpleFC("SubscriptionComponent", func() kitex.Node {
+var SubscriptionComponent = kitex.FC("SubscriptionComponent", func(_ kitex.NoProps) kitex.Node {
 	getMessage, setMessage := kitex.UseState("No broadcasts received yet.")
 	getMsgCount, setMsgCount := kitex.UseState(0)
 
@@ -181,27 +176,20 @@ var SubscriptionComponent = kitex.SimpleFC("SubscriptionComponent", func() kitex
 			setMsgCount(getMsgCount() + 1)
 		})
 		return unsub
-	}, []any{})
+	})
 
-	return kitex.Box(kitex.BoxProps{
-		Style: subscriptionBoxStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: sectionHeaderStyle,
-		}, kitex.Text("📢 2. UseEffect Subscription Demonstration")),
+	return kitex.Box.Style(
+		subscriptionBoxStyle,
+		kitex.Box.Style(sectionHeaderStyle, kitex.Text("📢 2. UseEffect Subscription Demonstration")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: contentRowStyle,
-		}, kitex.Text(fmt.Sprintf("Last Broadcast: %s", getMessage()))),
+		kitex.Box.Style(contentRowStyle, kitex.Text(fmt.Sprintf("Last Broadcast: %s", getMessage()))),
 
-		kitex.Box(kitex.BoxProps{
-			Style: contentRowStyle,
-		}, kitex.Text(fmt.Sprintf("Total Messages Received: %d", getMsgCount()))),
+		kitex.Box.Style(contentRowStyle, kitex.Text(fmt.Sprintf("Total Messages Received: %d", getMsgCount()))),
 	)
 })
 
 // App is the root container and coordinates publishing.
-var App = kitex.SimpleFC("App", func() kitex.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	// Let's allow toggling the SubscriptionComponent visibility to demonstrate the cleanup/unsubscribe on unmount!
 	getShowSub, setShowSub := kitex.UseState(true)
 
@@ -218,23 +206,17 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		globalBroker.Publish(phrase)
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
+	return kitex.Box.Style(
+		appContainerStyle,
 		// Title
-		kitex.Box(kitex.BoxProps{
-			Style: appTitleStyle,
-		}, kitex.Text("⚡ Kitex Effect Hooks & Lifecycle Demo ⚡")),
+		kitex.Box.Style(appTitleStyle, kitex.Text("⚡ Kitex Effect Hooks & Lifecycle Demo ⚡")),
 
 		// Subtitle / Info
-		kitex.Box(kitex.BoxProps{
-			Style: appDescriptionStyle,
-		}, kitex.Text("Press 'q' to Quit. Pausing/Unmounting clean up background tickers and subscriptions.")),
+		kitex.Box.Style(appDescriptionStyle, kitex.Text("Press 'q' to Quit. Pausing/Unmounting clean up background tickers and subscriptions.")),
 
 		// Actions Panel
-		kitex.Box(kitex.BoxProps{
-			Style: actionsPanelStyle,
-		},
+		kitex.Box.Style(
+			actionsPanelStyle,
 			kitex.Button(kitex.ButtonProps{
 				OnClick: handlePublish,
 				Style:   broadcastBtnStyle,

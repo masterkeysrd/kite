@@ -140,19 +140,13 @@ func clampIndex(idx, length int) int {
 }
 
 func autocompleteMenuNode(filtered []suggestion, selectedIndex int, applySuggestion func(suggestion)) kitex.Node {
-	return kitex.Box(kitex.BoxProps{
-		Style: overlayCardStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: menuTitleStyle,
-		}, kitex.Text("Autocomplete")),
+	return kitex.Box.Style(
+		overlayCardStyle,
+		kitex.Box.Style(menuTitleStyle, kitex.Text("Autocomplete")),
 		kitex.IfElse(len(filtered) == 0,
-			kitex.Box(kitex.BoxProps{
-				Style: noMatchStyle,
-			}, kitex.Text("No matches for the current query.")),
-			kitex.UL(kitex.ULProps{
-				Style: menuListStyle,
-			},
+			kitex.Box.Style(noMatchStyle, kitex.Text("No matches for the current query.")),
+			kitex.UL.Style(
+				menuListStyle,
 				kitex.Map(filtered, func(item suggestion, idx int) kitex.Node {
 					rowStyle := menuRowStyle.
 						Merge(menuRowIdleStyle).
@@ -165,9 +159,7 @@ func autocompleteMenuNode(filtered []suggestion, selectedIndex int, applySuggest
 						},
 					},
 						kitex.Text(item.Label),
-						kitex.Box(kitex.BoxProps{
-							Style: menuDetailStyle,
-						}, kitex.Text(item.Detail)),
+						kitex.Box.Style(menuDetailStyle, kitex.Text(item.Detail)),
 					)
 				}),
 			),
@@ -175,7 +167,7 @@ func autocompleteMenuNode(filtered []suggestion, selectedIndex int, applySuggest
 	)
 }
 
-var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
+var App = kitex.FC("AutocompleteApp", func(_ kitex.NoProps) kitex.Node {
 	inputRef := kitex.UseRef[dom.Element](nil)
 	getQuery, setQuery := kitex.UseState("")
 	getMenuOpen, setMenuOpen := kitex.UseState(false)
@@ -195,7 +187,7 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 			}
 		}
 		return matches
-	}, []any{getQuery()})
+	}, getQuery())
 
 	selectedIndex := clampIndex(getSelectedIndex(), len(filtered))
 
@@ -224,7 +216,7 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 				doc.Focus(inputRef.Current)
 			}
 		}
-	}, []any{})
+	})
 
 	kitex.UseEffect(func() {
 		if !getMenuOpen() {
@@ -237,7 +229,7 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 		if idx := getSelectedIndex(); idx != selectedIndex {
 			setSelectedIndex(selectedIndex)
 		}
-	}, []any{getMenuOpen(), len(filtered), getSelectedIndex(), selectedIndex})
+	}, getMenuOpen(), len(filtered), getSelectedIndex(), selectedIndex)
 
 	statusText := "Ctrl+Space opens autocomplete for the focused input."
 	if len(filtered) > 0 && getMenuOpen() {
@@ -254,18 +246,12 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 		}, autocompleteMenuNode(filtered, selectedIndex, applySuggestion))
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: rootStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: cardStyle,
-		},
-			kitex.Box(kitex.BoxProps{
-				Style: titleStyle,
-			}, kitex.Text("Kitex Autocomplete Demo")),
-			kitex.Box(kitex.BoxProps{
-				Style: bodyTextStyle,
-			}, kitex.Text("Type to filter shell-style commands. Press Ctrl+Space while the input is focused to open the autocomplete menu.")),
+	return kitex.Box.Style(
+		rootStyle,
+		kitex.Box.Style(
+			cardStyle,
+			kitex.Box.Style(titleStyle, kitex.Text("Kitex Autocomplete Demo")),
+			kitex.Box.Style(bodyTextStyle, kitex.Text("Type to filter shell-style commands. Press Ctrl+Space while the input is focused to open the autocomplete menu.")),
 			kitex.Input(kitex.InputProps{
 				Ref:         inputRef,
 				Value:       getQuery(),
@@ -312,21 +298,18 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 				},
 			}),
 			menu,
-			kitex.Box(kitex.BoxProps{
-				Style: hintRowStyle,
-			},
-				kitex.Span(kitex.SpanProps{Style: hintBadgeStyle}, kitex.Text("Ctrl+Space")),
-				kitex.Span(kitex.SpanProps{Style: hintTextStyle}, kitex.Text("open menu")),
-				kitex.Span(kitex.SpanProps{Style: hintBadgeStyle}, kitex.Text("Up/Down")),
-				kitex.Span(kitex.SpanProps{Style: hintTextStyle}, kitex.Text("move selection")),
-				kitex.Span(kitex.SpanProps{Style: hintBadgeStyle}, kitex.Text("Enter")),
-				kitex.Span(kitex.SpanProps{Style: hintTextStyle}, kitex.Text("apply suggestion")),
-				kitex.Span(kitex.SpanProps{Style: hintBadgeStyle}, kitex.Text("Esc")),
-				kitex.Span(kitex.SpanProps{Style: hintTextStyle}, kitex.Text("close menu")),
+			kitex.Box.Style(
+				hintRowStyle,
+				kitex.Span.Style(hintBadgeStyle, kitex.Text("Ctrl+Space")),
+				kitex.Span.Style(hintTextStyle, kitex.Text("open menu")),
+				kitex.Span.Style(hintBadgeStyle, kitex.Text("Up/Down")),
+				kitex.Span.Style(hintTextStyle, kitex.Text("move selection")),
+				kitex.Span.Style(hintBadgeStyle, kitex.Text("Enter")),
+				kitex.Span.Style(hintTextStyle, kitex.Text("apply suggestion")),
+				kitex.Span.Style(hintBadgeStyle, kitex.Text("Esc")),
+				kitex.Span.Style(hintTextStyle, kitex.Text("close menu")),
 			),
-			kitex.Box(kitex.BoxProps{
-				Style: statusStyle,
-			}, kitex.Text(statusText)),
+			kitex.Box.Style(statusStyle, kitex.Text(statusText)),
 		),
 	)
 })

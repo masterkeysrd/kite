@@ -110,12 +110,9 @@ type ItemProps struct {
 var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 	getClicks, setClicks := kitex.UseState(0)
 
-	return kitex.Box(kitex.BoxProps{
-		Style: itemRowStyle,
-	},
-		kitex.Span(kitex.SpanProps{
-			Style: itemLabelStyle,
-		}, kitex.Textf("Item %s (Clicks: %d)", props.ID, getClicks())),
+	return kitex.Box.Style(
+		itemRowStyle,
+		kitex.Span.Style(itemLabelStyle, kitex.Textf("Item %s (Clicks: %d)", props.ID, getClicks())),
 
 		kitex.Button(kitex.ButtonProps{
 			OnPress: func() {
@@ -132,7 +129,7 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 })
 
 // App is the root functional component, maintaining list data and IDs.
-var App = kitex.SimpleFC("App", func() kitex.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	getItems, setItems := kitex.UseState([]ItemData{
 		{Key: "1", ID: "A"},
 		{Key: "2", ID: "B"},
@@ -154,27 +151,21 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 	renderItem := func(item ItemData, _ int) kitex.Node {
 		k := item.Key
-		return ListItem(ItemProps{
+		return ListItem.Props(ItemProps{
 			Key:      k,
 			ID:       item.ID,
 			OnDelete: func() { handleDelete(k) },
 		})
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: appTitleStyle,
-		}, kitex.Text("⚡ Kitex VDOM Reconciler Dashboard ⚡")),
+	return kitex.Box.Style(
+		appContainerStyle,
+		kitex.Box.Style(appTitleStyle, kitex.Text("⚡ Kitex VDOM Reconciler Dashboard ⚡")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: instructionsStyle,
-		}, kitex.Text("Press 'q' to Quit. Click buttons below to Add, Reverse, Shuffle, or edit items.")),
+		kitex.Box.Style(instructionsStyle, kitex.Text("Press 'q' to Quit. Click buttons below to Add, Reverse, Shuffle, or edit items.")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: actionPanelStyle,
-		},
+		kitex.Box.Style(
+			actionPanelStyle,
 			kitex.Button(kitex.ButtonProps{
 				OnPress: func() {
 					nid := getNextID()
@@ -223,9 +214,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}, kitex.Text(" Shuffle List ")),
 		),
 
-		kitex.Box(kitex.BoxProps{
-			Style: listContainerStyle,
-		}, kitex.Map(getItems(), renderItem)),
+		kitex.Box.Style(listContainerStyle, kitex.Map(getItems(), renderItem)),
 	)
 })
 

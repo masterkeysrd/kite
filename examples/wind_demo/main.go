@@ -83,27 +83,21 @@ func fetchPodStatus(ctx context.Context, key PodKey) (string, error) {
 	}
 }
 
-func restartPod(ctx context.Context, key PodKey) *promise.Promise[string] {
-	return promise.New(func(ctx context.Context) (string, error) {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(800 * time.Millisecond):
-			return "Restarted", nil
-		}
-	})
+func restartPod(ctx context.Context, key PodKey) (string, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-time.After(800 * time.Millisecond):
+		return "Restarted", nil
+	}
 }
 
-var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
+var PodStatusView = kitex.FC("PodStatusView", func(_ kitex.NoProps) kitex.Node {
 	key := PodKey{Namespace: "prod", ID: "nginx-web-app"}
 
-	query := wind.Use(key, func(ctx context.Context, k PodKey) *promise.Promise[string] {
-		return promise.New(func(ctx context.Context) (string, error) {
-			return fetchPodStatus(ctx, k)
-		})
-	})
+	query := wind.Use(key, promise.WrapWithProps(fetchPodStatus))
 
-	mutation := wind.UseMutation(restartPod, wind.MutationOptions[PodKey, string]{
+	mutation := wind.UseMutation(promise.WrapWithProps(restartPod), wind.MutationOptions[PodKey, string]{
 		OnSuccess: func(res string, vars PodKey, ctx wind.MutationContext) {
 			ctx.Client.InvalidateQueries(vars)
 		},
@@ -133,30 +127,24 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 		mutationText = "Restarting Pod..."
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: podCardStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: keyInfoStyle,
-		}, kitex.Textf("🔑 Query Key: PodKey{Namespace: %q, ID: %q}", key.Namespace, key.ID)),
+	return kitex.Box.Style(
+		podCardStyle,
+		kitex.Box.Style(keyInfoStyle, kitex.Textf("🔑 Query Key: PodKey{Namespace: %q, ID: %q}", key.Namespace, key.ID)),
 
-		kitex.Box(kitex.BoxProps{
-			Style: statusRowStyle,
-		},
+		kitex.Box.Style(
+			statusRowStyle,
 			kitex.Text("Current Status: "),
-			kitex.Box(kitex.BoxProps{
-				Style: style.S().
+			kitex.Box.Style(
+				style.S().
 					Foreground(textColor).
 					Bold(true),
-			}, kitex.Text(statusText)),
-			kitex.Box(kitex.BoxProps{
-				Style: bgFetchTextStyle,
-			}, kitex.Text(bgStateText)),
+				kitex.Text(statusText),
+			),
+			kitex.Box.Style(bgFetchTextStyle, kitex.Text(bgStateText)),
 		),
 
-		kitex.Box(kitex.BoxProps{
-			Style: buttonsRowStyle,
-		},
+		kitex.Box.Style(
+			buttonsRowStyle,
 			kitex.Button(kitex.ButtonProps{
 				OnPress: func() {
 					if !mutation.IsPending {
@@ -176,17 +164,12 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 	)
 })
 
-var App = kitex.SimpleFC("App", func() kitex.Node {
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: appHeaderStyle,
-		}, kitex.Text("💨 Kite Async Data Fetching Demo (extras/wind)")),
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
+	return kitex.Box.Style(
+		appContainerStyle,
+		kitex.Box.Style(appHeaderStyle, kitex.Text("💨 Kite Async Data Fetching Demo (extras/wind)")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: instructionsStyle,
-		}, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
+		kitex.Box.Style(instructionsStyle, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
 
 		PodStatusView(),
 	)

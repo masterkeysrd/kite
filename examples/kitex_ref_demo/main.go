@@ -91,7 +91,7 @@ var (
 )
 
 // App is the root functional component.
-var App = kitex.SimpleFC("App", func() kitex.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	// Dummy state to force a re-render
 	getRenderCount, setRenderCount := kitex.UseState(1)
 
@@ -122,38 +122,25 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		}
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
+	return kitex.Box.Style(
+		appContainerStyle,
 		// Title
-		kitex.Box(kitex.BoxProps{
-			Style: appTitleStyle,
-		}, kitex.Text("✨ Kitex Ref & Hook Demonstration ✨")),
+		kitex.Box.Style(appTitleStyle, kitex.Text("✨ Kitex Ref & Hook Demonstration ✨")),
 
 		// Instructions
-		kitex.Box(kitex.BoxProps{
-			Style: appDescriptionStyle,
-		}, kitex.Text("Press 'q' to Quit. This demo shows how UseRef stores persistent mutable values without triggering re-renders, and how it binds to real DOM elements.")),
+		kitex.Box.Style(appDescriptionStyle, kitex.Text("Press 'q' to Quit. This demo shows how UseRef stores persistent mutable values without triggering re-renders, and how it binds to real DOM elements.")),
 
 		// Section 1: Non-rendering Ref state
-		kitex.Box(kitex.BoxProps{
-			Style: card1Style,
-		},
-			kitex.Box(kitex.BoxProps{
-				Style: sectionHeaderStyle,
-			}, kitex.Text("1. Non-Rendering Ref State")),
+		kitex.Box.Style(
+			card1Style,
+			kitex.Box.Style(sectionHeaderStyle, kitex.Text("1. Non-Rendering Ref State")),
 
-			kitex.Box(kitex.BoxProps{
-				Style: contentRowStyle,
-			}, kitex.Text(fmt.Sprintf("Ref Clicks (won't update UI directly): %d", clicksRef.Current))),
+			kitex.Box.Style(contentRowStyle, kitex.Text(fmt.Sprintf("Ref Clicks (won't update UI directly): %d", clicksRef.Current))),
 
-			kitex.Box(kitex.BoxProps{
-				Style: contentRowStyle,
-			}, kitex.Text(fmt.Sprintf("Total Renders (force-render to update UI): %d", getRenderCount()))),
+			kitex.Box.Style(contentRowStyle, kitex.Text(fmt.Sprintf("Total Renders (force-render to update UI): %d", getRenderCount()))),
 
-			kitex.Box(kitex.BoxProps{
-				Style: buttonRowStyle,
-			},
+			kitex.Box.Style(
+				buttonRowStyle,
 				kitex.Button(kitex.ButtonProps{
 					OnClick: handleRefClick,
 					Style:   incrementBtnStyle,
@@ -168,21 +155,15 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		),
 
 		// Section 2: DOM Element Ref Wiring
-		kitex.Box(kitex.BoxProps{
-			Style: card2Style,
-		},
-			kitex.Box(kitex.BoxProps{
-				Style: sectionHeaderStyle,
-			}, kitex.Text("2. DOM Element Ref Wiring & Programmatic Focus")),
+		kitex.Box.Style(
+			card2Style,
+			kitex.Box.Style(sectionHeaderStyle, kitex.Text("2. DOM Element Ref Wiring & Programmatic Focus")),
 
 			// Ref wiring instructions
-			kitex.Box(kitex.BoxProps{
-				Style: contentRowStyle,
-			}, kitex.Text("Use the button below to programmatically focus the input field using its Ref pointer:")),
+			kitex.Box.Style(contentRowStyle, kitex.Text("Use the button below to programmatically focus the input field using its Ref pointer:")),
 
-			kitex.Box(kitex.BoxProps{
-				Style: inputRowStyle,
-			},
+			kitex.Box.Style(
+				inputRowStyle,
 				kitex.Input(kitex.InputProps{
 					Ref:   inputRef,
 					Value: "Focus me programmatically!",
@@ -190,9 +171,8 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				}),
 			),
 
-			kitex.Box(kitex.BoxProps{
-				Style: buttonRowStyle,
-			},
+			kitex.Box.Style(
+				buttonRowStyle,
 				kitex.Button(kitex.ButtonProps{
 					OnClick: handleFocusInput,
 					Style:   focusBtnStyle,

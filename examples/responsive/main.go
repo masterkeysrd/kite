@@ -48,7 +48,7 @@ var (
 )
 
 func makeApp(cancel context.CancelFunc) kitex.Node {
-	return kitex.SimpleFC("App", func() kitex.Node {
+	return kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		// Use the new UseViewportSize reactive hook
 		viewport := kitex.UseViewportSize()
 
@@ -71,7 +71,7 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 			}
 			setProgressVal(nextVal)
 			updateProgress(terminal.ProgressBarIndeterminate, nextVal)
-		}, 100*time.Millisecond, []any{progressVal()})
+		}, 100*time.Millisecond, progressVal())
 
 		// Global keyboard listener to allow exiting the app
 		kitex.UseKeyboard(func(e event.KeyEvent) {
@@ -80,7 +80,7 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 				updateProgress(terminal.ProgressBarHide, 0)
 				cancel()
 			}
-		}, []any{})
+		})
 
 		// Decide what layout to show based on the viewport width.
 		var infoText string
@@ -100,15 +100,11 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 			focusText = "🔴 Inactive (Blurred)"
 		}
 
-		return kitex.Box(kitex.BoxProps{
-			Style: containerStyle,
-		},
-			kitex.Box(kitex.BoxProps{
-				Style: cardStyle,
-			},
-				kitex.Span(kitex.SpanProps{
-					Style: titleStyle,
-				}, kitex.Text("⚡ Responsive Styling & Hook Demo ⚡")),
+		return kitex.Box.Style(
+			containerStyle,
+			kitex.Box.Style(
+				cardStyle,
+				kitex.Span.Style(titleStyle, kitex.Text("⚡ Responsive Styling & Hook Demo ⚡")),
 				kitex.Text(""),
 				kitex.Text(infoText),
 				kitex.Text(fmt.Sprintf("Current viewport dimensions: %d x %d", viewport.Width, viewport.Height)),

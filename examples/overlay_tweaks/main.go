@@ -130,11 +130,10 @@ func main() {
 		if currentOverlay != nil {
 			eng.Document().HideOverlay(currentOverlay)
 		}
-		currentOverlay = element.Overlay(ovlContent, element.OverlayConfig{
-			Anchor:    anchor,
-			Placement: currentPlacement,
-			Flip:      flipEnabled,
-		})
+		currentOverlay = element.Overlay(anchor, ovlContent).
+			WithPlacement(currentPlacement).
+			WithFlip(flipEnabled).
+			WithZIndex(100)
 		eng.Document().ShowOverlay(currentOverlay, 100)
 		updateInfo()
 	}

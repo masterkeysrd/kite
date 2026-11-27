@@ -88,33 +88,31 @@ func getThemeStyle(theme Theme) style.Style {
 }
 
 // ConsumerComponent consumes ThemeContext and displays itself accordingly.
-var ConsumerComponent = kitex.SimpleFC("ConsumerComponent", func() kitex.Node {
+var ConsumerComponent = kitex.FC("ConsumerComponent", func(_ kitex.NoProps) kitex.Node {
 	theme := kitex.UseContext(ThemeContext)
 	themeStyle := getThemeStyle(theme)
 
-	return kitex.Box(kitex.BoxProps{
-		Style: themeStyle,
-	},
+	return kitex.Box.Style(
+		themeStyle,
 		kitex.Text(fmt.Sprintf("Consumer (Current Theme: %s)", theme)),
 	)
 })
 
 // DefaultConsumer does not sit under any Provider and shows default value.
-var DefaultConsumer = kitex.SimpleFC("DefaultConsumer", func() kitex.Node {
+var DefaultConsumer = kitex.FC("DefaultConsumer", func(_ kitex.NoProps) kitex.Node {
 	theme := kitex.UseContext(ThemeContext)
 	themeStyle := getThemeStyle(theme)
 	// Override margin/title styles
 	themeStyle = themeStyle.Border(style.DoubleBorder())
 
-	return kitex.Box(kitex.BoxProps{
-		Style: themeStyle,
-	},
+	return kitex.Box.Style(
+		themeStyle,
 		kitex.Text(fmt.Sprintf("Default Consumer - Outside Provider (Theme: %s)", theme)),
 	)
 })
 
 // App root component
-var App = kitex.SimpleFC("App", func() kitex.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	outerTheme, setOuterTheme := kitex.UseState(ThemeDark)
 	innerTheme, setInnerTheme := kitex.UseState(ThemeBlue)
 
@@ -142,18 +140,14 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 	btnStyle := btnStyle
 
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
+	return kitex.Box.Style(
+		appContainerStyle,
 		// Title
-		kitex.Box(kitex.BoxProps{
-			Style: appTitleStyle,
-		}, kitex.Text("⚛️ Kitex Context System Demo")),
+		kitex.Box.Style(appTitleStyle, kitex.Text("⚛️ Kitex Context System Demo")),
 
 		// Top Actions
-		kitex.Box(kitex.BoxProps{
-			Style: buttonRowStyle,
-		},
+		kitex.Box.Style(
+			buttonRowStyle,
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e *event.MouseEvent) { toggleOuter() },
 				Style:   btnStyle,
@@ -170,9 +164,8 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 		// Theme Provider (Outer)
 		ThemeContext.Provider(outerTheme(),
-			kitex.Box(kitex.BoxProps{
-				Style: providerBoxStyle,
-			},
+			kitex.Box.Style(
+				providerBoxStyle,
 				kitex.Text(fmt.Sprintf("Outer Provider (Providing: %s)", outerTheme())),
 
 				// Outer Consumer
@@ -180,9 +173,8 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 				// Nested Theme Provider (Inner)
 				ThemeContext.Provider(innerTheme(),
-					kitex.Box(kitex.BoxProps{
-						Style: providerBoxStyle,
-					},
+					kitex.Box.Style(
+						providerBoxStyle,
 						kitex.Text(fmt.Sprintf("Nested Inner Provider (Providing: %s)", innerTheme())),
 
 						// Inner Consumer
@@ -193,9 +185,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		),
 
 		// Help/Exit instructions
-		kitex.Box(kitex.BoxProps{
-			Style: instructionsStyle,
-		}, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
+		kitex.Box.Style(instructionsStyle, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
 	)
 })
 

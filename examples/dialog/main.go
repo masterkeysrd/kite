@@ -93,7 +93,7 @@ func main() {
 		if ke.MatchString("d") && activeDialog == nil {
 			slog.Info("Opening dialog")
 			content := element.Box("Hello! I am a Dialog.").Style(dialogBoxStyle)
-			activeDialog = element.Dialog(content, 100)
+			activeDialog = element.Dialog(content).ZIndex(100)
 			eng.Document().AppendChild(activeDialog)
 		}
 	})

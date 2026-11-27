@@ -96,7 +96,7 @@ var (
 	colBorder   = style.RGB(60, 60, 90)
 )
 
-var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
+var FormApp = kitex.FC("FormApp", func(_ kitex.NoProps) kitex.Node {
 	getState, dispatch := kitex.UseReducer(formReducer, FormState{
 		Name:      "",
 		Email:     "",
@@ -119,8 +119,8 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 		}
 	}
 
-	return kitex.Box(kitex.BoxProps{
-		Style: style.S().
+	return kitex.Box.Style(
+		style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
 			JustifyContent(style.JustifyCenter).
@@ -129,35 +129,34 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 			Height(style.Percent(100)).
 			Padding(1, 2).
 			Background(colBG),
-	},
 		// Main Card Container
-		kitex.Box(kitex.BoxProps{
-			Style: style.S().
+		kitex.Box.Style(
+			style.S().
 				Display(style.DisplayFlex).
 				FlexDirection(style.FlexColumn).
 				Width(style.Percent(80)).
 				Padding(1, 2).
 				Border(style.DoubleBorder().Color(colBorder)).
 				Background(colCard),
-		},
 			// Header
-			kitex.Box(kitex.BoxProps{
-				Style: style.S().
+			kitex.Box.Style(
+				style.S().
 					Margin(0, 0, 1, 0).
 					Foreground(colHeader).
 					Bold(true).
 					TextAlign(style.TextAlignCenter),
-			}, kitex.Text("⚡ Kitex VDOM UseReducer Form Demo ⚡")),
+				kitex.Text("⚡ Kitex VDOM UseReducer Form Demo ⚡"),
+			),
 
 			// Name Field
-			kitex.Box(kitex.BoxProps{
-				Style: fieldRowStyle,
-			},
-				kitex.Span(kitex.SpanProps{
-					Style: style.S().
+			kitex.Box.Style(
+				fieldRowStyle,
+				kitex.Span.Style(
+					style.S().
 						Width(style.Cells(10)).
 						Foreground(colText),
-				}, kitex.Text("Name: ")),
+					kitex.Text("Name: "),
+				),
 				kitex.Input(kitex.InputProps{
 					Value:     state.Name,
 					OnKeyDown: onNameKeyDown,
@@ -171,14 +170,14 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 			),
 
 			// Email Field
-			kitex.Box(kitex.BoxProps{
-				Style: fieldRowStyle,
-			},
-				kitex.Span(kitex.SpanProps{
-					Style: style.S().
+			kitex.Box.Style(
+				fieldRowStyle,
+				kitex.Span.Style(
+					style.S().
 						Width(style.Cells(10)).
 						Foreground(colText),
-				}, kitex.Text("Email: ")),
+					kitex.Text("Email: "),
+				),
 				kitex.Input(kitex.InputProps{
 					Value:     state.Email,
 					OnKeyDown: onEmailKeyDown,
@@ -192,17 +191,16 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 			),
 
 			// Role Selection (Buttons as Radio simulation)
-			kitex.Box(kitex.BoxProps{
-				Style: fieldRowStyle,
-			},
-				kitex.Span(kitex.SpanProps{
-					Style: style.S().
+			kitex.Box.Style(
+				fieldRowStyle,
+				kitex.Span.Style(
+					style.S().
 						Width(style.Cells(10)).
 						Foreground(colText),
-				}, kitex.Text("Role: ")),
-				kitex.Box(kitex.BoxProps{
-					Style: rolesContainerStyle,
-				},
+					kitex.Text("Role: "),
+				),
+				kitex.Box.Style(
+					rolesContainerStyle,
 					kitex.Button(kitex.ButtonProps{
 						OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "SET_ROLE", Value: "Developer"}) },
 						Style: style.S().
@@ -242,9 +240,8 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 			),
 
 			// Actions (Submit / Reset)
-			kitex.Box(kitex.BoxProps{
-				Style: buttonRowStyle,
-			},
+			kitex.Box.Style(
+				buttonRowStyle,
 				kitex.Button(kitex.ButtonProps{
 					OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "SUBMIT"}) },
 					Style: style.S().
@@ -260,38 +257,37 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				}, kitex.Text(" RESET ")),
 			),
 
-			kitex.Box(kitex.BoxProps{
-				Style: style.S().
+			kitex.Box.Style(
+				style.S().
 					Width(style.Percent(100)).
 					Padding(1, 1).
 					Border(style.SingleBorder().Color(colBorder)).
 					Background(colInput),
-			},
-				kitex.Box(kitex.BoxProps{
-					Style: style.S().
+				kitex.Box.Style(
+					style.S().
 						Margin(0, 0, 1, 0).
 						Foreground(colHeader).
 						Bold(true),
-				}, kitex.Text("State Live Preview:")),
+					kitex.Text("State Live Preview:"),
+				),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Name:  %s", state.Name))),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Email: %s", state.Email))),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Role:  %s", state.Role))),
 				func() kitex.Node {
 					if state.Submitted {
-						return kitex.Box(kitex.BoxProps{
-							Style: style.S().
+						return kitex.Box.Style(
+							style.S().
 								Margin(1, 0, 0, 0).
 								Foreground(colSuccess).
 								Bold(true),
-						}, kitex.Text("✓ Form Submitted Successfully!"))
+							kitex.Text("✓ Form Submitted Successfully!"),
+						)
 					}
 					return nil
 				}(),
 			),
 		),
-		kitex.Box(kitex.BoxProps{
-			Style: instructionsStyle,
-		}, kitex.Text("Press 'q' to Quit. Use Tab to navigate inputs.")),
+		kitex.Box.Style(instructionsStyle, kitex.Text("Press 'q' to Quit. Use Tab to navigate inputs.")),
 	)
 })
 

@@ -47,12 +47,7 @@ func main() {
 				Border(true, style.BorderDouble, style.RGB(79, 70, 229)) // Indigo 600
 		}
 
-		return kitex.Box(
-			kitex.BoxProps{
-				Style: wrapperStyle,
-			},
-			node,
-		)
+		return kitex.Box.Style(wrapperStyle, node)
 	})
 
 	// 1. Button component scenes
@@ -113,13 +108,11 @@ func main() {
 				placeholder := c.Text("Placeholder Text", "Enter username...")
 				val := c.Text("Value String", "")
 
-				return kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
-							Display(style.DisplayFlex).
-							FlexDirection(style.FlexColumn).
-							Width(style.Cells(40)),
-					},
+				return kitex.Box.Style(
+					style.S().
+						Display(style.DisplayFlex).
+						FlexDirection(style.FlexColumn).
+						Width(style.Cells(40)),
 					kitex.Input(kitex.InputProps{
 						Value:       val,
 						Placeholder: placeholder,
@@ -156,12 +149,7 @@ func main() {
 					badgeStyle = badgeStyle.Background(style.RGB(220, 38, 38)) // Red 600
 				}
 
-				return kitex.Box(
-					kitex.BoxProps{
-						Style: badgeStyle,
-					},
-					kitex.Text(selectedStatus),
-				)
+				return kitex.Box.Style(badgeStyle, kitex.Text(selectedStatus))
 			},
 		},
 	})
@@ -178,29 +166,20 @@ func main() {
 					Background(style.RGB(79, 70, 229)). // Indigo 600
 					Foreground(style.RGB(255, 255, 255))
 
-				return kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
-							Display(style.DisplayFlex).
-							FlexDirection(style.FlexColumn).
-							AlignItems(style.AlignCenter),
-					},
-					kitex.Box(
-						kitex.BoxProps{
-							Style: style.S().
-								MarginBottom(1).
-								Foreground(style.RGB(156, 163, 175)),
-						},
+				return kitex.Box.Style(
+					style.S().
+						Display(style.DisplayFlex).
+						FlexDirection(style.FlexColumn).
+						AlignItems(style.AlignCenter),
+					kitex.Box.Style(
+						style.S().
+							MarginBottom(1).
+							Foreground(style.RGB(156, 163, 175)),
 						kitex.Text("Current Count"),
 					),
-					kitex.Box(
-						kitex.BoxProps{Style: countStyle},
-						kitex.Text(fmt.Sprintf("%d", count)),
-					),
-					kitex.Box(
-						kitex.BoxProps{
-							Style: style.S().MarginTop(1),
-						},
+					kitex.Box.Style(countStyle, kitex.Text(fmt.Sprintf("%d", count))),
+					kitex.Box.Style(
+						style.S().MarginTop(1),
 						kitex.Button(
 							kitex.ButtonProps{
 								Style: style.S().
@@ -232,38 +211,30 @@ func main() {
 					barColor = style.RGB(202, 138, 4) // Yellow 600
 				}
 
-				return kitex.Box(
-					kitex.BoxProps{
-						Style: style.S().
+				return kitex.Box.Style(
+					style.S().
+						Display(style.DisplayFlex).
+						FlexDirection(style.FlexColumn).
+						Width(style.Cells(40)),
+					kitex.Box.Style(
+						style.S().
 							Display(style.DisplayFlex).
-							FlexDirection(style.FlexColumn).
-							Width(style.Cells(40)),
-					},
-					kitex.Box(
-						kitex.BoxProps{
-							Style: style.S().
-								Display(style.DisplayFlex).
-								FlexDirection(style.FlexRow).
-								JustifyContent(style.JustifyBetween).
-								MarginBottom(1),
-						},
+							FlexDirection(style.FlexRow).
+							JustifyContent(style.JustifyBetween).
+							MarginBottom(1),
 						kitex.Text("Progress"),
 						kitex.Text(fmt.Sprintf("%d%%", progress)),
 					),
 					// Track background
-					kitex.Box(
-						kitex.BoxProps{
-							Style: style.S().
-								Width(style.Percent(100)).
-								Background(style.RGB(55, 65, 81)), // Gray 700
-						},
+					kitex.Box.Style(
+						style.S().
+							Width(style.Percent(100)).
+							Background(style.RGB(55, 65, 81)), // Gray 700
 						// Filled portion
-						kitex.Box(
-							kitex.BoxProps{
-								Style: style.S().
-									Width(style.Percent(float32(progress))).
-									Background(barColor),
-							},
+						kitex.Box.Style(
+							style.S().
+								Width(style.Percent(float32(progress))).
+								Background(barColor),
 							kitex.Text(" "),
 						),
 					),
@@ -300,19 +271,17 @@ func main() {
 				Border(true, style.BorderSingle, themeColor)
 
 			var children []kitex.Node
-			children = append(children, kitex.Box(
-				kitex.BoxProps{
-					Style: style.S().
-						Foreground(themeColor).
-						Bold(true),
-				},
+			children = append(children, kitex.Box.Style(
+				style.S().
+					Foreground(themeColor).
+					Bold(true),
 				kitex.Text(props.Title),
 			))
 			children = append(children, kitex.Text(props.Subtitle))
 
 			if props.ShowAction {
-				children = append(children, kitex.Box(
-					kitex.BoxProps{Style: style.S().Height(style.Cells(1))}, // Spacing
+				children = append(children, kitex.Box.Style(
+					style.S().Height(style.Cells(1)), // Spacing
 				))
 				children = append(children, kitex.Button(
 					kitex.ButtonProps{
@@ -328,7 +297,7 @@ func main() {
 				))
 			}
 
-			return kitex.Box(kitex.BoxProps{Style: cardStyle}, children...)
+			return kitex.Box.Style(cardStyle, children...)
 		},
 		Scenes: []stage.SceneConfig[CardProps]{
 			{

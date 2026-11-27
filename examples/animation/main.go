@@ -255,10 +255,10 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 			} else {
 				start, end = 60, 20
 			}
-			wTween := animation.NewTween(start, end, selectedDuration, selectedEasing, animation.IntInterpolator, func(w int) {
+			wTween := animation.Int(start, end, selectedDuration, func(w int) {
 				targetWidth = w
 				updateTargetStyle()
-			})
+			}).Ease(selectedEasing)
 			anims = append(anims, wTween)
 		}
 
@@ -269,10 +269,10 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 			} else {
 				start, end = 10, 3
 			}
-			hTween := animation.NewTween(start, end, selectedDuration, selectedEasing, animation.IntInterpolator, func(h int) {
+			hTween := animation.Int(start, end, selectedDuration, func(h int) {
 				targetHeight = h
 				updateTargetStyle()
-			})
+			}).Ease(selectedEasing)
 			anims = append(anims, hTween)
 		}
 
@@ -285,10 +285,10 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 			} else {
 				start, end = c2, c1
 			}
-			cTween := animation.NewTween(start, end, selectedDuration, selectedEasing, animation.ColorInterpolator, func(c color.Color) {
+			cTween := animation.Color(start, end, selectedDuration, func(c color.Color) {
 				targetColor = c
 				updateTargetStyle()
-			})
+			}).Ease(selectedEasing)
 			anims = append(anims, cTween)
 		}
 

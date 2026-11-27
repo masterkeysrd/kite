@@ -76,25 +76,20 @@ type DetailsRoute struct {
 	ID string
 }
 
-var HomeView = kitex.SimpleFC("HomeView", func() kitex.Node {
+var HomeView = kitex.FC("HomeView", func(_ kitex.NoProps) kitex.Node {
 	nav := flight.UseNavigation()
 
 	kitex.UseKeyboard(func(e event.KeyEvent) {
 		if e.MatchString("enter") {
 			nav.Push(DetailsRoute{ID: "42"})
 		}
-	}, []any{nav})
+	}, nav)
 
-	return kitex.Box(kitex.BoxProps{
-		Style: homeCardStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: homeTitleStyle,
-		}, kitex.Text("🏠 Home Screen")),
+	return kitex.Box.Style(
+		homeCardStyle,
+		kitex.Box.Style(homeTitleStyle, kitex.Text("🏠 Home Screen")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: bodyTextStyle,
-		}, kitex.Text("Press 'Enter' or click the button below to view details for Item #42.")),
+		kitex.Box.Style(bodyTextStyle, kitex.Text("Press 'Enter' or click the button below to view details for Item #42.")),
 
 		kitex.Button(kitex.ButtonProps{
 			OnPress: func() {
@@ -109,42 +104,34 @@ var DetailsView = kitex.FC("DetailsView", func(props struct{ ID string }) kitex.
 	nav := flight.UseNavigation()
 
 	kitex.UseKeyboard(func(e event.KeyEvent) {
-		if e.MatchString("escape") || e.MatchString("esc") {
+		if (e.MatchString("escape") || e.MatchString("esc")) && nav.CanPop() {
 			nav.Pop()
 		}
-	}, []any{nav})
+	}, nav)
 
-	return kitex.Box(kitex.BoxProps{
-		Style: detailsCardStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: detailsTitleStyle,
-		}, kitex.Textf("ℹ️ Details Screen (Item ID: %s)", props.ID)),
+	return kitex.Box.Style(
+		detailsCardStyle,
+		kitex.Box.Style(detailsTitleStyle, kitex.Textf("ℹ️ Details Screen (Item ID: %s)", props.ID)),
 
-		kitex.Box(kitex.BoxProps{
-			Style: bodyTextStyle,
-		}, kitex.Text("You are viewing details of item #42. Press 'Esc' or click below to go back.")),
+		kitex.Box.Style(bodyTextStyle, kitex.Text("You are viewing details of item #42. Press 'Esc' or click below to go back.")),
 
-		kitex.Button(kitex.ButtonProps{
-			OnPress: func() {
-				nav.Pop()
-			},
-			Style: backBtnStyle,
-		}, kitex.Text(" Go Back Home (Esc) ")),
+		kitex.If(nav.CanPop(), func() kitex.Node {
+			return kitex.Button(kitex.ButtonProps{
+				OnPress: func() {
+					nav.Pop()
+				},
+				Style: backBtnStyle,
+			}, kitex.Text(" Go Back Home (Esc) "))
+		}),
 	)
 })
 
-var App = kitex.SimpleFC("App", func() kitex.Node {
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: appHeaderStyle,
-		}, kitex.Text("✈️ Kite Stack Navigation Demo (extras/flight)")),
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
+	return kitex.Box.Style(
+		appContainerStyle,
+		kitex.Box.Style(appHeaderStyle, kitex.Text("✈️ Kite Stack Navigation Demo (extras/flight)")),
 
-		kitex.Box(kitex.BoxProps{
-			Style: instructionsStyle,
-		}, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
+		kitex.Box.Style(instructionsStyle, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
 
 		flight.Stack(flight.StackProps{
 			InitialRoute: HomeRoute{},
@@ -153,7 +140,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				case HomeRoute:
 					return HomeView()
 				case DetailsRoute:
-					return DetailsView(struct{ ID string }{ID: route.ID})
+					return DetailsView.Props(struct{ ID string }{ID: route.ID})
 				default:
 					return kitex.Box(kitex.BoxProps{})
 				}

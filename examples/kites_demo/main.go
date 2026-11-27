@@ -109,73 +109,51 @@ var (
 	renderCountB int
 )
 
-var CompA = kitex.SimpleFC("CompA", func() kitex.Node {
+var CompA = kitex.FC("CompA", func(_ kitex.NoProps) kitex.Node {
 	renderCountA++
 
 	countA := kites.Use(store, func(s AppState) int {
 		return s.CountA
 	})
 
-	return kitex.Box(kitex.BoxProps{
-		Style: cardAStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: cardATitleStyle,
-		}, kitex.Text("Component A (Slices CountA)")),
-		kitex.Box(kitex.BoxProps{
-			Style: cardBodyStyle,
-		}, kitex.Text(fmt.Sprintf("Count A: %d", countA))),
-		kitex.Box(kitex.BoxProps{
-			Style: cardRendersTextStyle,
-		}, kitex.Text(fmt.Sprintf("Renders: %d", renderCountA))),
+	return kitex.Box.Style(
+		cardAStyle,
+		kitex.Box.Style(cardATitleStyle, kitex.Text("Component A (Slices CountA)")),
+		kitex.Box.Style(cardBodyStyle, kitex.Text(fmt.Sprintf("Count A: %d", countA))),
+		kitex.Box.Style(cardRendersTextStyle, kitex.Text(fmt.Sprintf("Renders: %d", renderCountA))),
 	)
 })
 
-var CompB = kitex.SimpleFC("CompB", func() kitex.Node {
+var CompB = kitex.FC("CompB", func(_ kitex.NoProps) kitex.Node {
 	renderCountB++
 
 	countB := kites.Use(store, func(s AppState) int {
 		return s.CountB
 	})
 
-	return kitex.Box(kitex.BoxProps{
-		Style: cardBStyle,
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: cardBTitleStyle,
-		}, kitex.Text("Component B (Slices CountB)")),
-		kitex.Box(kitex.BoxProps{
-			Style: cardBodyStyle,
-		}, kitex.Text(fmt.Sprintf("Count B: %d", countB))),
-		kitex.Box(kitex.BoxProps{
-			Style: cardRendersTextStyle,
-		}, kitex.Text(fmt.Sprintf("Renders: %d", renderCountB))),
+	return kitex.Box.Style(
+		cardBStyle,
+		kitex.Box.Style(cardBTitleStyle, kitex.Text("Component B (Slices CountB)")),
+		kitex.Box.Style(cardBodyStyle, kitex.Text(fmt.Sprintf("Count B: %d", countB))),
+		kitex.Box.Style(cardRendersTextStyle, kitex.Text(fmt.Sprintf("Renders: %d", renderCountB))),
 	)
 })
 
-var App = kitex.SimpleFC("App", func() kitex.Node {
-	return kitex.Box(kitex.BoxProps{
-		Style: appContainerStyle,
-	},
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
+	return kitex.Box.Style(
+		appContainerStyle,
 		// Title
-		kitex.Box(kitex.BoxProps{
-			Style: appHeaderStyle,
-		}, kitex.Text("🛰️ Kite Global State Manager Demo (extras/kites)")),
+		kitex.Box.Style(appHeaderStyle, kitex.Text("🛰️ Kite Global State Manager Demo (extras/kites)")),
 
 		// Description
-		kitex.Box(kitex.BoxProps{
-			Style: appDescriptionStyle,
-		}, kitex.Text("This app proves selector-based re-rendering. Incrementing A doesn't trigger B, and vice-versa.\nBackground routine will automatically increment CountA every 2s.")),
+		kitex.Box.Style(appDescriptionStyle, kitex.Text("This app proves selector-based re-rendering. Incrementing A doesn't trigger B, and vice-versa.\nBackground routine will automatically increment CountA every 2s.")),
 
 		// Components side-by-side
-		kitex.Box(kitex.BoxProps{
-			Style: cardsRowStyle,
-		}, CompA(), CompB()),
+		kitex.Box.Style(cardsRowStyle, CompA(), CompB()),
 
 		// Buttons control panel
-		kitex.Box(kitex.BoxProps{
-			Style: buttonsRowStyle,
-		},
+		kitex.Box.Style(
+			buttonsRowStyle,
 			kitex.Button(kitex.ButtonProps{
 				OnClick: func(e *event.MouseEvent) {
 					store.Set(func(s AppState) AppState {
@@ -210,9 +188,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}, kitex.Text(" Async +10 B (500ms delay) ")),
 		),
 
-		kitex.Box(kitex.BoxProps{
-			Style: footerStyle,
-		}, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
+		kitex.Box.Style(footerStyle, kitex.Text("Press 'q' or 'ctrl+c' to quit.")),
 	)
 })
 

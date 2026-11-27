@@ -36,7 +36,7 @@ var (
 	footerHintStyle = style.S().Foreground(style.RGB(100, 100, 100))
 
 	spanningItemStyle = style.S().
-				GridColumn(style.GridPlacement{Span: 2}).
+				GridColumn(style.Span(2)).
 				Border(style.SingleBorder()).
 				Background(style.RGB(150, 0, 150))
 
@@ -64,20 +64,20 @@ var (
 				Border(style.SingleBorder())
 
 	explicitCell1Style = style.S().
-				GridColumn(style.GridPlacement{Start: 1}).
-				GridRow(style.GridPlacement{Start: 1}).
+				GridColumn(style.GridLine(1)).
+				GridRow(style.GridLine(1)).
 				Border(style.SingleBorder()).
 				Background(style.RGB(100, 0, 0))
 
 	explicitCell2Style = style.S().
-				GridColumn(style.GridPlacement{Start: 2}).
-				GridRow(style.GridPlacement{Start: 2}).
+				GridColumn(style.GridLine(2)).
+				GridRow(style.GridLine(2)).
 				Border(style.SingleBorder()).
 				Background(style.RGB(0, 100, 0))
 
 	explicitCell3Style = style.S().
-				GridColumn(style.GridPlacement{Start: 3}).
-				GridRow(style.GridPlacement{Start: 3}).
+				GridColumn(style.GridLine(3)).
+				GridRow(style.GridLine(3)).
 				Border(style.SingleBorder()).
 				Background(style.RGB(0, 0, 100))
 
@@ -89,7 +89,7 @@ var (
 				Border(style.SingleBorder())
 
 	holyGrailHeaderFooterStyle = style.S().
-					GridColumn(style.GridPlacement{Span: 3}).
+					GridColumn(style.Span(3)).
 					Border(style.SingleBorder()).
 					Background(style.RGB(150, 150, 150)).
 					Foreground(style.RGB(0, 0, 0))

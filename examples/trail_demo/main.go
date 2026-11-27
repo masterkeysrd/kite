@@ -61,7 +61,7 @@ func renderProgressBar(completed, total, barWidth int) string {
 }
 
 // App is the root functional component for the trail demo.
-var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
+var App = trail.FC("TrailDemoApp", func(_ trail.NoProps) kitex.Node {
 	app := trail.UseApp()
 
 	completed, setCompleted := trail.UseState([]BuildStep(nil))
@@ -128,76 +128,78 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 		} else {
 			setStepTicks(currTicks)
 		}
-	}, 80*time.Millisecond, nil)
+	}, 80*time.Millisecond)
 
 	// Static logs: Permanently flush completed tasks above into terminal scrollback
 	staticLogs := trail.Static(completed(), func(item BuildStep, index int) kitex.Node {
-		return trail.Box(trail.BoxProps{
-			Style: style.S().
+		return trail.Box.Style(
+			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-		},
-			trail.Span(trail.SpanProps{
-				Style: style.S().
+			trail.Span.Style(
+				style.S().
 					Foreground(colorGreen).
 					Bold(true),
-			}, trail.Text("✔ ")),
-			trail.Span(trail.SpanProps{
-				Style: style.S().
+				trail.Text("✔ "),
+			),
+			trail.Span.Style(
+				style.S().
 					Foreground(colorWhite).
 					Bold(true),
-			}, trail.Text(item.Name)),
-			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorGray),
-			}, trail.Text(fmt.Sprintf(" (%s)", item.Duration))),
+				trail.Text(item.Name),
+			),
+			trail.Span.Style(
+				style.S().Foreground(colorGray),
+				trail.Text(fmt.Sprintf(" (%s)", item.Duration)),
+			),
 		)
 	})
 
 	// Final summary box rendered upon completion
 	if done() {
-		summaryBox := trail.Box(trail.BoxProps{
-			Style: style.S().
+		summaryBox := trail.Box.Style(
+			style.S().
 				Margin(1, 0, 0, 0).
 				Padding(1, 2).
 				Border(style.RoundedBorder().Color(colorSummaryBrd)).
 				Background(colorBg),
-		},
-			trail.Box(trail.BoxProps{
-				Style: style.S().
+			trail.Box.Style(
+				style.S().
 					FlexDirection(style.FlexRow).
 					AlignItems(style.AlignCenter),
-			},
-				trail.Span(trail.SpanProps{
-					Style: style.S().
+				trail.Span.Style(
+					style.S().
 						Foreground(colorGreen).
 						Bold(true),
-				}, trail.Text("🎉 Deployment Pipeline Complete! ")),
-				trail.Span(trail.SpanProps{
-					Style: style.S().Foreground(colorGray),
-				}, trail.Text("(10/10 tasks finished in 3.2s)")),
+					trail.Text("🎉 Deployment Pipeline Complete! "),
+				),
+				trail.Span.Style(
+					style.S().Foreground(colorGray),
+					trail.Text("(10/10 tasks finished in 3.2s)"),
+				),
 			),
 			trail.Newline(1),
-			trail.Box(trail.BoxProps{
-				Style: style.S().FlexDirection(style.FlexRow),
-			},
-				trail.Span(trail.SpanProps{
-					Style: style.S().Foreground(colorDimWhite),
-				}, trail.Text("   Target:  production-cluster (us-east-1)  •  Release: v1.2.0")),
+			trail.Box.Style(
+				style.S().FlexDirection(style.FlexRow),
+				trail.Span.Style(
+					style.S().Foreground(colorDimWhite),
+					trail.Text("   Target:  production-cluster (us-east-1)  •  Release: v1.2.0"),
+				),
 			),
-			trail.Box(trail.BoxProps{
-				Style: style.S().FlexDirection(style.FlexRow),
-			},
-				trail.Span(trail.SpanProps{
-					Style: style.S().Foreground(colorDimWhite),
-				}, trail.Text("   Status:  All health probes passed  •  100% traffic routed")),
+			trail.Box.Style(
+				style.S().FlexDirection(style.FlexRow),
+				trail.Span.Style(
+					style.S().Foreground(colorDimWhite),
+					trail.Text("   Status:  All health probes passed  •  100% traffic routed"),
+				),
 			),
 			trail.Newline(1),
-			trail.Box(trail.BoxProps{
-				Style: style.S().FlexDirection(style.FlexRow),
-			},
-				trail.Span(trail.SpanProps{
-					Style: style.S().Foreground(colorDim),
-				}, trail.Text("   (Execution log flushed above into terminal scrollback)")),
+			trail.Box.Style(
+				style.S().FlexDirection(style.FlexRow),
+				trail.Span.Style(
+					style.S().Foreground(colorDim),
+					trail.Text("   (Execution log flushed above into terminal scrollback)"),
+				),
 			),
 		)
 
@@ -215,94 +217,98 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 
 	var pauseBadge kitex.Node
 	if paused() {
-		pauseBadge = trail.Span(trail.SpanProps{
-			Style: style.S().
+		pauseBadge = trail.Span.Style(
+			style.S().
 				Margin(0, 0, 0, 1).
 				Foreground(colorAmber).
 				Bold(true),
-		}, trail.Text("[PAUSED]"))
+			trail.Text("[PAUSED]"),
+		)
 	}
 
-	activeBox := trail.Box(trail.BoxProps{
-		Style: style.S().
+	activeBox := trail.Box.Style(
+		style.S().
 			Margin(1, 0, 0, 0).
 			Padding(0, 1).
 			Border(style.RoundedBorder().Color(colorBorder)).
 			Background(colorBg),
-	},
 		// Title & Pause indicator line
-		trail.Box(trail.BoxProps{
-			Style: style.S().
+		trail.Box.Style(
+			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-		},
-			trail.Span(trail.SpanProps{
-				Style: style.S().
+			trail.Span.Style(
+				style.S().
 					Foreground(colorCyan).
 					Bold(true),
-			}, trail.Text("⚡ Kite Deploy v1.2.0")),
+				trail.Text("⚡ Kite Deploy v1.2.0"),
+			),
 			pauseBadge,
 			trail.Spacer(),
-			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorDim),
-			}, trail.Text(fmt.Sprintf("%d/%d steps", completedCount, totalCount))),
+			trail.Span.Style(
+				style.S().Foreground(colorDim),
+				trail.Text(fmt.Sprintf("%d/%d steps", completedCount, totalCount)),
+			),
 		),
 		trail.Newline(1),
 		// Current active step with animated spinner
-		trail.Box(trail.BoxProps{
-			Style: style.S().
+		trail.Box.Style(
+			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-		},
-			trail.Span(trail.SpanProps{
-				Style: style.S().
+			trail.Span.Style(
+				style.S().
 					Foreground(colorCyan).
 					Bold(true),
-			}, trail.Text(spFrame+" ")),
-			trail.Span(trail.SpanProps{
-				Style: style.S().
+				trail.Text(spFrame+" "),
+			),
+			trail.Span.Style(
+				style.S().
 					Foreground(colorWhite).
 					Bold(true),
-			}, trail.Text(fmt.Sprintf("Step %d/%d: %s...", stepIndex+1, totalCount, currStep.Name))),
+				trail.Text(fmt.Sprintf("Step %d/%d: %s...", stepIndex+1, totalCount, currStep.Name)),
+			),
 		),
 		// Step detail subtitle
-		trail.Box(trail.BoxProps{
-			Style: style.S().Margin(0, 0, 0, 2),
-		},
-			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorGray),
-			}, trail.Text("└─ "+currStep.Details)),
+		trail.Box.Style(
+			style.S().Margin(0, 0, 0, 2),
+			trail.Span.Style(
+				style.S().Foreground(colorGray),
+				trail.Text("└─ "+currStep.Details),
+			),
 		),
 		trail.Newline(1),
 		// Progress bar & percentage
-		trail.Box(trail.BoxProps{
-			Style: style.S().
+		trail.Box.Style(
+			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-		},
-			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorDimWhite),
-			}, trail.Text("Progress: ")),
-			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorCyan),
-			}, trail.Text("["+bar+"]")),
-			trail.Span(trail.SpanProps{
-				Style: style.S().
+			trail.Span.Style(
+				style.S().Foreground(colorDimWhite),
+				trail.Text("Progress: "),
+			),
+			trail.Span.Style(
+				style.S().Foreground(colorCyan),
+				trail.Text("["+bar+"]"),
+			),
+			trail.Span.Style(
+				style.S().
 					Margin(0, 0, 0, 1).
 					Foreground(colorWhite).
 					Bold(true),
-			}, trail.Text(fmt.Sprintf("%3d%%", pct))),
+				trail.Text(fmt.Sprintf("%3d%%", pct)),
+			),
 		),
 		trail.Newline(1),
 		// Keyboard navigation hints
-		trail.Box(trail.BoxProps{
-			Style: style.S().
+		trail.Box.Style(
+			style.S().
 				FlexDirection(style.FlexRow).
 				AlignItems(style.AlignCenter),
-		},
-			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorDim),
-			}, trail.Text("Controls: press 'p' to pause/resume • 'q' or Esc to quit")),
+			trail.Span.Style(
+				style.S().Foreground(colorDim),
+				trail.Text("Controls: press 'p' to pause/resume • 'q' or Esc to quit"),
+			),
 		),
 	)
 

@@ -72,7 +72,7 @@ type ProfileData struct {
 	Newsletter  bool   `json:"newsletter"`
 }
 
-var App = kitex.SimpleFC("App", func() kitex.Node {
+var App = kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 	notification, setNotification := kitex.UseState("")
 	hasSubmitted, setHasSubmitted := kitex.UseState(false)
 
@@ -100,58 +100,55 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 
 	s := f.State()
 
-	return kitex.Box(kitex.BoxProps{
-		Style: flexColStyle.
+	return kitex.Box.Style(
+		flexColStyle.
 			JustifyContent(style.JustifyCenter).
 			AlignItems(style.AlignCenter).
 			Width(style.Percent(100)).
 			Height(style.Percent(100)).
 			Background(colBG),
-	},
-		kitex.Box(kitex.BoxProps{
-			Style: flexColStyle.
+		kitex.Box.Style(
+			flexColStyle.
 				Width(style.Cells(50)).
 				Padding(1, 2).
 				Border(style.SingleBorder().Color(colBorder)).
 				Background(colCard),
-		},
 			kitex.If(notification() != "", func() kitex.Node {
-				return kitex.Box(kitex.BoxProps{
-					Style: style.S().
+				return kitex.Box.Style(
+					style.S().
 						Margin(0, 0, 1, 0).
 						Padding(0, 1).
 						Background(colAccent).
 						Foreground(colBG).
 						Bold(true).
 						TextAlign(style.TextAlignCenter),
-				}, kitex.Text(notification()))
+					kitex.Text(notification()),
+				)
 			}),
 
-			kitex.Box(kitex.BoxProps{
-				Style: style.S().
+			kitex.Box.Style(
+				style.S().
 					Margin(0, 0, 1, 0).
 					Foreground(colText).
 					Bold(true).
 					TextAlign(style.TextAlignCenter),
-			}, kitex.Text("   Create Cyber Profile   ")),
+				kitex.Text("   Create Cyber Profile   "),
+			),
 
-			kitex.Box(kitex.BoxProps{
-				Style: fullWidthStyle.
+			kitex.Box.Style(
+				fullWidthStyle.
 					Height(style.Cells(1)).
 					Margin(0, 0, 1, 0).
 					Background(colSeparator),
-			}),
+			),
 
 			kitex.Form(kitex.FormProps{
 				OnSubmit: f.HandleSubmit(onSubmit),
 				Style:    flexColStyle,
 			},
-				kitex.Box(kitex.BoxProps{
-					Style: fieldWrapperStyle,
-				},
-					kitex.Span(kitex.SpanProps{
-						Style: style.S().Foreground(colLabel),
-					}, kitex.Text("Username")),
+				kitex.Box.Style(
+					fieldWrapperStyle,
+					kitex.Span.Style(style.S().Foreground(colLabel), kitex.Text("Username")),
 					kitex.Input(kitex.InputProps{
 						Name:     "username",
 						Value:    s.Values.Username,
@@ -162,18 +159,13 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 							Background(colInputBG),
 					}),
 					kitex.If(s.Errors["username"] != "", func() kitex.Node {
-						return kitex.Span(kitex.SpanProps{
-							Style: style.S().Foreground(colError),
-						}, kitex.Text(s.Errors["username"]))
+						return kitex.Span.Style(style.S().Foreground(colError), kitex.Text(s.Errors["username"]))
 					}),
 				),
 
-				kitex.Box(kitex.BoxProps{
-					Style: fieldWrapperStyle,
-				},
-					kitex.Span(kitex.SpanProps{
-						Style: style.S().Foreground(colLabel),
-					}, kitex.Text("Access Class")),
+				kitex.Box.Style(
+					fieldWrapperStyle,
+					kitex.Span.Style(style.S().Foreground(colLabel), kitex.Text("Access Class")),
 					kitex.Select(kitex.SelectProps{
 						Name:     "access_class",
 						Value:    s.Values.AccessClass,
@@ -186,53 +178,50 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 					),
 				),
 
-				kitex.Box(kitex.BoxProps{
-					Style: fieldWrapperStyle,
-				},
-					kitex.Span(kitex.SpanProps{
-						Style: style.S().Foreground(colLabel),
-					}, kitex.Text("Visual Spectrum")),
+				kitex.Box.Style(
+					fieldWrapperStyle,
+					kitex.Span.Style(style.S().Foreground(colLabel), kitex.Text("Visual Spectrum")),
 					kitex.RadioGroup(kitex.RadioGroupProps{
 						Value:    s.Values.Theme,
 						Disabled: s.IsSubmitting,
 						Style:    flexRowStyle,
 					},
-						kitex.Box(kitex.BoxProps{
-							Style: radioOptionWrapperStyle,
-						},
+						kitex.Box.Style(
+							radioOptionWrapperStyle,
 							kitex.Radio(kitex.RadioProps{Name: "theme", Value: "emerald"}),
-							kitex.Span(kitex.SpanProps{
-								Style: style.S().
+							kitex.Span.Style(
+								style.S().
 									Margin(0, 0, 0, 1).
 									Foreground(colText),
-							}, kitex.Text("Emerald")),
+								kitex.Text("Emerald"),
+							),
 						),
-						kitex.Box(kitex.BoxProps{
-							Style: radioOptionAlignStyle,
-						},
+						kitex.Box.Style(
+							radioOptionAlignStyle,
 							kitex.Radio(kitex.RadioProps{Name: "theme", Value: "amber"}),
-							kitex.Span(kitex.SpanProps{
-								Style: style.S().
+							kitex.Span.Style(
+								style.S().
 									Margin(0, 0, 0, 1).
 									Foreground(colText),
-							}, kitex.Text("Amber")),
+								kitex.Text("Amber"),
+							),
 						),
 					),
 				),
 
-				kitex.Box(kitex.BoxProps{
-					Style: checkboxWrapperStyle,
-				},
+				kitex.Box.Style(
+					checkboxWrapperStyle,
 					kitex.Checkbox(kitex.CheckboxProps{
 						Name:     "newsletter",
 						Checked:  s.Values.Newsletter,
 						Disabled: s.IsSubmitting,
 					}),
-					kitex.Span(kitex.SpanProps{
-						Style: style.S().
+					kitex.Span.Style(
+						style.S().
 							Margin(0, 0, 0, 1).
 							Foreground(colText),
-					}, kitex.Text("Subscribe to intel feed")),
+						kitex.Text("Subscribe to intel feed"),
+					),
 				),
 
 				kitex.Button(kitex.ButtonProps{
@@ -256,39 +245,44 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 				}())),
 			),
 
-			kitex.Box(kitex.BoxProps{
-				Style: fullWidthStyle.
+			kitex.Box.Style(
+				fullWidthStyle.
 					Height(style.Cells(1)).
 					Margin(1, 0, 1, 0).
 					Background(colSeparator),
-			}),
+			),
 
-			kitex.Box(kitex.BoxProps{
-				Style: flexColStyle,
-			},
-				kitex.Span(kitex.SpanProps{
-					Style: style.S().
+			kitex.Box.Style(
+				flexColStyle,
+				kitex.Span.Style(
+					style.S().
 						Foreground(colLabel).
 						Bold(true),
-				}, kitex.Text("Decrypted Transmission Payload:")),
+					kitex.Text("Decrypted Transmission Payload:"),
+				),
 
-				kitex.IfElse(hasSubmitted() || s.IsSubmitting,
-					kitex.Span(kitex.SpanProps{
-						Style: style.S().
-							Foreground(colAccent).
-							Bold(true),
-					}, kitex.Text(func() string {
-						if s.IsSubmitting {
-							return "Encrypting packet..."
-						}
-						return fmt.Sprintf("Username: %v | Access: %v | Spectrum: %v | Feed: %v",
+				kitex.IfElseFn(hasSubmitted() || s.IsSubmitting,
+					func() kitex.Node {
+						msg := fmt.Sprintf("Username: %v | Access: %v | Spectrum: %v | Feed: %v",
 							s.Values.Username, s.Values.AccessClass, s.Values.Theme, s.Values.Newsletter)
-					}())),
-					kitex.Span(kitex.SpanProps{
-						Style: style.S().
-							Foreground(colLabel).
-							Italic(true),
-					}, kitex.Text("Awaiting submission...")),
+						if s.IsSubmitting {
+							msg = "Encrypting packet..."
+						}
+						return kitex.Span.Style(
+							style.S().
+								Foreground(colAccent).
+								Bold(true),
+							kitex.Text(msg),
+						)
+					},
+					func() kitex.Node {
+						return kitex.Span.Style(
+							style.S().
+								Foreground(colLabel).
+								Italic(true),
+							kitex.Text("Awaiting submission..."),
+						)
+					},
 				),
 			),
 		),

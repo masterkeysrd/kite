@@ -49,7 +49,7 @@ var (
 )
 
 func makeApp(cancel context.CancelFunc) kitex.Node {
-	return kitex.SimpleFC("App", func() kitex.Node {
+	return kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		buttonRef := kitex.UseRef[dom.Element](nil)
 		isFocused := kitex.UseFocus(buttonRef)
 		getLastKey, setLastKey := kitex.UseState("None")
@@ -61,29 +61,23 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 				return
 			}
 			setLastKey(e.Text)
-		}, []any{})
+		})
 
 		borderColor := style.RGB(0, 255, 0) // Green
 		if isFocused {
 			borderColor = style.RGB(255, 0, 0) // Red
 		}
 
-		return kitex.Box(kitex.BoxProps{
-			Style: appContainerStyle,
-		},
-			kitex.Box(kitex.BoxProps{
-				Style: cardStyle,
-			},
-				kitex.Span(kitex.SpanProps{
-					Style: titleStyle,
-				}, kitex.Text("⚡ Kitex Convenience Hooks Demo ⚡")),
+		return kitex.Box.Style(
+			appContainerStyle,
+			kitex.Box.Style(
+				cardStyle,
+				kitex.Span.Style(titleStyle, kitex.Text("⚡ Kitex Convenience Hooks Demo ⚡")),
 				kitex.Text("Press Tab to focus the button."),
 				kitex.Text("Press any key to see it update below."),
 				kitex.Text("Press 'q', Esc, or Ctrl+C to exit."),
 
-				kitex.Box(kitex.BoxProps{
-					Style: lastKeyBoxStyle,
-				}, kitex.Text(fmt.Sprintf("Last key: %s", getLastKey()))),
+				kitex.Box.Style(lastKeyBoxStyle, kitex.Text(fmt.Sprintf("Last key: %s", getLastKey()))),
 
 				kitex.Button(kitex.ButtonProps{
 					Ref: buttonRef,
