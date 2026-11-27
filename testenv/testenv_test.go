@@ -1,6 +1,8 @@
 package testenv_test
 
 import (
+	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -175,4 +177,62 @@ func TestEnvironment_New_And_Options(t *testing.T) {
 	if !cleanupCalled {
 		t.Errorf("expected cleanup to have been called when subtest finished")
 	}
+}
+
+type spyTB struct {
+	testing.TB
+	failed  bool
+	message string
+}
+
+func (s *spyTB) Helper() {}
+
+func (s *spyTB) Fatalf(format string, args ...any) {
+	s.failed = true
+	s.message = fmt.Sprintf(format, args...)
+}
+
+func TestByID(t *testing.T) {
+	t.Run("returns typed element when found", func(t *testing.T) {
+		env := testenv.New(t, 80, 24)
+		env.Mount(element.Input("initial").WithID("my-input"))
+		env.Flush()
+
+		inp := testenv.ByID[*element.InputElement](t, env, "my-input")
+		if inp.Value() != "initial" {
+			t.Errorf("expected value 'initial', got %q", inp.Value())
+		}
+	})
+
+	t.Run("fails when env is nil", func(t *testing.T) {
+		spy := &spyTB{TB: t}
+		_ = testenv.ByID[*element.InputElement](spy, nil, "my-input")
+		if !spy.failed || !strings.Contains(spy.message, "env is nil") {
+			t.Errorf("expected failure mentioning env is nil, got failed=%v msg=%q", spy.failed, spy.message)
+		}
+	})
+
+	t.Run("fails when id is missing", func(t *testing.T) {
+		env := testenv.New(t, 80, 24)
+		env.Mount(element.Box().WithID("other"))
+		env.Flush()
+
+		spy := &spyTB{TB: t}
+		_ = testenv.ByID[*element.InputElement](spy, env, "missing")
+		if !spy.failed || !strings.Contains(spy.message, "missing") {
+			t.Errorf("expected failure mentioning missing id, got failed=%v msg=%q", spy.failed, spy.message)
+		}
+	})
+
+	t.Run("fails when element has wrong type", func(t *testing.T) {
+		env := testenv.New(t, 80, 24)
+		env.Mount(element.Box().WithID("my-box"))
+		env.Flush()
+
+		spy := &spyTB{TB: t}
+		_ = testenv.ByID[*element.InputElement](spy, env, "my-box")
+		if !spy.failed || !strings.Contains(spy.message, "BoxElement") {
+			t.Errorf("expected failure mentioning actual type, got failed=%v msg=%q", spy.failed, spy.message)
+		}
+	})
 }

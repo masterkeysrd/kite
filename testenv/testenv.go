@@ -211,6 +211,29 @@ func (e *Environment) GetNodeByID(id string) dom.Element {
 	return e.QuerySelector("#" + id)
 }
 
+// ByID looks up the element with the given ID in env and returns it typed as T.
+// It calls tb.Fatalf with a diagnostic message if env is nil, no node matches id,
+// or the matched node does not satisfy T.
+func ByID[T dom.Node](tb testing.TB, env *Environment, id string) T {
+	tb.Helper()
+	var zero T
+	if env == nil {
+		tb.Fatalf("testenv.ByID(%q): env is nil", id)
+		return zero
+	}
+	el := env.GetNodeByID(id)
+	if el == nil {
+		tb.Fatalf("testenv.ByID(%q): no element found with id %q", id, id)
+		return zero
+	}
+	typed, ok := el.(T)
+	if !ok {
+		tb.Fatalf("testenv.ByID(%q): element has type %T, expected %T", id, el, zero)
+		return zero
+	}
+	return typed
+}
+
 // QuerySelector returns the first element matching the selector.
 // Supports simple tag name ("div"), ID ("#id"), and class (".class") matching.
 func (e *Environment) QuerySelector(selector string) dom.Element {
