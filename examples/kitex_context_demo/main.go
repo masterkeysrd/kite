@@ -18,13 +18,40 @@ import (
 )
 
 var (
-	btnStyle          = style.S().Background(color.RGBA{R: 70, G: 70, B: 90, A: 255}).Foreground(color.White).Padding(0, 1).Margin(0, 1)
-	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Padding(1, 2).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
-	appTitleStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 50, A: 255}).Bold(true).Margin(0, 0, 1, 0)
-	buttonRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
-	providerBoxStyle  = style.S().Border(style.SingleBorder()).Padding(1, 1).Margin(1, 0)
-	instructionsStyle = style.S().Foreground(color.RGBA{R: 120, G: 120, B: 130, A: 255}).Margin(1, 0, 0, 0)
-	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	btnStyle = style.S().
+			Margin(0, 1).
+			Padding(0, 1).
+			Background(style.RGB(70, 70, 90)).
+			Foreground(color.White)
+
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Padding(1, 2).
+				Background(style.RGB(15, 15, 20))
+
+	appTitleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(255, 200, 50)).
+			Bold(true)
+
+	buttonRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			Margin(0, 0, 1, 0)
+
+	providerBoxStyle = style.S().
+				Margin(1, 0).
+				Padding(1, 1).
+				Border(style.SingleBorder())
+
+	instructionsStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Foreground(style.RGB(120, 120, 130))
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100))
 )
 
 type Theme string
@@ -42,17 +69,22 @@ func getThemeStyle(theme Theme) style.Style {
 	var bg, fg color.Color
 	switch theme {
 	case ThemeDark:
-		bg = color.RGBA{R: 25, G: 25, B: 30, A: 255}
-		fg = color.RGBA{R: 240, G: 240, B: 245, A: 255}
+		bg = style.RGB(25, 25, 30)
+		fg = style.RGB(240, 240, 245)
 	case ThemeBlue:
-		bg = color.RGBA{R: 15, G: 35, B: 75, A: 255}
-		fg = color.RGBA{R: 210, G: 230, B: 255, A: 255}
+		bg = style.RGB(15, 35, 75)
+		fg = style.RGB(210, 230, 255)
 	default: // ThemeLight
-		bg = color.RGBA{R: 245, G: 245, B: 245, A: 255}
-		fg = color.RGBA{R: 30, G: 30, B: 35, A: 255}
+		bg = style.RGB(245, 245, 245)
+		fg = style.RGB(30, 30, 35)
 	}
 
-	return style.S().Background(bg).Foreground(fg).Border(style.SingleBorder()).Padding(1, 2).Margin(1, 0)
+	return style.S().
+		Margin(1, 0).
+		Padding(1, 2).
+		Border(style.SingleBorder()).
+		Background(bg).
+		Foreground(fg)
 }
 
 // ConsumerComponent consumes ThemeContext and displays itself accordingly.
@@ -123,12 +155,12 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			Style: buttonRowStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) { toggleOuter() },
+				OnClick: func(e *event.MouseEvent) { toggleOuter() },
 				Style:   btnStyle,
 			}, kitex.Text("Toggle Outer Theme")),
 
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) { toggleInner() },
+				OnClick: func(e *event.MouseEvent) { toggleInner() },
 				Style:   btnStyle,
 			}, kitex.Text("Toggle Inner Theme")),
 		),

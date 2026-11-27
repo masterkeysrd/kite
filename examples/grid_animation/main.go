@@ -18,12 +18,39 @@ import (
 )
 
 var (
-	btnStyle          = style.S().Background(color.RGBA{R: 255, G: 69, B: 0, A: 255}).Foreground(color.White).Border(style.SingleBorder()).Bold(true).Padding(0, 2)
-	btnFocusStyle     = style.S().Background(color.RGBA{R: 255, G: 99, B: 71, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 215, B: 0, A: 255})).Foreground(color.White).Bold(true).Padding(0, 2)
-	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(0, 0, 2, 0)
-	btnWrapperStyle   = style.S().Margin(2, 0, 0, 0)
-	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(2, 0, 0, 0)
-	rootStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).Padding(2, 4)
+	btnStyle = style.S().
+			Padding(0, 2).
+			Border(style.SingleBorder()).
+			Background(style.RGB(255, 69, 0)).
+			Foreground(color.White).
+			Bold(true)
+
+	btnFocusStyle = style.S().
+			Padding(0, 2).
+			Border(style.SingleBorder().Color(style.RGB(255, 215, 0))).
+			Background(style.RGB(255, 99, 71)).
+			Foreground(color.White).
+			Bold(true)
+
+	titleStyle = style.S().
+			Margin(0, 0, 2, 0).
+			Foreground(style.RGB(0, 255, 200)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	btnWrapperStyle = style.S().Margin(2, 0, 0, 0)
+
+	instructionsStyle = style.S().
+				Margin(2, 0, 0, 0).
+				Foreground(style.RGB(150, 150, 150))
+
+	rootStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Padding(2, 4).
+			Background(style.RGB(20, 20, 25))
 )
 
 var eng *engine.Engine
@@ -49,19 +76,28 @@ func main() {
 
 	// Grid element
 	gridContainer := element.Box(
-		element.Box("Item 1").Style(itemStyle(color.RGBA{150, 50, 50, 255})),
-		element.Box("Item 2").Style(itemStyle(color.RGBA{50, 150, 50, 255})),
-		element.Box("Item 3").Style(itemStyle(color.RGBA{50, 50, 150, 255})),
-		element.Box("Item 4").Style(itemStyle(color.RGBA{150, 150, 50, 255})),
-		element.Box("Item 5").Style(itemStyle(color.RGBA{150, 50, 150, 255})),
-		element.Box("Item 6").Style(itemStyle(color.RGBA{50, 150, 150, 255})),
+		element.Box("Item 1").Style(itemStyle(style.RGB(150, 50, 50))),
+		element.Box("Item 2").Style(itemStyle(style.RGB(50, 150, 50))),
+		element.Box("Item 3").Style(itemStyle(style.RGB(50, 50, 150))),
+		element.Box("Item 4").Style(itemStyle(style.RGB(150, 150, 50))),
+		element.Box("Item 5").Style(itemStyle(style.RGB(150, 50, 150))),
+		element.Box("Item 6").Style(itemStyle(style.RGB(50, 150, 150))),
 	)
 
 	startCols := []style.GridTrackSize{style.Fr(1), style.Fr(1), style.Fr(1)}
 	endCols := []style.GridTrackSize{style.Fr(3), style.Fr(1), style.Cells(10)}
 
 	updateGridStyle := func(cols []style.GridTrackSize) {
-		gridContainer.Style(style.S().Display(style.DisplayGrid).GridTemplateColumns(cols...).GridTemplateRows(style.Repeat(2, style.Fr(1))...).Height(style.Cells(10)).Border(style.SingleBorder()).Gap(1).Padding(1))
+		gridContainer.Style(
+			style.S().
+				Display(style.DisplayGrid).
+				Gap(1).
+				GridTemplateColumns(cols...).
+				GridTemplateRows(style.Repeat(2, style.Fr(1))...).
+				Height(style.Cells(10)).
+				Padding(1).
+				Border(style.SingleBorder()),
+		)
 		eng.RequestFrame()
 	}
 
@@ -148,7 +184,15 @@ func main() {
 }
 
 func itemStyle(bg color.Color) style.Style {
-	return style.S().Background(bg).Border(style.SingleBorder()).Width(style.Percent(100)).Height(style.Percent(100)).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Display(style.DisplayFlex).Bold(true)
+	return style.S().
+		Display(style.DisplayFlex).
+		JustifyContent(style.JustifyCenter).
+		AlignItems(style.AlignCenter).
+		Width(style.Percent(100)).
+		Height(style.Percent(100)).
+		Border(style.SingleBorder()).
+		Background(bg).
+		Bold(true)
 }
 
 type CustomAnimator struct {

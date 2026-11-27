@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 
 	"github.com/masterkeysrd/kite/event"
 	"github.com/masterkeysrd/kite/extras/kitex"
@@ -31,22 +30,21 @@ func main() {
 		showBorder := c.GlobalBool("Show Border", true)
 
 		// Stylize the decorator based on current global options
-		var bgColor, fgColor color.RGBA
+		bgColor := style.RGB(17, 24, 39)    // Dark gray 900
+		fgColor := style.RGB(243, 244, 246) // Light gray 100
 		if theme == "Light" {
-			bgColor = color.RGBA{R: 243, G: 244, B: 246, A: 255} // Light gray 100
-			fgColor = color.RGBA{R: 17, G: 24, B: 39, A: 255}    // Dark gray 900
-		} else {
-			bgColor = color.RGBA{R: 17, G: 24, B: 39, A: 255}    // Dark gray 900
-			fgColor = color.RGBA{R: 243, G: 244, B: 246, A: 255} // Light gray 100
+			bgColor = style.RGB(243, 244, 246) // Light gray 100
+			fgColor = style.RGB(17, 24, 39)    // Dark gray 900
 		}
 
 		wrapperStyle := style.S().
+			Padding(2).
 			Background(bgColor).
-			Foreground(fgColor).
-			Padding(2)
+			Foreground(fgColor)
 
 		if showBorder {
-			wrapperStyle = wrapperStyle.Border(true, style.BorderDouble, color.RGBA{R: 79, G: 70, B: 229, A: 255}) // Indigo 600
+			wrapperStyle = wrapperStyle.
+				Border(true, style.BorderDouble, style.RGB(79, 70, 229)) // Indigo 600
 		}
 
 		return kitex.Box(
@@ -66,19 +64,19 @@ func main() {
 				disabled := c.Bool("Disabled", false)
 
 				btnStyle := style.S().
-					Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}).
-					Padding(0, 2)
+					Padding(0, 2).
+					Foreground(style.RGB(255, 255, 255))
 				if disabled {
-					btnStyle = btnStyle.Background(color.RGBA{R: 107, G: 114, B: 128, A: 255}) // Gray 500
+					btnStyle = btnStyle.Background(style.RGB(107, 114, 128)) // Gray 500
 				} else {
-					btnStyle = btnStyle.Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}) // Indigo 600
+					btnStyle = btnStyle.Background(style.RGB(79, 70, 229)) // Indigo 600
 				}
 
 				return kitex.Button(
 					kitex.ButtonProps{
 						Disabled: disabled,
 						Style:    btnStyle,
-						OnClick: func(e event.Event) {
+						OnClick: func(e *event.MouseEvent) {
 							c.Log("Primary Button clicked!")
 						},
 					},
@@ -94,10 +92,10 @@ func main() {
 				return kitex.Button(
 					kitex.ButtonProps{
 						Style: style.S().
-							Background(color.RGBA{R: 220, G: 38, B: 38, A: 255}). // Red 600
-							Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}).
-							Padding(0, 2),
-						OnClick: func(e event.Event) {
+							Padding(0, 2).
+							Background(style.RGB(220, 38, 38)). // Red 600
+							Foreground(style.RGB(255, 255, 255)),
+						OnClick: func(e *event.MouseEvent) {
 							c.Log("Danger Button clicked!")
 						},
 					},
@@ -128,13 +126,9 @@ func main() {
 						Style: style.S().
 							Width(style.Percent(100)).
 							Padding(0, 1).
-							Border(true, style.BorderSingle, color.RGBA{R: 156, G: 163, B: 175, A: 255}),
-						OnChange: func(e event.Event) {
-							if ie, ok := e.(*event.InputEvent); ok {
-								c.Log("Input value changed to: " + ie.Value)
-							} else if ce, ok := e.(*event.ChangeEvent); ok {
-								c.Log("Input value changed to: " + ce.Value)
-							}
+							Border(true, style.BorderSingle, style.RGB(156, 163, 175)),
+						OnValueChange: func(val string) {
+							c.Log("Input value changed to: " + val)
 						},
 					}),
 				)
@@ -150,14 +144,16 @@ func main() {
 				statusOptions := []string{"Success", "Warning", "Error"}
 				selectedStatus := c.Select("Status Selection", statusOptions, "Success")
 
-				badgeStyle := style.S().Padding(0, 2).Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255})
+				badgeStyle := style.S().
+					Padding(0, 2).
+					Foreground(style.RGB(255, 255, 255))
 				switch selectedStatus {
 				case "Success":
-					badgeStyle = badgeStyle.Background(color.RGBA{R: 22, G: 163, B: 74, A: 255}) // Green 600
+					badgeStyle = badgeStyle.Background(style.RGB(22, 163, 74)) // Green 600
 				case "Warning":
-					badgeStyle = badgeStyle.Background(color.RGBA{R: 202, G: 138, B: 4, A: 255}) // Yellow 600
+					badgeStyle = badgeStyle.Background(style.RGB(202, 138, 4)) // Yellow 600
 				case "Error":
-					badgeStyle = badgeStyle.Background(color.RGBA{R: 220, G: 38, B: 38, A: 255}) // Red 600
+					badgeStyle = badgeStyle.Background(style.RGB(220, 38, 38)) // Red 600
 				}
 
 				return kitex.Box(
@@ -178,9 +174,9 @@ func main() {
 				count := c.Int("Count", 0)
 
 				countStyle := style.S().
-					Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}).
-					Background(color.RGBA{R: 79, G: 70, B: 229, A: 255}). // Indigo 600
-					Padding(0, 3)
+					Padding(0, 3).
+					Background(style.RGB(79, 70, 229)). // Indigo 600
+					Foreground(style.RGB(255, 255, 255))
 
 				return kitex.Box(
 					kitex.BoxProps{
@@ -193,7 +189,7 @@ func main() {
 						kitex.BoxProps{
 							Style: style.S().
 								MarginBottom(1).
-								Foreground(color.RGBA{R: 156, G: 163, B: 175, A: 255}),
+								Foreground(style.RGB(156, 163, 175)),
 						},
 						kitex.Text("Current Count"),
 					),
@@ -208,11 +204,11 @@ func main() {
 						kitex.Button(
 							kitex.ButtonProps{
 								Style: style.S().
-									Background(color.RGBA{R: 16, G: 185, B: 129, A: 255}). // Emerald 500
-									Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}).
+									Padding(0, 2).
 									Border(false).
-									Padding(0, 2),
-								OnClick: func(e event.Event) {
+									Background(style.RGB(16, 185, 129)). // Emerald 500
+									Foreground(style.RGB(255, 255, 255)),
+								OnClick: func(e *event.MouseEvent) {
 									c.Log(fmt.Sprintf("Count is %d", count))
 								},
 							},
@@ -228,14 +224,12 @@ func main() {
 				progress := c.Int("Progress (0-100)", 42)
 				progress = max(0, min(100, progress))
 
-				var barColor color.RGBA
+				barColor := style.RGB(22, 163, 74) // Green 600
 				switch {
 				case progress < 34:
-					barColor = color.RGBA{R: 220, G: 38, B: 38, A: 255} // Red 600
+					barColor = style.RGB(220, 38, 38) // Red 600
 				case progress < 67:
-					barColor = color.RGBA{R: 202, G: 138, B: 4, A: 255} // Yellow 600
-				default:
-					barColor = color.RGBA{R: 22, G: 163, B: 74, A: 255} // Green 600
+					barColor = style.RGB(202, 138, 4) // Yellow 600
 				}
 
 				return kitex.Box(
@@ -261,7 +255,7 @@ func main() {
 						kitex.BoxProps{
 							Style: style.S().
 								Width(style.Percent(100)).
-								Background(color.RGBA{R: 55, G: 65, B: 81, A: 255}), // Gray 700
+								Background(style.RGB(55, 65, 81)), // Gray 700
 						},
 						// Filled portion
 						kitex.Box(
@@ -291,14 +285,14 @@ func main() {
 			Theme:      "Ocean",
 		},
 		Render: func(c *stage.Context, props CardProps) kitex.Node {
-			var themeColor color.RGBA
+			themeColor := style.RGBA(0, 0, 0, 0)
 			switch props.Theme {
 			case "Ocean":
-				themeColor = color.RGBA{R: 59, G: 130, B: 246, A: 255} // Blue 500
+				themeColor = style.RGB(59, 130, 246) // Blue 500
 			case "Sunset":
-				themeColor = color.RGBA{R: 239, G: 68, B: 68, A: 255} // Red 500
+				themeColor = style.RGB(239, 68, 68) // Red 500
 			case "Forest":
-				themeColor = color.RGBA{R: 16, G: 185, B: 129, A: 255} // Green 500
+				themeColor = style.RGB(16, 185, 129) // Green 500
 			}
 
 			cardStyle := style.S().
@@ -307,7 +301,11 @@ func main() {
 
 			var children []kitex.Node
 			children = append(children, kitex.Box(
-				kitex.BoxProps{Style: style.S().Bold(true).Foreground(themeColor)},
+				kitex.BoxProps{
+					Style: style.S().
+						Foreground(themeColor).
+						Bold(true),
+				},
 				kitex.Text(props.Title),
 			))
 			children = append(children, kitex.Text(props.Subtitle))
@@ -319,10 +317,10 @@ func main() {
 				children = append(children, kitex.Button(
 					kitex.ButtonProps{
 						Style: style.S().
+							Padding(0, 1).
 							Background(themeColor).
-							Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255}).
-							Padding(0, 1),
-						OnClick: func(e event.Event) {
+							Foreground(style.RGB(255, 255, 255)),
+						OnClick: func(e *event.MouseEvent) {
 							c.Log("Card action clicked!")
 						},
 					},

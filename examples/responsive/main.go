@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 
@@ -23,25 +22,25 @@ var (
 	containerStyle = style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
-			AlignItems(style.AlignCenter).
 			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
 			Width(style.Percent(100)).
 			Height(style.Percent(100)).
-			Background(color.RGBA{R: 20, G: 20, B: 255, A: 255}). // Blue background on small screen
+			Background(style.RGB(20, 20, 255)). // Blue background on small screen
 		// Conditional media query style using the new static media rules system:
 		Media(style.Query().MinWidth(80), style.S().
-			Background(color.RGBA{R: 20, G: 255, B: 20, A: 255})) // Green background on wide screen
+			Background(style.RGB(20, 255, 20))) // Green background on wide screen
 
 	cardStyle = style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
 			Padding(1).
-			Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})).
-			Background(color.RGBA{R: 30, G: 30, B: 30, A: 255})
+			Border(style.SingleBorder().Color(style.RGB(255, 255, 255))).
+			Background(style.RGB(30, 30, 30))
 
 	titleStyle = style.S().
-			Bold(true).
-			Foreground(color.RGBA{R: 255, G: 255, B: 255, A: 255})
+			Foreground(style.RGB(255, 255, 255)).
+			Bold(true)
 
 	rootStyle = style.S().
 			Width(style.Percent(100)).
@@ -117,13 +116,13 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 				kitex.Text(fmt.Sprintf("Dock/Tab progress bar: %d%%", progressVal())),
 				kitex.Text(""),
 				kitex.Button(kitex.ButtonProps{
-					OnClick: func(ev event.Event) {
+					OnClick: func(ev *event.MouseEvent) {
 						ringBell()
 					},
 					Style: style.S().
-						Border(style.SingleBorder().Color(color.RGBA{R: 255, G: 255, B: 255, A: 255})).
 						Padding(0, 1).
-						Background(color.RGBA{R: 50, G: 50, B: 50, A: 255}),
+						Border(style.SingleBorder().Color(style.RGB(255, 255, 255))).
+						Background(style.RGB(50, 50, 50)),
 				}, kitex.Text("🔔 Ring Terminal Bell")),
 				kitex.Text(""),
 				kitex.Text("Resize your terminal to see the background color, text, and window title change!"),

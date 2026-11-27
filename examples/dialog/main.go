@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 	"runtime"
@@ -17,9 +16,21 @@ import (
 )
 
 var (
-	dialogHeaderStyle = style.S().TextAlign(style.TextAlignCenter).Padding(1)
-	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
-	dialogBoxStyle    = style.S().Width(style.Cells(30)).Height(style.Cells(5)).Background(color.RGBA{R: 60, G: 60, B: 100, A: 255}).Border(style.SingleBorder()).Padding(1)
+	dialogHeaderStyle = style.S().
+				Padding(1).
+				TextAlign(style.TextAlignCenter)
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Background(style.RGB(20, 20, 20))
+
+	dialogBoxStyle = style.S().
+			Width(style.Cells(30)).
+			Height(style.Cells(5)).
+			Padding(1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(60, 60, 100))
 )
 
 func main() {

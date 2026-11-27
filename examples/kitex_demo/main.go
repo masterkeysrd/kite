@@ -19,24 +19,78 @@ import (
 )
 
 var (
-	itemRowStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(0, 0, 1, 0).Padding(0, 1).Background(color.RGBA{R: 35, G: 35, B: 50, A: 255}).Border(style.SingleBorder())
-	itemLabelStyle         = style.S().Foreground(color.RGBA{R: 220, G: 220, B: 230, A: 255}).Width(style.Percent(40))
-	incrementBtnStyle      = style.S().Background(color.RGBA{R: 60, G: 120, B: 220, A: 255}).Foreground(color.White).Margin(0, 1)
-	incrementBtnHoverStyle = style.S().Background(color.RGBA{R: 80, G: 140, B: 240, A: 255})
-	deleteBtnStyle         = style.S().Background(color.RGBA{R: 200, G: 60, B: 60, A: 255}).Foreground(color.White).Margin(0, 1)
-	deleteBtnHoverStyle    = style.S().Background(color.RGBA{R: 240, G: 80, B: 80, A: 255})
-	appContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(1, 2)
-	appTitleStyle          = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
-	instructionsStyle      = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 170, A: 255}).Margin(0, 0, 1, 0)
-	actionPanelStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
-	addBtnStyle            = style.S().Background(color.RGBA{R: 50, G: 180, B: 100, A: 255}).Foreground(color.White).Margin(0, 1)
-	addBtnHoverStyle       = style.S().Background(color.RGBA{R: 70, G: 210, B: 120, A: 255})
-	reverseBtnStyle        = style.S().Background(color.RGBA{R: 160, G: 80, B: 220, A: 255}).Foreground(color.White).Margin(0, 1)
-	reverseBtnHoverStyle   = style.S().Background(color.RGBA{R: 190, G: 100, B: 250, A: 255})
-	shuffleBtnStyle        = style.S().Background(color.RGBA{R: 220, G: 130, B: 40, A: 255}).Foreground(color.White).Margin(0, 1)
-	shuffleBtnHoverStyle   = style.S().Background(color.RGBA{R: 250, G: 160, B: 60, A: 255})
-	listContainerStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Border(style.DoubleBorder()).Padding(1, 1).Background(color.RGBA{R: 25, G: 25, B: 38, A: 255})
-	rootStyle              = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	itemRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			AlignItems(style.AlignCenter).
+			Margin(0, 0, 1, 0).
+			Padding(0, 1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(35, 35, 50))
+
+	itemLabelStyle = style.S().
+			Width(style.Percent(40)).
+			Foreground(style.RGB(220, 220, 230))
+
+	incrementBtnStyle = style.S().
+				Margin(0, 1).
+				Background(style.RGB(60, 120, 220)).
+				Foreground(color.White).
+				Hover(style.S().Background(style.RGB(80, 140, 240)))
+
+	deleteBtnStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(200, 60, 60)).
+			Foreground(color.White).
+			Hover(style.S().Background(style.RGB(240, 80, 80)))
+
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Padding(1, 2).
+				Background(style.RGB(20, 20, 30))
+
+	appTitleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(90, 140, 255)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	instructionsStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Foreground(style.RGB(150, 150, 170))
+
+	actionPanelStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexRow).
+				Margin(0, 0, 1, 0)
+
+	addBtnStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(50, 180, 100)).
+			Foreground(color.White).
+			Hover(style.S().Background(style.RGB(70, 210, 120)))
+
+	reverseBtnStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(160, 80, 220)).
+			Foreground(color.White).
+			Hover(style.S().Background(style.RGB(190, 100, 250)))
+
+	shuffleBtnStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(220, 130, 40)).
+			Foreground(color.White).
+			Hover(style.S().Background(style.RGB(250, 160, 60)))
+
+	listContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Padding(1, 1).
+				Border(style.DoubleBorder()).
+				Background(style.RGB(25, 25, 38))
 )
 
 type ItemData struct {
@@ -50,36 +104,9 @@ type ItemProps struct {
 	OnDelete func()
 }
 
-type HoverButtonProps struct {
-	OnClick    func(event.Event)
-	Style      style.Style
-	HoverStyle style.Style
-	Text       string
-}
-
-// HoverButton is a functional component that wraps kitex.Button and adds hover style support.
-var HoverButton = kitex.FC("HoverButton", func(props HoverButtonProps) kitex.Node {
-	isHovered, setHovered := kitex.UseState(false)
-
-	s := props.Style
-	if isHovered() {
-		s = s.Merge(props.HoverStyle)
-	}
-
-	return kitex.Button(kitex.ButtonProps{
-		OnClick: props.OnClick,
-		OnMouseEnter: func(e event.Event) {
-			setHovered(true)
-		},
-		OnMouseLeave: func(e event.Event) {
-			setHovered(false)
-		},
-		Style: s,
-	}, kitex.Text(props.Text))
-})
-
 // ListItem is a functional component representing a single row in the list.
-// It maintains its own local counter state (clicks) using UseState.
+// Interactive :hover states are handled natively by the style cascade without
+// triggering VDOM re-renders.
 var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 	getClicks, setClicks := kitex.UseState(0)
 
@@ -88,25 +115,19 @@ var ListItem = kitex.FC("ListItem", func(props ItemProps) kitex.Node {
 	},
 		kitex.Span(kitex.SpanProps{
 			Style: itemLabelStyle,
-		}, kitex.Text(fmt.Sprintf("Item %s (Clicks: %d)", props.ID, getClicks()))),
+		}, kitex.Textf("Item %s (Clicks: %d)", props.ID, getClicks())),
 
-		HoverButton(HoverButtonProps{
-			OnClick: func(e event.Event) {
-				setClicks(getClicks() + 1)
+		kitex.Button(kitex.ButtonProps{
+			OnPress: func() {
+				setClicks.Update(func(n int) int { return n + 1 })
 			},
-			Style:      incrementBtnStyle,
-			HoverStyle: incrementBtnHoverStyle,
-			Text:       " +1 ",
-		}),
+			Style: incrementBtnStyle,
+		}, kitex.Text(" +1 ")),
 
-		HoverButton(HoverButtonProps{
-			OnClick: func(e event.Event) {
-				props.OnDelete()
-			},
-			Style:      deleteBtnStyle,
-			HoverStyle: deleteBtnHoverStyle,
-			Text:       " Delete ",
-		}),
+		kitex.Button(kitex.ButtonProps{
+			OnPress: props.OnDelete,
+			Style:   deleteBtnStyle,
+		}, kitex.Text(" Delete ")),
 	)
 })
 
@@ -120,19 +141,17 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	getNextID, setNextID := kitex.UseState(4)
 
 	handleDelete := func(key string) {
-		current := getItems()
-		nextItems := make([]ItemData, 0, len(current))
-		for _, item := range current {
-			if item.Key != key {
-				nextItems = append(nextItems, item)
+		setItems.Update(func(current []ItemData) []ItemData {
+			nextItems := make([]ItemData, 0, len(current))
+			for _, item := range current {
+				if item.Key != key {
+					nextItems = append(nextItems, item)
+				}
 			}
-		}
-		setItems(nextItems)
+			return nextItems
+		})
 	}
 
-	// renderItem is a named function variable passed directly to kitex.Map.
-	// It captures handleDelete from the enclosing render scope — idiomatic Go
-	// for parameterised render helpers that share component-level state.
 	renderItem := func(item ItemData, _ int) kitex.Node {
 		k := item.Key
 		return ListItem(ItemProps{
@@ -145,72 +164,65 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
 		Style: appContainerStyle,
 	},
-		// Title bar
 		kitex.Box(kitex.BoxProps{
 			Style: appTitleStyle,
 		}, kitex.Text("⚡ Kitex VDOM Reconciler Dashboard ⚡")),
 
-		// Info / Instructions
 		kitex.Box(kitex.BoxProps{
 			Style: instructionsStyle,
 		}, kitex.Text("Press 'q' to Quit. Click buttons below to Add, Reverse, Shuffle, or edit items.")),
 
-		// Actions Panel
 		kitex.Box(kitex.BoxProps{
 			Style: actionPanelStyle,
 		},
-			HoverButton(HoverButtonProps{
-				OnClick: func(e event.Event) {
+			kitex.Button(kitex.ButtonProps{
+				OnPress: func() {
 					nid := getNextID()
 					label := string(rune('A' + (nid-1)%26))
 					if nid > 26 {
 						label = fmt.Sprintf("%s%d", label, nid)
 					}
-					setItems(append(getItems(), ItemData{
-						Key: fmt.Sprintf("%d", nid),
-						ID:  label,
-					}))
-					setNextID(nid + 1)
-				},
-				Style:      addBtnStyle,
-				HoverStyle: addBtnHoverStyle,
-				Text:       " Add Item ",
-			}),
-
-			HoverButton(HoverButtonProps{
-				OnClick: func(e event.Event) {
-					items := getItems()
-					n := len(items)
-					reversed := make([]ItemData, n)
-					for i, item := range items {
-						reversed[n-1-i] = item
-					}
-					setItems(reversed)
-				},
-				Style:      reverseBtnStyle,
-				HoverStyle: reverseBtnHoverStyle,
-				Text:       " Reverse List ",
-			}),
-
-			HoverButton(HoverButtonProps{
-				OnClick: func(e event.Event) {
-					items := getItems()
-					n := len(items)
-					shuffled := make([]ItemData, n)
-					copy(shuffled, items)
-					rand.Shuffle(n, func(i, j int) {
-						shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+					setItems.Update(func(items []ItemData) []ItemData {
+						return append(items, ItemData{
+							Key: fmt.Sprintf("%d", nid),
+							ID:  label,
+						})
 					})
-					setItems(shuffled)
+					setNextID.Update(func(n int) int { return n + 1 })
 				},
-				Style:      shuffleBtnStyle,
-				HoverStyle: shuffleBtnHoverStyle,
-				Text:       " Shuffle List ",
-			}),
+				Style: addBtnStyle,
+			}, kitex.Text(" Add Item ")),
+
+			kitex.Button(kitex.ButtonProps{
+				OnPress: func() {
+					setItems.Update(func(items []ItemData) []ItemData {
+						n := len(items)
+						reversed := make([]ItemData, n)
+						for i, item := range items {
+							reversed[n-1-i] = item
+						}
+						return reversed
+					})
+				},
+				Style: reverseBtnStyle,
+			}, kitex.Text(" Reverse List ")),
+
+			kitex.Button(kitex.ButtonProps{
+				OnPress: func() {
+					setItems.Update(func(items []ItemData) []ItemData {
+						n := len(items)
+						shuffled := make([]ItemData, n)
+						copy(shuffled, items)
+						rand.Shuffle(n, func(i, j int) {
+							shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+						})
+						return shuffled
+					})
+				},
+				Style: shuffleBtnStyle,
+			}, kitex.Text(" Shuffle List ")),
 		),
 
-		// Keyed list — kitex.Map(getItems(), renderItem) passes the named
-		// function directly; no intermediate slice variable needed.
 		kitex.Box(kitex.BoxProps{
 			Style: listContainerStyle,
 		}, kitex.Map(getItems(), renderItem)),
@@ -220,9 +232,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 func main() {
 	f, _ := os.Create("kitex_demo.log")
 	defer f.Close()
-	logger := slog.New(slog.NewTextHandler(f, nil))
-	_ = logger // prevent unused variable error
-	slog.SetDefault(logger)
+	slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
 
 	b, err := uv.New()
 	if err != nil {
@@ -231,29 +241,28 @@ func main() {
 	}
 
 	eng := engine.New(b, engine.Options{})
-
-	// Create VDOM rendering container element
-	container := element.NewBox(eng.Document())
-	container.Style(rootStyle)
+	container := element.NewBox(eng.Document()).Style(
+		style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)),
+	)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true
+	if insp, err := devtools.Install(eng, devtools.Options{}); err == nil {
+		kitexdt.Register(insp)
+	}
 
-	// Mount VDOM into host container
 	kitex.Render(App(), container)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	eng.Document().AddEventListener(event.EventKeyDown, func(e event.Event) {
-		ke := e.(*event.KeyEvent)
-		if ke.MatchString("q") || ke.MatchString("ctrl+c") {
+		if ke, ok := e.(*event.KeyEvent); ok && (ke.MatchString("q") || ke.MatchString("ctrl+c")) {
 			cancel()
 		}
 	})
-
-	insp, _ := devtools.Install(eng, devtools.Options{})
-	kitexdt.Register(insp)
 
 	if err := eng.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "engine exited: %v\n", err)

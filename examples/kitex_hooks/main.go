@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 
@@ -19,11 +18,34 @@ import (
 )
 
 var (
-	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
-	cardStyle         = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Gap(1).AlignItems(style.AlignCenter)
-	titleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255})
-	lastKeyBoxStyle   = style.S().Margin(1, 0).Padding(0, 1).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255}).Border(style.SingleBorder())
-	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				JustifyContent(style.JustifyCenter).
+				AlignItems(style.AlignCenter).
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Background(style.RGB(20, 20, 20))
+
+	cardStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			AlignItems(style.AlignCenter).
+			Gap(1)
+
+	titleStyle = style.S().
+			Foreground(style.RGB(90, 140, 255)).
+			Bold(true)
+
+	lastKeyBoxStyle = style.S().
+			Margin(1, 0).
+			Padding(0, 1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(30, 30, 40))
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100))
 )
 
 func makeApp(cancel context.CancelFunc) kitex.Node {
@@ -41,9 +63,9 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 			setLastKey(e.Text)
 		}, []any{})
 
-		borderColor := color.RGBA{G: 255, A: 255} // Green
+		borderColor := style.RGB(0, 255, 0) // Green
 		if isFocused {
-			borderColor = color.RGBA{R: 255, A: 255} // Red
+			borderColor = style.RGB(255, 0, 0) // Red
 		}
 
 		return kitex.Box(kitex.BoxProps{
@@ -64,8 +86,13 @@ func makeApp(cancel context.CancelFunc) kitex.Node {
 				}, kitex.Text(fmt.Sprintf("Last key: %s", getLastKey()))),
 
 				kitex.Button(kitex.ButtonProps{
-					Ref:   buttonRef,
-					Style: style.S().Border(style.SingleBorder().Color(borderColor)).Padding(0, 1).Width(style.Cells(25)).Height(style.Cells(3)).Background(color.RGBA{R: 40, G: 40, B: 40, A: 255}),
+					Ref: buttonRef,
+					Style: style.S().
+						Width(style.Cells(25)).
+						Height(style.Cells(3)).
+						Padding(0, 1).
+						Border(style.SingleBorder().Color(borderColor)).
+						Background(style.RGB(40, 40, 40)),
 				}, kitex.Text(fmt.Sprintf("Focused: %v", isFocused))),
 			),
 		)

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 
@@ -18,11 +17,28 @@ import (
 )
 
 var (
-	listHeaderStyle       = style.S().Margin(1, 0, 0, 0).Underline(true)
-	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0).Bold(true)
-	squareListStyle       = style.S().ListStyleType(style.ListStyleSquare)
-	contentContainerStyle = style.S().Width(style.Percent(90)).Margin(1, 0).Padding(1, 2).Border(style.SingleBorder())
-	rootStyle             = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(1, 2).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+	listHeaderStyle = style.S().
+			Margin(1, 0, 0, 0).
+			Underline(true)
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	squareListStyle = style.S().ListStyleType(style.ListStyleSquare)
+
+	contentContainerStyle = style.S().
+				Width(style.Percent(90)).
+				Margin(1, 0).
+				Padding(1, 2).
+				Border(style.SingleBorder())
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Padding(1, 2).
+			Background(style.RGB(20, 20, 20))
 )
 
 func main() {

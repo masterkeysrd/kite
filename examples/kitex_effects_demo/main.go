@@ -21,17 +21,60 @@ import (
 )
 
 var (
-	timerBoxStyle        = style.S().Border(style.SingleBorder()).Padding(1, 1).Margin(0, 0, 1, 0).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255})
-	sectionHeaderStyle   = style.S().Bold(true).Margin(0, 0, 1, 0)
-	contentRowStyle      = style.S().Margin(0, 0, 1, 0)
-	subscriptionBoxStyle = style.S().Border(style.SingleBorder()).Padding(1, 1).Margin(0, 0, 1, 0).Background(color.RGBA{R: 30, G: 40, B: 30, A: 255})
-	appContainerStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 26, A: 255}).Padding(1, 2)
-	appTitleStyle        = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 140, B: 255, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
-	appDescriptionStyle  = style.S().Foreground(color.RGBA{R: 160, G: 160, B: 180, A: 255}).Margin(0, 0, 1, 0)
-	actionsPanelStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
-	broadcastBtnStyle    = style.S().Background(color.RGBA{R: 60, G: 120, B: 220, A: 255}).Foreground(color.White).Margin(0, 1)
-	toggleBtnStyle       = style.S().Background(color.RGBA{R: 160, G: 80, B: 220, A: 255}).Foreground(color.White).Margin(0, 1)
-	rootStyle            = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	timerBoxStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Padding(1, 1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(30, 30, 40))
+
+	sectionHeaderStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Bold(true)
+
+	contentRowStyle = style.S().Margin(0, 0, 1, 0)
+
+	subscriptionBoxStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Padding(1, 1).
+				Border(style.SingleBorder()).
+				Background(style.RGB(30, 40, 30))
+
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Padding(1, 2).
+				Background(style.RGB(20, 20, 26))
+
+	appTitleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(90, 140, 255)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	appDescriptionStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Foreground(style.RGB(160, 160, 180))
+
+	actionsPanelStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexRow).
+				Margin(0, 0, 1, 0)
+
+	broadcastBtnStyle = style.S().
+				Margin(0, 1).
+				Background(style.RGB(60, 120, 220)).
+				Foreground(color.White)
+
+	toggleBtnStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(160, 80, 220)).
+			Foreground(color.White)
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100))
 )
 
 // PubSub is a simple pub/sub subscription broker for demonstrating UseEffectCleanup.
@@ -97,11 +140,11 @@ var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
 
 	statusText := "RUNNING"
 	btnText := " Pause Timer "
-	btnBg := color.RGBA{R: 220, G: 80, B: 80, A: 255}
+	btnBg := style.RGB(220, 80, 80)
 	if !getIsActive() {
 		statusText = "PAUSED"
 		btnText = " Resume Timer "
-		btnBg = color.RGBA{R: 80, G: 180, B: 100, A: 255}
+		btnBg = style.RGB(80, 180, 100)
 	}
 
 	return kitex.Box(kitex.BoxProps{
@@ -116,10 +159,12 @@ var TimerComponent = kitex.SimpleFC("TimerComponent", func() kitex.Node {
 		}, kitex.Text(fmt.Sprintf("Elapsed Time: %d seconds (%s)", getSeconds(), statusText))),
 
 		kitex.Button(kitex.ButtonProps{
-			OnClick: func(e event.Event) {
+			OnClick: func(e *event.MouseEvent) {
 				setIsActive(!getIsActive())
 			},
-			Style: style.S().Background(btnBg).Foreground(color.White),
+			Style: style.S().
+				Background(btnBg).
+				Foreground(color.White),
 		}, kitex.Text(btnText)),
 	)
 })
@@ -168,7 +213,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 		"Go-based Virtual DOM is responsive and reactive.",
 	}
 
-	handlePublish := func(e event.Event) {
+	handlePublish := func(e *event.MouseEvent) {
 		phrase := publishPhrases[rand.Intn(len(publishPhrases))]
 		globalBroker.Publish(phrase)
 	}
@@ -196,7 +241,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}, kitex.Text(" Broadcast Phrase ")),
 
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) {
+				OnClick: func(e *event.MouseEvent) {
 					setShowSub(!getShowSub())
 				},
 				Style: toggleBtnStyle,

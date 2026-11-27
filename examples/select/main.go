@@ -16,16 +16,59 @@ import (
 )
 
 var (
-	selectDropdownStyle     = style.S().Width(style.Cells(25))
-	instructionLineStyle    = style.S().Display(style.DisplayBlock).Foreground(color.RGBA{R: 150, G: 150, B: 180, A: 255}).Margin(0, 0, 0, 0)
-	titleStyle              = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0).Background(color.RGBA{R: 60, G: 60, B: 120, A: 255}).Foreground(color.White)
-	pickLabelStyle          = style.S().Bold(true)
-	pickerRowStyle          = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(1, 0, 2, 0).Gap(0, 1)
-	selectedStatusStyle     = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Bold(true)
-	statusRowStyle          = style.S().Margin(0, 0, 2, 0).Border(style.SingleBorder().Left(false).Right(false).Top(false).Color(color.RGBA{R: 50, G: 50, B: 50, A: 255}))
-	instructionsHeaderStyle = style.S().Bold(true).Margin(0, 0, 1, 0)
-	cardContainerStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart).JustifyContent(style.JustifyStart).Width(style.Cells(50)).Height(style.Auto).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(1, 3).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 100, A: 255}))
-	rootStyle               = style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255})
+	selectDropdownStyle = style.S().Width(style.Cells(25))
+
+	instructionLineStyle = style.S().
+				Display(style.DisplayBlock).
+				Margin(0, 0, 0, 0).
+				Foreground(style.RGB(150, 150, 180))
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Background(style.RGB(60, 60, 120)).
+			Foreground(color.White).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	pickLabelStyle = style.S().Bold(true)
+
+	pickerRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			AlignItems(style.AlignCenter).
+			Gap(0, 1).
+			Margin(1, 0, 2, 0)
+
+	selectedStatusStyle = style.S().
+				Foreground(style.RGB(100, 255, 100)).
+				Bold(true)
+
+	statusRowStyle = style.S().
+			Margin(0, 0, 2, 0).
+			Border(style.SingleBorder().Left(false).Right(false).Top(false).Color(style.RGB(50, 50, 50)))
+
+	instructionsHeaderStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Bold(true)
+
+	cardContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				JustifyContent(style.JustifyStart).
+				AlignItems(style.AlignStart).
+				Width(style.Cells(50)).
+				Height(style.Auto).
+				Padding(1, 3).
+				Border(style.SingleBorder().Color(style.RGB(100, 100, 100))).
+				Background(style.RGB(30, 30, 30))
+
+	rootStyle = style.S().
+			Display(style.DisplayFlex).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Background(style.RGB(15, 15, 20))
 )
 
 func main() {
@@ -62,7 +105,7 @@ func main() {
 	eng.Document().AddEventListener(event.EventFocus, func(e event.Event) {
 		if btn, ok := e.Target().(*element.ButtonElement); ok && btn.Class() == "select-option" {
 			s := btn.RawStyle()
-			s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold/Yellow text when focused
+			s = s.Foreground(style.RGB(255, 215, 0)) // Gold/Yellow text when focused
 			btn.Style(s)
 		}
 	}, event.Capture())

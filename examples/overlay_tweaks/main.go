@@ -18,15 +18,33 @@ import (
 )
 
 var (
-	anchorStyle           = style.S().Background(color.RGBA{R: 0, G: 128, B: 0, A: 255}).Foreground(color.White).Padding(1, 2).Border(style.SingleBorder()).Width(style.Cells(12))
+	anchorStyle = style.S().
+			Width(style.Cells(12)).
+			Padding(1, 2).
+			Border(style.SingleBorder()).
+			Background(style.RGB(0, 128, 0)).
+			Foreground(color.White)
+
 	boldLabelStyle        = style.S().Bold(true)
 	controlsStyle         = style.S().Margin(1, 0)
-	titleStyle            = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 50, B: 50, A: 255}).Padding(1)
-	infoTextStyle         = style.S().Foreground(color.RGBA{R: 255, G: 255, B: 0, A: 255})
+	infoTextStyle         = style.S().Foreground(style.RGB(255, 255, 0))
 	anchorWrapperStyle    = style.S().Margin(5, 20)
 	contentContainerStyle = style.S().Padding(1, 2)
-	rootStyle             = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
-	overlayStyle          = style.S().Background(color.RGBA{R: 128, G: 0, B: 0, A: 255}).Border(style.DoubleBorder()).Padding(0, 1)
+
+	titleStyle = style.S().
+			Padding(1).
+			Background(style.RGB(50, 50, 50)).
+			TextAlign(style.TextAlignCenter)
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Background(style.RGB(20, 20, 20))
+
+	overlayStyle = style.S().
+			Padding(0, 1).
+			Border(style.DoubleBorder()).
+			Background(style.RGB(128, 0, 0))
 )
 
 func main() {

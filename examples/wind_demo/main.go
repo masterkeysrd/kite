@@ -19,17 +19,54 @@ import (
 )
 
 var (
-	podCardStyle      = style.S().Padding(1, 2).Background(color.RGBA{R: 25, G: 35, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(90)).Margin(1, 0)
-	keyInfoStyle      = style.S().Margin(0, 0, 1, 0)
-	statusRowStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
-	bgFetchTextStyle  = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-	buttonsRowStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Gap(2)
-	restartBtnStyle   = style.S().Background(color.RGBA{R: 200, G: 60, B: 60, A: 255}).Foreground(color.White)
-	refetchBtnStyle   = style.S().Background(color.RGBA{R: 50, G: 120, B: 220, A: 255}).Foreground(color.White)
-	appContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(1, 2)
-	appHeaderStyle    = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
-	instructionsStyle = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
-	rootStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	podCardStyle = style.S().
+			Width(style.Percent(90)).
+			Margin(1, 0).
+			Padding(1, 2).
+			Border(style.SingleBorder()).
+			Background(style.RGB(25, 35, 55))
+
+	keyInfoStyle = style.S().Margin(0, 0, 1, 0)
+
+	statusRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			Margin(0, 0, 1, 0)
+
+	bgFetchTextStyle = style.S().Foreground(style.RGB(150, 150, 150))
+
+	buttonsRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			Gap(2)
+
+	restartBtnStyle = style.S().
+			Background(style.RGB(200, 60, 60)).
+			Foreground(color.White)
+
+	refetchBtnStyle = style.S().
+			Background(style.RGB(50, 120, 220)).
+			Foreground(color.White)
+
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				AlignItems(style.AlignCenter).
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Padding(1, 2).
+				Background(style.RGB(18, 18, 24))
+
+	appHeaderStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(240, 190, 90)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	instructionsStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Foreground(style.RGB(150, 150, 150)).
+				TextAlign(style.TextAlignCenter)
 )
 
 type PodKey struct {
@@ -60,33 +97,30 @@ func restartPod(ctx context.Context, key PodKey) *promise.Promise[string] {
 var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 	key := PodKey{Namespace: "prod", ID: "nginx-web-app"}
 
-	// Use wind query hook
 	query := wind.Use(key, func(ctx context.Context, k PodKey) *promise.Promise[string] {
 		return promise.New(func(ctx context.Context) (string, error) {
 			return fetchPodStatus(ctx, k)
 		})
 	})
 
-	// Use wind mutation hook
 	mutation := wind.UseMutation(restartPod, wind.MutationOptions[PodKey, string]{
 		OnSuccess: func(res string, vars PodKey, ctx wind.MutationContext) {
-			// Invalidate the cache for this pod key to trigger background refetch
 			ctx.Client.InvalidateQueries(vars)
 		},
 	})
 
 	statusText := "Unknown"
-	textColor := color.RGBA{R: 150, G: 150, B: 150, A: 255}
+	textColor := style.RGB(150, 150, 150)
 
 	if query.IsLoading {
 		statusText = "Loading initial status..."
-		textColor = color.RGBA{R: 240, G: 190, B: 90, A: 255}
+		textColor = style.RGB(240, 190, 90)
 	} else if query.IsError {
 		statusText = fmt.Sprintf("Error: %v", query.Error)
-		textColor = color.RGBA{R: 220, G: 60, B: 60, A: 255}
+		textColor = style.RGB(220, 60, 60)
 	} else if query.Data != "" {
 		statusText = query.Data
-		textColor = color.RGBA{R: 120, G: 220, B: 140, A: 255}
+		textColor = style.RGB(120, 220, 140)
 	}
 
 	bgStateText := ""
@@ -102,39 +136,38 @@ var PodStatusView = kitex.SimpleFC("PodStatusView", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
 		Style: podCardStyle,
 	},
-		// Key info
 		kitex.Box(kitex.BoxProps{
 			Style: keyInfoStyle,
-		}, kitex.Text(fmt.Sprintf("🔑 Query Key: PodKey{Namespace: %q, ID: %q}", key.Namespace, key.ID))),
+		}, kitex.Textf("🔑 Query Key: PodKey{Namespace: %q, ID: %q}", key.Namespace, key.ID)),
 
-		// Status info
 		kitex.Box(kitex.BoxProps{
 			Style: statusRowStyle,
 		},
 			kitex.Text("Current Status: "),
 			kitex.Box(kitex.BoxProps{
-				Style: style.S().Foreground(textColor).Bold(true),
+				Style: style.S().
+					Foreground(textColor).
+					Bold(true),
 			}, kitex.Text(statusText)),
 			kitex.Box(kitex.BoxProps{
 				Style: bgFetchTextStyle,
 			}, kitex.Text(bgStateText)),
 		),
 
-		// Action buttons
 		kitex.Box(kitex.BoxProps{
 			Style: buttonsRowStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) {
+				OnPress: func() {
 					if !mutation.IsPending {
 						mutation.Mutate(key)
 					}
 				},
 				Style: restartBtnStyle,
-			}, kitex.Text(fmt.Sprintf(" 🔄 %s ", mutationText))),
+			}, kitex.Textf(" 🔄 %s ", mutationText)),
 
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) {
+				OnPress: func() {
 					query.Refetch()
 				},
 				Style: refetchBtnStyle,
@@ -147,17 +180,14 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	return kitex.Box(kitex.BoxProps{
 		Style: appContainerStyle,
 	},
-		// Header
 		kitex.Box(kitex.BoxProps{
 			Style: appHeaderStyle,
 		}, kitex.Text("💨 Kite Async Data Fetching Demo (extras/wind)")),
 
-		// Help
 		kitex.Box(kitex.BoxProps{
 			Style: instructionsStyle,
 		}, kitex.Text("Use Tab to move focus. Press 'q' or 'ctrl+c' to quit.")),
 
-		// Status View
 		PodStatusView(),
 	)
 })
@@ -165,9 +195,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 func main() {
 	f, _ := os.Create("wind_demo.log")
 	defer f.Close()
-	logger := slog.New(slog.NewTextHandler(f, nil))
-	_ = logger // prevent unused variable error
-	slog.SetDefault(logger)
+	slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
 
 	b, err := uv.New()
 	if err != nil {
@@ -176,22 +204,22 @@ func main() {
 	}
 
 	eng := engine.New(b, engine.Options{})
-
-	container := element.NewBox(eng.Document())
-	container.Style(rootStyle)
+	container := element.NewBox(eng.Document()).Style(
+		style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)),
+	)
 	eng.Mount(container)
 
 	client := wind.NewClient()
 	rootNode := wind.Provider(wind.ProviderProps{Client: client}, App())
-
 	kitex.Render(rootNode, container)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	eng.Document().AddEventListener(event.EventKeyDown, func(e event.Event) {
-		ke := e.(*event.KeyEvent)
-		if ke.MatchString("q") || ke.MatchString("ctrl+c") {
+		if ke, ok := e.(*event.KeyEvent); ok && (ke.MatchString("q") || ke.MatchString("ctrl+c")) {
 			cancel()
 		}
 	})

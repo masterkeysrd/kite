@@ -20,35 +20,35 @@ import (
 var (
 	// Base styles for elements
 	baseStyle = style.S().
-			Border(style.SingleBorder().Color(color.RGBA{70, 70, 80, 255})).
-			Background(color.RGBA{30, 30, 35, 255}).
-			Foreground(color.RGBA{200, 200, 200, 255}).
-			Padding(0, 1).
-			Height(style.Cells(3)).
-			WhiteSpace(style.WhiteSpacePre).
 			JustifyContent(style.JustifyCenter).
-			AlignItems(style.AlignCenter)
+			AlignItems(style.AlignCenter).
+			Height(style.Cells(3)).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(style.RGB(70, 70, 80))).
+			Background(style.RGB(30, 30, 35)).
+			Foreground(style.RGB(200, 200, 200)).
+			WhiteSpace(style.WhiteSpacePre)
 
 	focusedStyle = style.S().
-			Border(style.DoubleBorder().Color(color.RGBA{0, 220, 255, 255})).
-			Background(color.RGBA{0, 50, 100, 255}).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Height(style.Cells(3)).
+			Padding(0, 1).
+			Border(style.DoubleBorder().Color(style.RGB(0, 220, 255))).
+			Background(style.RGB(0, 50, 100)).
 			Foreground(color.White).
 			Bold(true).
-			Padding(0, 1).
-			Height(style.Cells(3)).
-			WhiteSpace(style.WhiteSpacePre).
-			JustifyContent(style.JustifyCenter).
-			AlignItems(style.AlignCenter)
+			WhiteSpace(style.WhiteSpacePre)
 
 	hoverStyle = style.S().
-			Border(style.SingleBorder().Color(color.RGBA{0, 220, 255, 255})).
-			Background(color.RGBA{40, 40, 50, 255}).
-			Foreground(color.White).
-			Padding(0, 1).
-			Height(style.Cells(3)).
-			WhiteSpace(style.WhiteSpacePre).
 			JustifyContent(style.JustifyCenter).
-			AlignItems(style.AlignCenter)
+			AlignItems(style.AlignCenter).
+			Height(style.Cells(3)).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(style.RGB(0, 220, 255))).
+			Background(style.RGB(40, 40, 50)).
+			Foreground(color.White).
+			WhiteSpace(style.WhiteSpacePre)
 
 	// Container & Layout Styles
 	rootStyle = style.S().
@@ -56,23 +56,23 @@ var (
 			FlexDirection(style.FlexRow).
 			Width(style.Percent(100)).
 			Height(style.Percent(100)).
-			Background(color.RGBA{18, 18, 20, 255}).
-			Padding(1, 2)
+			Padding(1, 2).
+			Background(style.RGB(18, 18, 20))
 
 	sidebarStyle = style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
-			Width(style.Cells(22)).
-			Border(style.SingleBorder().Color(color.RGBA{60, 60, 70, 255})).
-			Padding(1, 1).
 			Gap(1, 0).
-			Margin(0, 2, 0, 0)
+			Width(style.Cells(22)).
+			Margin(0, 2, 0, 0).
+			Padding(1, 1).
+			Border(style.SingleBorder().Color(style.RGB(60, 60, 70)))
 
 	contentStyle = style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
-			Flex(1).
-			Gap(1, 0)
+			Gap(1, 0).
+			Flex(1)
 
 	headerStyle = style.S().
 			Display(style.DisplayFlex).
@@ -90,21 +90,24 @@ var (
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexRow).
 			Height(style.Cells(6)).
-			Border(style.SingleBorder().Color(color.RGBA{60, 60, 70, 255})).
+			Margin(1, 0, 0, 0).
 			Padding(1, 2).
-			Margin(1, 0, 0, 0)
+			Border(style.SingleBorder().Color(style.RGB(60, 60, 70)))
 
 	virtualArrowPadStyle = style.S().
 				Display(style.DisplayFlex).
 				FlexDirection(style.FlexColumn).
-				AlignItems(style.AlignCenter).
 				JustifyContent(style.JustifyCenter).
+				AlignItems(style.AlignCenter).
 				Width(style.Cells(14)).
-				Border(style.SingleBorder().Color(color.RGBA{45, 45, 50, 255})).
-				Margin(0, 0, 0, 4)
+				Margin(0, 0, 0, 4).
+				Border(style.SingleBorder().Color(style.RGB(45, 45, 50)))
 
-	arrowNormal = style.S().Foreground(color.RGBA{90, 90, 100, 255})
-	arrowActive = style.S().Foreground(color.RGBA{0, 220, 255, 255}).Bold(true)
+	arrowNormal = style.S().Foreground(style.RGB(90, 90, 100))
+
+	arrowActive = style.S().
+			Foreground(style.RGB(0, 220, 255)).
+			Bold(true)
 )
 
 func setupButton(btn *element.ButtonElement, requestFrame func()) *element.ButtonElement {
@@ -158,7 +161,12 @@ func main() {
 	}
 
 	// 1. Sidebar Buttons
-	sidebarTitle := element.Box("  SIDEBAR MENU").Style(style.S().Bold(true).Margin(0, 0, 1, 0).Foreground(color.RGBA{130, 130, 140, 255}))
+	sidebarTitle := element.Box("  SIDEBAR MENU").Style(
+		style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(130, 130, 140)).
+			Bold(true),
+	)
 	btnHome := setupButton(element.Button("  Home  ").WithID("menu-home"), requestFrame)
 	btnAnalytics := setupButton(element.Button("  Analytics  ").WithID("menu-analytics"), requestFrame)
 	btnProfile := setupButton(element.Button("  Profile  ").WithID("menu-profile"), requestFrame)
@@ -197,10 +205,20 @@ func main() {
 	keyText := element.Text("Last Key: None")
 
 	logBox := element.Box(
-		element.Box("LOG CONSOLE").Style(style.S().Bold(true).Foreground(color.RGBA{130, 130, 140, 255}).Margin(0, 0, 1, 0)),
+		element.Box("LOG CONSOLE").Style(
+			style.S().
+				Margin(0, 0, 1, 0).
+				Foreground(style.RGB(130, 130, 140)).
+				Bold(true),
+		),
 		element.Box(focusText),
 		element.Box(keyText),
-	).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Flex(1))
+	).Style(
+		style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			Flex(1),
+	)
 
 	arrowUp := element.Span("▲").Style(arrowNormal)
 	arrowLeft := element.Span("◄ ").Style(arrowNormal)
@@ -220,7 +238,12 @@ func main() {
 	// 5. Main Layout Assembly
 	contentArea := element.Box(
 		header,
-		element.Box("Action Cards Grid (Move cursor with Left/Right arrows):").Style(style.S().Bold(true).Foreground(color.RGBA{160, 160, 170, 255}).Margin(0, 0, 1, 0)),
+		element.Box("Action Cards Grid (Move cursor with Left/Right arrows):").Style(
+			style.S().
+				Margin(0, 0, 1, 0).
+				Foreground(style.RGB(160, 160, 170)).
+				Bold(true),
+		),
 		row1,
 		row2,
 		logPanel,

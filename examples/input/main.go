@@ -14,7 +14,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 
@@ -29,23 +28,27 @@ import (
 )
 
 var (
-	spacerStyle        = style.S().Height(style.Cells(1))
-	footerRowStyle     = style.S().Margin(1, 0, 0, 0)
-	shortcutBadgeStyle = style.S().Background(color.RGBA{R: 60, G: 65, B: 90, A: 255}).Foreground(color.RGBA{R: 200, G: 210, B: 255, A: 255}).Padding(0, 1)
+	spacerStyle    = style.S().Height(style.Cells(1))
+	footerRowStyle = style.S().Margin(1, 0, 0, 0)
+
+	shortcutBadgeStyle = style.S().
+				Padding(0, 1).
+				Background(style.RGB(60, 65, 90)).
+				Foreground(style.RGB(200, 210, 255))
 )
 
 // ── palette ──────────────────────────────────────────────────────────────────
 
 var (
-	colBG        = color.RGBA{R: 18, G: 18, B: 23, A: 255}    // app background
-	colCard      = color.RGBA{R: 28, G: 30, B: 40, A: 255}    // card surface
-	colBorder    = color.RGBA{R: 60, G: 65, B: 90, A: 255}    // card border
-	colInputBG   = color.RGBA{R: 22, G: 24, B: 35, A: 255}    // input background
-	colLabel     = color.RGBA{R: 160, G: 165, B: 200, A: 255} // label text
-	colTitle     = color.RGBA{R: 200, G: 210, B: 255, A: 255} // title text
-	colHint      = color.RGBA{R: 80, G: 85, B: 110, A: 255}   // hint / footer text
-	colAccent    = color.RGBA{R: 100, G: 200, B: 130, A: 255} // echo value color
-	colSeparator = color.RGBA{R: 45, G: 48, B: 65, A: 255}    // horizontal rule
+	colBG        = style.RGB(18, 18, 23)    // app background
+	colCard      = style.RGB(28, 30, 40)    // card surface
+	colBorder    = style.RGB(60, 65, 90)    // card border
+	colInputBG   = style.RGB(22, 24, 35)    // input background
+	colLabel     = style.RGB(160, 165, 200) // label text
+	colTitle     = style.RGB(200, 210, 255) // title text
+	colHint      = style.RGB(80, 85, 110)   // hint / footer text
+	colAccent    = style.RGB(100, 200, 130) // echo value color
+	colSeparator = style.RGB(45, 48, 65)    // horizontal rule
 )
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -83,12 +86,30 @@ func main() {
 	const fieldWidth = 30
 
 	usernameInp := element.NewInput(eng.Document(), "").WithPlaceholder("Type username...")
-	usernameInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1))
+	usernameInp.Style(
+		style.S().
+			Width(style.Cells(fieldWidth)).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(colBorder)).
+			Background(colInputBG).
+			Foreground(style.RGB(220, 225, 255)),
+	)
 
 	passwordInp := element.NewInput(eng.Document(), "").
 		WithPlaceholder("Type password...").
-		WithPlaceholderStyle(style.S().Foreground(color.RGBA{R: 120, G: 100, B: 150, A: 255}).Italic(true))
-	passwordInp.Style(style.S().Width(style.Cells(fieldWidth)).Background(colInputBG).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1))
+		WithPlaceholderStyle(
+			style.S().
+				Foreground(style.RGB(120, 100, 150)).
+				Italic(true),
+		)
+	passwordInp.Style(
+		style.S().
+			Width(style.Cells(fieldWidth)).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(colBorder)).
+			Background(colInputBG).
+			Foreground(style.RGB(220, 225, 255)),
+	)
 
 	// ── live echo text node ──────────────────────────────────────────────────
 	// A Text node that displays the current username value in real time.
@@ -112,29 +133,60 @@ func main() {
 		element.Box(
 
 			// Title
-			element.Box("  Sign In  ").Style(style.S().Foreground(colTitle).Bold(true).TextAlign(style.TextAlignCenter).Width(style.Percent(100)).Margin(0, 0, 1, 0)),
+			element.Box("  Sign In  ").Style(
+				style.S().
+					Width(style.Percent(100)).
+					Margin(0, 0, 1, 0).
+					Foreground(colTitle).
+					Bold(true).
+					TextAlign(style.TextAlignCenter),
+			),
 
 			// Separator
-			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(0, 0, 1, 0)),
+			element.Box("").Style(
+				style.S().
+					Width(style.Percent(100)).
+					Height(style.Cells(1)).
+					Margin(0, 0, 1, 0).
+					Background(colSeparator),
+			),
 
 			// Username label + field
-			element.Box("Username").Style(style.S().Foreground(colLabel).Margin(0, 0, 0, 0)),
+			element.Box("Username").Style(
+				style.S().
+					Margin(0, 0, 0, 0).
+					Foreground(colLabel),
+			),
 			usernameInp,
 
 			// Spacer
 			element.Box("").Style(spacerStyle),
 
 			// Password label + field
-			element.Box("Password").Style(style.S().Foreground(colLabel).Margin(0, 0, 0, 0)),
+			element.Box("Password").Style(
+				style.S().
+					Margin(0, 0, 0, 0).
+					Foreground(colLabel),
+			),
 			passwordInp,
 
 			// Separator
-			element.Box("").Style(style.S().Width(style.Percent(100)).Height(style.Cells(1)).Background(colSeparator).Margin(1, 0, 0, 0)),
+			element.Box("").Style(
+				style.S().
+					Width(style.Percent(100)).
+					Height(style.Cells(1)).
+					Margin(1, 0, 0, 0).
+					Background(colSeparator),
+			),
 
 			// Live echo row
 			element.Box(
 				element.Span("Username value: ").Style(style.S().Foreground(colHint)),
-				element.Span(echoText).Style(style.S().Foreground(colAccent).Bold(true)),
+				element.Span(echoText).Style(
+					style.S().
+						Foreground(colAccent).
+						Bold(true),
+				),
 			).Style(footerRowStyle),
 
 			// Hints footer
@@ -146,8 +198,25 @@ func main() {
 				element.Span("Q").Style(shortcutBadgeStyle),
 				element.Span(" quit").Style(style.S().Foreground(colHint)),
 			).Style(footerRowStyle),
-		).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Cells(fieldWidth+6)).Background(colCard).Border(style.SingleBorder().Color(colBorder)).Padding(1, 2)),
-	).Style(style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG))
+		).Style(
+			style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Width(style.Cells(fieldWidth+6)).
+				Padding(1, 2).
+				Border(style.SingleBorder().Color(colBorder)).
+				Background(colCard),
+		),
+	).Style(
+		style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Background(colBG),
+	)
 
 	eng.Mount(root)
 

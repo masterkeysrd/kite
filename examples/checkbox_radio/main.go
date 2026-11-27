@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 
@@ -16,17 +15,54 @@ import (
 )
 
 var (
-	checkboxStyle        = style.S().Margin(0, 1, 0, 0)
-	radioItemStyle       = style.S().Margin(0, 0, 0, 0)
-	titleStyle           = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0)
-	checkboxLabelStyle   = style.S().Bold(true).Margin(0, 1, 0, 0)
-	checkboxStatusStyle  = style.S().Foreground(color.RGBA{R: 100, G: 200, B: 255, A: 255})
-	checkboxRowStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(0, 0, 2, 0)
-	radioGroupLabelStyle = style.S().Bold(true).Margin(0, 0, 1, 0)
-	radioStatusStyle     = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Margin(1, 0, 0, 0)
-	instructionsStyle    = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-	contentWrapperStyle  = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart).JustifyContent(style.JustifyCenter).Width(style.Percent(80)).Height(style.Percent(80)).Background(color.RGBA{R: 30, G: 30, B: 30, A: 255}).Padding(1, 2).Border(style.SingleBorder())
-	rootStyle            = style.S().Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 15, A: 255})
+	checkboxStyle  = style.S().Margin(0, 1, 0, 0)
+	radioItemStyle = style.S().Margin(0, 0, 0, 0)
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	checkboxLabelStyle = style.S().
+				Margin(0, 1, 0, 0).
+				Bold(true)
+
+	checkboxStatusStyle = style.S().Foreground(style.RGB(100, 200, 255))
+
+	checkboxRowStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter).
+				Margin(0, 0, 2, 0)
+
+	radioGroupLabelStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Bold(true)
+
+	radioStatusStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Foreground(style.RGB(100, 255, 100))
+
+	instructionsStyle = style.S().Foreground(style.RGB(150, 150, 150))
+
+	contentWrapperStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				JustifyContent(style.JustifyCenter).
+				AlignItems(style.AlignStart).
+				Width(style.Percent(80)).
+				Height(style.Percent(80)).
+				Padding(1, 2).
+				Border(style.SingleBorder()).
+				Background(style.RGB(30, 30, 30))
+
+	rootStyle = style.S().
+			Display(style.DisplayFlex).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Background(style.RGB(15, 15, 15))
 )
 
 func main() {
@@ -108,11 +144,11 @@ func main() {
 			switch el := et.(type) {
 			case *element.CheckboxElement:
 				s := el.RawStyle()
-				s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
+				s = s.Foreground(style.RGB(255, 215, 0)) // Gold when focused
 				el.Style(s)
 			case *element.RadioElement:
 				s := el.RawStyle()
-				s = s.Foreground(color.RGBA{R: 255, G: 215, B: 0, A: 255}) // Gold when focused
+				s = s.Foreground(style.RGB(255, 215, 0)) // Gold when focused
 				el.Style(s)
 			}
 		}

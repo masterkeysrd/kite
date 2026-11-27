@@ -18,22 +18,84 @@ import (
 )
 
 var (
-	cardAStyle           = style.S().Padding(1, 2).Background(color.RGBA{R: 35, G: 38, B: 55, A: 255}).Border(style.SingleBorder()).Width(style.Percent(45)).Margin(0, 1)
-	cardATitleStyle      = style.S().Bold(true).Foreground(color.RGBA{R: 90, G: 180, B: 255, A: 255})
+	cardAStyle = style.S().
+			Width(style.Percent(45)).
+			Margin(0, 1).
+			Padding(1, 2).
+			Border(style.SingleBorder()).
+			Background(style.RGB(35, 38, 55))
+
+	cardATitleStyle = style.S().
+			Foreground(style.RGB(90, 180, 255)).
+			Bold(true)
+
 	cardBodyStyle        = style.S().Margin(1, 0)
-	cardRendersTextStyle = style.S().Foreground(color.RGBA{R: 160, G: 160, B: 180, A: 255})
-	cardBStyle           = style.S().Padding(1, 2).Background(color.RGBA{R: 35, G: 55, B: 38, A: 255}).Border(style.SingleBorder()).Width(style.Percent(45)).Margin(0, 1)
-	cardBTitleStyle      = style.S().Bold(true).Foreground(color.RGBA{R: 120, G: 220, B: 140, A: 255})
-	appContainerStyle    = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 18, G: 18, B: 24, A: 255}).Padding(1, 2)
-	appHeaderStyle       = style.S().Bold(true).Foreground(color.RGBA{R: 240, G: 190, B: 90, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
-	appDescriptionStyle  = style.S().Foreground(color.RGBA{R: 180, G: 180, B: 200, A: 255}).Margin(0, 0, 2, 0).TextAlign(style.TextAlignCenter)
-	cardsRowStyle        = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyAround).Margin(0, 0, 2, 0)
-	buttonsRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyCenter)
-	btnAStyle            = style.S().Background(color.RGBA{R: 50, G: 120, B: 220, A: 255}).Foreground(color.White).Margin(0, 1)
-	btnBStyle            = style.S().Background(color.RGBA{R: 50, G: 180, B: 100, A: 255}).Foreground(color.White).Margin(0, 1)
-	btnAsyncStyle        = style.S().Background(color.RGBA{R: 180, G: 80, B: 220, A: 255}).Foreground(color.White).Margin(0, 1)
-	footerStyle          = style.S().Foreground(color.RGBA{R: 120, G: 120, B: 120, A: 255}).Margin(2, 0, 0, 0).TextAlign(style.TextAlignCenter)
-	rootStyle            = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	cardRendersTextStyle = style.S().Foreground(style.RGB(160, 160, 180))
+
+	cardBStyle = style.S().
+			Width(style.Percent(45)).
+			Margin(0, 1).
+			Padding(1, 2).
+			Border(style.SingleBorder()).
+			Background(style.RGB(35, 55, 38))
+
+	cardBTitleStyle = style.S().
+			Foreground(style.RGB(120, 220, 140)).
+			Bold(true)
+
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Padding(1, 2).
+				Background(style.RGB(18, 18, 24))
+
+	appHeaderStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(240, 190, 90)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	appDescriptionStyle = style.S().
+				Margin(0, 0, 2, 0).
+				Foreground(style.RGB(180, 180, 200)).
+				TextAlign(style.TextAlignCenter)
+
+	cardsRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			JustifyContent(style.JustifyAround).
+			Margin(0, 0, 2, 0)
+
+	buttonsRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			JustifyContent(style.JustifyCenter)
+
+	btnAStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(50, 120, 220)).
+			Foreground(color.White)
+
+	btnBStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(50, 180, 100)).
+			Foreground(color.White)
+
+	btnAsyncStyle = style.S().
+			Margin(0, 1).
+			Background(style.RGB(180, 80, 220)).
+			Foreground(color.White)
+
+	footerStyle = style.S().
+			Margin(2, 0, 0, 0).
+			Foreground(style.RGB(120, 120, 120)).
+			TextAlign(style.TextAlignCenter)
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100))
 )
 
 type AppState struct {
@@ -115,7 +177,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			Style: buttonsRowStyle,
 		},
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) {
+				OnClick: func(e *event.MouseEvent) {
 					store.Set(func(s AppState) AppState {
 						s.CountA++
 						return s
@@ -125,7 +187,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}, kitex.Text(" Increment A ")),
 
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) {
+				OnClick: func(e *event.MouseEvent) {
 					store.Set(func(s AppState) AppState {
 						s.CountB++
 						return s
@@ -135,7 +197,7 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 			}, kitex.Text(" Increment B ")),
 
 			kitex.Button(kitex.ButtonProps{
-				OnClick: func(e event.Event) {
+				OnClick: func(e *event.MouseEvent) {
 					go func() {
 						time.Sleep(500 * time.Millisecond)
 						store.Set(func(s AppState) AppState {

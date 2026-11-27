@@ -16,22 +16,99 @@ import (
 )
 
 var (
-	gridContainerStyle         = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Padding(1, 2).Background(color.RGBA{15, 15, 15, 255})
-	titleStyle                 = style.S().Foreground(color.RGBA{255, 255, 0, 255}).Margin(0, 0, 1, 0)
-	basicGridStyle             = style.S().Display(style.DisplayGrid).GridTemplateColumns(style.Repeat(2, style.Fr(1))...).GridTemplateRows(style.Repeat(2, style.Fr(1))...).Height(style.Auto).Border(style.SingleBorder())
-	footerHintStyle            = style.S().Foreground(color.RGBA{100, 100, 100, 255})
-	spanningItemStyle          = style.S().Background(color.RGBA{150, 0, 150, 255}).Border(style.SingleBorder()).GridColumn(style.GridPlacement{Span: 2})
-	spanningGridStyle          = style.S().Display(style.DisplayGrid).GridTemplateColumns(style.Repeat(2, style.Fr(1))...).GridTemplateRows(style.Repeat(2, style.Fr(1))...).Height(style.Auto).Border(style.SingleBorder()).Gap(1)
-	autoPlacementGridStyle     = style.S().Display(style.DisplayGrid).GridTemplateColumns(style.Repeat(3, style.Fr(1))...).GridColumnGap(4).GridRowGap(1).Height(style.Auto).Border(style.SingleBorder()).Padding(1)
-	mixedTracksGridStyle       = style.S().Display(style.DisplayGrid).GridTemplateColumns(style.Cells(10), style.Auto, style.Fr(1)).Height(style.Auto).Border(style.SingleBorder())
-	explicitCell1Style         = style.S().Background(color.RGBA{100, 0, 0, 255}).Border(style.SingleBorder()).GridColumn(style.GridPlacement{Start: 1}).GridRow(style.GridPlacement{Start: 1})
-	explicitCell2Style         = style.S().Background(color.RGBA{0, 100, 0, 255}).Border(style.SingleBorder()).GridColumn(style.GridPlacement{Start: 2}).GridRow(style.GridPlacement{Start: 2})
-	explicitCell3Style         = style.S().Background(color.RGBA{0, 0, 100, 255}).Border(style.SingleBorder()).GridColumn(style.GridPlacement{Start: 3}).GridRow(style.GridPlacement{Start: 3})
-	explicitGridStyle          = style.S().Display(style.DisplayGrid).GridTemplateColumns(style.Repeat(3, style.Fr(1))...).GridTemplateRows(style.Repeat(3, style.Cells(3))...).Height(style.Auto).Border(style.SingleBorder())
-	holyGrailHeaderFooterStyle = style.S().Background(color.RGBA{150, 150, 150, 255}).Foreground(color.RGBA{0, 0, 0, 255}).Border(style.SingleBorder()).GridColumn(style.GridPlacement{Span: 3})
-	holyGrailSidebarStyle      = style.S().Background(color.RGBA{100, 100, 100, 255}).Border(style.SingleBorder())
-	holyGrailContentStyle      = style.S().Background(color.RGBA{50, 50, 50, 255}).Border(style.SingleBorder())
-	holyGrailGridStyle         = style.S().Display(style.DisplayGrid).GridTemplateColumns(style.Cells(12), style.Fr(1), style.Cells(10)).GridTemplateRows(style.Cells(3), style.Fr(1), style.Cells(3)).Width(style.Percent(100)).Height(style.Cells(15)).Border(style.SingleBorder())
+	gridContainerStyle = style.S().
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Padding(1, 2).
+				Background(style.RGB(15, 15, 15))
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(255, 255, 0))
+
+	basicGridStyle = style.S().
+			Display(style.DisplayGrid).
+			GridTemplateColumns(style.Repeat(2, style.Fr(1))...).
+			GridTemplateRows(style.Repeat(2, style.Fr(1))...).
+			Height(style.Auto).
+			Border(style.SingleBorder())
+
+	footerHintStyle = style.S().Foreground(style.RGB(100, 100, 100))
+
+	spanningItemStyle = style.S().
+				GridColumn(style.GridPlacement{Span: 2}).
+				Border(style.SingleBorder()).
+				Background(style.RGB(150, 0, 150))
+
+	spanningGridStyle = style.S().
+				Display(style.DisplayGrid).
+				Gap(1).
+				GridTemplateColumns(style.Repeat(2, style.Fr(1))...).
+				GridTemplateRows(style.Repeat(2, style.Fr(1))...).
+				Height(style.Auto).
+				Border(style.SingleBorder())
+
+	autoPlacementGridStyle = style.S().
+				Display(style.DisplayGrid).
+				GridTemplateColumns(style.Repeat(3, style.Fr(1))...).
+				GridColumnGap(4).
+				GridRowGap(1).
+				Height(style.Auto).
+				Padding(1).
+				Border(style.SingleBorder())
+
+	mixedTracksGridStyle = style.S().
+				Display(style.DisplayGrid).
+				GridTemplateColumns(style.Cells(10), style.Auto, style.Fr(1)).
+				Height(style.Auto).
+				Border(style.SingleBorder())
+
+	explicitCell1Style = style.S().
+				GridColumn(style.GridPlacement{Start: 1}).
+				GridRow(style.GridPlacement{Start: 1}).
+				Border(style.SingleBorder()).
+				Background(style.RGB(100, 0, 0))
+
+	explicitCell2Style = style.S().
+				GridColumn(style.GridPlacement{Start: 2}).
+				GridRow(style.GridPlacement{Start: 2}).
+				Border(style.SingleBorder()).
+				Background(style.RGB(0, 100, 0))
+
+	explicitCell3Style = style.S().
+				GridColumn(style.GridPlacement{Start: 3}).
+				GridRow(style.GridPlacement{Start: 3}).
+				Border(style.SingleBorder()).
+				Background(style.RGB(0, 0, 100))
+
+	explicitGridStyle = style.S().
+				Display(style.DisplayGrid).
+				GridTemplateColumns(style.Repeat(3, style.Fr(1))...).
+				GridTemplateRows(style.Repeat(3, style.Cells(3))...).
+				Height(style.Auto).
+				Border(style.SingleBorder())
+
+	holyGrailHeaderFooterStyle = style.S().
+					GridColumn(style.GridPlacement{Span: 3}).
+					Border(style.SingleBorder()).
+					Background(style.RGB(150, 150, 150)).
+					Foreground(style.RGB(0, 0, 0))
+
+	holyGrailSidebarStyle = style.S().
+				Border(style.SingleBorder()).
+				Background(style.RGB(100, 100, 100))
+
+	holyGrailContentStyle = style.S().
+				Border(style.SingleBorder()).
+				Background(style.RGB(50, 50, 50))
+
+	holyGrailGridStyle = style.S().
+				Display(style.DisplayGrid).
+				GridTemplateColumns(style.Cells(12), style.Fr(1), style.Cells(10)).
+				GridTemplateRows(style.Cells(3), style.Fr(1), style.Cells(3)).
+				Width(style.Percent(100)).
+				Height(style.Cells(15)).
+				Border(style.SingleBorder())
 )
 
 func main() {
@@ -94,17 +171,21 @@ func containerStyle() style.Style {
 }
 
 func itemStyle(bg color.Color) style.Style {
-	return style.S().Background(bg).Border(style.SingleBorder()).Width(style.Percent(100)).Height(style.Percent(100))
+	return style.S().
+		Width(style.Percent(100)).
+		Height(style.Percent(100)).
+		Border(style.SingleBorder()).
+		Background(bg)
 }
 
 func viewBasicGrid() element.Element {
 	return element.Box(
 		element.Box("1. Basic 2x2 Grid (1fr tracks)").Style(titleStyle),
 		element.Box(
-			element.Box("1").Style(itemStyle(color.RGBA{150, 0, 0, 255})),
-			element.Box("2").Style(itemStyle(color.RGBA{0, 150, 0, 255})),
-			element.Box("3").Style(itemStyle(color.RGBA{0, 0, 150, 255})),
-			element.Box("4").Style(itemStyle(color.RGBA{150, 150, 0, 255})),
+			element.Box("1").Style(itemStyle(style.RGB(150, 0, 0))),
+			element.Box("2").Style(itemStyle(style.RGB(0, 150, 0))),
+			element.Box("3").Style(itemStyle(style.RGB(0, 0, 150))),
+			element.Box("4").Style(itemStyle(style.RGB(150, 150, 0))),
 		).Style(basicGridStyle),
 		element.Box("\nPress [SPACE] to see Spanning Grid").Style(footerHintStyle),
 	).Style(containerStyle())
@@ -116,8 +197,8 @@ func viewSpanningGrid() element.Element {
 		element.Box(
 			// Item 1 spans 2 columns
 			element.Box("Spans 2 Cols").Style(spanningItemStyle),
-			element.Box("3").Style(itemStyle(color.RGBA{0, 150, 150, 255})),
-			element.Box("4").Style(itemStyle(color.RGBA{150, 150, 150, 255})),
+			element.Box("3").Style(itemStyle(style.RGB(0, 150, 150))),
+			element.Box("4").Style(itemStyle(style.RGB(150, 150, 150))),
 		).Style(spanningGridStyle),
 		element.Box("\nPress [SPACE] to see Auto Placement").Style(footerHintStyle),
 	).Style(containerStyle())
@@ -127,12 +208,12 @@ func viewAutoPlacement() element.Element {
 	return element.Box(
 		element.Box("3. Auto Placement (with Gaps)").Style(titleStyle),
 		element.Box(
-			element.Box("A").Style(itemStyle(color.RGBA{100, 50, 0, 255})),
-			element.Box("B").Style(itemStyle(color.RGBA{0, 100, 50, 255})),
-			element.Box("C").Style(itemStyle(color.RGBA{50, 0, 100, 255})),
-			element.Box("D").Style(itemStyle(color.RGBA{100, 100, 100, 255})),
-			element.Box("E").Style(itemStyle(color.RGBA{50, 50, 50, 255})),
-			element.Box("F").Style(itemStyle(color.RGBA{0, 0, 0, 255})),
+			element.Box("A").Style(itemStyle(style.RGB(100, 50, 0))),
+			element.Box("B").Style(itemStyle(style.RGB(0, 100, 50))),
+			element.Box("C").Style(itemStyle(style.RGB(50, 0, 100))),
+			element.Box("D").Style(itemStyle(style.RGB(100, 100, 100))),
+			element.Box("E").Style(itemStyle(style.RGB(50, 50, 50))),
+			element.Box("F").Style(itemStyle(style.RGB(0, 0, 0))),
 		).Style(autoPlacementGridStyle),
 		element.Box("\nPress [SPACE] to see Mixed Tracks").Style(footerHintStyle),
 	).Style(containerStyle())
@@ -142,9 +223,9 @@ func viewMixedTracks() element.Element {
 	return element.Box(
 		element.Box("4. Mixed Tracks (Fixed, Auto, Fr)").Style(titleStyle),
 		element.Box(
-			element.Box("Fixed 10").Style(itemStyle(color.RGBA{150, 0, 0, 255})),
-			element.Box("Auto (Shrink)").Style(itemStyle(color.RGBA{0, 150, 0, 255})),
-			element.Box("1fr (Rest)").Style(itemStyle(color.RGBA{0, 0, 150, 255})),
+			element.Box("Fixed 10").Style(itemStyle(style.RGB(150, 0, 0))),
+			element.Box("Auto (Shrink)").Style(itemStyle(style.RGB(0, 150, 0))),
+			element.Box("1fr (Rest)").Style(itemStyle(style.RGB(0, 0, 150))),
 		).Style(mixedTracksGridStyle),
 		element.Box("\nPress [SPACE] to see Explicit Coordinates").Style(footerHintStyle),
 	).Style(containerStyle())

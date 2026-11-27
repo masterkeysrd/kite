@@ -20,18 +20,71 @@ import (
 )
 
 var (
-	stageStyle          = style.S().Display(style.DisplayFlex).Width(style.Percent(100)).Height(style.Percent(100)).Border(style.SingleBorder().Color(color.RGBA{R: 60, G: 60, B: 70, A: 255})).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter)
-	titleStyle          = style.S().Bold(true).Foreground(color.RGBA{R: 0, G: 255, B: 200, A: 255}).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0)
-	sectionLabelStyle   = style.S().Bold(true).Margin(0, 0, 0, 1)
-	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Margin(0, 0, 1, 0)
-	spacerStyle         = style.S().Flex(1)
-	statusTextStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 0, A: 255}).Bold(true)
-	sidebarStyle        = style.S().Width(style.Cells(45)).Height(style.Percent(100)).Background(color.RGBA{R: 25, G: 25, B: 35, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 80, G: 80, B: 90, A: 255})).Padding(1, 2).Display(style.DisplayFlex).FlexDirection(style.FlexColumn)
-	separatorStyle      = style.S().Width(style.Cells(2))
-	stageContainerStyle = style.S().Flex(1).Height(style.Percent(100)).Display(style.DisplayFlex)
-	mainLayoutStyle     = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Width(style.Percent(100)).Flex(1).JustifyContent(style.JustifyBetween)
-	instructionsStyle   = style.S().Foreground(color.RGBA{R: 130, G: 130, B: 140, A: 255}).Margin(1, 0, 0, 0).TextAlign(style.TextAlignCenter)
-	rootStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255}).Padding(1, 2)
+	stageStyle = style.S().
+			Display(style.DisplayFlex).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Border(style.SingleBorder().Color(style.RGB(60, 60, 70))).
+			Background(style.RGB(20, 20, 25))
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(0, 255, 200)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	sectionLabelStyle = style.S().
+				Margin(0, 0, 0, 1).
+				Bold(true)
+
+	buttonRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			Margin(0, 0, 1, 0)
+
+	spacerStyle = style.S().Flex(1)
+
+	statusTextStyle = style.S().
+			Foreground(style.RGB(255, 200, 0)).
+			Bold(true)
+
+	sidebarStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			Width(style.Cells(45)).
+			Height(style.Percent(100)).
+			Padding(1, 2).
+			Border(style.SingleBorder().Color(style.RGB(80, 80, 90))).
+			Background(style.RGB(25, 25, 35))
+
+	separatorStyle = style.S().Width(style.Cells(2))
+
+	stageContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				Flex(1).
+				Height(style.Percent(100))
+
+	mainLayoutStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			JustifyContent(style.JustifyBetween).
+			Flex(1).
+			Width(style.Percent(100))
+
+	instructionsStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Foreground(style.RGB(130, 130, 140)).
+				TextAlign(style.TextAlignCenter)
+
+	rootStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Padding(1, 2).
+			Background(style.RGB(15, 15, 20))
 )
 
 // GroupAnimator runs multiple animations in parallel.
@@ -74,7 +127,7 @@ var (
 	// Animation target state variables
 	targetWidth              = 20
 	targetHeight             = 3
-	targetColor  color.Color = color.RGBA{R: 138, G: 43, B: 226, A: 255} // Purple
+	targetColor  color.Color = style.RGB(138, 43, 226) // Purple
 
 	// Run loop/stage state
 	isAnimating = false
@@ -225,8 +278,8 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 
 		if selectedPropertyName == "Color" || selectedPropertyName == "All" {
 			var start, end color.Color
-			c1 := color.RGBA{R: 138, G: 43, B: 226, A: 255} // Purple
-			c2 := color.RGBA{R: 0, G: 206, B: 209, A: 255}  // Cyan
+			c1 := style.RGB(138, 43, 226) // Purple
+			c2 := style.RGB(0, 206, 209)  // Cyan
 			if forward {
 				start, end = c1, c2
 			} else {
@@ -338,7 +391,17 @@ func runWithBackend(ctx context.Context, b backend.Backend, logger *slog.Logger,
 
 // updateTargetStyle modifies style properties of the animated box
 func updateTargetStyle() {
-	targetBox.Style(style.S().Width(style.Cells(targetWidth)).Height(style.Cells(targetHeight)).Background(targetColor).Border(style.DoubleBorder().Color(color.RGBA{R: 220, G: 220, B: 220, A: 255})).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Foreground(color.White).Bold(true))
+	targetBox.Style(
+		style.S().
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Cells(targetWidth)).
+			Height(style.Cells(targetHeight)).
+			Border(style.DoubleBorder().Color(style.RGB(220, 220, 220))).
+			Background(targetColor).
+			Foreground(color.White).
+			Bold(true),
+	)
 	if eng != nil {
 		eng.RequestFrame()
 	}
@@ -377,38 +440,54 @@ func refreshControls() {
 }
 
 func applyButtonStyle(btn *element.ButtonElement, selected bool, focused bool) {
-	bg := color.Color(color.RGBA{R: 35, G: 35, B: 45, A: 255})
-	fg := color.Color(color.RGBA{R: 200, G: 200, B: 200, A: 255})
-	borderCol := color.RGBA{R: 70, G: 70, B: 80, A: 255}
+	bg := style.RGB(35, 35, 45)
+	fg := style.RGB(200, 200, 200)
+	borderCol := style.RGB(70, 70, 80)
 
 	if selected {
-		bg = color.Color(color.RGBA{R: 0, G: 200, B: 150, A: 255}) // Teal-Green for selected
-		fg = color.Color(color.Black)
-		borderCol = color.RGBA{R: 0, G: 255, B: 200, A: 255}
+		bg = style.RGB(0, 200, 150) // Teal-Green for selected
+		fg = color.Black
+		borderCol = style.RGB(0, 255, 200)
 	} else if focused {
-		bg = color.Color(color.RGBA{R: 50, G: 50, B: 65, A: 255})
-		fg = color.Color(color.White)
-		borderCol = color.RGBA{R: 255, G: 165, B: 0, A: 255} // Orange focus ring
+		bg = style.RGB(50, 50, 65)
+		fg = color.White
+		borderCol = style.RGB(255, 165, 0) // Orange focus ring
 	}
 
-	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.SingleBorder().Color(borderCol)).Padding(0, 1).Margin(0, 1, 0, 0))
+	btn.Style(
+		style.S().
+			Margin(0, 1, 0, 0).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(borderCol)).
+			Background(bg).
+			Foreground(fg),
+	)
 }
 
 func applyTriggerButtonStyle(btn *element.ButtonElement, focused bool) {
-	bg := color.Color(color.RGBA{R: 255, G: 69, B: 0, A: 255}) // Red-Orange
+	bg := style.RGB(255, 69, 0) // Red-Orange
 	fg := color.Color(color.White)
-	borderCol := color.RGBA{R: 255, G: 120, B: 0, A: 255}
+	borderCol := style.RGB(255, 120, 0)
 
 	if isAnimating {
-		bg = color.Color(color.RGBA{R: 60, G: 60, B: 70, A: 255})
-		fg = color.Color(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-		borderCol = color.RGBA{R: 90, G: 90, B: 100, A: 255}
+		bg = style.RGB(60, 60, 70)
+		fg = style.RGB(150, 150, 150)
+		borderCol = style.RGB(90, 90, 100)
 	} else if focused {
-		bg = color.Color(color.RGBA{R: 255, G: 99, B: 71, A: 255}) // Tomato
-		borderCol = color.RGBA{R: 255, G: 215, B: 0, A: 255}       // Gold focus ring
+		bg = style.RGB(255, 99, 71)        // Tomato
+		borderCol = style.RGB(255, 215, 0) // Gold focus ring
 	}
 
-	btn.Style(style.S().Background(bg).Foreground(fg).Border(style.DoubleBorder().Color(borderCol)).Bold(true).Padding(0, 3).Margin(1, 0, 1, 0).TextAlign(style.TextAlignCenter))
+	btn.Style(
+		style.S().
+			Margin(1, 0, 1, 0).
+			Padding(0, 3).
+			Border(style.DoubleBorder().Color(borderCol)).
+			Background(bg).
+			Foreground(fg).
+			Bold(true).
+			TextAlign(style.TextAlignCenter),
+	)
 }
 
 func getTriggerText() string {

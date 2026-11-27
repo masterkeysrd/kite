@@ -18,20 +18,76 @@ import (
 )
 
 var (
-	appContainerStyle   = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 26, A: 255}).Padding(1, 2)
-	appTitleStyle       = style.S().Bold(true).Foreground(color.RGBA{R: 242, G: 194, B: 48, A: 255}).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter)
-	appDescriptionStyle = style.S().Foreground(color.RGBA{R: 160, G: 160, B: 180, A: 255}).Margin(0, 0, 1, 0)
-	card1Style          = style.S().Border(style.SingleBorder()).Padding(1, 1).Margin(0, 0, 1, 0).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255})
-	sectionHeaderStyle  = style.S().Bold(true).Margin(0, 0, 1, 0)
-	contentRowStyle     = style.S().Margin(0, 0, 1, 0)
-	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow)
-	incrementBtnStyle   = style.S().Background(color.RGBA{R: 70, G: 130, B: 180, A: 255}).Foreground(color.White).Margin(0, 1)
-	forceRenderBtnStyle = style.S().Background(color.RGBA{R: 60, G: 179, B: 113, A: 255}).Foreground(color.White).Margin(0, 1)
-	card2Style          = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Border(style.SingleBorder()).Padding(1, 1).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255})
-	inputRowStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Margin(0, 0, 1, 0)
-	inputFieldStyle     = style.S().Background(color.RGBA{R: 50, G: 50, B: 60, A: 255}).Foreground(color.White).Border(style.SingleBorder()).Padding(0, 1)
-	focusBtnStyle       = style.S().Background(color.RGBA{R: 219, G: 112, B: 147, A: 255}).Foreground(color.White)
-	rootStyle           = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	appContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Width(style.Percent(100)).
+				Height(style.Percent(100)).
+				Padding(1, 2).
+				Background(style.RGB(20, 20, 26))
+
+	appTitleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(242, 194, 48)).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	appDescriptionStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Foreground(style.RGB(160, 160, 180))
+
+	card1Style = style.S().
+			Margin(0, 0, 1, 0).
+			Padding(1, 1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(30, 30, 40))
+
+	sectionHeaderStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Bold(true)
+
+	contentRowStyle = style.S().Margin(0, 0, 1, 0)
+
+	buttonRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow)
+
+	incrementBtnStyle = style.S().
+				Margin(0, 1).
+				Background(style.RGB(70, 130, 180)).
+				Foreground(color.White)
+
+	forceRenderBtnStyle = style.S().
+				Margin(0, 1).
+				Background(style.RGB(60, 179, 113)).
+				Foreground(color.White)
+
+	card2Style = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			Padding(1, 1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(30, 30, 40))
+
+	inputRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			AlignItems(style.AlignCenter).
+			Margin(0, 0, 1, 0)
+
+	inputFieldStyle = style.S().
+			Padding(0, 1).
+			Border(style.SingleBorder()).
+			Background(style.RGB(50, 50, 60)).
+			Foreground(color.White)
+
+	focusBtnStyle = style.S().
+			Background(style.RGB(219, 112, 147)).
+			Foreground(color.White)
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100))
 )
 
 // App is the root functional component.
@@ -46,17 +102,17 @@ var App = kitex.SimpleFC("App", func() kitex.Node {
 	inputRef := kitex.UseRef[element.Element](nil)
 
 	// A button click handler to increment the non-rendering clicksRef counter
-	handleRefClick := func(e event.Event) {
+	handleRefClick := func(e *event.MouseEvent) {
 		clicksRef.Current++
 	}
 
 	// A button click handler to force a re-render
-	handleForceRender := func(e event.Event) {
+	handleForceRender := func(e *event.MouseEvent) {
 		setRenderCount(getRenderCount() + 1)
 	}
 
 	// A button click handler to programmatically focus the input element via its Ref
-	handleFocusInput := func(e event.Event) {
+	handleFocusInput := func(e *event.MouseEvent) {
 		if inputRef.Current != nil {
 			// Find document focus manager and focus the element
 			doc := inputRef.Current.OwnerDocument()

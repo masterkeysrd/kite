@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 	"strings"
@@ -17,17 +16,57 @@ import (
 )
 
 var (
-	sourceBoxStyle       = style.S().Width(style.Percent(100)).Height(style.Cells(8)).Background(color.RGBA{R: 30, G: 30, B: 40, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 100, B: 255, A: 255})).Padding(1, 2).Margin(0, 0, 1, 0)
-	inputStyle           = style.S().Display(style.DisplayBlock).Width(style.Auto).Background(color.RGBA{R: 20, G: 20, B: 25, A: 255}).Border(style.SingleBorder().Color(color.RGBA{R: 100, G: 200, B: 100, A: 255})).Padding(0, 1)
-	titleStyle           = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0)
-	labelStyle           = style.S().Bold(true)
-	labelWithMarginStyle = style.S().Bold(true).Margin(1, 0, 0, 0)
-	spacerStyle          = style.S().Flex(1)
-	statusLabelStyle     = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-	statusValueStyle     = style.S().Foreground(color.RGBA{R: 255, G: 200, B: 0, A: 255}).Bold(true)
-	statusContainerStyle = style.S().Padding(1).Background(color.RGBA{R: 25, G: 25, B: 30, A: 255}).Border(style.SingleBorder().Top(true))
-	instructionsStyle    = style.S().Foreground(color.RGBA{R: 100, G: 100, B: 100, A: 255}).TextAlign(style.TextAlignCenter).Margin(1, 0, 0, 0)
-	rootStyle            = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStretch).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 15, G: 15, B: 20, A: 255}).Padding(1, 2)
+	sourceBoxStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Cells(8)).
+			Margin(0, 0, 1, 0).
+			Padding(1, 2).
+			Border(style.SingleBorder().Color(style.RGB(100, 100, 255))).
+			Background(style.RGB(30, 30, 40))
+
+	inputStyle = style.S().
+			Display(style.DisplayBlock).
+			Width(style.Auto).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(style.RGB(100, 200, 100))).
+			Background(style.RGB(20, 20, 25))
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	labelStyle = style.S().Bold(true)
+
+	labelWithMarginStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Bold(true)
+
+	spacerStyle      = style.S().Flex(1)
+	statusLabelStyle = style.S().Foreground(style.RGB(150, 150, 150))
+
+	statusValueStyle = style.S().
+				Foreground(style.RGB(255, 200, 0)).
+				Bold(true)
+
+	statusContainerStyle = style.S().
+				Padding(1).
+				Border(style.SingleBorder().Top(true)).
+				Background(style.RGB(25, 25, 30))
+
+	instructionsStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Foreground(style.RGB(100, 100, 100)).
+				TextAlign(style.TextAlignCenter)
+
+	rootStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			AlignItems(style.AlignStretch).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Padding(1, 2).
+			Background(style.RGB(15, 15, 20))
 )
 
 func main() {

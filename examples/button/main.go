@@ -16,16 +16,56 @@ import (
 )
 
 var (
-	primaryBtnStyle      = style.S().Background(color.RGBA{R: 60, G: 60, B: 100, A: 255}).Foreground(color.White)
-	primaryBtnHoverStyle = style.S().Background(color.RGBA{R: 80, G: 80, B: 140, A: 255}).Foreground(color.White)
-	defaultBtnStyle      = style.S().Margin(1, 0, 0, 0)
-	defaultBtnHoverStyle = style.S().Background(color.RGBA{R: 70, G: 70, B: 70, A: 255}).Foreground(color.White).Margin(1, 0, 0, 0)
-	dangerBtnStyle       = style.S().Background(color.RGBA{R: 150, G: 40, B: 40, A: 255}).Foreground(color.White).Bold(true).Border(style.DoubleBorder()).Padding(0, 2).Margin(1, 0, 0, 0)
-	dangerBtnHoverStyle  = style.S().Background(color.RGBA{R: 200, G: 50, B: 50, A: 255}).Foreground(color.White).Bold(true).Border(style.DoubleBorder()).Padding(0, 2).Margin(1, 0, 0, 0)
-	titleStyle           = style.S().Bold(true).TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0)
-	counterStyle         = style.S().Foreground(color.RGBA{R: 100, G: 255, B: 100, A: 255}).Margin(0, 0, 1, 0)
-	instructionsStyle    = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255})
-	containerStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 20, A: 255})
+	primaryBtnStyle = style.S().
+			Background(style.RGB(60, 60, 100)).
+			Foreground(color.White)
+
+	primaryBtnHoverStyle = style.S().
+				Background(style.RGB(80, 80, 140)).
+				Foreground(color.White)
+
+	defaultBtnStyle = style.S().Margin(1, 0, 0, 0)
+
+	defaultBtnHoverStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Background(style.RGB(70, 70, 70)).
+				Foreground(color.White)
+
+	dangerBtnStyle = style.S().
+			Margin(1, 0, 0, 0).
+			Padding(0, 2).
+			Border(style.DoubleBorder()).
+			Background(style.RGB(150, 40, 40)).
+			Foreground(color.White).
+			Bold(true)
+
+	dangerBtnHoverStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Padding(0, 2).
+				Border(style.DoubleBorder()).
+				Background(style.RGB(200, 50, 50)).
+				Foreground(color.White).
+				Bold(true)
+
+	titleStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Bold(true).
+			TextAlign(style.TextAlignCenter)
+
+	counterStyle = style.S().
+			Margin(0, 0, 1, 0).
+			Foreground(style.RGB(100, 255, 100))
+
+	instructionsStyle = style.S().Foreground(style.RGB(150, 150, 150))
+
+	containerStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Background(style.RGB(20, 20, 20))
 )
 
 func main() {

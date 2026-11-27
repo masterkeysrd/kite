@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 	"strings"
@@ -28,31 +27,31 @@ var (
 			AlignItems(style.AlignCenter).
 			Width(style.Percent(100)).
 			Height(style.Percent(100)).
-			Background(color.RGBA{R: 17, G: 20, B: 28, A: 255})
+			Background(style.Hex("#11141c"))
 
 	cardStyle = style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
 			Width(style.Cells(58)).
-			Background(color.RGBA{R: 28, G: 32, B: 44, A: 255}).
-			Border(style.DoubleBorder().Color(color.RGBA{R: 86, G: 101, B: 140, A: 255})).
+			Background(style.Hex("#1c202c")).
+			Border(style.DoubleBorder().Color(style.Hex("#56658c"))).
 			Padding(1, 2)
 
 	titleStyle = style.S().
-			Bold(true).
-			Foreground(color.RGBA{R: 201, G: 214, B: 255, A: 255}).
-			Margin(0, 0, 1, 0)
+			Margin(0, 0, 1, 0).
+			Foreground(style.Hex("#c9d6ff")).
+			Bold(true)
 
 	bodyTextStyle = style.S().
-			Foreground(color.RGBA{R: 150, G: 160, B: 190, A: 255}).
-			Margin(0, 0, 1, 0)
+			Margin(0, 0, 1, 0).
+			Foreground(style.Hex("#96a0be"))
 
 	inputStyle = style.S().
 			Width(style.Percent(100)).
-			Background(color.RGBA{R: 20, G: 24, B: 34, A: 255}).
-			Foreground(color.RGBA{R: 235, G: 238, B: 255, A: 255}).
-			Border(style.SingleBorder().Color(color.RGBA{R: 88, G: 104, B: 150, A: 255})).
-			Padding(0, 1)
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(style.Hex("#586896"))).
+			Background(style.Hex("#141822")).
+			Foreground(style.Hex("#ebeeff"))
 
 	hintRowStyle = style.S().
 			Display(style.DisplayFlex).
@@ -61,57 +60,54 @@ var (
 			Margin(1, 0, 0, 0)
 
 	hintBadgeStyle = style.S().
-			Background(color.RGBA{R: 61, G: 71, B: 99, A: 255}).
-			Foreground(color.RGBA{R: 224, G: 230, B: 255, A: 255}).
+			Margin(0, 1, 0, 0).
 			Padding(0, 1).
-			Margin(0, 1, 0, 0)
+			Background(style.Hex("#3d4763")).
+			Foreground(style.Hex("#e0e6ff"))
 
 	hintTextStyle = style.S().
-			Foreground(color.RGBA{R: 137, G: 146, B: 175, A: 255}).
-			Margin(0, 1, 0, 0)
+			Margin(0, 1, 0, 0).
+			Foreground(style.Hex("#8992af"))
 
 	statusStyle = style.S().
-			Foreground(color.RGBA{R: 123, G: 205, B: 165, A: 255}).
-			Margin(1, 0, 0, 0)
+			Margin(1, 0, 0, 0).
+			Foreground(style.Hex("#7bcda5"))
 
 	overlayCardStyle = style.S().
 				Width(style.Cells(42)).
-				Background(color.RGBA{R: 24, G: 28, B: 38, A: 255}).
-				Border(style.SingleBorder().Color(color.RGBA{R: 108, G: 124, B: 171, A: 255})).
-				Padding(0, 1)
+				Padding(0, 1).
+				Border(style.SingleBorder().Color(style.Hex("#6c7cab"))).
+				Background(style.Hex("#181c26"))
 
 	menuTitleStyle = style.S().
-			Foreground(color.RGBA{R: 176, G: 188, B: 220, A: 255}).
-			Bold(true).
-			Margin(0, 0, 1, 0)
+			Margin(0, 0, 1, 0).
+			Foreground(style.Hex("#b0bcdc")).
+			Bold(true)
 
 	menuListStyle = style.S().
 			ListStyleType(style.ListStyleNone).
-			Padding(0).
-			Margin(0)
+			Margin(0).
+			Padding(0)
 
 	menuRowStyle = style.S().
 			Display(style.DisplayFlex).
 			FlexDirection(style.FlexColumn).
-			Padding(0, 1).
-			Margin(0, 0, 1, 0)
-
-	menuRowActiveStyle = style.S().
-				Background(color.RGBA{R: 63, G: 84, B: 145, A: 255}).
-				Foreground(color.RGBA{R: 245, G: 248, B: 255, A: 255})
-
-	menuRowIdleStyle = style.S().
-				Background(color.RGBA{R: 33, G: 38, B: 52, A: 255}).
-				Foreground(color.RGBA{R: 226, G: 231, B: 248, A: 255})
-
-	menuDetailStyle = style.S().
-			Foreground(color.RGBA{R: 142, G: 151, B: 178, A: 255})
-
-	noMatchStyle = style.S().
-			Foreground(color.RGBA{R: 196, G: 151, B: 151, A: 255}).
+			Margin(0, 0, 1, 0).
 			Padding(0, 1)
 
-	hostStyle = style.S().Width(style.Percent(100)).Height(style.Percent(100))
+	menuRowActiveStyle = style.S().
+				Background(style.Hex("#3f5491")).
+				Foreground(style.Hex("#f5f8ff"))
+
+	menuRowIdleStyle = style.S().
+				Background(style.Hex("#212634")).
+				Foreground(style.Hex("#e2e7f8"))
+
+	menuDetailStyle = style.S().Foreground(style.Hex("#8e97b2"))
+
+	noMatchStyle = style.S().
+			Padding(0, 1).
+			Foreground(style.Hex("#c49797"))
 )
 
 type suggestion struct {
@@ -158,14 +154,13 @@ func autocompleteMenuNode(filtered []suggestion, selectedIndex int, applySuggest
 				Style: menuListStyle,
 			},
 				kitex.Map(filtered, func(item suggestion, idx int) kitex.Node {
-					rowStyle := menuRowStyle.Merge(menuRowIdleStyle)
-					if idx == selectedIndex {
-						rowStyle = rowStyle.Merge(menuRowActiveStyle)
-					}
+					rowStyle := menuRowStyle.
+						Merge(menuRowIdleStyle).
+						When(idx == selectedIndex, menuRowActiveStyle)
 					return kitex.LI(kitex.LIProps{
 						Key:   fmt.Sprintf("%s-%d", item.Label, idx),
 						Style: rowStyle,
-						OnClick: func(event.Event) {
+						OnClick: func(*event.MouseEvent) {
 							applySuggestion(item)
 						},
 					},
@@ -276,20 +271,13 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 				Value:       getQuery(),
 				Placeholder: "Try: git, go, docker, kubectl...",
 				Style:       inputStyle,
-				OnChange: func(e event.Event) {
-					if ie, ok := e.(*event.InputEvent); ok {
-						if getMenuOpen() {
-							setSelectedIndex(0)
-						}
-						setQuery(ie.Value)
+				OnValueChange: func(val string) {
+					if getMenuOpen() {
+						setSelectedIndex(0)
 					}
+					setQuery(val)
 				},
-				OnKeyDown: func(e event.Event) {
-					ke, ok := e.(*event.KeyEvent)
-					if !ok {
-						return
-					}
-
+				OnKeyDown: func(ke *event.KeyEvent) {
 					if !isInputFocused() {
 						return
 					}
@@ -298,28 +286,28 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 					case ke.MatchString("ctrl+space"):
 						setMenuOpen(!getMenuOpen())
 						setSelectedIndex(0)
-						e.PreventDefault()
-						e.StopPropagation()
+						ke.PreventDefault()
+						ke.StopPropagation()
 					case getMenuOpen() && ke.MatchString("escape"):
 						setMenuOpen(false)
-						e.PreventDefault()
-						e.StopPropagation()
+						ke.PreventDefault()
+						ke.StopPropagation()
 					case getMenuOpen() && len(filtered) > 0 && ke.MatchString("down"):
 						setSelectedIndex((selectedIndex + 1) % len(filtered))
-						e.PreventDefault()
-						e.StopPropagation()
+						ke.PreventDefault()
+						ke.StopPropagation()
 					case getMenuOpen() && len(filtered) > 0 && ke.MatchString("up"):
 						next := selectedIndex - 1
 						if next < 0 {
 							next = len(filtered) - 1
 						}
 						setSelectedIndex(next)
-						e.PreventDefault()
-						e.StopPropagation()
+						ke.PreventDefault()
+						ke.StopPropagation()
 					case getMenuOpen() && len(filtered) > 0 && ke.MatchString("enter"):
 						applySuggestion(filtered[selectedIndex])
-						e.PreventDefault()
-						e.StopPropagation()
+						ke.PreventDefault()
+						ke.StopPropagation()
 					}
 				},
 			}),
@@ -346,9 +334,7 @@ var App = kitex.SimpleFC("AutocompleteApp", func() kitex.Node {
 func main() {
 	f, _ := os.Create("kitex_autocomplete_demo.log")
 	defer f.Close()
-	logger := slog.New(slog.NewTextHandler(f, nil))
-	_ = logger // prevent unused variable error
-	slog.SetDefault(logger)
+	slog.SetDefault(slog.New(slog.NewTextHandler(f, nil)))
 
 	b, err := uv.New()
 	if err != nil {
@@ -357,26 +343,28 @@ func main() {
 	}
 
 	eng := engine.New(b, engine.Options{})
-
-	container := element.NewBox(eng.Document())
-	container.Style(hostStyle)
+	container := element.NewBox(eng.Document()).Style(
+		style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)),
+	)
 	eng.Mount(container)
 
 	kitex.EnableDevMode = true
+	if insp, err := devtools.Install(eng, devtools.Options{}); err == nil {
+		kitexdt.Register(insp)
+	}
+
 	kitex.Render(App(), container)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	eng.Document().AddEventListener(event.EventKeyDown, func(e event.Event) {
-		ke := e.(*event.KeyEvent)
-		if ke.MatchString("q") || ke.MatchString("ctrl+c") {
+		if ke, ok := e.(*event.KeyEvent); ok && (ke.MatchString("q") || ke.MatchString("ctrl+c")) {
 			cancel()
 		}
 	})
-
-	insp, _ := devtools.Install(eng, devtools.Options{})
-	kitexdt.Register(insp)
 
 	if err := eng.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "engine exited: %v\n", err)

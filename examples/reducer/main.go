@@ -16,11 +16,34 @@ import (
 )
 
 var (
-	fieldRowStyle       = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).AlignItems(style.AlignCenter).Width(style.Percent(100)).Margin(0, 0, 1, 0)
-	rolesContainerStyle = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).Flex(1)
-	buttonRowStyle      = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexRow).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Margin(1, 0, 1, 0)
-	instructionsStyle   = style.S().Foreground(color.RGBA{R: 150, G: 150, B: 150, A: 255}).Margin(1, 0, 0, 0)
-	rootStyle           = style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(100)).Height(style.Percent(100))
+	fieldRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Margin(0, 0, 1, 0)
+
+	rolesContainerStyle = style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexRow).
+				Flex(1)
+
+	buttonRowStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexRow).
+			JustifyContent(style.JustifyCenter).
+			Width(style.Percent(100)).
+			Margin(1, 0, 1, 0)
+
+	instructionsStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Foreground(style.RGB(150, 150, 150))
+
+	rootStyle = style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			Width(style.Percent(100)).
+			Height(style.Percent(100))
 )
 
 // FormState holds the state of our form.
@@ -62,15 +85,15 @@ func formReducer(state FormState, action Action) FormState {
 
 // Colors for premium styling
 var (
-	colBG       = color.RGBA{R: 20, G: 20, B: 30, A: 255}
-	colCard     = color.RGBA{R: 30, G: 30, B: 45, A: 255}
-	colInput    = color.RGBA{R: 40, G: 40, B: 60, A: 255}
-	colText     = color.RGBA{R: 220, G: 220, B: 240, A: 255}
-	colHeader   = color.RGBA{R: 120, G: 140, B: 255, A: 255}
-	colSuccess  = color.RGBA{R: 100, G: 220, B: 140, A: 255}
-	colButton   = color.RGBA{R: 70, G: 90, B: 200, A: 255}
-	colResetBtn = color.RGBA{R: 180, G: 60, B: 60, A: 255}
-	colBorder   = color.RGBA{R: 60, G: 60, B: 90, A: 255}
+	colBG       = style.RGB(20, 20, 30)
+	colCard     = style.RGB(30, 30, 45)
+	colInput    = style.RGB(40, 40, 60)
+	colText     = style.RGB(220, 220, 240)
+	colHeader   = style.RGB(120, 140, 255)
+	colSuccess  = style.RGB(100, 220, 140)
+	colButton   = style.RGB(70, 90, 200)
+	colResetBtn = style.RGB(180, 60, 60)
+	colBorder   = style.RGB(60, 60, 90)
 )
 
 var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
@@ -84,28 +107,46 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 	state := getState()
 
 	// Handle input changes
-	onNameKeyDown := func(e event.Event) {
+	onNameKeyDown := func(e *event.KeyEvent) {
 		if inp, ok := e.Target().(*element.InputElement); ok {
 			dispatch(Action{Type: "SET_NAME", Value: inp.Value().(string)})
 		}
 	}
 
-	onEmailKeyDown := func(e event.Event) {
+	onEmailKeyDown := func(e *event.KeyEvent) {
 		if inp, ok := e.Target().(*element.InputElement); ok {
 			dispatch(Action{Type: "SET_EMAIL", Value: inp.Value().(string)})
 		}
 	}
 
 	return kitex.Box(kitex.BoxProps{
-		Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignCenter).JustifyContent(style.JustifyCenter).Width(style.Percent(100)).Height(style.Percent(100)).Background(colBG).Padding(1, 2),
+		Style: style.S().
+			Display(style.DisplayFlex).
+			FlexDirection(style.FlexColumn).
+			JustifyContent(style.JustifyCenter).
+			AlignItems(style.AlignCenter).
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Padding(1, 2).
+			Background(colBG),
 	},
 		// Main Card Container
 		kitex.Box(kitex.BoxProps{
-			Style: style.S().Display(style.DisplayFlex).FlexDirection(style.FlexColumn).Width(style.Percent(80)).Background(colCard).Border(style.DoubleBorder().Color(colBorder)).Padding(1, 2),
+			Style: style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				Width(style.Percent(80)).
+				Padding(1, 2).
+				Border(style.DoubleBorder().Color(colBorder)).
+				Background(colCard),
 		},
 			// Header
 			kitex.Box(kitex.BoxProps{
-				Style: style.S().Foreground(colHeader).Bold(true).Margin(0, 0, 1, 0).TextAlign(style.TextAlignCenter),
+				Style: style.S().
+					Margin(0, 0, 1, 0).
+					Foreground(colHeader).
+					Bold(true).
+					TextAlign(style.TextAlignCenter),
 			}, kitex.Text("⚡ Kitex VDOM UseReducer Form Demo ⚡")),
 
 			// Name Field
@@ -113,12 +154,19 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				Style: fieldRowStyle,
 			},
 				kitex.Span(kitex.SpanProps{
-					Style: style.S().Foreground(colText).Width(style.Cells(10)),
+					Style: style.S().
+						Width(style.Cells(10)).
+						Foreground(colText),
 				}, kitex.Text("Name: ")),
 				kitex.Input(kitex.InputProps{
 					Value:     state.Name,
 					OnKeyDown: onNameKeyDown,
-					Style:     style.S().Flex(1).Background(colInput).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1),
+					Style: style.S().
+						Flex(1).
+						Padding(0, 1).
+						Border(style.SingleBorder().Color(colBorder)).
+						Background(colInput).
+						Foreground(colText),
 				}),
 			),
 
@@ -127,12 +175,19 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				Style: fieldRowStyle,
 			},
 				kitex.Span(kitex.SpanProps{
-					Style: style.S().Foreground(colText).Width(style.Cells(10)),
+					Style: style.S().
+						Width(style.Cells(10)).
+						Foreground(colText),
 				}, kitex.Text("Email: ")),
 				kitex.Input(kitex.InputProps{
 					Value:     state.Email,
 					OnKeyDown: onEmailKeyDown,
-					Style:     style.S().Flex(1).Background(colInput).Foreground(colText).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1),
+					Style: style.S().
+						Flex(1).
+						Padding(0, 1).
+						Border(style.SingleBorder().Color(colBorder)).
+						Background(colInput).
+						Foreground(colText),
 				}),
 			),
 
@@ -141,37 +196,47 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				Style: fieldRowStyle,
 			},
 				kitex.Span(kitex.SpanProps{
-					Style: style.S().Foreground(colText).Width(style.Cells(10)),
+					Style: style.S().
+						Width(style.Cells(10)).
+						Foreground(colText),
 				}, kitex.Text("Role: ")),
 				kitex.Box(kitex.BoxProps{
 					Style: rolesContainerStyle,
 				},
 					kitex.Button(kitex.ButtonProps{
-						OnClick: func(e event.Event) { dispatch(Action{Type: "SET_ROLE", Value: "Developer"}) },
-						Style: style.S().Background(func() color.Color {
-							if state.Role == "Developer" {
-								return colHeader
-							}
-							return colInput
-						}()).Foreground(colText).Margin(0, 1, 0, 0),
+						OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "SET_ROLE", Value: "Developer"}) },
+						Style: style.S().
+							Margin(0, 1, 0, 0).
+							Background(func() color.Color {
+								if state.Role == "Developer" {
+									return colHeader
+								}
+								return colInput
+							}()).
+							Foreground(colText),
 					}, kitex.Text(" Developer ")),
 					kitex.Button(kitex.ButtonProps{
-						OnClick: func(e event.Event) { dispatch(Action{Type: "SET_ROLE", Value: "Designer"}) },
-						Style: style.S().Background(func() color.Color {
-							if state.Role == "Designer" {
-								return colHeader
-							}
-							return colInput
-						}()).Foreground(colText).Margin(0, 1, 0, 0),
+						OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "SET_ROLE", Value: "Designer"}) },
+						Style: style.S().
+							Margin(0, 1, 0, 0).
+							Background(func() color.Color {
+								if state.Role == "Designer" {
+									return colHeader
+								}
+								return colInput
+							}()).
+							Foreground(colText),
 					}, kitex.Text(" Designer ")),
 					kitex.Button(kitex.ButtonProps{
-						OnClick: func(e event.Event) { dispatch(Action{Type: "SET_ROLE", Value: "Manager"}) },
-						Style: style.S().Background(func() color.Color {
-							if state.Role == "Manager" {
-								return colHeader
-							}
-							return colInput
-						}()).Foreground(colText),
+						OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "SET_ROLE", Value: "Manager"}) },
+						Style: style.S().
+							Background(func() color.Color {
+								if state.Role == "Manager" {
+									return colHeader
+								}
+								return colInput
+							}()).
+							Foreground(colText),
 					}, kitex.Text(" Manager ")),
 				),
 			),
@@ -181,20 +246,32 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				Style: buttonRowStyle,
 			},
 				kitex.Button(kitex.ButtonProps{
-					OnClick: func(e event.Event) { dispatch(Action{Type: "SUBMIT"}) },
-					Style:   style.S().Background(colButton).Foreground(colText).Margin(0, 2, 0, 0),
+					OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "SUBMIT"}) },
+					Style: style.S().
+						Margin(0, 2, 0, 0).
+						Background(colButton).
+						Foreground(colText),
 				}, kitex.Text(" SUBMIT ")),
 				kitex.Button(kitex.ButtonProps{
-					OnClick: func(e event.Event) { dispatch(Action{Type: "RESET"}) },
-					Style:   style.S().Background(colResetBtn).Foreground(colText),
+					OnClick: func(e *event.MouseEvent) { dispatch(Action{Type: "RESET"}) },
+					Style: style.S().
+						Background(colResetBtn).
+						Foreground(colText),
 				}, kitex.Text(" RESET ")),
 			),
 
 			kitex.Box(kitex.BoxProps{
-				Style: style.S().Background(colInput).Padding(1, 1).Border(style.SingleBorder().Color(colBorder)).Width(style.Percent(100)),
+				Style: style.S().
+					Width(style.Percent(100)).
+					Padding(1, 1).
+					Border(style.SingleBorder().Color(colBorder)).
+					Background(colInput),
 			},
 				kitex.Box(kitex.BoxProps{
-					Style: style.S().Foreground(colHeader).Bold(true).Margin(0, 0, 1, 0),
+					Style: style.S().
+						Margin(0, 0, 1, 0).
+						Foreground(colHeader).
+						Bold(true),
 				}, kitex.Text("State Live Preview:")),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Name:  %s", state.Name))),
 				kitex.Box(kitex.BoxProps{}, kitex.Text(fmt.Sprintf("Email: %s", state.Email))),
@@ -202,7 +279,10 @@ var FormApp = kitex.SimpleFC("FormApp", func() kitex.Node {
 				func() kitex.Node {
 					if state.Submitted {
 						return kitex.Box(kitex.BoxProps{
-							Style: style.S().Foreground(colSuccess).Bold(true).Margin(1, 0, 0, 0),
+							Style: style.S().
+								Margin(1, 0, 0, 0).
+								Foreground(colSuccess).
+								Bold(true),
 						}, kitex.Text("✓ Form Submitted Successfully!"))
 					}
 					return nil

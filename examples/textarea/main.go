@@ -14,7 +14,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 
@@ -33,12 +32,12 @@ var (
 // ── palette ──────────────────────────────────────────────────────────────────
 
 var (
-	colBG     = color.RGBA{R: 18, G: 18, B: 23, A: 255}    // app background
-	colCard   = color.RGBA{R: 28, G: 30, B: 40, A: 255}    // editor surface
-	colBorder = color.RGBA{R: 60, G: 65, B: 90, A: 255}    // editor border
-	colTitle  = color.RGBA{R: 200, G: 210, B: 255, A: 255} // title text
-	colStatus = color.RGBA{R: 100, G: 200, B: 130, A: 255} // status text
-	colHint   = color.RGBA{R: 80, G: 85, B: 110, A: 255}   // hint text
+	colBG     = style.RGB(18, 18, 23)    // app background
+	colCard   = style.RGB(28, 30, 40)    // editor surface
+	colBorder = style.RGB(60, 65, 90)    // editor border
+	colTitle  = style.RGB(200, 210, 255) // title text
+	colStatus = style.RGB(100, 200, 130) // status text
+	colHint   = style.RGB(80, 85, 110)   // hint text
 )
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -72,7 +71,15 @@ func main() {
 
 	// ── textarea ─────────────────────────────────────────────────────────────
 	txa := element.NewTextArea(eng.Document(), "").WithPlaceholder("Type your message here...")
-	txa.Style(style.S().Width(style.Cells(50)).Height(style.Cells(10)).Background(colCard).Foreground(color.RGBA{R: 220, G: 225, B: 255, A: 255}).Border(style.SingleBorder().Color(colBorder)).Padding(0, 1))
+	txa.Style(
+		style.S().
+			Width(style.Cells(50)).
+			Height(style.Cells(10)).
+			Padding(0, 1).
+			Border(style.SingleBorder().Color(colBorder)).
+			Background(colCard).
+			Foreground(style.RGB(220, 225, 255)),
+	)
 
 	// ── status bar ───────────────────────────────────────────────────────────
 	statusText := element.Text("Pos: (0, 0)")
@@ -91,7 +98,12 @@ func main() {
 	root := element.Box(
 		element.Box(
 			// Title
-			element.Box("  Kite Text Editor  ").Style(style.S().Foreground(colTitle).Bold(true).Margin(0, 0, 1, 0)),
+			element.Box("  Kite Text Editor  ").Style(
+				style.S().
+					Margin(0, 0, 1, 0).
+					Foreground(colTitle).
+					Bold(true),
+			),
 
 			// Editor
 			txa,
@@ -99,19 +111,45 @@ func main() {
 			// Status Bar
 			element.Box(
 				element.Span("Status: ").Style(style.S().Foreground(colHint)),
-				element.Span(statusText).Style(style.S().Foreground(colStatus).Bold(true)),
+				element.Span(statusText).Style(
+					style.S().
+						Foreground(colStatus).
+						Bold(true),
+				),
 			).Style(statusRowStyle),
 
 			// Help Hints
 			element.Box(
-				element.Span(" Arrows").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(0, 1)),
+				element.Span(" Arrows").Style(
+					style.S().
+						Padding(0, 1).
+						Background(colBorder).
+						Foreground(colTitle),
+				),
 				element.Span(" navigate  ").Style(style.S().Foreground(colHint)),
-				element.Span(" Enter").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(0, 1)),
+				element.Span(" Enter").Style(
+					style.S().
+						Padding(0, 1).
+						Background(colBorder).
+						Foreground(colTitle),
+				),
 				element.Span(" newline  ").Style(style.S().Foreground(colHint)),
-				element.Span(" Q").Style(style.S().Background(colBorder).Foreground(colTitle).Padding(0, 1)),
+				element.Span(" Q").Style(
+					style.S().
+						Padding(0, 1).
+						Background(colBorder).
+						Foreground(colTitle),
+				),
 				element.Span(" quit").Style(style.S().Foreground(colHint)),
 			).Style(statusRowStyle),
-		).Style(style.S().Padding(1, 2).Background(colBG).Display(style.DisplayFlex).FlexDirection(style.FlexColumn).AlignItems(style.AlignStart)),
+		).Style(
+			style.S().
+				Display(style.DisplayFlex).
+				FlexDirection(style.FlexColumn).
+				AlignItems(style.AlignStart).
+				Padding(1, 2).
+				Background(colBG),
+		),
 	)
 
 	// ── engine run ───────────────────────────────────────────────────────────

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"os"
 	"strings"
 	"time"
@@ -37,16 +36,16 @@ var deploymentSteps = []BuildStep{
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 var (
-	colorGreen      = color.RGBA{R: 50, G: 205, B: 50, A: 255}
-	colorCyan       = color.RGBA{R: 80, G: 200, B: 255, A: 255}
-	colorAmber      = color.RGBA{R: 255, G: 190, B: 60, A: 255}
-	colorWhite      = color.RGBA{R: 245, G: 245, B: 250, A: 255}
-	colorDimWhite   = color.RGBA{R: 200, G: 205, B: 215, A: 255}
-	colorGray       = color.RGBA{R: 130, G: 135, B: 150, A: 255}
-	colorDim        = color.RGBA{R: 90, G: 95, B: 110, A: 255}
-	colorBorder     = color.RGBA{R: 60, G: 90, B: 160, A: 255}
-	colorSummaryBrd = color.RGBA{R: 50, G: 180, B: 80, A: 255}
-	colorBg         = color.RGBA{R: 18, G: 20, B: 28, A: 255}
+	colorGreen      = style.RGB(50, 205, 50)
+	colorCyan       = style.RGB(80, 200, 255)
+	colorAmber      = style.RGB(255, 190, 60)
+	colorWhite      = style.RGB(245, 245, 250)
+	colorDimWhite   = style.RGB(200, 205, 215)
+	colorGray       = style.RGB(130, 135, 150)
+	colorDim        = style.RGB(90, 95, 110)
+	colorBorder     = style.RGB(60, 90, 160)
+	colorSummaryBrd = style.RGB(50, 180, 80)
+	colorBg         = style.RGB(18, 20, 28)
 )
 
 func renderProgressBar(completed, total, barWidth int) string {
@@ -134,13 +133,19 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 	// Static logs: Permanently flush completed tasks above into terminal scrollback
 	staticLogs := trail.Static(completed(), func(item BuildStep, index int) kitex.Node {
 		return trail.Box(trail.BoxProps{
-			Style: style.S().FlexDirection(style.FlexRow).AlignItems(style.AlignCenter),
+			Style: style.S().
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter),
 		},
 			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorGreen).Bold(true),
+				Style: style.S().
+					Foreground(colorGreen).
+					Bold(true),
 			}, trail.Text("✔ ")),
 			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorWhite).Bold(true),
+				Style: style.S().
+					Foreground(colorWhite).
+					Bold(true),
 			}, trail.Text(item.Name)),
 			trail.Span(trail.SpanProps{
 				Style: style.S().Foreground(colorGray),
@@ -152,16 +157,20 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 	if done() {
 		summaryBox := trail.Box(trail.BoxProps{
 			Style: style.S().
-				Border(style.RoundedBorder().Color(colorSummaryBrd)).
-				Padding(1, 2).
 				Margin(1, 0, 0, 0).
+				Padding(1, 2).
+				Border(style.RoundedBorder().Color(colorSummaryBrd)).
 				Background(colorBg),
 		},
 			trail.Box(trail.BoxProps{
-				Style: style.S().FlexDirection(style.FlexRow).AlignItems(style.AlignCenter),
+				Style: style.S().
+					FlexDirection(style.FlexRow).
+					AlignItems(style.AlignCenter),
 			},
 				trail.Span(trail.SpanProps{
-					Style: style.S().Foreground(colorGreen).Bold(true),
+					Style: style.S().
+						Foreground(colorGreen).
+						Bold(true),
 				}, trail.Text("🎉 Deployment Pipeline Complete! ")),
 				trail.Span(trail.SpanProps{
 					Style: style.S().Foreground(colorGray),
@@ -207,23 +216,30 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 	var pauseBadge kitex.Node
 	if paused() {
 		pauseBadge = trail.Span(trail.SpanProps{
-			Style: style.S().Foreground(colorAmber).Bold(true).Margin(0, 0, 0, 1),
+			Style: style.S().
+				Margin(0, 0, 0, 1).
+				Foreground(colorAmber).
+				Bold(true),
 		}, trail.Text("[PAUSED]"))
 	}
 
 	activeBox := trail.Box(trail.BoxProps{
 		Style: style.S().
-			Border(style.RoundedBorder().Color(colorBorder)).
-			Padding(0, 1).
 			Margin(1, 0, 0, 0).
+			Padding(0, 1).
+			Border(style.RoundedBorder().Color(colorBorder)).
 			Background(colorBg),
 	},
 		// Title & Pause indicator line
 		trail.Box(trail.BoxProps{
-			Style: style.S().FlexDirection(style.FlexRow).AlignItems(style.AlignCenter),
+			Style: style.S().
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter),
 		},
 			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorCyan).Bold(true),
+				Style: style.S().
+					Foreground(colorCyan).
+					Bold(true),
 			}, trail.Text("⚡ Kite Deploy v1.2.0")),
 			pauseBadge,
 			trail.Spacer(),
@@ -234,13 +250,19 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 		trail.Newline(1),
 		// Current active step with animated spinner
 		trail.Box(trail.BoxProps{
-			Style: style.S().FlexDirection(style.FlexRow).AlignItems(style.AlignCenter),
+			Style: style.S().
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter),
 		},
 			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorCyan).Bold(true),
+				Style: style.S().
+					Foreground(colorCyan).
+					Bold(true),
 			}, trail.Text(spFrame+" ")),
 			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorWhite).Bold(true),
+				Style: style.S().
+					Foreground(colorWhite).
+					Bold(true),
 			}, trail.Text(fmt.Sprintf("Step %d/%d: %s...", stepIndex+1, totalCount, currStep.Name))),
 		),
 		// Step detail subtitle
@@ -254,7 +276,9 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 		trail.Newline(1),
 		// Progress bar & percentage
 		trail.Box(trail.BoxProps{
-			Style: style.S().FlexDirection(style.FlexRow).AlignItems(style.AlignCenter),
+			Style: style.S().
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter),
 		},
 			trail.Span(trail.SpanProps{
 				Style: style.S().Foreground(colorDimWhite),
@@ -263,13 +287,18 @@ var App = trail.SimpleFC("TrailDemoApp", func() kitex.Node {
 				Style: style.S().Foreground(colorCyan),
 			}, trail.Text("["+bar+"]")),
 			trail.Span(trail.SpanProps{
-				Style: style.S().Foreground(colorWhite).Bold(true).Margin(0, 0, 0, 1),
+				Style: style.S().
+					Margin(0, 0, 0, 1).
+					Foreground(colorWhite).
+					Bold(true),
 			}, trail.Text(fmt.Sprintf("%3d%%", pct))),
 		),
 		trail.Newline(1),
 		// Keyboard navigation hints
 		trail.Box(trail.BoxProps{
-			Style: style.S().FlexDirection(style.FlexRow).AlignItems(style.AlignCenter),
+			Style: style.S().
+				FlexDirection(style.FlexRow).
+				AlignItems(style.AlignCenter),
 		},
 			trail.Span(trail.SpanProps{
 				Style: style.S().Foreground(colorDim),

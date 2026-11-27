@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"image/color"
 	"log/slog"
 	"os"
 	"runtime"
@@ -17,13 +16,45 @@ import (
 )
 
 var (
-	titleStyle          = style.S().TextAlign(style.TextAlignCenter).Background(color.RGBA{R: 50, G: 50, B: 80, A: 255}).Padding(1)
-	instructionsStyle   = style.S().Margin(2, 0).Padding(1, 2).Border(style.SingleBorder())
-	rootStyle           = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Background(color.RGBA{R: 20, G: 20, B: 30, A: 255}).Padding(2)
-	overlayTitleStyle   = style.S().TextAlign(style.TextAlignCenter).Margin(0, 0, 1, 0).Bold(true)
-	overlayFooterStyle  = style.S().Margin(1, 0, 0, 0).TextAlign(style.TextAlignCenter).Foreground(color.RGBA{R: 200, G: 200, B: 200, A: 255})
-	overlayBoxStyle     = style.S().Width(style.Cells(40)).Height(style.Cells(10)).Background(color.RGBA{R: 80, G: 40, B: 40, A: 255}).Border(style.DoubleBorder().Color(color.RGBA{R: 255, G: 100, B: 100, A: 255})).Padding(1, 2)
-	overlayWrapperStyle = style.S().Width(style.Percent(100)).Height(style.Percent(100)).Display(style.DisplayFlex).JustifyContent(style.JustifyCenter).AlignItems(style.AlignCenter)
+	titleStyle = style.S().
+			Padding(1).
+			Background(style.RGB(50, 50, 80)).
+			TextAlign(style.TextAlignCenter)
+
+	instructionsStyle = style.S().
+				Margin(2, 0).
+				Padding(1, 2).
+				Border(style.SingleBorder())
+
+	rootStyle = style.S().
+			Width(style.Percent(100)).
+			Height(style.Percent(100)).
+			Padding(2).
+			Background(style.RGB(20, 20, 30))
+
+	overlayTitleStyle = style.S().
+				Margin(0, 0, 1, 0).
+				Bold(true).
+				TextAlign(style.TextAlignCenter)
+
+	overlayFooterStyle = style.S().
+				Margin(1, 0, 0, 0).
+				Foreground(style.RGB(200, 200, 200)).
+				TextAlign(style.TextAlignCenter)
+
+	overlayBoxStyle = style.S().
+			Width(style.Cells(40)).
+			Height(style.Cells(10)).
+			Padding(1, 2).
+			Border(style.DoubleBorder().Color(style.RGB(255, 100, 100))).
+			Background(style.RGB(80, 40, 40))
+
+	overlayWrapperStyle = style.S().
+				Display(style.DisplayFlex).
+				JustifyContent(style.JustifyCenter).
+				AlignItems(style.AlignCenter).
+				Width(style.Percent(100)).
+				Height(style.Percent(100))
 )
 
 func main() {
