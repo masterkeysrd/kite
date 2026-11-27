@@ -69,7 +69,7 @@ type benchBurstState struct {
 	sum   int
 }
 
-func BenchmarkUseStreamReduce_BurstFold(b *testing.B) {
+func BenchmarkUseStream_BurstFold(b *testing.B) {
 	b.ReportAllocs()
 	doc := dom.NewDocument()
 	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
@@ -82,7 +82,7 @@ func BenchmarkUseStreamReduce_BurstFold(b *testing.B) {
 	var mu sync.Mutex
 	var doneCh chan struct{}
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[int, error] {
+	source := func(ctx context.Context, _ benchBurstState) iter.Seq2[int, error] {
 		return func(yield func(int, error) bool) {
 			for i := 1; i <= burstSize; i++ {
 				if !yield(i, nil) {
@@ -100,21 +100,17 @@ func BenchmarkUseStreamReduce_BurstFold(b *testing.B) {
 
 	var latest capture[StreamResult[benchBurstState]]
 	comp := kitex.FC("BurstFoldComp", func(_ kitex.NoProps) kitex.Node {
-		res := UseStreamReduce(
-			"bench_burst_reduce",
-			benchBurstState{},
-			fetcher,
-			func(prev benchBurstState, ev int) benchBurstState {
+		res := UseStream("bench_burst_reduce", Stream[int, benchBurstState]{
+			Source: source,
+			Reduce: func(prev benchBurstState, ev int) benchBurstState {
 				return benchBurstState{
 					count: prev.count + 1,
 					sum:   prev.sum + ev,
 				}
 			},
-			StreamOptions{
-				Enabled:  Some(false),
-				Throttle: Some(time.Duration(0)),
-			},
-		)
+			Enabled:  Some(false),
+			Throttle: Some(time.Duration(0)),
+		})
 		latest.set(res)
 		return kitex.Box(kitex.BoxProps{})
 	})

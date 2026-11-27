@@ -163,7 +163,7 @@ func TestOptions_StaleTimeDoesNotDisable(t *testing.T) {
 	}
 }
 
-func TestStreamOptions_ThrottleZeroKeepsEnabled(t *testing.T) {
+func TestStream_ThrottleZeroKeepsEnabled(t *testing.T) {
 	doc := dom.NewDocument()
 	container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
 	defer kitex.Render(nil, container)
@@ -172,7 +172,7 @@ func TestStreamOptions_ThrottleZeroKeepsEnabled(t *testing.T) {
 	t.Cleanup(client.Close)
 
 	var connects counter
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			connects.inc()
 			yield("instant", nil)
@@ -181,7 +181,8 @@ func TestStreamOptions_ThrottleZeroKeepsEnabled(t *testing.T) {
 
 	var res capture[StreamResult[string]]
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
-		r := UseStream("throttle_zero_key", fetcher, StreamOptions{
+		r := UseStream("throttle_zero_key", Stream[string, string]{
+			Source:   source,
 			Throttle: Some(time.Duration(0)),
 		})
 		res.set(r)
@@ -191,7 +192,7 @@ func TestStreamOptions_ThrottleZeroKeepsEnabled(t *testing.T) {
 	kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
 
 	if !waitFor(t, func() bool { return res.get().Data == "instant" && res.get().Status == "closed" }) {
-		t.Fatalf("expected StreamOptions{Throttle: Some(0)} to remain enabled and receive data, got %+v", res.get())
+		t.Fatalf("expected Stream{Throttle: Some(0)} to remain enabled and receive data, got %+v", res.get())
 	}
 	if connects.get() != 1 {
 		t.Fatalf("expected 1 connection, got %d", connects.get())
@@ -210,7 +211,7 @@ func TestStream_RemountWithinGcTime(t *testing.T) {
 	var connects counter
 	releaseSecond := make(chan struct{})
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			n := connects.inc()
 			if n == 1 {
@@ -231,7 +232,9 @@ func TestStream_RemountWithinGcTime(t *testing.T) {
 
 	var observed recorder[StreamResult[string]]
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
-		r := UseStream("remount_key", fetcher)
+		r := UseStream("remount_key", Stream[string, string]{
+			Source: source,
+		})
 		observed.add(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
 	})
@@ -251,7 +254,9 @@ func TestStream_RemountWithinGcTime(t *testing.T) {
 	// Remount before GcTime expires
 	var remountObserved recorder[StreamResult[string]]
 	app2 := kitex.FC("App2", func(_ kitex.NoProps) kitex.Node {
-		r := UseStream("remount_key", fetcher)
+		r := UseStream("remount_key", Stream[string, string]{
+			Source: source,
+		})
 		remountObserved.add(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
 	})
@@ -286,7 +291,7 @@ func TestStream_EnabledToggleCancellation(t *testing.T) {
 	var connects counter
 	var cancelled1 = make(chan struct{})
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			n := connects.inc()
 			if n == 1 {
@@ -310,7 +315,8 @@ func TestStream_EnabledToggleCancellation(t *testing.T) {
 
 	var res capture[StreamResult[string]]
 	comp := kitex.FC("ToggleStream", func(p props) kitex.Node {
-		r := UseStream("toggle_key", fetcher, StreamOptions{
+		r := UseStream("toggle_key", Stream[string, string]{
+			Source:  source,
 			Enabled: Some(p.Enabled),
 		})
 		res.set(r)
@@ -355,7 +361,7 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 		var cancelled atomic.Bool
 		var connects counter
 
-		fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 			return func(yield func(string, error) bool) {
 				connects.inc()
 				yield("live", nil)
@@ -365,7 +371,8 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 		}
 
 		sub := kitex.FC("Sub", func(p struct{ Enabled bool }) kitex.Node {
-			r := UseStream("shared_toggle_key", fetcher, StreamOptions{
+			r := UseStream("shared_toggle_key", Stream[string, string]{
+				Source:  source,
 				Enabled: Some(p.Enabled),
 			})
 			return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
@@ -409,7 +416,7 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 		t.Cleanup(client.Close)
 
 		var connects counter
-		fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+		source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 			return func(yield func(string, error) bool) {
 				connects.inc()
 				yield("done", nil)
@@ -418,12 +425,16 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 
 		var res1, res2 capture[StreamResult[string]]
 		sub1 := kitex.FC("Sub1", func(_ kitex.NoProps) kitex.Node {
-			r := UseStream("finite_dedupe", fetcher)
+			r := UseStream("finite_dedupe", Stream[string, string]{
+				Source: source,
+			})
 			res1.set(r)
 			return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
 		})
 		sub2 := kitex.FC("Sub2", func(_ kitex.NoProps) kitex.Node {
-			r := UseStream("finite_dedupe", fetcher)
+			r := UseStream("finite_dedupe", Stream[string, string]{
+				Source: source,
+			})
 			res2.set(r)
 			return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
 		})
@@ -453,7 +464,7 @@ func TestStream_MultiConsumerEnabledToggleAndFiniteDedupe(t *testing.T) {
 	})
 }
 
-func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
+func TestUseStream_BurstAndRefetchModes(t *testing.T) {
 	t.Run("folds rapid burst without dropping throttled events", func(t *testing.T) {
 		doc := dom.NewDocument()
 		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
@@ -463,7 +474,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		t.Cleanup(client.Close)
 
 		const total = 50
-		fetcher := func(ctx context.Context, key string) iter.Seq2[int, error] {
+		source := func(ctx context.Context, _ int) iter.Seq2[int, error] {
 			return func(yield func(int, error) bool) {
 				for i := 1; i <= total; i++ {
 					if !yield(i, nil) {
@@ -475,8 +486,11 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var res capture[StreamResult[int]]
 		app := kitex.FC("BurstReduce", func(_ kitex.NoProps) kitex.Node {
-			r := UseStreamReduce("burst_reduce", 0, fetcher, func(prev, ev int) int {
-				return prev + ev
+			r := UseStream("burst_reduce", Stream[int, int]{
+				Source: source,
+				Reduce: func(prev, ev int) int {
+					return prev + ev
+				},
 			})
 			res.set(r)
 			return kitex.Box(kitex.BoxProps{})
@@ -500,7 +514,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var connects counter
 		gate := make(chan struct{})
-		fetcher := func(ctx context.Context, key string) iter.Seq2[int, error] {
+		source := func(ctx context.Context, _ int) iter.Seq2[int, error] {
 			return func(yield func(int, error) bool) {
 				n := connects.inc()
 				if n == 1 {
@@ -519,9 +533,13 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var res capture[StreamResult[int]]
 		app := kitex.FC("ReplaceReduce", func(_ kitex.NoProps) kitex.Node {
-			r := UseStreamReduce("replace_reduce", 0, fetcher, func(prev, ev int) int {
-				return prev + ev
-			}, StreamOptions{RefetchMode: RefetchReplace})
+			r := UseStream("replace_reduce", Stream[int, int]{
+				Source: source,
+				Reduce: func(prev, ev int) int {
+					return prev + ev
+				},
+				RefetchMode: RefetchReplace,
+			})
 			res.set(r)
 			return kitex.Box(kitex.BoxProps{})
 		})
@@ -555,7 +573,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var connects counter
 		gate := make(chan struct{})
-		fetcher := func(ctx context.Context, key string) iter.Seq2[int, error] {
+		source := func(ctx context.Context, _ int) iter.Seq2[int, error] {
 			return func(yield func(int, error) bool) {
 				n := connects.inc()
 				if n == 1 {
@@ -573,9 +591,14 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var res capture[StreamResult[int]]
 		app := kitex.FC("ResetReduce", func(_ kitex.NoProps) kitex.Node {
-			r := UseStreamReduce("reset_reduce", 100, fetcher, func(prev, ev int) int {
-				return prev + ev
-			}, StreamOptions{RefetchMode: RefetchReset})
+			r := UseStream("reset_reduce", Stream[int, int]{
+				Initial: 100,
+				Source:  source,
+				Reduce: func(prev, ev int) int {
+					return prev + ev
+				},
+				RefetchMode: RefetchReset,
+			})
 			res.set(r)
 			return kitex.Box(kitex.BoxProps{})
 		})
@@ -608,7 +631,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		t.Cleanup(client.Close)
 
 		var connects counter
-		fetcher := func(ctx context.Context, key string) iter.Seq2[int, error] {
+		source := func(ctx context.Context, _ int) iter.Seq2[int, error] {
 			return func(yield func(int, error) bool) {
 				n := connects.inc()
 				if n == 1 {
@@ -623,9 +646,13 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var res capture[StreamResult[int]]
 		app := kitex.FC("AppendReduce", func(_ kitex.NoProps) kitex.Node {
-			r := UseStreamReduce("append_reduce", 0, fetcher, func(prev, ev int) int {
-				return prev + ev
-			}, StreamOptions{RefetchMode: RefetchAppend})
+			r := UseStream("append_reduce", Stream[int, int]{
+				Source: source,
+				Reduce: func(prev, ev int) int {
+					return prev + ev
+				},
+				RefetchMode: RefetchAppend,
+			})
 			res.set(r)
 			return kitex.Box(kitex.BoxProps{})
 		})
@@ -649,7 +676,7 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 		client := NewClient()
 		t.Cleanup(client.Close)
 
-		fetcher := func(ctx context.Context, key string) iter.Seq2[int, error] {
+		source := func(ctx context.Context, _ int) iter.Seq2[int, error] {
 			return func(yield func(int, error) bool) {
 				yield(0, nil)
 			}
@@ -657,7 +684,9 @@ func TestUseStreamReduce_BurstAndRefetchModes(t *testing.T) {
 
 		var res capture[StreamResult[int]]
 		app := kitex.FC("ZeroEvent", func(_ kitex.NoProps) kitex.Node {
-			r := UseStream("zero_event", fetcher)
+			r := UseStream("zero_event", Stream[int, int]{
+				Source: source,
+			})
 			res.set(r)
 			return kitex.Box(kitex.BoxProps{})
 		})
@@ -685,11 +714,13 @@ func TestStream_BoundedWorkerPoolNonStarvation(t *testing.T) {
 	t.Cleanup(client.Close)
 
 	var openStreams atomic.Int32
-	streamFetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
-		return func(yield func(string, error) bool) {
-			openStreams.Add(1)
-			yield("open:"+key, nil)
-			<-ctx.Done()
+	makeSource := func(key string) func(context.Context, string) iter.Seq2[string, error] {
+		return func(ctx context.Context, _ string) iter.Seq2[string, error] {
+			return func(yield func(string, error) bool) {
+				openStreams.Add(1)
+				yield("open:"+key, nil)
+				<-ctx.Done()
+			}
 		}
 	}
 
@@ -701,12 +732,12 @@ func TestStream_BoundedWorkerPoolNonStarvation(t *testing.T) {
 
 	var queryRes capture[Result[string]]
 	app := kitex.FC("NonStarvationApp", func(_ kitex.NoProps) kitex.Node {
-		s1 := UseStream("s1", streamFetcher)
-		s2 := UseStream("s2", streamFetcher)
-		s3 := UseStream("s3", streamFetcher)
-		s4 := UseStream("s4", streamFetcher)
-		s5 := UseStream("s5", streamFetcher)
-		s6 := UseStream("s6", streamFetcher)
+		s1 := UseStream("s1", Stream[string, string]{Source: makeSource("s1")})
+		s2 := UseStream("s2", Stream[string, string]{Source: makeSource("s2")})
+		s3 := UseStream("s3", Stream[string, string]{Source: makeSource("s3")})
+		s4 := UseStream("s4", Stream[string, string]{Source: makeSource("s4")})
+		s5 := UseStream("s5", Stream[string, string]{Source: makeSource("s5")})
+		s6 := UseStream("s6", Stream[string, string]{Source: makeSource("s6")})
 		q := Use("non_starved_query", queryFetcher)
 		queryRes.set(q)
 		return kitex.Box(kitex.BoxProps{},
@@ -736,7 +767,7 @@ func TestClient_Close(t *testing.T) {
 	streamCancelled := make(chan struct{})
 	fetchCancelled := make(chan struct{})
 
-	streamFetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	streamSource := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			yield("first", nil)
 			// Second event triggers throttleTimer (default 16ms) before ctx is cancelled
@@ -773,7 +804,7 @@ func TestClient_Close(t *testing.T) {
 	kitex.Render(nil, container)
 
 	app := kitex.FC("ActiveApp", func(_ kitex.NoProps) kitex.Node {
-		UseStream("active_stream", streamFetcher)
+		UseStream("active_stream", Stream[string, string]{Source: streamSource})
 		Use("active_fetch", queryFetcher)
 		return kitex.Box(kitex.BoxProps{})
 	})
@@ -948,7 +979,7 @@ func TestStream_SchedulerStopCancelsBeforeUnmount(t *testing.T) {
 	cancelled := make(chan struct{})
 	var exited atomic.Bool
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			close(started)
 			yield("open", nil)
@@ -961,7 +992,7 @@ func TestStream_SchedulerStopCancelsBeforeUnmount(t *testing.T) {
 
 	var res capture[StreamResult[string]]
 	app := kitex.FC("SchedStopStream", func(_ kitex.NoProps) kitex.Node {
-		r := UseStream("sched_stop_stream", fetcher)
+		r := UseStream("sched_stop_stream", Stream[string, string]{Source: source})
 		res.set(r)
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
 	})
@@ -993,4 +1024,199 @@ func TestStream_SchedulerStopCancelsBeforeUnmount(t *testing.T) {
 	if !exited.Load() {
 		t.Fatal("expected stream goroutine to finish before e.Stop() returned")
 	}
+}
+
+func TestUseStream_WithInitialFetchAndCursorReconnect(t *testing.T) {
+	t.Run("fetches snapshot, forwards LastEventID to Source, folds deltas, and resumes on Refetch", func(t *testing.T) {
+		doc := dom.NewDocument()
+		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+		defer kitex.Render(nil, container)
+
+		client := NewClient()
+		t.Cleanup(client.Close)
+
+		type sseEvent struct {
+			ID   int
+			Text string
+		}
+		type agentState struct {
+			Messages    []string
+			LastEventID int
+		}
+
+		var fetchRun counter
+		var sourceCursorsMu sync.Mutex
+		var sourceCursors []int
+
+		delta1Gate := make(chan struct{})
+		delta2Gate := make(chan struct{})
+		reconnectDone := make(chan struct{})
+
+		var res capture[StreamResult[agentState]]
+		app := kitex.FC("AgentSSEApp", func(_ kitex.NoProps) kitex.Node {
+			r := UseStream("agent_session", Stream[sseEvent, agentState]{
+				Fetch: func(ctx context.Context) (agentState, error) {
+					n := fetchRun.inc()
+					if n == 1 {
+						return agentState{
+							Messages:    []string{"boot", "ready"},
+							LastEventID: 10,
+						}, nil
+					}
+					return agentState{
+						Messages:    []string{"boot", "ready", "missed_13", "missed_14"},
+						LastEventID: 15,
+					}, nil
+				},
+				Source: func(ctx context.Context, state agentState) iter.Seq2[sseEvent, error] {
+					sourceCursorsMu.Lock()
+					sourceCursors = append(sourceCursors, state.LastEventID)
+					runIdx := len(sourceCursors)
+					sourceCursorsMu.Unlock()
+
+					return func(yield func(sseEvent, error) bool) {
+						if runIdx == 1 {
+							select {
+							case <-ctx.Done():
+								return
+							case <-delta1Gate:
+							}
+							if !yield(sseEvent{ID: 11, Text: "delta_11"}, nil) {
+								return
+							}
+							select {
+							case <-ctx.Done():
+								return
+							case <-delta2Gate:
+							}
+							if !yield(sseEvent{ID: 12, Text: "delta_12"}, nil) {
+								return
+							}
+							<-ctx.Done()
+							return
+						}
+
+						yield(sseEvent{ID: 16, Text: "delta_16"}, nil)
+						close(reconnectDone)
+					}
+				},
+				Reduce: func(state agentState, ev sseEvent) agentState {
+					nextMsgs := make([]string, len(state.Messages)+1)
+					copy(nextMsgs, state.Messages)
+					nextMsgs[len(state.Messages)] = ev.Text
+					return agentState{
+						Messages:    nextMsgs,
+						LastEventID: ev.ID,
+					}
+				},
+				Throttle: Some(time.Duration(0)),
+			})
+			res.set(r)
+			return kitex.Box(kitex.BoxProps{})
+		})
+
+		kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+		// Snapshot renders immediately while Source stays open
+		if !waitFor(t, func() bool {
+			cur := res.get()
+			return cur.Status == "open" &&
+				cur.IsFetching &&
+				!cur.IsLoading &&
+				cur.Data.LastEventID == 10 &&
+				len(cur.Data.Messages) == 2
+		}) {
+			t.Fatalf("expected snapshot to render immediately with LastEventID=10 and Status=open, got %+v", res.get())
+		}
+
+		// Verify Source received state.LastEventID == 10
+		if !waitFor(t, func() bool {
+			sourceCursorsMu.Lock()
+			defer sourceCursorsMu.Unlock()
+			return len(sourceCursors) == 1 && sourceCursors[0] == 10
+		}) {
+			t.Fatalf("expected Source to receive cursor 10, got %v", sourceCursors)
+		}
+
+		// Emit deltas #11 and #12
+		close(delta1Gate)
+		if !waitFor(t, func() bool { return res.get().Data.LastEventID == 11 }) {
+			t.Fatalf("expected LastEventID=11 after delta_11, got %+v", res.get())
+		}
+		close(delta2Gate)
+		if !waitFor(t, func() bool {
+			cur := res.get()
+			return cur.Data.LastEventID == 12 && len(cur.Data.Messages) == 4 && cur.Data.Messages[3] == "delta_12"
+		}) {
+			t.Fatalf("expected LastEventID=12 with 4 messages, got %+v", res.get())
+		}
+
+		// Refetch re-runs Fetch (LastEventID: 15) and resumes Source from 15 -> folds #16
+		res.get().Refetch()
+
+		select {
+		case <-reconnectDone:
+		case <-time.After(time.Second):
+			t.Fatal("expected reconnected Source to emit delta_16 and finish")
+		}
+
+		if !waitFor(t, func() bool {
+			cur := res.get()
+			return cur.Status == "closed" &&
+				!cur.IsFetching &&
+				cur.Data.LastEventID == 16 &&
+				len(cur.Data.Messages) == 5 &&
+				cur.Data.Messages[4] == "delta_16"
+		}) {
+			t.Fatalf("expected reconnect to resume from 15 and fold delta_16, got %+v", res.get())
+		}
+
+		sourceCursorsMu.Lock()
+		cursorsCopy := append([]int(nil), sourceCursors...)
+		sourceCursorsMu.Unlock()
+		if len(cursorsCopy) != 2 || cursorsCopy[0] != 10 || cursorsCopy[1] != 15 {
+			t.Fatalf("expected Source cursors [10 15], got %v", cursorsCopy)
+		}
+	})
+
+	t.Run("Fetch error suppresses Source and surfaces error state", func(t *testing.T) {
+		doc := dom.NewDocument()
+		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+		defer kitex.Render(nil, container)
+
+		client := NewClient()
+		t.Cleanup(client.Close)
+
+		var sourceCalled atomic.Bool
+		var res capture[StreamResult[string]]
+		app := kitex.FC("FetchErrStream", func(_ kitex.NoProps) kitex.Node {
+			r := UseStream("fetch_err_stream", Stream[string, string]{
+				Initial: "seed",
+				Fetch: func(ctx context.Context) (string, error) {
+					return "", context.DeadlineExceeded
+				},
+				Source: func(ctx context.Context, state string) iter.Seq2[string, error] {
+					sourceCalled.Store(true)
+					return func(yield func(string, error) bool) {
+						yield("should_not_run", nil)
+					}
+				},
+				Reduce: Latest[string],
+			})
+			res.set(r)
+			return kitex.Box(kitex.BoxProps{})
+		})
+
+		kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+		if !waitFor(t, func() bool {
+			cur := res.get()
+			return cur.IsError && cur.Status == "error" && !cur.IsFetching && cur.Error == context.DeadlineExceeded
+		}) {
+			t.Fatalf("expected Fetch error to transition to error state, got %+v", res.get())
+		}
+		if sourceCalled.Load() {
+			t.Fatal("Source must not be invoked when Fetch fails")
+		}
+	})
 }

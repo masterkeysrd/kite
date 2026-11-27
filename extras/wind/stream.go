@@ -23,9 +23,28 @@ const (
 	RefetchAppend
 )
 
-type StreamOptions struct {
-	Enabled     Optional[bool]
-	Throttle    Optional[time.Duration] // Unset defaults to 16ms; <= 0 disables timer throttling.
+// Latest is a convenience reducer that replaces previous state with the latest event.
+func Latest[T any](_ T, next T) T { return next }
+
+// Stream configures a declarative streaming query for [UseStream].
+type Stream[E, S any] struct {
+	// Initial seeds the state before the first Fetch or Source emission.
+	Initial S
+	// Fetch optionally loads an authoritative snapshot on connect and reconnect
+	// before Source begins streaming deltas.
+	Fetch func(ctx context.Context) (S, error)
+	// Source opens the event stream, receiving the current state (seeded from
+	// Initial, cached RefetchAppend state, or Fetch) so cursors like LastEventID
+	// can be forwarded on connect/reconnect.
+	Source func(ctx context.Context, state S) iter.Seq2[E, error]
+	// Reduce folds each incoming event into the accumulated state. When nil and E
+	// is assignable to S, incoming events replace the state directly.
+	Reduce func(state S, event E) S
+	// Enabled controls whether the stream connects (defaults to true when unset).
+	Enabled Optional[bool]
+	// Throttle bounds UI notification frequency (defaults to 16ms when unset; <= 0 coalesces via microtask).
+	Throttle Optional[time.Duration]
+	// RefetchMode controls how cached state behaves across reconnects.
 	RefetchMode RefetchMode
 }
 
@@ -34,40 +53,18 @@ type StreamResult[T any] struct {
 	Status string
 }
 
-// UseStream subscribes to an iterator stream of T, emitting the latest yielded value.
-func UseStream[K comparable, T any](
-	key K,
-	fetcher func(ctx context.Context, key K) iter.Seq2[T, error],
-	opts ...StreamOptions,
-) StreamResult[T] {
-	var zero T
-	return UseStreamReduce(key, zero, fetcher, func(_ T, item T) T {
-		return item
-	}, opts...)
-}
-
-// UseStreamReduce subscribes to an iterator stream of E and folds every yielded
-// event into state S via reduce, ensuring throttled updates never drop events.
-func UseStreamReduce[K comparable, E, S any](
-	key K,
-	initial S,
-	fetcher func(ctx context.Context, key K) iter.Seq2[E, error],
-	reduce func(prev S, event E) S,
-	opts ...StreamOptions,
-) StreamResult[S] {
+// UseStream subscribes to a declarative stream configured by spec, optionally
+// loading an initial snapshot via Fetch, opening a state-aware Source iterator,
+// and folding incoming events with Reduce.
+func UseStream[K comparable, E, S any](key K, spec Stream[E, S]) StreamResult[S] {
 	client := UseClient()
 	if client == nil {
-		panic("wind.UseStreamReduce must be used inside a wind.Provider")
+		panic("wind.UseStream must be used inside a wind.Provider")
 	}
 
-	enabled := true
-	var throttle Optional[time.Duration]
-	var refetchMode RefetchMode
-	if len(opts) > 0 {
-		enabled = opts[0].Enabled.UnwrapOr(true)
-		throttle = opts[0].Throttle
-		refetchMode = opts[0].RefetchMode
-	}
+	enabled := spec.Enabled.UnwrapOr(true)
+	throttle := spec.Throttle
+	refetchMode := spec.RefetchMode
 
 	_, setTick := kitex.UseState[uint64](0)
 	tick := func() {
@@ -84,24 +81,48 @@ func UseStreamReduce[K comparable, E, S any](
 	}
 	if !closed && !entry.closed {
 		cfg := streamConfig{
-			initial:     initial,
+			initial:     spec.Initial,
 			throttle:    throttle,
 			refetchMode: refetchMode,
 			run: func(ctx context.Context, prev any, hasPrev bool, mode RefetchMode, emit func(data any, err error) bool) {
-				acc := initial
+				acc := spec.Initial
 				if mode == RefetchAppend && hasPrev {
 					if typed, ok := prev.(S); ok {
 						acc = typed
 					}
 				}
-				seq := fetcher(ctx, key)
-				seq(func(ev E, err error) bool {
-					if err != nil {
-						return emit(acc, err)
+
+				if spec.Fetch != nil {
+					snap, err := spec.Fetch(ctx)
+					if ctx.Err() != nil {
+						return
 					}
-					acc = reduce(acc, ev)
-					return emit(acc, nil)
-				})
+					if err != nil {
+						emit(acc, err)
+						return
+					}
+					acc = snap
+					if !emit(acc, nil) {
+						return
+					}
+				}
+
+				if spec.Source != nil {
+					seq := spec.Source(ctx, acc)
+					if seq != nil {
+						seq(func(ev E, err error) bool {
+							if err != nil {
+								return emit(acc, err)
+							}
+							if spec.Reduce != nil {
+								acc = spec.Reduce(acc, ev)
+							} else if typed, ok := any(ev).(S); ok {
+								acc = typed
+							}
+							return emit(acc, nil)
+						})
+					}
+				}
 			},
 		}
 		entry.refetch = func() {
@@ -148,28 +169,7 @@ func UseStreamReduce[K comparable, E, S any](
 				}
 				entry.refetch = nil
 
-				if !entry.closed {
-					gcTime := client.GcTime
-					if gcTime == 0 {
-						gcTime = 5 * time.Minute
-					}
-					if entry.gcTimer != nil {
-						entry.gcTimer.Stop()
-					}
-					entry.gcTimer = time.AfterFunc(gcTime, func() {
-						client.mu.Lock()
-						if client.closed {
-							client.mu.Unlock()
-							return
-						}
-						entry.mu.Lock()
-						if len(entry.subscribers) == 0 {
-							delete(client.cache, key)
-						}
-						entry.mu.Unlock()
-						client.mu.Unlock()
-					})
-				}
+				client.armGCTimerLocked(entry, key)
 			}
 			entry.mu.Unlock()
 		}
@@ -229,7 +229,7 @@ func UseStreamReduce[K comparable, E, S any](
 	defer entry.mu.Unlock()
 	renderedVersion = entry.version
 
-	data := initial
+	data := spec.Initial
 	if entry.state.hasData {
 		if typed, ok := entry.state.data.(S); ok {
 			data = typed

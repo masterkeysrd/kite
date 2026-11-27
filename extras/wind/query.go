@@ -107,28 +107,7 @@ func Use[K comparable, T any](key K, fetcher func(context.Context, K) *promise.P
 				}
 				entry.refetch = nil
 
-				if !entry.closed {
-					gcTime := client.GcTime
-					if gcTime == 0 {
-						gcTime = 5 * time.Minute
-					}
-					if entry.gcTimer != nil {
-						entry.gcTimer.Stop()
-					}
-					entry.gcTimer = time.AfterFunc(gcTime, func() {
-						client.mu.Lock()
-						if client.closed {
-							client.mu.Unlock()
-							return
-						}
-						entry.mu.Lock()
-						if len(entry.subscribers) == 0 {
-							delete(client.cache, key)
-						}
-						entry.mu.Unlock()
-						client.mu.Unlock()
-					})
-				}
+				client.armGCTimerLocked(entry, key)
 			}
 			entry.mu.Unlock()
 		}

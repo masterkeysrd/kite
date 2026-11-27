@@ -35,6 +35,7 @@ type queryEntry struct {
 	refetch                func()
 	cancel                 context.CancelFunc
 	updatePending          bool
+	manualNotifyPending    bool
 	refetchPending         bool
 	gcTimer                *time.Timer
 	invalidatedDuringFetch bool
@@ -156,6 +157,7 @@ func (c *Client) Close() {
 			entry.throttleTimer = nil
 		}
 		entry.updatePending = false
+		entry.manualNotifyPending = false
 		entry.refetchPending = false
 		entry.invalidatedDuringFetch = false
 		clear(entry.subscribers)
@@ -532,8 +534,210 @@ func (c *Client) InvalidateQueries(key any) {
 					}
 				}, nil)
 			} else {
+				entry.state.updatedAt = time.Time{}
 				entry.mu.Unlock()
 			}
+		}
+	}
+}
+
+func (c *Client) armGCTimerLocked(entry *queryEntry, key any) {
+	if entry.closed {
+		return
+	}
+	gcTime := c.GcTime
+	if gcTime == 0 {
+		gcTime = 5 * time.Minute
+	}
+	if entry.gcTimer != nil {
+		entry.gcTimer.Stop()
+	}
+	var timer *time.Timer
+	timer = time.AfterFunc(gcTime, func() {
+		c.mu.Lock()
+		if c.closed {
+			c.mu.Unlock()
+			return
+		}
+		entry.mu.Lock()
+		if entry.gcTimer == timer && len(entry.subscribers) == 0 {
+			delete(c.cache, key)
+			entry.gcTimer = nil
+		}
+		entry.mu.Unlock()
+		c.mu.Unlock()
+	})
+	entry.gcTimer = timer
+}
+
+func (c *Client) scheduleManualNotify(entry *queryEntry) {
+	entry.mu.Lock()
+	if entry.closed || entry.manualNotifyPending || len(entry.subscribers) == 0 {
+		entry.mu.Unlock()
+		return
+	}
+	entry.manualNotifyPending = true
+	entry.mu.Unlock()
+
+	promise.Resolved(any(nil)).Then(func(any) {
+		entry.mu.Lock()
+		entry.manualNotifyPending = false
+		closed := entry.closed
+		entry.mu.Unlock()
+		if closed || c.isClosed() {
+			return
+		}
+		entry.notifySubscribers()
+	}, nil)
+}
+
+// GetQueryData reads the cached value for key if it exists, has data, and is
+// assignable to T. It never creates a new cache entry on a miss.
+func GetQueryData[K comparable, T any](client *Client, key K) (T, bool) {
+	var zero T
+	if client == nil {
+		return zero, false
+	}
+
+	client.mu.Lock()
+	if client.closed {
+		client.mu.Unlock()
+		return zero, false
+	}
+	entry, ok := client.cache[key]
+	client.mu.Unlock()
+	if !ok || entry == nil {
+		return zero, false
+	}
+
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.closed || !entry.state.hasData {
+		return zero, false
+	}
+	typed, ok := entry.state.data.(T)
+	if !ok {
+		return zero, false
+	}
+	return typed, true
+}
+
+// SetQueryData writes data directly into the cache entry for key and notifies
+// active subscribers with coalescing.
+func SetQueryData[K comparable, T any](client *Client, key K, data T) {
+	if client == nil || client.isClosed() {
+		return
+	}
+
+	entry, closed := client.getOrCreateEntry(key)
+	if closed {
+		return
+	}
+
+	entry.mu.Lock()
+	if entry.closed {
+		entry.mu.Unlock()
+		return
+	}
+	entry.state.data = data
+	entry.state.hasData = true
+	entry.state.err = nil
+	entry.state.status = "success"
+	entry.state.updatedAt = time.Now()
+	entry.version++
+	if len(entry.subscribers) == 0 {
+		client.armGCTimerLocked(entry, key)
+	}
+	entry.mu.Unlock()
+
+	client.scheduleManualNotify(entry)
+}
+
+// UpdateQueryData atomically reads the current cached value for key, computes
+// the next value via updater while holding the entry lock, stores it, and
+// notifies active subscribers with coalescing.
+func UpdateQueryData[K comparable, T any](client *Client, key K, updater func(prev T, exists bool) T) {
+	if client == nil || updater == nil || client.isClosed() {
+		return
+	}
+
+	entry, closed := client.getOrCreateEntry(key)
+	if closed {
+		return
+	}
+
+	entry.mu.Lock()
+	if entry.closed {
+		entry.mu.Unlock()
+		return
+	}
+	var prev T
+	exists := false
+	if entry.state.hasData {
+		if typed, ok := entry.state.data.(T); ok {
+			prev = typed
+			exists = true
+		}
+	}
+	next := updater(prev, exists)
+	entry.state.data = next
+	entry.state.hasData = true
+	entry.state.err = nil
+	entry.state.status = "success"
+	entry.state.updatedAt = time.Now()
+	entry.version++
+	if len(entry.subscribers) == 0 {
+		client.armGCTimerLocked(entry, key)
+	}
+	entry.mu.Unlock()
+
+	client.scheduleManualNotify(entry)
+}
+
+// CancelQueries cancels in-flight queries and streams matching the search key/predicate.
+func (c *Client) CancelQueries(key any) {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return
+	}
+	var entries []*queryEntry
+	for k, entry := range c.cache {
+		if isMatch(k, key) {
+			entries = append(entries, entry)
+		}
+	}
+	c.mu.Unlock()
+
+	for _, entry := range entries {
+		if entry == nil {
+			continue
+		}
+		entry.mu.Lock()
+		if entry.closed {
+			entry.mu.Unlock()
+			continue
+		}
+		if entry.cancel != nil {
+			entry.cancel()
+			entry.cancel = nil
+		}
+		if entry.throttleTimer != nil {
+			entry.throttleTimer.Stop()
+			entry.throttleTimer = nil
+		}
+		entry.updatePending = false
+		entry.invalidatedDuringFetch = false
+		shouldNotify := false
+		if entry.state.isFetching {
+			entry.state.isFetching = false
+			entry.version++
+			shouldNotify = true
+		}
+		entry.mu.Unlock()
+
+		if shouldNotify {
+			entry.notifySubscribers()
 		}
 	}
 }

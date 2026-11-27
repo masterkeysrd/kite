@@ -436,7 +436,7 @@ func TestStream_UnmountCancellation(t *testing.T) {
 	client := NewClient()
 	ctxCancelled := make(chan struct{})
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			select {
 			case <-ctx.Done():
@@ -449,7 +449,9 @@ func TestStream_UnmountCancellation(t *testing.T) {
 	}
 
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
-		res := UseStream("stream_cancel", fetcher)
+		res := UseStream("stream_cancel", Stream[string, string]{
+			Source: source,
+		})
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
 
@@ -479,7 +481,7 @@ func TestStream_Deduplication(t *testing.T) {
 	var streamCount int
 	var mu sync.Mutex
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			mu.Lock()
 			streamCount++
@@ -490,8 +492,8 @@ func TestStream_Deduplication(t *testing.T) {
 
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
 		return kitex.Box(kitex.BoxProps{},
-			ChildStreamComp.Props(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
-			ChildStreamComp.Props(ChildStreamProps{Key: "same_key", Fetcher: fetcher}),
+			ChildStreamComp.Props(ChildStreamProps{Key: "same_key", Source: source}),
+			ChildStreamComp.Props(ChildStreamProps{Key: "same_key", Source: source}),
 		)
 	})
 
@@ -509,12 +511,14 @@ func TestStream_Deduplication(t *testing.T) {
 }
 
 type ChildStreamProps struct {
-	Key     string
-	Fetcher func(context.Context, string) iter.Seq2[string, error]
+	Key    string
+	Source func(context.Context, string) iter.Seq2[string, error]
 }
 
 var ChildStreamComp = kitex.FC("ChildStreamComp", func(props ChildStreamProps) kitex.Node {
-	res := UseStream(props.Key, props.Fetcher)
+	res := UseStream(props.Key, Stream[string, string]{
+		Source: props.Source,
+	})
 	return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 })
 
@@ -531,7 +535,7 @@ func TestStream_Coalescing(t *testing.T) {
 
 	client := NewClient()
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			// Yield 10 values in a loop as fast as possible
 			for i := range 10 {
@@ -545,7 +549,9 @@ func TestStream_Coalescing(t *testing.T) {
 	var lastData string
 
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
-		res := UseStream("coalesce_key", fetcher)
+		res := UseStream("coalesce_key", Stream[string, string]{
+			Source: source,
+		})
 		mu.Lock()
 		renderCount++
 		lastData = res.Data
@@ -593,7 +599,7 @@ func TestStream_InvalidationCoalescing(t *testing.T) {
 	var startCount int
 	var mu sync.Mutex
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			mu.Lock()
 			startCount++
@@ -603,7 +609,9 @@ func TestStream_InvalidationCoalescing(t *testing.T) {
 	}
 
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
-		res := UseStream("invalidate_key", fetcher)
+		res := UseStream("invalidate_key", Stream[string, string]{
+			Source: source,
+		})
 		return kitex.Box(kitex.BoxProps{}, kitex.Text(res.Data))
 	})
 
@@ -653,7 +661,7 @@ func TestStream_ManualReconnection(t *testing.T) {
 
 	starts := startCount.get
 
-	fetcher := func(ctx context.Context, key string) iter.Seq2[string, error] {
+	source := func(ctx context.Context, _ string) iter.Seq2[string, error] {
 		return func(yield func(string, error) bool) {
 			startCount.inc()
 			yield("val", nil)
@@ -662,7 +670,9 @@ func TestStream_ManualReconnection(t *testing.T) {
 
 	var capturedResult capture[StreamResult[string]]
 	app := kitex.FC("App", func(_ kitex.NoProps) kitex.Node {
-		res := UseStream("reconnect_key", fetcher)
+		res := UseStream("reconnect_key", Stream[string, string]{
+			Source: source,
+		})
 		capturedResult.set(res)
 		return kitex.Box(kitex.BoxProps{})
 	})
@@ -1002,4 +1012,317 @@ func TestUse_SingleWorkerSlot_NoDeadlock(t *testing.T) {
 	if bgCalls != 1 {
 		t.Fatalf("expected exactly 1 worker-pool RunBackground call, got %d", bgCalls)
 	}
+}
+
+func TestSetGetUpdateQueryData(t *testing.T) {
+	t.Run("GetQueryData missing, present, wrong type, and nil/closed client", func(t *testing.T) {
+		if got, ok := GetQueryData[string, int](nil, "k"); ok || got != 0 {
+			t.Fatalf("expected (0, false) for nil client, got (%d, %v)", got, ok)
+		}
+
+		client := NewClient()
+		t.Cleanup(client.Close)
+
+		if got, ok := GetQueryData[string, string](client, "missing"); ok || got != "" {
+			t.Fatalf("expected (\"\", false) for missing key, got (%q, %v)", got, ok)
+		}
+		client.mu.Lock()
+		_, created := client.cache["missing"]
+		client.mu.Unlock()
+		if created {
+			t.Fatal("GetQueryData must not create a cache entry for missing key")
+		}
+
+		SetQueryData(client, "typed_key", "hello")
+		if got, ok := GetQueryData[string, string](client, "typed_key"); !ok || got != "hello" {
+			t.Fatalf("expected (\"hello\", true), got (%q, %v)", got, ok)
+		}
+		if got, ok := GetQueryData[string, int](client, "typed_key"); ok || got != 0 {
+			t.Fatalf("expected (0, false) for mismatched type, got (%d, %v)", got, ok)
+		}
+
+		client.Close()
+		if got, ok := GetQueryData[string, string](client, "typed_key"); ok || got != "" {
+			t.Fatalf("expected (\"\", false) after client.Close(), got (%q, %v)", got, ok)
+		}
+	})
+
+	t.Run("SetQueryData seeds before mount, updates live subscriber, and GCs unsubscribed key", func(t *testing.T) {
+		doc := dom.NewDocument()
+		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+		doc.AppendChild(container)
+		defer kitex.Render(nil, container)
+
+		client := NewClient()
+		client.GcTime = 20 * time.Millisecond
+		t.Cleanup(client.Close)
+
+		// Unsubscribed key gets GC'd after GcTime
+		SetQueryData(client, "unsub_seed", "ephemeral")
+		if got, ok := GetQueryData[string, string](client, "unsub_seed"); !ok || got != "ephemeral" {
+			t.Fatalf("expected seeded value immediately, got (%q, %v)", got, ok)
+		}
+		if !waitFor(t, func() bool {
+			_, ok := GetQueryData[string, string](client, "unsub_seed")
+			return !ok
+		}) {
+			t.Fatal("expected unsubscribed seeded entry to be garbage collected after GcTime")
+		}
+
+		// Seed before mount
+		SetQueryData(client, "seeded_mount", "initial_seed")
+
+		var fetchCalls counter
+		fetcher := func(ctx context.Context, key string) *promise.Promise[string] {
+			fetchCalls.inc()
+			return promise.Resolved("from_network")
+		}
+
+		var observed recorder[Result[string]]
+		app := kitex.FC("SeededApp", func(_ kitex.NoProps) kitex.Node {
+			r := Use("seeded_mount", fetcher, Options{StaleTime: time.Minute})
+			observed.add(r)
+			return kitex.Box(kitex.BoxProps{}, kitex.Text(r.Data))
+		})
+
+		kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+		first := observed.all()[0]
+		if first.Data != "initial_seed" || first.IsLoading {
+			t.Fatalf("expected seeded data on first render without loading, got %+v", first)
+		}
+		if fetchCalls.get() != 0 {
+			t.Fatalf("expected 0 fetches within StaleTime for seeded entry, got %d", fetchCalls.get())
+		}
+
+		// Live subscriber update
+		SetQueryData(client, "seeded_mount", "live_override")
+		if !waitFor(t, func() bool {
+			vals := observed.all()
+			return len(vals) > 0 && vals[len(vals)-1].Data == "live_override"
+		}) {
+			t.Fatalf("expected live subscriber to render 'live_override', observed=%+v", observed.all())
+		}
+	})
+
+	t.Run("SetQueryData coalesces burst notifications under scheduler", func(t *testing.T) {
+		sched := &testScheduler{}
+		promise.SetScheduler(sched)
+		defer promise.ClearSchedulerIf(sched)
+
+		doc := dom.NewDocument()
+		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+		doc.AppendChild(container)
+		defer kitex.Render(nil, container)
+
+		client := NewClient()
+		t.Cleanup(client.Close)
+
+		SetQueryData(client, "burst_seed", 0)
+		var renders counter
+		var latest capture[int]
+		app := kitex.FC("BurstSeedApp", func(_ kitex.NoProps) kitex.Node {
+			r := Use("burst_seed", func(ctx context.Context, k string) *promise.Promise[int] {
+				return promise.Resolved(0)
+			}, Options{StaleTime: time.Minute})
+			renders.inc()
+			latest.set(r.Data)
+			return kitex.Box(kitex.BoxProps{})
+		})
+
+		kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+		rendersBefore := renders.get()
+
+		for i := 1; i <= 100; i++ {
+			SetQueryData(client, "burst_seed", i)
+		}
+		sched.Flush()
+
+		if latest.get() != 100 {
+			t.Fatalf("expected latest data 100, got %d", latest.get())
+		}
+		if delta := renders.get() - rendersBefore; delta != 1 {
+			t.Fatalf("expected 100 SetQueryData calls in one tick to coalesce into 1 render, got %d renders", delta)
+		}
+	})
+
+	t.Run("UpdateQueryData optimistic update and 50 concurrent atomic updates", func(t *testing.T) {
+		client := NewClient()
+		t.Cleanup(client.Close)
+
+		// Update missing key -> exists == false
+		UpdateQueryData(client, "counter_key", func(prev int, exists bool) int {
+			if exists {
+				t.Fatalf("expected exists=false on missing key, got prev=%d", prev)
+			}
+			return 10
+		})
+		if got, ok := GetQueryData[string, int](client, "counter_key"); !ok || got != 10 {
+			t.Fatalf("expected (10, true), got (%d, %v)", got, ok)
+		}
+
+		// 50 concurrent goroutines atomically incrementing
+		const workers = 50
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for range workers {
+			go func() {
+				defer wg.Done()
+				UpdateQueryData(client, "counter_key", func(prev int, exists bool) int {
+					if !exists {
+						t.Errorf("expected exists=true")
+					}
+					return prev + 1
+				})
+			}()
+		}
+		wg.Wait()
+
+		if got, ok := GetQueryData[string, int](client, "counter_key"); !ok || got != 10+workers {
+			t.Fatalf("expected atomic sum %d, got (%d, %v)", 10+workers, got, ok)
+		}
+	})
+}
+
+func TestCancelQueries(t *testing.T) {
+	t.Run("cancels active query and active stream by exact and prefix key", func(t *testing.T) {
+		doc := dom.NewDocument()
+		container := kitex.Div(kitex.BoxProps{}).Instantiate(doc)[0].(dom.Element)
+		doc.AppendChild(container)
+		defer kitex.Render(nil, container)
+
+		client := NewClient()
+		t.Cleanup(client.Close)
+
+		queryStarted := make(chan struct{})
+		queryCancelled := make(chan struct{})
+		streamStarted := make(chan struct{})
+		streamCancelled := make(chan struct{})
+		otherStarted := make(chan struct{})
+		otherRelease := make(chan struct{})
+
+		queryKey := [2]string{"agent", "query"}
+		streamKey := [2]string{"agent", "stream"}
+		otherKey := [2]string{"other", "query"}
+
+		var queryRes capture[Result[string]]
+		var streamRes capture[StreamResult[string]]
+		var otherRes capture[Result[string]]
+
+		app := kitex.FC("CancelApp", func(_ kitex.NoProps) kitex.Node {
+			q := Use(queryKey, func(ctx context.Context, _ [2]string) *promise.Promise[string] {
+				return promise.New(func(schedCtx context.Context) (string, error) {
+					close(queryStarted)
+					select {
+					case <-ctx.Done():
+						close(queryCancelled)
+						return "", ctx.Err()
+					case <-schedCtx.Done():
+						return "", schedCtx.Err()
+					}
+				})
+			})
+			queryRes.set(q)
+
+			s := UseStream(streamKey, Stream[string, string]{
+				Source: func(ctx context.Context, _ string) iter.Seq2[string, error] {
+					return func(yield func(string, error) bool) {
+						yield("chunk1", nil)
+						close(streamStarted)
+						<-ctx.Done()
+						close(streamCancelled)
+					}
+				},
+			})
+			streamRes.set(s)
+
+			o := Use(otherKey, func(ctx context.Context, _ [2]string) *promise.Promise[string] {
+				return promise.New(func(schedCtx context.Context) (string, error) {
+					close(otherStarted)
+					select {
+					case <-otherRelease:
+						return "other_ok", nil
+					case <-ctx.Done():
+						return "", ctx.Err()
+					case <-schedCtx.Done():
+						return "", schedCtx.Err()
+					}
+				})
+			})
+			otherRes.set(o)
+
+			return kitex.Box(kitex.BoxProps{})
+		})
+
+		kitex.Render(Provider(ProviderProps{Client: client}, app()), container)
+
+		<-queryStarted
+		<-streamStarted
+		<-otherStarted
+		if !waitFor(t, func() bool {
+			return queryRes.get().IsFetching && streamRes.get().IsFetching && streamRes.get().Data == "chunk1" && otherRes.get().IsFetching
+		}) {
+			t.Fatalf("expected all ops fetching before cancel; q=%+v s=%+v o=%+v", queryRes.get(), streamRes.get(), otherRes.get())
+		}
+
+		// Cancel by prefix []string{"agent"} -> cancels both queryKey and streamKey, leaves otherKey running
+		client.CancelQueries([]string{"agent"})
+
+		select {
+		case <-queryCancelled:
+		case <-time.After(time.Second):
+			t.Fatal("expected query context to be cancelled")
+		}
+		select {
+		case <-streamCancelled:
+		case <-time.After(time.Second):
+			t.Fatal("expected stream context to be cancelled")
+		}
+
+		if !waitFor(t, func() bool {
+			q := queryRes.get()
+			s := streamRes.get()
+			return !q.IsFetching && !s.IsFetching && s.Status == "closed"
+		}) {
+			t.Fatalf("expected cancelled entries to stop fetching; q=%+v s=%+v", queryRes.get(), streamRes.get())
+		}
+
+		// otherKey must still complete normally
+		close(otherRelease)
+		if !waitFor(t, func() bool { return otherRes.get().Data == "other_ok" && !otherRes.get().IsFetching }) {
+			t.Fatalf("expected unmatched query to remain active and resolve, got %+v", otherRes.get())
+		}
+
+		// Exact key cancel on a fresh active query
+		exactStarted := make(chan struct{})
+		exactCancelled := make(chan struct{})
+		var exactRes capture[Result[string]]
+		exactApp := kitex.FC("ExactCancelApp", func(_ kitex.NoProps) kitex.Node {
+			r := Use("exact_cancel", func(ctx context.Context, _ string) *promise.Promise[string] {
+				return promise.New(func(schedCtx context.Context) (string, error) {
+					close(exactStarted)
+					select {
+					case <-ctx.Done():
+						close(exactCancelled)
+						return "", ctx.Err()
+					case <-schedCtx.Done():
+						return "", schedCtx.Err()
+					}
+				})
+			})
+			exactRes.set(r)
+			return kitex.Box(kitex.BoxProps{})
+		})
+		kitex.Render(Provider(ProviderProps{Client: client}, exactApp()), container)
+		<-exactStarted
+		client.CancelQueries("exact_cancel")
+		select {
+		case <-exactCancelled:
+		case <-time.After(time.Second):
+			t.Fatal("expected exact key query to cancel")
+		}
+		if !waitFor(t, func() bool { return !exactRes.get().IsFetching }) {
+			t.Fatalf("expected exact key IsFetching=false, got %+v", exactRes.get())
+		}
+	})
 }
