@@ -876,3 +876,14 @@ func UseProgressBar() func(state terminal.ProgressBarState, percentage int) {
 		}
 	}, nil)
 }
+
+// UseProgramResume returns a memoized callback function to register or clear
+// the command used by a supporting terminal to resume the process (OSC 7577).
+func UseProgramResume() func(resume *terminal.ProgramResume) {
+	getTerm := UseTerminal()
+	return UseCallback(func(resume *terminal.ProgramResume) {
+		if term := getTerm(); term != nil {
+			term.SetProgramResume(resume)
+		}
+	}, nil)
+}

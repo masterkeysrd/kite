@@ -1342,13 +1342,15 @@ func TestUseViewportSize(t *testing.T) {
 
 type mockTerminal struct {
 	terminal.Terminal
-	title string
+	title  string
+	resume *terminal.ProgramResume
 }
 
-func (m *mockTerminal) SetTitle(title string)         { m.title = title }
-func (m *mockTerminal) Scheduler() terminal.Scheduler { return testScheduler }
-func (m *mockTerminal) OnClose(fn func())             {}
-func (m *mockTerminal) IsClosed() bool                { return false }
+func (m *mockTerminal) SetTitle(title string)                           { m.title = title }
+func (m *mockTerminal) SetProgramResume(resume *terminal.ProgramResume) { m.resume = resume }
+func (m *mockTerminal) Scheduler() terminal.Scheduler                   { return testScheduler }
+func (m *mockTerminal) OnClose(fn func())                               {}
+func (m *mockTerminal) IsClosed() bool                                  { return false }
 
 func TestUseTerminal(t *testing.T) {
 	doc := dom.NewDocument()
@@ -1387,6 +1389,7 @@ type mockTitleBellTerminal struct {
 	bell            int
 	progressState   terminal.ProgressBarState
 	progressPercent int
+	resume          *terminal.ProgramResume
 }
 
 func (m *mockTitleBellTerminal) SetTitle(title string) { m.title = title }
@@ -1395,9 +1398,10 @@ func (m *mockTitleBellTerminal) SetProgressBar(state terminal.ProgressBarState, 
 	m.progressState = state
 	m.progressPercent = percentage
 }
-func (m *mockTitleBellTerminal) Scheduler() terminal.Scheduler { return testScheduler }
-func (m *mockTitleBellTerminal) OnClose(fn func())             {}
-func (m *mockTitleBellTerminal) IsClosed() bool                { return false }
+func (m *mockTitleBellTerminal) SetProgramResume(resume *terminal.ProgramResume) { m.resume = resume }
+func (m *mockTitleBellTerminal) Scheduler() terminal.Scheduler                   { return testScheduler }
+func (m *mockTitleBellTerminal) OnClose(fn func())                               {}
+func (m *mockTitleBellTerminal) IsClosed() bool                                  { return false }
 
 func TestUseTitleAndUseBell(t *testing.T) {
 	doc := dom.NewDocument()
@@ -1641,4 +1645,40 @@ func TestUseAsyncEffect_NilEffect(t *testing.T) {
 	testScheduler.flushMacrotasks()
 	Render(nil, container)
 	testScheduler.flushMacrotasks()
+}
+
+func TestUseProgramResume(t *testing.T) {
+	doc := dom.NewDocument()
+	mockTerm := &mockTerminal{}
+	doc.SetTerminal(mockTerm)
+
+	container := Div(BoxProps{}).Instantiate(doc)[0].(dom.Element)
+	defer Render(nil, container)
+
+	var setResume1 func(*terminal.ProgramResume)
+	var setResume2 func(*terminal.ProgramResume)
+
+	comp := SimpleFC("ResumeComp", func() Node {
+		setResume1 = UseProgramResume()
+		setResume2 = UseProgramResume()
+		return Box(BoxProps{})
+	})
+
+	Render(comp(), container)
+	testScheduler.flushMacrotasks()
+
+	if reflect.ValueOf(setResume1).Pointer() != reflect.ValueOf(setResume2).Pointer() {
+		t.Fatal("expected UseProgramResume to return a memoized callback")
+	}
+
+	want := &terminal.ProgramResume{Args: []string{"kite-app", "--resume"}, Dir: "/tmp"}
+	setResume1(want)
+	if mockTerm.resume == nil || len(mockTerm.resume.Args) != 2 || mockTerm.resume.Dir != "/tmp" {
+		t.Fatalf("expected mockTerm.resume to be set, got %+v", mockTerm.resume)
+	}
+
+	setResume1(nil)
+	if mockTerm.resume != nil {
+		t.Fatalf("expected mockTerm.resume to be cleared, got %+v", mockTerm.resume)
+	}
 }
